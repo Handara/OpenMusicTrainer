@@ -13,8 +13,6 @@ FetchContent_MakeAvailable(raylib)
 add_executable(OpenMusicTrainer main.c)
 target_link_libraries(OpenMusicTrainer PUBLIC raylib)
 
-
-
 include(CTest)
 enable_testing()
 
