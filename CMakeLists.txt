@@ -84,6 +84,7 @@ add_library(omt_core STATIC
     src/core/chart.cpp
     src/core/files.cpp
     src/core/music.cpp
+    src/core/notation.cpp
     src/core/paths.cpp
     src/core/pitch.cpp
     src/core/settings.cpp
@@ -128,6 +129,7 @@ if(BUILD_TESTING)
         tests/main.cpp
         tests/chart_test.cpp
         tests/music_test.cpp
+        tests/notation_test.cpp
         tests/pitch_test.cpp
         tests/settings_test.cpp
         tests/synth_test.cpp
