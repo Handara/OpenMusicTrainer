@@ -7,7 +7,7 @@
 
 namespace fs = std::filesystem;
 
-std::vector<SongEntry> scanSongs(const std::string& songsDir){
+std::vector<SongEntry> scanSongs(const std::string& songsDir, bool builtIn){
     std::vector<SongEntry> songs;
     std::error_code ec; // a missing songs folder just means an empty list, not a crash
     for (const fs::directory_entry& entry : fs::directory_iterator(songsDir, ec)){
@@ -15,7 +15,9 @@ std::vector<SongEntry> scanSongs(const std::string& songsDir){
         if (!entry.is_directory() || !fs::exists(chartPath)) continue;
 
         SongEntry song;
+        song.folder = entry.path().string();
         song.chartPath = chartPath.string();
+        song.builtIn = builtIn;
         song.title = entry.path().filename().string();
 
         // Loads the whole chart just for its title: fine for small libraries, revisit if scanning gets slow

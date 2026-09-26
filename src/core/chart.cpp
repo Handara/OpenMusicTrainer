@@ -1,11 +1,12 @@
 #include "core/chart.h"
 
 #include <algorithm>
+#include <charconv>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 
 const int SUPPORTED_CHART_VERSION = 1;
-const int MAX_FRET = 24;
 
 // True if only whitespace is left on the line. Clears a failed read first, so that
 // leftover text after it (e.g. "abc" where a number was expected) is still detected.
@@ -141,6 +142,66 @@ bool loadChart(const std::string& path, Chart& out, std::string& error){
             return chartError("track '" + t.name + "': note at tick " + std::to_string(t.notes.back().tick)
                               + " is after 'end'");
         }
+    }
+    return true;
+}
+
+// Shortest text that reads back as exactly the same double: 0.1 -> "0.1", 120.0 -> "120"
+static std::string formatNumber(double value){
+    char buffer[32];
+    std::to_chars_result result = std::to_chars(buffer, buffer + sizeof(buffer), value);
+    return std::string(buffer, result.ptr);
+}
+
+static const char* trackTypeName(InstrumentType type){
+    switch (type){
+        case InstrumentType::Guitar: return "guitar";
+        case InstrumentType::Bass: return "bass";
+    }
+    return "guitar";
+}
+
+bool saveChart(const std::string& path, const Chart& chart, std::string& error){
+    std::ostringstream out;
+    out << "# OpenMusicTrainer chart\n";
+    out << "version " << SUPPORTED_CHART_VERSION << "\n";
+    if (!chart.title.empty()) out << "title " << chart.title << "\n";
+    if (!chart.artist.empty()) out << "artist " << chart.artist << "\n";
+    if (!chart.audioFile.empty()) out << "audio " << chart.audioFile << "\n";
+    out << "resolution " << chart.resolution << "\n";
+    out << "offset " << formatNumber(chart.offset) << "\n";
+    out << "end " << chart.endTick << "\n\n";
+
+    out << "# tempo <tick> <bpm>\n";
+    for (const TempoChange& tempo : chart.tempoMap) out << "tempo " << tempo.tick << " " << formatNumber(tempo.bpm) << "\n";
+
+    for (const FrettedTrack& track : chart.frettedTracks){
+        out << "\ntrack " << trackTypeName(track.type) << " " << track.name << "\n";
+        out << "tuning";
+        for (int pitch : track.tuning) out << " " << pitch;
+        out << "\n# n <tick> <string> <fret> [duration]\n";
+        for (const FrettedNote& note : track.notes){
+            out << "n " << note.tick << " " << note.stringIndex << " " << note.fret;
+            if (note.duration > 0) out << " " << note.duration;
+            out << "\n";
+        }
+    }
+
+    // Write everything to a temporary file first, then swap it in with one rename
+    std::string tempPath = path + ".tmp";
+    {
+        std::ofstream file(tempPath, std::ios::binary); // binary: same "\n" line endings on every OS
+        file << out.str();
+        if (!file){
+            error = tempPath + ": could not write file";
+            return false;
+        }
+    } // closing the file here flushes it before the rename
+    std::error_code ec;
+    std::filesystem::rename(tempPath, path, ec);
+    if (ec){
+        error = path + ": could not replace file: " + ec.message();
+        return false;
     }
     return true;
 }

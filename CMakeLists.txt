@@ -31,6 +31,12 @@ FetchContent_Declare(
     GIT_SHALLOW    TRUE
 )
 FetchContent_Declare(
+    doctest
+    GIT_REPOSITORY https://github.com/doctest/doctest.git
+    GIT_TAG        v2.5.3
+    GIT_SHALLOW    TRUE
+)
+FetchContent_Declare(
     rlimgui
     GIT_REPOSITORY https://github.com/raylib-extras/rlImGui.git
     GIT_TAG        Raylib_5_5
@@ -47,7 +53,7 @@ set(MINIAUDIO_NO_LIBVORBIS ON CACHE BOOL "" FORCE)
 set(MINIAUDIO_NO_LIBOPUS ON CACHE BOOL "" FORCE)
 set(MINIAUDIO_NO_EXTRA_NODES ON CACHE BOOL "" FORCE)
 
-FetchContent_MakeAvailable(raylib miniaudio imgui rlimgui)
+FetchContent_MakeAvailable(raylib miniaudio imgui rlimgui doctest)
 
 # Dear ImGui and rlImGui ship no CMake build of their own, so we compile their sources as one library
 add_library(imgui STATIC
@@ -56,9 +62,10 @@ add_library(imgui STATIC
     ${imgui_SOURCE_DIR}/imgui_tables.cpp
     ${imgui_SOURCE_DIR}/imgui_widgets.cpp
     ${imgui_SOURCE_DIR}/imgui_demo.cpp # ImGui::ShowDemoWindow(): every widget with its source, handy for learning
+    ${imgui_SOURCE_DIR}/misc/cpp/imgui_stdlib.cpp # ImGui::InputText for std::string
     ${rlimgui_SOURCE_DIR}/rlImGui.cpp
 )
-target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR} ${rlimgui_SOURCE_DIR})
+target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/misc/cpp ${rlimgui_SOURCE_DIR})
 target_link_libraries(imgui PUBLIC raylib)
 
 # Warnings for our own code only (third-party libraries keep their own settings)
@@ -76,6 +83,7 @@ endfunction()
 add_library(omt_core STATIC
     src/core/chart.cpp
     src/core/music.cpp
+    src/core/paths.cpp
     src/core/pitch.cpp
     src/core/songlibrary.cpp
 )
@@ -87,6 +95,7 @@ add_executable(OpenMusicTrainer
     src/main.cpp
     src/audio/audio.cpp
     src/ui/ui.cpp
+    src/screens/editor.cpp
     src/screens/gameplay.cpp
     src/screens/menus.cpp
     src/screens/tuner.cpp
@@ -107,8 +116,21 @@ add_custom_target(copy_resources ALL
 )
 add_dependencies(OpenMusicTrainer copy_resources)
 
+# Tests: build, then run `ctest --test-dir build --output-on-failure`.
+# They link only omt_core, which also proves the core works without the game around it.
 include(CTest)
-enable_testing()
+if(BUILD_TESTING)
+    add_executable(omt_tests
+        tests/main.cpp
+        tests/chart_test.cpp
+        tests/music_test.cpp
+        tests/pitch_test.cpp
+    )
+    target_link_libraries(omt_tests PRIVATE omt_core doctest::doctest)
+    target_compile_definitions(omt_tests PRIVATE OMT_RESOURCES_DIR="${CMAKE_SOURCE_DIR}/resources/")
+    enable_warnings(omt_tests)
+    add_test(NAME core_tests COMMAND omt_tests)
+endif()
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})

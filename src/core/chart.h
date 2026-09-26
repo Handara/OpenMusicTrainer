@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 
+const int MAX_FRET = 24;
+
 // Song data as stored in a .chart file. Read-only once loaded: gameplay state lives elsewhere.
 // All musical time is in ticks, `resolution` ticks per beat.
 
@@ -42,5 +44,9 @@ struct Chart {
 
 // Reads and validates a .chart file. On failure returns false and sets `error` to "path:line: message".
 bool loadChart(const std::string& path, Chart& out, std::string& error);
+
+// Writes a chart in the same format loadChart reads. The file is replaced only once the new one is fully
+// written, so a crash or full disk mid-save never leaves a half-written chart behind.
+bool saveChart(const std::string& path, const Chart& chart, std::string& error);
 
 double tickToSeconds(const Chart& chart, int tick);

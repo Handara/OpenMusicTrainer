@@ -12,11 +12,8 @@ MainMenuChoice mainMenuScreen(const std::string& error){
     menuTitle("OpenMusicTrainer");
     if (menuButton("Play")) choice = MainMenuChoice::Play;
     ImGui::SetItemDefaultFocus(); // keyboard navigation starts on Play
+    if (menuButton("Editor")) choice = MainMenuChoice::Editor;
     if (menuButton("Tuner")) choice = MainMenuChoice::Tuner;
-
-    ImGui::BeginDisabled(); // not built yet
-    menuButton("Editor (coming soon)");
-    ImGui::EndDisabled();
 
     if (menuButton("Quit")) choice = MainMenuChoice::Quit;
     if (!error.empty()){
@@ -27,15 +24,17 @@ MainMenuChoice mainMenuScreen(const std::string& error){
     return choice;
 }
 
-SongSelectChoice songSelectScreen(const std::vector<SongEntry>& songs, const std::string& error){
+SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry>& songs, const std::string& error,
+                                  bool forEditing){
     SongSelectChoice choice;
-    beginMenu("SongSelect");
-    menuTitle("Select a song");
+    beginMenu(title);
+    menuTitle(title);
 
     if (songs.empty()) centeredText("No songs found");
     for (int i = 0; i < (int)songs.size(); i++){
         const SongEntry& song = songs[i];
         std::string label = song.artist.empty() ? song.title : song.title + "  -  " + song.artist;
+        if (forEditing && song.builtIn) label += "  (built-in)";
 
         ImGui::PushID(i); // two songs with the same title must still be different widgets
         if (!song.error.empty()){
@@ -55,6 +54,7 @@ SongSelectChoice songSelectScreen(const std::vector<SongEntry>& songs, const std
         centeredErrorText(error);
     }
     ImGui::Dummy(ImVec2(0, 20));
+    if (menuButton("Open data folder")) choice.openDataFolder = true;
     if (menuButton("Back")) choice.back = true;
     ImGui::End();
     return choice;
