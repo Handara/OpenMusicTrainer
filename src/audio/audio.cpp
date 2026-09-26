@@ -24,6 +24,8 @@ const ma_uint32 CAPTURE_BUFFER_FRAMES = 16384;
 // Preview sounds (e.g. the editor playing a note you place). Several can ring at once, like real strings.
 const int VOICE_COUNT = 8;
 const float PREVIEW_LENGTH_S = 1.5f;     // built-in sounds
+const float CLICK_LENGTH_S = 0.08f;
+const float CLICK_VOLUME = 0.8f;
 const float MAX_CUSTOM_SOUND_S = 3.0f;   // longer sound files are cut (and faded) here
 const char* const SOUND_FILE_EXTENSIONS[] = { ".wav", ".mp3", ".flac" }; // what miniaudio decodes out of the box
 const float SILENCE_LEVEL = 0.001f;      // -60 dB: quieter than this at the start of a sound file counts as silence
@@ -59,6 +61,11 @@ static struct {
     // When looping, smoothTime keeps counting past the loop point; songPosition() wraps it on return.
     double smoothTime = 0.0;
     double lastWallTime = 0.0;
+
+    // The engine's own clock, smoothed the same way, for things that run without a song (metronome, drills)
+    double engineSmoothTime = 0.0;
+    double engineLastWallTime = 0.0;
+    bool engineClockStarted = false;
 
     // Input (microphone / instrument). The audio thread writes into captureBuffer, the main thread reads from it.
     ma_device captureDevice;
@@ -124,6 +131,7 @@ static bool startEngine(const std::string& outputDevice, std::string& error){
         return false;
     }
     audio.engineReady = true;
+    audio.engineClockStarted = false; // a new engine counts from zero again
     return true;
 }
 
@@ -444,11 +452,9 @@ void stopPreviews(){
     for (Voice& voice : audio.voices) releaseVoice(voice);
 }
 
-void playPreview(float frequency, float delaySeconds){
-    if (!audio.engineReady) return;
-
-    // A free voice, or else the one that has been sounding longest. Comparing start times on the audio
-    // clock matters: a note scheduled for later has the latest start, so it's never cut before it plays.
+// A free voice, or else the one that has been sounding longest. Comparing start times on the audio clock
+// matters: a sound scheduled for later has the latest start, so it's never cut before it plays.
+static Voice& takeVoice(){
     Voice* voice = &audio.voices[0];
     for (Voice& candidate : audio.voices){
         if (!voiceBusy(candidate)){
@@ -458,40 +464,82 @@ void playPreview(float frequency, float delaySeconds){
         if (candidate.startFrame < voice->startFrame) voice = &candidate;
     }
     releaseVoice(*voice);
+    return *voice;
+}
+
+// Plays samples through a voice from `startFrame` on the engine clock (or now, if that has passed).
+// Scheduled on the engine's own clock, counted in samples: the sound starts on exactly the right sample,
+// however late this frame runs. Starting it from the game loop instead would be up to a frame late.
+static void startVoice(Voice& voice, const float* data, size_t frames, float pitchRatio, float volume, ma_uint64 startFrame){
+    ma_uint32 sampleRate = ma_engine_get_sample_rate(&audio.engine);
+    ma_audio_buffer_config config = ma_audio_buffer_config_init(ma_format_f32, 1, frames, data, nullptr);
+    config.sampleRate = sampleRate;
+    if (ma_audio_buffer_init(&config, &voice.buffer) != MA_SUCCESS) return;
+    if (ma_sound_init_from_data_source(&audio.engine, &voice.buffer, MA_SOUND_FLAG_NO_SPATIALIZATION, nullptr, &voice.sound) != MA_SUCCESS){
+        ma_audio_buffer_uninit(&voice.buffer);
+        return;
+    }
+    voice.ready = true;
+    if (pitchRatio != 1.0f) ma_sound_set_pitch(&voice.sound, pitchRatio); // 2.0 = an octave up (and twice as short)
+    ma_sound_set_volume(&voice.sound, volume);
+    ma_uint64 now = ma_engine_get_time_in_pcm_frames(&audio.engine);
+    voice.startFrame = std::max(startFrame, now);
+    if (voice.startFrame > now) ma_sound_set_start_time_in_pcm_frames(&voice.sound, voice.startFrame);
+    ma_sound_start(&voice.sound);
+}
+
+void playPreview(float frequency, float delaySeconds){
+    if (!audio.engineReady) return;
+    Voice& voice = takeVoice();
 
     // Built-in sounds are rendered at the engine's own sample rate and pitch, so nothing is resampled.
     // A custom sound plays from the shared decoded copy, re-pitched to the note if it has a pitch.
     ma_uint32 sampleRate = ma_engine_get_sample_rate(&audio.engine);
     const float* data;
     size_t frames;
+    float pitchRatio = 1.0f;
     if (audio.customSound.empty()){
-        voice->samples.resize((size_t)(PREVIEW_LENGTH_S * sampleRate)); // keeps its memory between notes: no allocation after the first
-        renderBuiltInSound(audio.previewSoundName.c_str(), voice->samples.data(), (int)voice->samples.size(), frequency,
+        voice.samples.resize((size_t)(PREVIEW_LENGTH_S * sampleRate)); // keeps its memory between notes: no allocation after the first
+        renderBuiltInSound(audio.previewSoundName.c_str(), voice.samples.data(), (int)voice.samples.size(), frequency,
                            (int)sampleRate, (unsigned)audio.previewCount);
-        data = voice->samples.data();
-        frames = voice->samples.size();
+        data = voice.samples.data();
+        frames = voice.samples.size();
     } else {
         data = audio.customSound.data();
         frames = audio.customSound.size();
+        if (audio.customSoundRoot > 0.0f) pitchRatio = frequency / audio.customSoundRoot;
     }
-
-    ma_audio_buffer_config config = ma_audio_buffer_config_init(ma_format_f32, 1, frames, data, nullptr);
-    config.sampleRate = sampleRate;
-    if (ma_audio_buffer_init(&config, &voice->buffer) != MA_SUCCESS) return;
-    if (ma_sound_init_from_data_source(&audio.engine, &voice->buffer, MA_SOUND_FLAG_NO_SPATIALIZATION, nullptr, &voice->sound) != MA_SUCCESS){
-        ma_audio_buffer_uninit(&voice->buffer);
-        return;
-    }
-    voice->ready = true;
     audio.previewCount++;
-    if (!audio.customSound.empty() && audio.customSoundRoot > 0.0f){
-        ma_sound_set_pitch(&voice->sound, frequency / audio.customSoundRoot); // 2.0 = an octave up (and twice as short)
-    }
-    ma_sound_set_volume(&voice->sound, audio.previewVolume);
+    ma_uint64 startFrame = ma_engine_get_time_in_pcm_frames(&audio.engine) + (ma_uint64)(delaySeconds * sampleRate);
+    startVoice(voice, data, frames, pitchRatio, audio.previewVolume, startFrame);
+}
 
-    // Scheduled on the audio engine's own clock, counted in samples: the note starts on exactly the right
-    // sample, however late this frame runs. Starting it from the game loop instead would be up to a frame late.
-    voice->startFrame = ma_engine_get_time_in_pcm_frames(&audio.engine) + (ma_uint64)(delaySeconds * sampleRate);
-    if (delaySeconds > 0.0f) ma_sound_set_start_time_in_pcm_frames(&voice->sound, voice->startFrame);
-    ma_sound_start(&voice->sound);
+void playClickAt(double time, bool accent){
+    if (!audio.engineReady) return;
+    Voice& voice = takeVoice();
+    ma_uint32 sampleRate = ma_engine_get_sample_rate(&audio.engine);
+    voice.samples.resize((size_t)(CLICK_LENGTH_S * sampleRate));
+    renderClick(voice.samples.data(), (int)voice.samples.size(), (int)sampleRate, accent);
+    startVoice(voice, voice.samples.data(), voice.samples.size(), 1.0f, CLICK_VOLUME, (ma_uint64)std::llround(time * sampleRate));
+}
+
+double audioTime(){
+    if (!audio.engineReady) return 0.0;
+    double engineTime = (double)ma_engine_get_time_in_pcm_frames(&audio.engine) / ma_engine_get_sample_rate(&audio.engine);
+    double now = wallClockSeconds();
+    if (!audio.engineClockStarted){
+        audio.engineSmoothTime = engineTime;
+        audio.engineLastWallTime = now;
+        audio.engineClockStarted = true;
+        return engineTime;
+    }
+    // Same smoothing as songPosition: advance with real time, then close part of the gap to the engine's count
+    double advance = now - audio.engineLastWallTime;
+    audio.engineSmoothTime += advance;
+    audio.engineLastWallTime = now;
+    double drift = engineTime - audio.engineSmoothTime;
+    if (drift > SNAP_THRESHOLD_S) audio.engineSmoothTime = engineTime;
+    else if (drift < -SNAP_THRESHOLD_S) audio.engineSmoothTime -= advance; // behind (device starting up): wait, never run backwards
+    else audio.engineSmoothTime += drift * DRIFT_CORRECTION;
+    return audio.engineSmoothTime;
 }

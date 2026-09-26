@@ -71,3 +71,21 @@ TEST_CASE("every built-in preview sound is in tune, sensibly loud, and ends sile
     }
     CHECK_FALSE(renderBuiltInSound("kazoo", samples.data(), (int)samples.size(), 440.0f, sampleRate, 1));
 }
+
+TEST_CASE("the metronome click is short, sensibly loud, and ends silent"){
+    const int sampleRate = 48000;
+    std::vector<float> samples(sampleRate / 10); // 100 ms
+    for (bool accent : {false, true}){
+        renderClick(samples.data(), (int)samples.size(), sampleRate, accent);
+        float early = 0.0f, late = 0.0f;
+        for (int i = 0; i < (int)samples.size(); i++){
+            float a = std::fabs(samples[i]);
+            CHECK(a <= 0.5f);
+            if (i < sampleRate / 100) early = std::max(early, a); // first 10 ms
+            if (i > sampleRate / 20) late = std::max(late, a);    // after 50 ms
+        }
+        CHECK(early > 0.2f);
+        CHECK(late < early * 0.05f); // a click, not a note: gone within 50 ms
+        CHECK(samples.back() == 0.0f);
+    }
+}

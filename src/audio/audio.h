@@ -33,6 +33,12 @@ const char* previewSoundName();
 bool previewSoundHasPitch();
 void setPreviewVolume(float volume); // 0..1
 void playPreview(float frequency, float delaySeconds = 0.0f); // the delay is timed on the audio clock, to the sample
+
+// The audio engine's own clock in seconds, smoothed between its updates like songPosition: for anything that
+// keeps time without a song (metronome, drills, calibration). Call it every frame.
+double audioTime();
+// A metronome click at a time on that clock (now, if the time has passed); accent = the first beat of a bar
+void playClickAt(double time, bool accent);
 void stopPreviews();
 
 // Input from the default microphone / instrument, mono. Only runs between startCapture and stopCapture.

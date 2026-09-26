@@ -110,6 +110,22 @@ void renderDrop(float* out, int count, float frequency, int sampleRate){
     fadeEnd(out, count, sampleRate);
 }
 
+void renderClick(float* out, int count, int sampleRate, bool accent){
+    const float frequency = accent ? 1760.0f : 1320.0f; // A6 or E6: bright enough to cut through music
+    const float toneDecay = decayPerSample(0.03f, sampleRate);
+    const float noiseDecay = decayPerSample(0.004f, sampleRate);
+    std::minstd_rand rng(7);
+    std::uniform_real_distribution<float> noise(-1.0f, 1.0f);
+    float toneEnvelope = 1.0f, noiseEnvelope = 1.0f;
+    for (int i = 0; i < count; i++){
+        float tone = (float)std::sin(TWO_PI * frequency * i / sampleRate);
+        out[i] = PEAK_LEVEL * (0.7f * tone * toneEnvelope + 0.3f * noise(rng) * noiseEnvelope);
+        toneEnvelope *= toneDecay;
+        noiseEnvelope *= noiseDecay;
+    }
+    fadeEnd(out, count, sampleRate);
+}
+
 bool renderBuiltInSound(const char* name, float* out, int count, float frequency, int sampleRate, unsigned seed){
     if (std::strcmp(name, "pluck") == 0) renderPluck(out, count, frequency, sampleRate, seed);
     else if (std::strcmp(name, "soft") == 0) renderSoftTone(out, count, frequency, sampleRate);
