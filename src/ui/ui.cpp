@@ -34,6 +34,28 @@ void initUi(const std::string& fontPath){
     style.Colors[ImGuiCol_ButtonHovered] = ImVec4(0.62f, 0.40f, 0.24f, 1.0f);
     style.Colors[ImGuiCol_ButtonActive] = ImVec4(0.80f, 0.58f, 0.20f, 1.0f);
     style.Colors[ImGuiCol_NavCursor] = ImVec4(1.0f, 0.80f, 0.30f, 1.0f);
+
+    // Every other widget in the same warm palette: fields, sliders, tabs, list highlights
+    const ImVec4 fieldColor(0.10f, 0.06f, 0.045f, 1.0f); // darker than the background, so fields read as slots
+    const ImVec4 hoverColor(0.62f, 0.40f, 0.24f, 1.0f);
+    const ImVec4 activeColor(0.80f, 0.58f, 0.20f, 1.0f);
+    const ImVec4 accentColor(0.95f, 0.72f, 0.30f, 1.0f);
+    style.Colors[ImGuiCol_FrameBg] = fieldColor;
+    style.Colors[ImGuiCol_FrameBgHovered] = ImVec4(0.16f, 0.10f, 0.07f, 1.0f);
+    style.Colors[ImGuiCol_FrameBgActive] = ImVec4(0.22f, 0.14f, 0.10f, 1.0f);
+    style.Colors[ImGuiCol_SliderGrab] = accentColor;
+    style.Colors[ImGuiCol_SliderGrabActive] = activeColor;
+    style.Colors[ImGuiCol_CheckMark] = accentColor;
+    style.Colors[ImGuiCol_Header] = ImVec4(0.45f, 0.28f, 0.18f, 0.85f);
+    style.Colors[ImGuiCol_HeaderHovered] = hoverColor;
+    style.Colors[ImGuiCol_HeaderActive] = activeColor;
+    style.Colors[ImGuiCol_Tab] = ImVec4(0.30f, 0.19f, 0.13f, 1.0f);
+    style.Colors[ImGuiCol_TabHovered] = hoverColor;
+    style.Colors[ImGuiCol_TabSelected] = ImVec4(0.55f, 0.35f, 0.21f, 1.0f);
+    style.Colors[ImGuiCol_TabSelectedOverline] = accentColor;
+    style.Colors[ImGuiCol_PopupBg] = ImVec4(0.16f, 0.10f, 0.08f, 0.97f);
+    style.Colors[ImGuiCol_SeparatorHovered] = hoverColor;
+    style.Colors[ImGuiCol_SeparatorActive] = activeColor;
 }
 
 void closeUi(){
