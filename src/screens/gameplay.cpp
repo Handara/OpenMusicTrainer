@@ -2,6 +2,8 @@
 
 #include "audio/audio.h"
 #include "core/chart.h"
+#include "core/music.h"
+#include "input/noteinput.h"
 #include "raylib.h"
 #include "views/highway.h"
 #include "core/judge.h"
@@ -86,6 +88,20 @@ static void layoutViews(NoteView view, Rectangle& staffArea, Rectangle& highwayA
     }
 }
 
+// With an instrument: each played note is placed in song time (now, minus how long ago it started, minus the
+// input device's delay) and judged by its pitch
+static void handleInstrument(std::vector<PlayNote>& notes, GameState& state, float songTime, float inputOffset,
+                             int& lastPlayedPitch){
+    for (const PlayedNote& played : updateNoteInput()){
+        PlayerInput input;
+        input.time = songTime - played.age - inputOffset;
+        input.pitch = played.pitch;
+        JudgeResult result = judgeInput(notes, input);
+        if (result.judgement != Judgement::Ignored) scoreHit(state, result.judgement, result.notesHit);
+        lastPlayedPitch = played.pitch;
+    }
+}
+
 static void drawHUD(const GameState& state){
     const int barHeight = 16;
     DrawRectangle(0, 0, GetScreenWidth(), barHeight, Fade(BLACK, 0.5f));
@@ -109,6 +125,7 @@ static struct {
     GameState state;
     GameplayOptions options;
     float songTime = 0.0f;
+    int lastPlayedPitch = -1; // the latest note heard from the instrument, shown so the player can trust the input
     bool active = false;
 } game;
 
@@ -143,6 +160,16 @@ bool startGameplay(const std::string& chartPath, const GameplayOptions& options,
     game.state = {};
     game.state.multiplier = 1;
     game.options = options;
+    game.lastPlayedPitch = -1;
+    if (options.playWithInstrument){
+        // Listen down to just below the track's lowest string: a bass or a drop tuning gets its own range
+        float lowest = midiToFrequency((float)*std::min_element(track.tuning.begin(), track.tuning.end())) * 0.9f;
+        if (!startNoteInput(options.inputDevice, lowest, error)){
+            error = "Playing with your instrument: " + error + " (Settings > Gameplay switches to the keyboard)";
+            unloadSong();
+            return false;
+        }
+    }
     game.songTime = 0.0f;
     game.active = true;
     playSong(false);
@@ -162,6 +189,7 @@ bool updateGameplay(){
     }
     const FrettedTrack& track = game.chart.frettedTracks[0];
     handleKeyboard(game.notes, game.state, game.songTime, (int)track.tuning.size());
+    if (noteInputActive()) handleInstrument(game.notes, game.state, game.songTime, game.options.inputOffsetSeconds, game.lastPlayedPitch);
     scoreMisses(game.state, markMisses(game.notes, game.songTime));
 
     if (songEnded()){
@@ -183,9 +211,15 @@ void drawGameplay(){
         drawHighway(highwayArea, game.notes, game.chart.frettedTracks[0].tuning, game.options.lowStringOnTop, axis);
     }
     drawHUD(game.state);
+    if (game.options.playWithInstrument){
+        const char* heard = game.lastPlayedPitch >= 0
+            ? TextFormat("You played %s%d", pitchClassName(game.lastPlayedPitch), pitchOctave(game.lastPlayedPitch)) : "Listening...";
+        DrawText(heard, 20, 40, 22, RAYWHITE);
+    }
 }
 
 void stopGameplay(){
+    stopNoteInput();
     unloadSong();
     game.active = false;
 }

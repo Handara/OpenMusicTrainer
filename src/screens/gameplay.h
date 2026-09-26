@@ -19,6 +19,9 @@ struct GameplayOptions {
     float offsetSeconds = 0.0f; // latency compensation: positive = notes are judged and drawn later
     bool lowStringOnTop = true;
     NoteView noteView = NoteView::Highway;
+    bool playWithInstrument = false;  // judge notes played on the input device (the number keys work either way)
+    std::string inputDevice;
+    float inputOffsetSeconds = 0.0f;  // the input device's own delay (see calibration)
 };
 
 // The play screen: one song played once, judged against the chart's first fretted track.
