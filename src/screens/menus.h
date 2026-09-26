@@ -10,7 +10,7 @@
 // They never switch to another screen themselves: main.cpp decides what happens next,
 // so the whole flow of the app reads in one place.
 
-enum class MainMenuChoice { None, Play, Editor, Tuner, Settings, Quit };
+enum class MainMenuChoice { None, Play, Learn, Editor, Tuner, Settings, Quit };
 MainMenuChoice mainMenuScreen(const std::string& error);
 
 struct SongSelectChoice {

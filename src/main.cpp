@@ -5,6 +5,7 @@
 #include "core/songlibrary.h"
 #include "screens/editor.h"
 #include "screens/gameplay.h"
+#include "screens/learnscreen.h"
 #include "screens/menus.h"
 #include "screens/settingsscreen.h"
 #include "screens/tuner.h"
@@ -17,7 +18,7 @@
 
 namespace fs = std::filesystem;
 
-enum class Screen { MainMenu, SongSelect, Playing, Results, Tuner, EditorSelect, Editor, Settings };
+enum class Screen { MainMenu, SongSelect, Playing, Results, Tuner, EditorSelect, Editor, Settings, Learn };
 
 // App-wide state shared between screens
 static struct {
@@ -27,6 +28,7 @@ static struct {
     std::string userDataDir;      // the player's own files (see core/paths.h)
     std::string userSongsDir;
     std::string soundsDir;        // the player's own preview sounds
+    std::string progressDir;      // learn mode progress
     std::string settingsPath;
     Settings settings;
     std::vector<SongEntry> songs;
@@ -117,6 +119,7 @@ static void handleBackKey(){
         case Screen::Results: goToSongSelect(); break;
         case Screen::Tuner: leaveTuner(); break;
         case Screen::Settings: leaveSettings(); break;
+        case Screen::Learn: if (learnBack()) app.screen = Screen::MainMenu; break;
         case Screen::EditorSelect: app.screen = Screen::MainMenu; break;
         case Screen::Editor: break; // the editor handles Esc itself, to warn about unsaved changes
     }
@@ -128,6 +131,7 @@ static void runMenus(){
         case Screen::MainMenu:
             switch (mainMenuScreen(app.mainMenuError)){
                 case MainMenuChoice::Play: goToSongSelect(); break;
+                case MainMenuChoice::Learn: openLearnScreen(app.progressDir); app.screen = Screen::Learn; break;
                 case MainMenuChoice::Editor: goToSongList(Screen::EditorSelect); break;
                 case MainMenuChoice::Tuner: goToTuner(); break;
                 case MainMenuChoice::Settings: goToSettings(); break;
@@ -168,6 +172,12 @@ static void runMenus(){
         case Screen::Settings:
             if (settingsScreen(app.settings, app.soundsDir)) leaveSettings();
             break;
+        case Screen::Learn:
+            if (learnScreen()){
+                closeLearnScreen();
+                app.screen = Screen::MainMenu;
+            }
+            break;
         case Screen::Playing: break; // gameplay draws with raylib only
     }
 }
@@ -182,7 +192,8 @@ int main(void){
     app.userSongsDir = (fs::path(app.userDataDir) / "songs").string();
     app.soundsDir = (fs::path(app.userDataDir) / "sounds").string();
     app.settingsPath = (fs::path(app.userDataDir) / "settings.txt").string();
-    for (const std::string& dir : {app.userSongsDir, app.soundsDir}){
+    app.progressDir = (fs::path(app.userDataDir) / "progress").string();
+    for (const std::string& dir : {app.userSongsDir, app.soundsDir, app.progressDir}){
         std::error_code ec;
         fs::create_directories(dir, ec);
         if (ec) TraceLog(LOG_WARNING, "Could not create %s: %s", dir.c_str(), ec.message().c_str());
@@ -235,6 +246,7 @@ int main(void){
     stopGameplay();
     stopTuner();
     closeEditor();
+    closeLearnScreen(); // before the UI and audio it uses shut down
     closeUi();
     unloadStaffFont();
     CloseWindow();
