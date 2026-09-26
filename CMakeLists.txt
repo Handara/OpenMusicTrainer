@@ -83,6 +83,7 @@ endfunction()
 add_library(omt_core STATIC
     src/core/calibration.cpp
     src/core/chart.cpp
+    src/core/drill.cpp
     src/core/exercisefile.cpp
     src/core/files.cpp
     src/core/intervals.cpp
@@ -141,6 +142,7 @@ if(BUILD_TESTING)
         tests/main.cpp
         tests/calibration_test.cpp
         tests/chart_test.cpp
+        tests/drill_test.cpp
         tests/exercisefile_test.cpp
         tests/intervals_test.cpp
         tests/judge_test.cpp

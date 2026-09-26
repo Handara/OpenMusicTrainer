@@ -1,0 +1,81 @@
+#include "doctest/doctest.h"
+
+#include "core/drill.h"
+
+#include <filesystem>
+
+TEST_CASE("a G major drill, up and down, in eighth notes"){
+    ScaleDrillConfig config; // G major, 2 octaves, 2nd position, up and down, 2 notes per beat
+    std::vector<DrillNote> notes;
+    std::string error;
+    REQUIRE_MESSAGE(buildScaleDrill(config, notes, error), error);
+    REQUIRE(notes.size() == 29);             // 15 notes up, 14 back down (the top G isn't repeated)
+    CHECK(notes.front().pitch == 43);        // starts on G2...
+    CHECK(notes.front().fret == 3);          // ...3rd fret, low E
+    CHECK(notes[14].pitch == 67);            // turns around on G4
+    CHECK(notes.back().pitch == 43);         // ends where it started
+    CHECK(notes[1].beat == doctest::Approx(0.5)); // eighth notes
+    CHECK(notes.back().beat == doctest::Approx(14.0));
+}
+
+TEST_CASE("direction, fingering and scale choices"){
+    ScaleDrillConfig config;
+    std::vector<DrillNote> notes;
+    std::string error;
+    config.direction = DrillDirection::Down;
+    config.octaves = 1;
+    REQUIRE(buildScaleDrill(config, notes, error));
+    CHECK(notes.size() == 8);
+    CHECK(notes.front().pitch == 55); // G3, coming down
+    CHECK(notes.back().pitch == 43);
+
+    config.scale = "minor_pentatonic";
+    config.rootPitchClass = 9; // A
+    config.direction = DrillDirection::Up;
+    config.octaves = 2;
+    REQUIRE_MESSAGE(buildScaleDrill(config, notes, error), error);
+    CHECK(notes.front().fret == 5); // A on the 5th fret: position picked from the root automatically
+    CHECK(notes.size() == 11);
+
+    config.scale = "kazoo";
+    CHECK_FALSE(buildScaleDrill(config, notes, error));
+    CHECK(error.find("unknown scale") != std::string::npos);
+}
+
+TEST_CASE("the tempo ramp"){
+    ScaleDrillConfig config; // start 60, step 4, max 160, pass at 90%
+    DrillProgress progress;
+    CHECK(drillTempo(config, progress) == 60);
+
+    DrillPassOutcome clean = finishDrillPass(config, progress, 60, 95.0f);
+    CHECK(clean.clean);
+    CHECK(clean.newBest);
+    CHECK(clean.nextTempo == 64);
+    CHECK(progress.bestCleanTempo == 60);
+
+    DrillPassOutcome close = finishDrillPass(config, progress, 64, 80.0f); // not clean, not bad: stay
+    CHECK_FALSE(close.clean);
+    CHECK(close.nextTempo == 64);
+
+    DrillPassOutcome bad = finishDrillPass(config, progress, 64, 30.0f);   // struggling: slow down
+    CHECK(bad.nextTempo == 60);
+    CHECK(progress.bestCleanTempo == 60); // the best is kept
+
+    progress.tempo = 158;
+    CHECK(finishDrillPass(config, progress, 158, 100.0f).nextTempo == 160); // never past the max
+    CHECK(progress.passes == 4);
+    CHECK(progress.cleanPasses == 2);
+}
+
+TEST_CASE("drill progress survives a save and load"){
+    DrillProgress original{84, 80, 12, 7};
+    std::filesystem::path dir = std::filesystem::temp_directory_path() / "omt_tests";
+    std::filesystem::create_directories(dir);
+    std::string path = (dir / "drill.txt").string(), error;
+    REQUIRE(saveDrillProgress(path, original, error));
+    DrillProgress loaded = loadDrillProgress(path);
+    CHECK(loaded.tempo == 84);
+    CHECK(loaded.bestCleanTempo == 80);
+    CHECK(loaded.passes == 12);
+    CHECK(loaded.cleanPasses == 7);
+}
