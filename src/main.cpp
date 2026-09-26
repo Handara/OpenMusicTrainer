@@ -29,6 +29,7 @@ static struct {
     std::string userSongsDir;
     std::string soundsDir;        // the player's own preview sounds
     std::string progressDir;      // learn mode progress
+    std::string userExercisesDir; // the player's own learn mode exercises
     std::string settingsPath;
     Settings settings;
     std::vector<SongEntry> songs;
@@ -131,7 +132,10 @@ static void runMenus(){
         case Screen::MainMenu:
             switch (mainMenuScreen(app.mainMenuError)){
                 case MainMenuChoice::Play: goToSongSelect(); break;
-                case MainMenuChoice::Learn: openLearnScreen(app.progressDir); app.screen = Screen::Learn; break;
+                case MainMenuChoice::Learn:
+                    openLearnScreen({app.resourcesDir + "exercises", app.userExercisesDir, app.progressDir});
+                    app.screen = Screen::Learn;
+                    break;
                 case MainMenuChoice::Editor: goToSongList(Screen::EditorSelect); break;
                 case MainMenuChoice::Tuner: goToTuner(); break;
                 case MainMenuChoice::Settings: goToSettings(); break;
@@ -193,7 +197,8 @@ int main(void){
     app.soundsDir = (fs::path(app.userDataDir) / "sounds").string();
     app.settingsPath = (fs::path(app.userDataDir) / "settings.txt").string();
     app.progressDir = (fs::path(app.userDataDir) / "progress").string();
-    for (const std::string& dir : {app.userSongsDir, app.soundsDir, app.progressDir}){
+    app.userExercisesDir = (fs::path(app.userDataDir) / "exercises").string();
+    for (const std::string& dir : {app.userSongsDir, app.soundsDir, app.progressDir, app.userExercisesDir}){
         std::error_code ec;
         fs::create_directories(dir, ec);
         if (ec) TraceLog(LOG_WARNING, "Could not create %s: %s", dir.c_str(), ec.message().c_str());

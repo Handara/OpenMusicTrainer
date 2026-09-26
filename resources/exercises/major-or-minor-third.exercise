@@ -1,0 +1,11 @@
+# OpenMusicTrainer exercise
+version 1
+type intervals
+title Major or minor 3rd?
+category Ear training
+author OpenMusicTrainer
+description The two intervals behind major and minor chords. Bright or dark? Learn to hear it instantly.
+direction up
+# semitones, in the order they unlock: both from the start
+intervals 4 3
+unlock 9 10

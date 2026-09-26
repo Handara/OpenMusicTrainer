@@ -1,53 +1,70 @@
 #include "screens/learnscreen.h"
 
-#include "core/intervals.h"
+#include "core/exercisefile.h"
 #include "learn/intervalexercise.h"
 #include "raylib.h"
 #include "ui/ui.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <memory>
 
-struct IntervalMode {
-    IntervalDirection direction;
-    const char* label;
-    const char* progressFile;
-};
-const int INTERVAL_MODE_COUNT = 3;
-const IntervalMode INTERVAL_MODES[INTERVAL_MODE_COUNT] = {
-    { IntervalDirection::Ascending, "Intervals going up", "intervals_up.txt" },
-    { IntervalDirection::Descending, "Intervals going down", "intervals_down.txt" },
-    { IntervalDirection::Harmonic, "Intervals played together", "intervals_together.txt" },
-};
-
 static struct {
-    std::string progressDir;
+    LearnFolders folders;
+    std::vector<ExerciseEntry> exercises;  // grouped by category, built-in first in each
+    std::vector<std::string> progressText; // one per exercise, e.g. "3/12": read when the menu appears, not every frame
     // The running exercise, whatever kind it is. unique_ptr owns it: resetting it deletes the exercise
     // (running its destructor), so there's no manual delete to forget.
     std::unique_ptr<Exercise> exercise;
-    int unlocked[INTERVAL_MODE_COUNT] = {}; // shown on the menu buttons: read from disk when the menu appears, not every frame
 } learn;
 
-static std::string progressPath(const char* file){
-    return (std::filesystem::path(learn.progressDir) / file).string();
+static std::string progressPath(const ExerciseEntry& entry){
+    return (std::filesystem::path(learn.folders.progress) / (entry.id + ".txt")).string();
 }
 
-static void refreshProgressSummaries(){
-    for (int i = 0; i < INTERVAL_MODE_COUNT; i++){
-        IntervalConfig config;
-        learn.unlocked[i] = (int)unlockedIntervals(config, loadIntervalProgress(progressPath(INTERVAL_MODES[i].progressFile))).size();
+// The only place that knows every exercise type: a new type is a new case here (and its class)
+static std::unique_ptr<Exercise> createExercise(const ExerciseEntry& entry){
+    switch (entry.exercise.type){
+        case ExerciseType::Intervals:
+            return std::make_unique<IntervalExercise>(entry.exercise.title, entry.exercise.intervals, progressPath(entry));
     }
+    return nullptr;
+}
+
+static std::string progressSummary(const ExerciseEntry& entry){
+    if (!entry.error.empty()) return "";
+    switch (entry.exercise.type){
+        case ExerciseType::Intervals: {
+            const IntervalConfig& config = entry.exercise.intervals;
+            size_t unlocked = unlockedIntervals(config, loadIntervalProgress(progressPath(entry))).size();
+            return TextFormat("%d/%d", (int)unlocked, (int)config.pool.size());
+        }
+    }
+    return "";
+}
+
+static void refreshExercises(){
+    learn.exercises = scanExercises(learn.folders.builtInExercises, true);
+    std::vector<ExerciseEntry> userExercises = scanExercises(learn.folders.userExercises, false);
+    learn.exercises.insert(learn.exercises.end(), userExercises.begin(), userExercises.end());
+    // One heading per category: group everything by category. stable_sort keeps the existing order inside
+    // each category, so built-in exercises stay first, each group sorted by title.
+    std::stable_sort(learn.exercises.begin(), learn.exercises.end(), [](const ExerciseEntry& a, const ExerciseEntry& b){
+        return a.exercise.category < b.exercise.category;
+    });
+    learn.progressText.clear();
+    for (const ExerciseEntry& entry : learn.exercises) learn.progressText.push_back(progressSummary(entry));
 }
 
 static void endExercise(){
     learn.exercise.reset();
-    refreshProgressSummaries(); // the exercise saved new progress
+    refreshExercises(); // new progress to show, and files may have been edited meanwhile
 }
 
-void openLearnScreen(const std::string& progressDir){
-    learn.progressDir = progressDir;
+void openLearnScreen(const LearnFolders& folders){
+    learn.folders = folders;
     learn.exercise.reset();
-    refreshProgressSummaries();
+    refreshExercises();
 }
 
 void closeLearnScreen(){
@@ -62,6 +79,44 @@ bool learnBack(){
     return true;
 }
 
+static void exerciseMenu(bool& leave){
+    menuTitle("Learn");
+    if (learn.exercises.empty()) centeredText("No exercises found");
+
+    std::string category;
+    for (int i = 0; i < (int)learn.exercises.size(); i++){
+        const ExerciseEntry& entry = learn.exercises[i];
+        if (i == 0 || entry.exercise.category != category){ // a heading whenever the category changes (the list is sorted)
+            category = entry.exercise.category;
+            ImGui::Dummy(ImVec2(0, 4));
+            centeredText(category.c_str());
+        }
+        std::string label = entry.exercise.title;
+        if (!learn.progressText[i].empty()) label += "   " + learn.progressText[i];
+        if (!entry.builtIn) label += "  (yours)";
+
+        ImGui::PushID(i);
+        if (i == 0) focusNextWhenMenuAppears();
+        if (!entry.error.empty()){
+            ImGui::BeginDisabled();
+            menuButton(label.c_str());
+            ImGui::EndDisabled();
+            centeredErrorText(entry.error);
+        } else {
+            if (menuButton(label.c_str())) learn.exercise = createExercise(entry);
+            // The description and author, shown when hovering
+            std::string details = entry.exercise.description;
+            if (!entry.exercise.author.empty()) details += (details.empty() ? "" : "\n") + std::string("by ") + entry.exercise.author;
+            if (!details.empty()) ImGui::SetItemTooltip("%s", details.c_str());
+        }
+        ImGui::PopID();
+    }
+
+    ImGui::Dummy(ImVec2(0, 20));
+    if (menuButton("Open exercises folder")) openFolder(learn.folders.userExercises);
+    if (menuButton("Back")) leave = true;
+}
+
 bool learnScreen(){
     beginMenu("Learn");
     bool leave = false;
@@ -70,22 +125,7 @@ bool learnScreen(){
         learn.exercise->draw();
         if (learn.exercise->wantsToLeave()) endExercise();
     } else {
-        menuTitle("Learn");
-        centeredText("Ear training");
-        ImGui::Dummy(ImVec2(0, 6));
-        for (int i = 0; i < INTERVAL_MODE_COUNT; i++){
-            // Each mode keeps its own progress; the button shows how far along it is
-            const IntervalMode& mode = INTERVAL_MODES[i];
-            std::string label = std::string(mode.label) + TextFormat("   %d/%d", learn.unlocked[i], INTERVAL_COUNT);
-            if (i == 0) focusNextWhenMenuAppears();
-            if (menuButton(label.c_str())){
-                IntervalConfig config;
-                config.direction = mode.direction;
-                learn.exercise = std::make_unique<IntervalExercise>(mode.label, config, progressPath(mode.progressFile));
-            }
-        }
-        ImGui::Dummy(ImVec2(0, 20));
-        if (menuButton("Back")) leave = true;
+        exerciseMenu(leave);
     }
     ImGui::End();
     return leave;

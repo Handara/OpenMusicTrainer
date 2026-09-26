@@ -105,3 +105,12 @@ TEST_CASE("scanning a folder finds exercise files, broken ones included"){
     CHECK(entries[0].id == "user-a");
     CHECK(scanExercises((dir / "missing").string(), true).empty());
 }
+
+TEST_CASE("every exercise shipped with the game loads"){
+    std::vector<ExerciseEntry> entries = scanExercises(OMT_RESOURCES_DIR "exercises", true);
+    CHECK(entries.size() >= 4);
+    for (const ExerciseEntry& entry : entries){
+        CHECK_MESSAGE(entry.error.empty(), entry.error);
+        CHECK(entry.id.rfind("builtin-", 0) == 0);
+    }
+}
