@@ -1,8 +1,9 @@
 #include "raylib.h"
+#include "imgui.h"
+#include "rlImGui.h"
 #include "audio.h"
-#include "chart.h"
-#include <algorithm>
-#include <cmath>
+#include "gameplay.h"
+#include "songlibrary.h"
 #include <string>
 #include <vector>
 
@@ -32,153 +33,187 @@ void drawStaff(Font bravura, Vector2 position, int staffTopPosY, int staffWidth)
     }
 }
 
-struct Note {
-    float time;       // seconds from pattern start when the note crosses the hit line
-    int lane;         // string index, 0 = lowest string
-    int fret;
-    float hitFlash;   // seconds remaining to render as hit, 0 = not hit
-    bool judged;       // true once this note has been hit or has missed
-    bool wasPerfect;   // true if the judgement that set hitFlash was a perfect hit
-};
+enum class Screen { MainMenu, SongSelect, Playing, Results };
 
-struct GameState {
-    int score;
-    int combo;
-    int multiplier; // increments on a perfect hit, unchanged on near, resets on miss
-    float rhythm; // 0..1, the "rhythm" meter
-};
+const float UI_FONT_SIZE = 26.0f;
+const float TITLE_FONT_SIZE = 56.0f;
+const float MENU_BUTTON_WIDTH = 420.0f;
+const float MENU_BUTTON_HEIGHT = 56.0f;
+const ImVec4 ERROR_TEXT_COLOR = { 1.0f, 0.45f, 0.4f, 1.0f };
 
-const int MAX_LANES = 6; // limited by the number keys and the vertical layout for now
-const int LANE_SPACING = 70;
-const int LANE_TOP_Y = 220;
-const int HIT_LINE_X = 180;
-const float SCROLL_SPEED = 300.0f; // pixels per second, placeholder until BPM-driven scroll lands
-const float PERFECT_WINDOW_S = 0.040f; // max |timing error| in seconds for a perfect hit
-const float NEAR_WINDOW_S = 0.100f;
-const float HIT_FLASH_DURATION = 0.2f;
-const float RHYTHM_FILL_PER_PERFECT = 0.12f;
+const Color MENU_BG_TOP = { 28, 18, 14, 255 };
+const Color MENU_BG_BOTTOM = { 70, 42, 28, 255 };
 
-const int laneKeys[MAX_LANES] = { KEY_ONE, KEY_TWO, KEY_THREE, KEY_FOUR, KEY_FIVE, KEY_SIX };
-const Color laneColors[MAX_LANES] = { RED, ORANGE, GOLD, GREEN, SKYBLUE, PURPLE };
+// App-wide state shared between screens
+static struct {
+    Screen screen = Screen::MainMenu;
+    bool quit = false;
+    std::string resourcesDir;
+    std::vector<SongEntry> songs;
+    std::string currentChartPath; // the song being played, kept for Retry
+    std::string songSelectError;  // why the last song failed to start
+    GameResult lastResult;
+} app;
 
-const char* pitchClassNames[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+// --- Screen transitions -----------------------------------------------------------------------------
 
-const Color WOOD_DARK = { 61, 38, 27, 255 };
-const Color WOOD_LIGHT = { 110, 70, 45, 255 };
-const Color TRACK_PANEL = { 30, 18, 12, 200 };
-
-int laneY(int lane){
-    return LANE_TOP_Y + lane*LANE_SPACING;
+static void goToSongSelect(){
+    app.songs = scanSongs(app.resourcesDir + "songs"); // rescan so newly added song folders show up
+    app.screen = Screen::SongSelect;
 }
 
-const int MAX_MULTIPLIER = 4;
-
-void registerMiss(GameState& state){
-    state.combo = 0;
-    state.multiplier = 1;
-    state.rhythm = 0.0f;
-}
-
-// timingError = note.time - press time: positive means early, negative means late
-void registerHit(GameState& state, Note& note, float timingError){
-    float absError = std::fabs(timingError);
-    if (absError <= PERFECT_WINDOW_S){
-        state.combo++;
-        state.multiplier = std::min(state.multiplier + 1, MAX_MULTIPLIER);
-        state.score += 100 * state.multiplier;
-        state.rhythm = std::min(1.0f, state.rhythm + RHYTHM_FILL_PER_PERFECT);
-        note.wasPerfect = true;
-    } else if (absError <= NEAR_WINDOW_S){
-        state.combo++;
-        state.score += 10 * state.multiplier;
-        state.rhythm *= 0.5f;
-        note.wasPerfect = false;
+static void startSong(const std::string& chartPath){
+    std::string error;
+    if (startGameplay(chartPath, error)){
+        app.currentChartPath = chartPath;
+        app.songSelectError.clear();
+        app.screen = Screen::Playing;
     } else {
-        return; // outside the hittable window entirely, treat as a stray press
+        app.songSelectError = error;
+        app.screen = Screen::SongSelect;
     }
-    note.hitFlash = HIT_FLASH_DURATION;
-    note.judged = true;
 }
 
-void handleInput(std::vector<Note>& notes, GameState& state, float patternTime, int laneCount){
-    for (int lane = 0; lane < laneCount; lane++){
-        if (!IsKeyPressed(laneKeys[lane])) continue;
+// Esc always means "back". Handled in one place so a single press can't trigger two transitions in one frame.
+static void handleBackKey(){
+    if (!IsKeyPressed(KEY_ESCAPE)) return;
+    switch (app.screen){
+        case Screen::MainMenu: break;
+        case Screen::SongSelect: app.screen = Screen::MainMenu; break;
+        case Screen::Playing: stopGameplay(); goToSongSelect(); break;
+        case Screen::Results: goToSongSelect(); break;
+    }
+}
 
-        // One press judges at most one note: the unjudged note in this lane closest in time
-        Note* nearest = nullptr;
-        float nearestError = 0.0f;
-        for (Note& note : notes){
-            if (note.lane != lane || note.judged) continue;
-            float error = note.time - patternTime;
-            if (nearest == nullptr || std::fabs(error) < std::fabs(nearestError)){
-                nearest = &note;
-                nearestError = error;
-            }
+// --- Menu layout helpers ------------------------------------------------------------------------------
+// Each menu is one invisible ImGui window covering the screen, with its content centered horizontally.
+
+static void beginMenu(const char* id){
+    ImGui::SetNextWindowPos(ImVec2(0, 0));
+    ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove
+                           | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoSavedSettings;
+    ImGui::Begin(id, nullptr, flags);
+    ImGui::Dummy(ImVec2(0, 60)); // top margin
+}
+
+static void centeredText(const char* text){
+    ImGui::SetCursorPosX((ImGui::GetWindowWidth() - ImGui::CalcTextSize(text).x) / 2);
+    ImGui::TextUnformatted(text);
+}
+
+static void menuTitle(const char* text){
+    ImGui::PushFont(nullptr, TITLE_FONT_SIZE); // same font, bigger size
+    centeredText(text);
+    ImGui::PopFont();
+    ImGui::Dummy(ImVec2(0, 30));
+}
+
+static bool menuButton(const char* label){
+    ImGui::SetCursorPosX((ImGui::GetWindowWidth() - MENU_BUTTON_WIDTH) / 2);
+    return ImGui::Button(label, ImVec2(MENU_BUTTON_WIDTH, MENU_BUTTON_HEIGHT));
+}
+
+static void centeredErrorText(const std::string& text){
+    // Errors can be long (they include file paths), so wrap them to the button column's width
+    float left = (ImGui::GetWindowWidth() - MENU_BUTTON_WIDTH) / 2;
+    ImGui::SetCursorPosX(left);
+    ImGui::PushStyleColor(ImGuiCol_Text, ERROR_TEXT_COLOR);
+    ImGui::PushTextWrapPos(left + MENU_BUTTON_WIDTH);
+    ImGui::TextUnformatted(text.c_str());
+    ImGui::PopTextWrapPos();
+    ImGui::PopStyleColor();
+}
+
+// --- Screens ------------------------------------------------------------------------------------------
+// Immediate mode: these functions run every frame, drawing the widgets and reacting to clicks in the same call.
+
+static void mainMenuScreen(){
+    beginMenu("MainMenu");
+    menuTitle("OpenMusicTrainer");
+    if (menuButton("Play")) goToSongSelect();
+    ImGui::SetItemDefaultFocus(); // keyboard navigation starts on Play
+
+    ImGui::BeginDisabled(); // not built yet
+    menuButton("Editor (coming soon)");
+    menuButton("Tuner (coming soon)");
+    ImGui::EndDisabled();
+
+    if (menuButton("Quit")) app.quit = true;
+    ImGui::End();
+}
+
+static void songSelectScreen(){
+    beginMenu("SongSelect");
+    menuTitle("Select a song");
+
+    if (app.songs.empty()) centeredText("No songs found in Ressources/songs/");
+    for (int i = 0; i < (int)app.songs.size(); i++){
+        const SongEntry& song = app.songs[i];
+        std::string label = song.artist.empty() ? song.title : song.title + "  -  " + song.artist;
+
+        ImGui::PushID(i); // two songs with the same title must still be different widgets
+        if (!song.error.empty()){
+            ImGui::BeginDisabled();
+            menuButton(label.c_str());
+            ImGui::EndDisabled();
+            centeredErrorText(song.error);
+        } else if (menuButton(label.c_str())){
+            startSong(song.chartPath);
         }
-        if (nearest != nullptr) registerHit(state, *nearest, nearestError);
+        if (i == 0) ImGui::SetItemDefaultFocus();
+        ImGui::PopID();
     }
+
+    if (!app.songSelectError.empty()){
+        ImGui::Dummy(ImVec2(0, 10));
+        centeredErrorText(app.songSelectError);
+    }
+    ImGui::Dummy(ImVec2(0, 20));
+    if (menuButton("Back")) app.screen = Screen::MainMenu;
+    ImGui::End();
 }
 
-void updateMisses(std::vector<Note>& notes, GameState& state, float patternTime){
-    for (Note& note : notes){
-        if (note.judged) continue;
-        if (patternTime - note.time > NEAR_WINDOW_S){
-            registerMiss(state);
-            note.judged = true;
-        }
-    }
+static void resultsScreen(){
+    const GameResult& r = app.lastResult;
+    int hits = r.perfectCount + r.nearCount;
+    float accuracy = r.totalNotes > 0 ? 100.0f * hits / r.totalNotes : 0.0f;
+
+    beginMenu("Results");
+    menuTitle(r.title.c_str());
+    centeredText(TextFormat("Score  %08d", r.score));
+    centeredText(TextFormat("Max combo  %d", r.maxCombo));
+    centeredText(TextFormat("Perfect %d    Near %d    Miss %d", r.perfectCount, r.nearCount, r.missCount));
+    centeredText(TextFormat("Notes hit  %d / %d  (%.1f%%)", hits, r.totalNotes, accuracy));
+    ImGui::Dummy(ImVec2(0, 30));
+
+    if (menuButton("Retry")) startSong(app.currentChartPath);
+    ImGui::SetItemDefaultFocus();
+    if (menuButton("Back to songs")) goToSongSelect();
+    ImGui::End();
 }
 
-void drawFretboard(const std::vector<Note>& notes, float patternTime, const std::vector<int>& tuning){
-    DrawRectangleGradientV(0, 0, GetScreenWidth(), GetScreenHeight(), WOOD_DARK, WOOD_LIGHT);
+static void setupImGui(){
+    rlImGuiSetup(true);
+    ImGuiIO& io = ImGui::GetIO();
+    io.IniFilename = nullptr; // don't write imgui.ini: menu layout is fixed in code
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // arrows + Enter work in menus
 
-    int laneCount = (int)tuning.size();
-    int panelTop = laneY(0) - 40;
-    int panelHeight = laneY(laneCount-1) - laneY(0) + 80;
-    DrawRectangle(0, panelTop, GetScreenWidth(), panelHeight, TRACK_PANEL);
-
-    for (int i = 0; i < laneCount; i++){
-        DrawLine(0, laneY(i), GetScreenWidth(), laneY(i), Fade(WHITE, 0.15f));
-        DrawCircleLines(HIT_LINE_X, laneY(i), 22, Fade(laneColors[i], 0.8f));
-        // MIDI pitch 60 is C4, so octave = pitch/12 - 1
-        const char* label = TextFormat("%s%d [%d]", pitchClassNames[tuning[i] % 12], tuning[i]/12 - 1, i+1);
-        DrawText(label, 10, laneY(i)-10, 20, RAYWHITE);
+    std::string fontPath = app.resourcesDir + "fonts/Roboto-Medium.ttf";
+    if (FileExists(fontPath.c_str())){
+        io.FontDefault = io.Fonts->AddFontFromFileTTF(fontPath.c_str(), UI_FONT_SIZE);
+    } else {
+        TraceLog(LOG_WARNING, "UI font not found, using ImGui's default: %s", fontPath.c_str());
     }
-    DrawLine(HIT_LINE_X, panelTop, HIT_LINE_X, panelTop+panelHeight, GOLD);
 
-    for (const Note& note : notes){
-        float x = HIT_LINE_X + (note.time - patternTime) * SCROLL_SPEED;
-        if (x > -50 && x < GetScreenWidth() + 50){
-            Color color = laneColors[note.lane];
-            if (note.hitFlash > 0.0f){
-                float t = note.hitFlash / HIT_FLASH_DURATION;
-                Color ringColor = note.wasPerfect ? WHITE : YELLOW;
-                DrawCircleLines((int)x, laneY(note.lane), 22 + (1.0f-t)*20, Fade(ringColor, t));
-                color = ringColor;
-            }
-            DrawCircle((int)x, laneY(note.lane), 16, color);
-            DrawCircleLines((int)x, laneY(note.lane), 16, RAYWHITE);
-
-            const char* fretText = TextFormat("%d", note.fret);
-            int fretWidth = MeasureText(fretText, 20);
-            DrawText(fretText, (int)x - fretWidth/2, laneY(note.lane) - 10, 20, BLACK);
-        }
-    }
-}
-
-void drawHUD(const GameState& state){
-    const int barHeight = 16;
-    DrawRectangle(0, 0, GetScreenWidth(), barHeight, Fade(BLACK, 0.5f));
-    DrawRectangle(0, 0, (int)(GetScreenWidth() * state.rhythm), barHeight, ColorLerp(RED, GREEN, state.rhythm));
-    DrawText("RHYTHM", 10, barHeight + 4, 14, Fade(RAYWHITE, 0.7f));
-
-    const char* scoreText = TextFormat("%08d", state.score);
-    int scoreWidth = MeasureText(scoreText, 36);
-    DrawText(scoreText, GetScreenWidth() - scoreWidth - 20, barHeight + 10, 36, GOLD);
-
-    const char* comboText = TextFormat("%d COMBO  x%d", state.combo, state.multiplier);
-    int comboWidth = MeasureText(comboText, 22);
-    DrawText(comboText, GetScreenWidth() - comboWidth - 20, barHeight + 50, 22, RAYWHITE);
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.FontSizeBase = UI_FONT_SIZE;
+    style.FrameRounding = 8.0f;
+    style.ItemSpacing = ImVec2(12, 14);
+    style.Colors[ImGuiCol_Button] = ImVec4(0.45f, 0.28f, 0.18f, 0.85f);
+    style.Colors[ImGuiCol_ButtonHovered] = ImVec4(0.62f, 0.40f, 0.24f, 1.0f);
+    style.Colors[ImGuiCol_ButtonActive] = ImVec4(0.80f, 0.58f, 0.20f, 1.0f);
+    style.Colors[ImGuiCol_NavCursor] = ImVec4(1.0f, 0.80f, 0.30f, 1.0f);
 }
 
 int main(void){
@@ -186,70 +221,49 @@ int main(void){
     const int INITIAL_WINDOW_HEIGHT = 720;
 
     // Resources are copied next to the executable at build time, so this works from any working directory
-    std::string songDir = std::string(GetApplicationDirectory()) + "Ressources/songs/test-pattern/";
-    std::string chartPath = songDir + "song.chart";
-    Chart chart;
+    app.resourcesDir = std::string(GetApplicationDirectory()) + "Ressources/";
+
     std::string error;
-    if (!loadChart(chartPath, chart, error)){
-        TraceLog(LOG_ERROR, "Failed to load chart: %s", error.c_str());
-        return 1;
-    }
-    if (chart.audioFile.empty()){
-        TraceLog(LOG_ERROR, "Chart has no 'audio' line: %s", chartPath.c_str());
-        return 1;
-    }
-    const FrettedTrack& track = chart.frettedTracks[0];
-    if ((int)track.tuning.size() > MAX_LANES){
-        TraceLog(LOG_ERROR, "Track '%s' has %d strings, the prototype supports up to %d",
-                 track.name.c_str(), (int)track.tuning.size(), MAX_LANES);
-        return 1;
-    }
-
-    // Gameplay notes: the chart's notes converted to seconds, plus per-run judging state
-    std::vector<Note> notes;
-    notes.reserve(track.notes.size());
-    for (const FrettedNote& chartNote : track.notes){
-        notes.push_back({(float)tickToSeconds(chart, chartNote.tick), chartNote.stringIndex, chartNote.fret});
-    }
-
-    if (!initAudio(error) || !loadSong(songDir + chart.audioFile, error)){
+    if (!initAudio(error)){
         TraceLog(LOG_ERROR, "Audio: %s", error.c_str());
-        closeAudio();
         return 1;
     }
-    TraceLog(LOG_INFO, "Audio: using %s backend, song is %.2f s", audioBackendName(), songLength());
+    TraceLog(LOG_INFO, "Audio: using %s backend", audioBackendName());
 
     InitWindow(INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT, "OpenMusicTrainer");
     SetTargetFPS(60);
+    SetExitKey(KEY_NULL); // Esc means "back" (handleBackKey), not "quit"
+    setupImGui();
 
-    GameState state = {0, 0, 1, 0.0f};
-
-    playSong(true);
-    float prevPatternTime = 0.0f;
-    while(!WindowShouldClose()){
-        // The song's playback position is the clock: notes stay in sync with the music even if frames stutter
-        float patternTime = (float)songPosition();
-        if (patternTime < prevPatternTime){
-            for (Note& note : notes){
-                note.hitFlash = 0.0f;
-                note.judged = false;
-            }
+    while (!WindowShouldClose() && !app.quit){
+        handleBackKey();
+        if (app.screen == Screen::Playing && !updateGameplay()){
+            app.lastResult = gameplayResult();
+            stopGameplay();
+            app.screen = Screen::Results;
         }
-        prevPatternTime = patternTime;
-
-        for (Note& note : notes){
-            if (note.hitFlash > 0.0f) note.hitFlash -= GetFrameTime();
-        }
-        handleInput(notes, state, patternTime, (int)track.tuning.size());
-        updateMisses(notes, state, patternTime);
 
         BeginDrawing();
-        ClearBackground(RAYWHITE);
-        drawFretboard(notes, patternTime, track.tuning);
-        drawHUD(state);
+        if (app.screen == Screen::Playing){
+            drawGameplay();
+        } else {
+            DrawRectangleGradientV(0, 0, GetScreenWidth(), GetScreenHeight(), MENU_BG_TOP, MENU_BG_BOTTOM);
+        }
+
+        rlImGuiBegin();
+        switch (app.screen){
+            case Screen::MainMenu: mainMenuScreen(); break;
+            case Screen::SongSelect: songSelectScreen(); break;
+            case Screen::Playing: break; // gameplay draws with raylib only
+            case Screen::Results: resultsScreen(); break;
+        }
+        rlImGuiEnd();
         EndDrawing();
     }
-    closeAudio();
+
+    stopGameplay();
+    rlImGuiShutdown();
     CloseWindow();
+    closeAudio();
     return 0;
 }

@@ -90,6 +90,10 @@ void playSong(bool loop){
     ma_sound_start(&audio.song);
 }
 
+bool songEnded(){
+    return audio.songReady && ma_sound_at_end(&audio.song);
+}
+
 double songLength(){
     return audio.songReady ? audio.songLengthS : 0.0;
 }

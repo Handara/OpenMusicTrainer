@@ -13,5 +13,6 @@ const char* audioBackendName(); // e.g. "PulseAudio", "WASAPI", "Null" (no real 
 bool loadSong(const std::string& path, std::string& error);
 void unloadSong();
 void playSong(bool loop);
+bool songEnded();      // true once a non-looping song has played to its end
 double songLength();   // seconds
 double songPosition(); // seconds, smoothed between audio updates; call once per frame

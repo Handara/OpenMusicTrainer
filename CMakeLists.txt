@@ -17,6 +17,19 @@ FetchContent_Declare(
     GIT_TAG        0.11.25
     GIT_SHALLOW    TRUE
 )
+# rlImGui (Dear ImGui's raylib backend) publishes a tested ImGui version per raylib version
+FetchContent_Declare(
+    imgui
+    GIT_REPOSITORY https://github.com/ocornut/imgui.git
+    GIT_TAG        v1.92.7
+    GIT_SHALLOW    TRUE
+)
+FetchContent_Declare(
+    rlimgui
+    GIT_REPOSITORY https://github.com/raylib-extras/rlImGui.git
+    GIT_TAG        Raylib_5_5
+    GIT_SHALLOW    TRUE
+)
 
 # raylib handles graphics, window and input only. Audio goes through miniaudio directly (audio.cpp),
 # which gives us capture devices and full control that raylib's audio module doesn't expose.
@@ -28,16 +41,40 @@ set(MINIAUDIO_NO_LIBVORBIS ON CACHE BOOL "" FORCE)
 set(MINIAUDIO_NO_LIBOPUS ON CACHE BOOL "" FORCE)
 set(MINIAUDIO_NO_EXTRA_NODES ON CACHE BOOL "" FORCE)
 
-FetchContent_MakeAvailable(raylib miniaudio)
+FetchContent_MakeAvailable(raylib miniaudio imgui rlimgui)
 
-add_executable(OpenMusicTrainer main.cpp chart.cpp audio.cpp)
-target_link_libraries(OpenMusicTrainer PUBLIC raylib miniaudio)
+# Dear ImGui and rlImGui ship no CMake build of their own, so we compile their sources as one library
+add_library(imgui STATIC
+    ${imgui_SOURCE_DIR}/imgui.cpp
+    ${imgui_SOURCE_DIR}/imgui_draw.cpp
+    ${imgui_SOURCE_DIR}/imgui_tables.cpp
+    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+    ${imgui_SOURCE_DIR}/imgui_demo.cpp # ImGui::ShowDemoWindow(): every widget with its source, handy for learning
+    ${rlimgui_SOURCE_DIR}/rlImGui.cpp
+)
+target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR} ${rlimgui_SOURCE_DIR})
+target_link_libraries(imgui PUBLIC raylib)
+
+add_executable(OpenMusicTrainer main.cpp chart.cpp audio.cpp gameplay.cpp songlibrary.cpp)
+target_link_libraries(OpenMusicTrainer PUBLIC raylib miniaudio imgui)
+
+# Warnings for our own code only (third-party libraries keep their own settings)
+if(MSVC)
+    target_compile_options(OpenMusicTrainer PRIVATE /W4)
+else()
+    target_compile_options(OpenMusicTrainer PRIVATE -Wall -Wextra)
+endif()
 
 # Copy game data next to the executable on every build (only files that changed are copied)
 add_custom_target(copy_resources ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
             ${CMAKE_SOURCE_DIR}/Ressources
             $<TARGET_FILE_DIR:OpenMusicTrainer>/Ressources
+    # UI font that ships with Dear ImGui (Apache 2.0 license)
+    COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:OpenMusicTrainer>/Ressources/fonts
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${imgui_SOURCE_DIR}/misc/fonts/Roboto-Medium.ttf
+            $<TARGET_FILE_DIR:OpenMusicTrainer>/Ressources/fonts/Roboto-Medium.ttf
 )
 add_dependencies(OpenMusicTrainer copy_resources)
 
