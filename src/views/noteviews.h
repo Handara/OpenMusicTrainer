@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/score.h"
 #include "core/settings.h"
 #include "raylib.h"
 #include "views/playnote.h"
@@ -7,6 +8,8 @@
 #include <vector>
 
 // Every view the settings turn on, stacked in `area` top to bottom (sheet music, tab, highway), on one
-// time axis so they line up note for note. The one place that decides where each view goes.
-void drawNoteViews(Rectangle area, const NoteViews& views, const std::vector<PlayNote>& notes, const std::vector<float>& barTimes,
-                   const std::vector<int>& tuning, bool lowStringOnTop, const TimeAxis& axis);
+// time axis so they line up note for note. The one place that decides where each view goes. The hit line moves
+// right if the sheet music's clef, key and time signature need the room, in every view at once.
+// `notes` are the track's notes in the score's order.
+void drawNoteViews(Rectangle area, const NoteViews& views, const std::vector<PlayNote>& notes, const Score& score,
+                   const std::vector<int>& tuning, bool lowStringOnTop, TimeAxis axis);

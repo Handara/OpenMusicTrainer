@@ -3,6 +3,7 @@
 #include "core/files.h"
 
 #include <algorithm>
+#include <cmath>
 #include <fstream>
 #include <sstream>
 
@@ -41,6 +42,28 @@ bool buildScaleDrill(const ScaleDrillConfig& config, std::vector<DrillNote>& out
         out.push_back({(double)i / config.notesPerBeat, places[k].stringIndex, places[k].fret, up[k]});
     }
     return true;
+}
+
+Chart drillChart(const ScaleDrillConfig& config, const std::vector<DrillNote>& notes){
+    Chart chart{};
+    chart.version = 2;
+    chart.title = config.scale;
+    chart.resolution = 480; // divides evenly into 2, 3 and 4 notes a beat
+    chart.tempoMap = {{0, 60.0}};
+    chart.timeSignatures = {{0, 4, 4}};
+    const ScaleInfo* scale = findScale(config.scale);
+    chart.keys = {{0, scale ? scaleKeySignature(config.rootPitchClass, *scale) : KeySignature{}}};
+    FrettedTrack track;
+    track.type = InstrumentType::Guitar;
+    track.name = "Drill";
+    track.tuning = config.tuning;
+    for (const DrillNote& note : notes){
+        track.notes.push_back({(int)std::lround(note.beat * chart.resolution), note.stringIndex, note.fret, 0});
+    }
+    chart.frettedTracks = {track};
+    int lastTick = track.notes.empty() ? 0 : track.notes.back().tick;
+    chart.endTick = barStartTick(chart, barNumberAt(chart, lastTick) + 1);
+    return chart;
 }
 
 int drillTempo(const ScaleDrillConfig& config, const DrillProgress& progress){

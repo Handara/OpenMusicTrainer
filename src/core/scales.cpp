@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
 
 const std::vector<ScaleInfo>& allScales(){
     // A function-local static: built the first time it's asked for, then kept for the rest of the program
@@ -90,4 +91,29 @@ bool fingerPitches(const std::vector<int>& pitches, const std::vector<int>& tuni
         out.push_back({string, pitch - tuning[string]});
     }
     return true;
+}
+
+KeySignature scaleKeySignature(int rootPitchClass, const ScaleInfo& scale){
+    bool minor = std::count(scale.steps.begin(), scale.steps.end(), 3) && !std::count(scale.steps.begin(), scale.steps.end(), 4);
+    const int MAJOR[7] = { 0, 2, 4, 5, 7, 9, 11 };
+    KeySignature best;
+    int bestScore = 1 << 30;
+    for (int fifths = -7; fifths <= 7; fifths++){
+        int majorTonic = ((fifths * 7) % 12 + 12) % 12; // each step round the circle of fifths is 7 semitones
+        int accidentals = 0;
+        for (int step : scale.steps){
+            int pitchClass = (rootPitchClass + step) % 12;
+            bool inKey = false;
+            for (int degree : MAJOR) if ((majorTonic + degree) % 12 == pitchClass) inKey = true;
+            if (!inKey) accidentals++;
+        }
+        int tonic = minor ? (majorTonic + 9) % 12 : majorTonic; // a minor key's tonic is a major sixth above its major's
+        // The tie-breaks, in order, packed into one number to compare: lower is better
+        int score = accidentals * 1000 + (tonic == rootPitchClass ? 0 : 100) + std::abs(fifths) * 2 + (fifths < 0 ? 1 : 0);
+        if (score < bestScore){
+            bestScore = score;
+            best = { fifths, minor };
+        }
+    }
+    return best;
 }

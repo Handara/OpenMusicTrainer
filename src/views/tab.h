@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/score.h"
 #include "raylib.h"
 #include "views/playnote.h"
 
@@ -14,6 +15,5 @@
 bool loadTabFont(const std::string& path);
 void unloadTabFont();
 
-// `notes` must be sorted by time; `barTimes` are the song times where bars start
-void drawTab(Rectangle area, const std::vector<PlayNote>& notes, const std::vector<float>& barTimes, int stringCount,
-             const TimeAxis& axis);
+// `notes` must be sorted by time; bar lines come from the score
+void drawTab(Rectangle area, const std::vector<PlayNote>& notes, const Score& score, int stringCount, const TimeAxis& axis);

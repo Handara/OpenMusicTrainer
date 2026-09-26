@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/notation.h"
+
 #include <string>
 #include <vector>
 
@@ -13,6 +15,11 @@ struct ScaleInfo {
 
 const std::vector<ScaleInfo>& allScales();
 const ScaleInfo* findScale(const std::string& name); // nullptr if unknown
+
+// The key signature to write a scale in: of the 15 keys, the one whose signature leaves the fewest of the scale's
+// notes needing accidentals; ties go to the key named after the root, then the fewest sharps or flats, then sharps.
+// So G major gets 1 sharp, A minor pentatonic none, and D dorian none (C major's signature, as method books do).
+KeySignature scaleKeySignature(int rootPitchClass, const ScaleInfo& scale);
 
 // "C", "F#", "Bb", "c#" -> 0..11 (C = 0); false if it isn't a note name
 bool parsePitchClass(const std::string& name, int& pitchClass);

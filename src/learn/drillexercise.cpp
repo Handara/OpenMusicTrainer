@@ -25,6 +25,7 @@ DrillExercise::DrillExercise(const std::string& title, const ScaleDrillConfig& c
     progress = loadDrillProgress(progressPath);
     std::string error;
     buildScaleDrill(config, drillNotes, error); // the file was checked when it loaded, so this succeeds
+    chart = drillChart(config, drillNotes);
     if (settings.playWithInstrument){
         float lowest = midiToFrequency((float)*std::min_element(config.tuning.begin(), config.tuning.end())) * 0.9f;
         if (!startNoteInput(settings.inputDevice, lowest, inputError)) inputError = "Instrument: " + inputError + " (using the keyboard)";
@@ -57,8 +58,10 @@ void DrillExercise::startPass(){
     for (const DrillNote& note : drillNotes){
         notes.push_back({(float)(firstNoteTime + note.beat * beat), note.stringIndex, note.fret, note.pitch});
     }
-    barTimes.clear();
-    for (int b = 0; b <= totalClicks; b += 4) barTimes.push_back((float)(firstNoteTime + b * beat));
+    // Written down on the same clock: the chart's tick 0 is the first note, at this pass's tempo
+    chart.offset = firstNoteTime;
+    chart.tempoMap = {{0, (double)tempo}};
+    score = buildScore(chart, chart.frettedTracks[0]);
     hits = perfects = 0;
 }
 
@@ -153,5 +156,5 @@ void DrillExercise::draw(){
     // The notes, in whichever views the settings choose, below the text
     float width = (float)GetScreenWidth(), height = (float)GetScreenHeight();
     TimeAxis axis = { (float)drillTime(), HIT_LINE_X, settings.noteSpeed };
-    drawNoteViews({0, height * 0.48f, width, height * 0.51f}, settings.noteViews, notes, barTimes, config.tuning, settings.lowStringOnTop, axis);
+    drawNoteViews({0, height * 0.48f, width, height * 0.51f}, settings.noteViews, notes, score, config.tuning, settings.lowStringOnTop, axis);
 }

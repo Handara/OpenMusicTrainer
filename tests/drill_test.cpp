@@ -79,3 +79,22 @@ TEST_CASE("drill progress survives a save and load"){
     CHECK(loaded.passes == 12);
     CHECK(loaded.cleanPasses == 7);
 }
+
+TEST_CASE("a drill written as a chart"){
+    ScaleDrillConfig config; // G major, eighth notes
+    std::vector<DrillNote> notes;
+    std::string error;
+    REQUIRE(buildScaleDrill(config, notes, error));
+    Chart chart = drillChart(config, notes);
+    REQUIRE(chart.frettedTracks.size() == 1);
+    const std::vector<FrettedNote>& chartNotes = chart.frettedTracks[0].notes;
+    REQUIRE(chartNotes.size() == notes.size());
+    CHECK(chartNotes[1].tick == 240);
+    CHECK(chartNotes.back().tick == 14 * 480);
+    CHECK(chart.endTick == 16 * 480);         // the last note is in bar 4: the chart ends with it
+    CHECK(chart.keys[0].key.fifths == 1);     // one sharp
+
+    config.notesPerBeat = 3;                  // triplets land exactly on the ticks
+    REQUIRE(buildScaleDrill(config, notes, error));
+    CHECK(drillChart(config, notes).frettedTracks[0].notes[1].tick == 160);
+}

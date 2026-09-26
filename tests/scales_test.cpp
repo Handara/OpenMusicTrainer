@@ -76,3 +76,21 @@ TEST_CASE("notes that can't be placed are reported"){
     CHECK(error.find("doesn't fit around fret 2") != std::string::npos);
     CHECK_FALSE(fingerPitches({35}, STANDARD, Fingering::Position, 0, positions, error)); // below the low E
 }
+
+TEST_CASE("the key signature a scale is written in"){
+    struct Case { const char* root; const char* scale; int fifths; bool minor; };
+    const Case cases[] = {
+        {"G", "major", 1, false},  {"Bb", "major", -2, false}, {"F#", "major", 6, false},
+        {"E", "minor", 1, true},   {"A", "minor_pentatonic", 0, true}, {"D", "dorian", 0, true},
+        {"A", "blues", 0, true},   {"C", "chromatic", 0, false}, {"E", "harmonic_minor", 1, true},
+    };
+    for (const Case& c : cases){
+        CAPTURE(c.root);
+        CAPTURE(c.scale);
+        int root;
+        REQUIRE(parsePitchClass(c.root, root));
+        KeySignature key = scaleKeySignature(root, *findScale(c.scale));
+        CHECK(key.fifths == c.fifths);
+        CHECK(key.minor == c.minor);
+    }
+}

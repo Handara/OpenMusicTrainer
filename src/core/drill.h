@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/chart.h"
 #include "core/scales.h"
 
 #include <string>
@@ -34,6 +35,10 @@ struct DrillNote {
 
 // The notes of one pass; false (with a reason) if the scale doesn't fit this fingering or tuning
 bool buildScaleDrill(const ScaleDrillConfig& config, std::vector<DrillNote>& out, std::string& error);
+
+// One pass as a chart, so it's written down (and timed) like any song: 4/4 in the scale's key, ending with the
+// bar of the last note. Starts at 60 bpm with no offset: set the tempo and offset for each pass.
+Chart drillChart(const ScaleDrillConfig& config, const std::vector<DrillNote>& notes);
 
 struct DrillProgress {
     int tempo = 0;          // the tempo to play next; 0 = not started (the config's start tempo)

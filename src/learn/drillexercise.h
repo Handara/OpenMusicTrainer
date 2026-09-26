@@ -2,6 +2,7 @@
 
 #include "core/drill.h"
 #include "core/judge.h"
+#include "core/score.h"
 #include "core/settings.h"
 #include "learn/exercise.h"
 
@@ -31,6 +32,7 @@ private:
     Settings settings;
     DrillProgress progress;
     std::vector<DrillNote> drillNotes; // one pass, in beats
+    Chart chart;                       // the same pass as a chart: its tempo and offset are set for each pass
 
     bool running = false;          // Space starts and stops
     int tempo = 0;                 // of the current pass
@@ -40,7 +42,7 @@ private:
     int nextClick = 0;             // the next metronome click to schedule, counted from countInStart
     int totalClicks = 0;
     std::vector<PlayNote> notes;   // the pass's notes in audio time, for judging and the views
-    std::vector<float> barTimes;
+    Score score;                   // the pass written down, in audio time
 
     int hits = 0, perfects = 0;
     std::string passText;          // the last pass's result

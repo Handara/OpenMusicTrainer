@@ -4,6 +4,7 @@
 #include "core/chart.h"
 #include "core/judge.h"
 #include "core/music.h"
+#include "core/score.h"
 #include "input/noteinput.h"
 #include "raylib.h"
 #include "views/noteviews.h"
@@ -105,7 +106,7 @@ static void drawHUD(const GameState& state){
 static struct {
     Chart chart;
     std::vector<PlayNote> notes;
-    std::vector<float> barTimes; // song times where bars start, for the staff's bar lines
+    Score score;                 // the track written down: bars, note values, rests (for the sheet music and tab)
     GameState state;
     GameplayOptions options;
     float songTime = 0.0f;
@@ -138,8 +139,7 @@ bool startGameplay(const std::string& chartPath, const GameplayOptions& options,
         int pitch = track.tuning[chartNote.stringIndex] + chartNote.fret;
         game.notes.push_back({(float)tickToSeconds(game.chart, chartNote.tick), chartNote.stringIndex, chartNote.fret, pitch});
     }
-    game.barTimes.clear();
-    for (int tick : barTicks(game.chart)) game.barTimes.push_back((float)tickToSeconds(game.chart, tick));
+    game.score = buildScore(game.chart, track); // its events point into track.notes, in the same order as game.notes
     game.state = {};
     game.state.multiplier = 1;
     game.options = options;
@@ -189,7 +189,7 @@ void drawGameplay(){
     TimeAxis axis = { game.songTime, (float)HIT_LINE_X, game.options.noteSpeed };
     float width = (float)GetScreenWidth(), height = (float)GetScreenHeight();
     Rectangle viewsArea = { 0, height * 0.14f, width, height * 0.84f }; // below the HUD
-    drawNoteViews(viewsArea, game.options.noteViews, game.notes, game.barTimes, game.chart.frettedTracks[0].tuning,
+    drawNoteViews(viewsArea, game.options.noteViews, game.notes, game.score, game.chart.frettedTracks[0].tuning,
                   game.options.lowStringOnTop, axis);
     drawHUD(game.state);
     if (game.options.playWithInstrument){

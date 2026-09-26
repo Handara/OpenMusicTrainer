@@ -46,8 +46,7 @@ static void drawCentered(const char* text, float x, float y, float size, Color c
     DrawTextEx(font, text, {x - measured.x / 2, y - center * size}, size, 0.0f, color);
 }
 
-void drawTab(Rectangle area, const std::vector<PlayNote>& notes, const std::vector<float>& barTimes, int stringCount,
-             const TimeAxis& axis){
+void drawTab(Rectangle area, const std::vector<PlayNote>& notes, const Score& score, int stringCount, const TimeAxis& axis){
     if (stringCount < 1) return;
     const float spacing = std::min(MAX_LINE_SPACING, area.height / (stringCount + 1));
     const float topLineY = area.y + (area.height - spacing * (stringCount - 1)) / 2;
@@ -62,8 +61,8 @@ void drawTab(Rectangle area, const std::vector<PlayNote>& notes, const std::vect
         for (int s = 0; s < stringCount; s++) DrawLineEx({fromX, lineY(s)}, {toX, lineY(s)}, LINE_THICKNESS, INK);
     };
     drawLines(area.x, right);
-    for (float barTime : barTimes){
-        float x = axis.xAt(barTime);
+    for (const ScoreBar& bar : score.bars){
+        float x = axis.xAt(bar.time) - axis.barLineGap;
         if (x >= area.x && x <= right) DrawLineEx({x, topLineY}, {x, bottomLineY}, LINE_THICKNESS * 1.4f, INK);
     }
     DrawLineEx({axis.hitLineX, topLineY - spacing}, {axis.hitLineX, bottomLineY + spacing}, 2.0f, HIT_LINE);
