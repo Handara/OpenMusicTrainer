@@ -17,6 +17,9 @@ bool songEnded();      // true once a non-looping song has played to its end
 double songLength();   // seconds
 double songPosition(); // seconds, smoothed between audio updates; call once per frame
 
+// A short plucked-string sound at a pitch, for previews (e.g. the editor). Several can overlap.
+void playPluck(float frequency);
+
 // Input from the default microphone / instrument, mono. Only runs between startCapture and stopCapture.
 bool startCapture(std::string& error);
 void stopCapture();

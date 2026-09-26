@@ -88,6 +88,7 @@ add_library(omt_core STATIC
     src/core/pitch.cpp
     src/core/settings.cpp
     src/core/songlibrary.cpp
+    src/core/synth.cpp
 )
 target_include_directories(omt_core PUBLIC src)
 enable_warnings(omt_core)
@@ -128,6 +129,7 @@ if(BUILD_TESTING)
         tests/music_test.cpp
         tests/pitch_test.cpp
         tests/settings_test.cpp
+        tests/synth_test.cpp
     )
     target_link_libraries(omt_tests PRIVATE omt_core doctest::doctest)
     target_compile_definitions(omt_tests PRIVATE OMT_RESOURCES_DIR="${CMAKE_SOURCE_DIR}/resources/")

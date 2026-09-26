@@ -1,10 +1,12 @@
 #include "audio/audio.h"
 
+#include "core/synth.h"
 #include "miniaudio.h"
 
 #include <chrono>
 #include <cmath>
 #include <cstring>
+#include <vector>
 
 // songPosition() runs a smooth clock on the wall clock and pulls it toward the audio position each call.
 // Each call closes this fraction of the gap: small enough to average out the audio position's ~10 ms steps.
@@ -14,6 +16,21 @@ const double SNAP_THRESHOLD_S = 0.1;
 
 // Captured audio waiting for the main thread. At 48 kHz this is ~0.34 s: room for several slow frames.
 const ma_uint32 CAPTURE_BUFFER_FRAMES = 16384;
+
+// Preview sounds (e.g. the editor playing a note you place). Several can ring at once, like real strings.
+const int VOICE_COUNT = 8;
+const float PLUCK_LENGTH_S = 1.5f;
+const float PLUCK_VOLUME = 0.6f;
+
+// One preview sound: its samples, and the miniaudio objects playing them.
+// ma_audio_buffer reads straight from `samples` (no copy), so they must stay alive while it plays.
+struct Voice {
+    std::vector<float> samples;
+    ma_audio_buffer buffer;
+    ma_sound sound;
+    bool ready = false;
+    unsigned long long startedAt = 0; // which pluck this was, to find the oldest when all voices are busy
+};
 
 // All audio state lives here, like raylib's internal AUDIO struct. miniaudio objects keep
 // pointers to each other, so they must never move in memory: a single static instance guarantees it.
@@ -37,6 +54,9 @@ static struct {
     ma_device captureDevice;
     ma_pcm_rb captureBuffer;
     bool captureReady = false;
+
+    Voice voices[VOICE_COUNT];
+    unsigned long long pluckCount = 0;
 } audio;
 
 static double wallClockSeconds(){
@@ -54,7 +74,15 @@ bool initAudio(std::string& error){
     return true;
 }
 
+static void releaseVoice(Voice& voice){
+    if (!voice.ready) return;
+    ma_sound_uninit(&voice.sound); // detaches from the engine first, so the audio thread stops reading the buffer
+    ma_audio_buffer_uninit(&voice.buffer);
+    voice.ready = false;
+}
+
 void closeAudio(){
+    for (Voice& voice : audio.voices) releaseVoice(voice);
     stopCapture();
     unloadSong();
     if (audio.engineReady) ma_engine_uninit(&audio.engine);
@@ -220,4 +248,36 @@ int readCapture(float* out, int maxFrames){
         total += (int)chunk;
     }
     return total;
+}
+
+void playPluck(float frequency){
+    if (!audio.engineReady) return;
+
+    // A voice that finished playing, or else the oldest one (it has faded the most)
+    Voice* voice = &audio.voices[0];
+    for (Voice& candidate : audio.voices){
+        if (!candidate.ready || !ma_sound_is_playing(&candidate.sound)){
+            voice = &candidate;
+            break;
+        }
+        if (candidate.startedAt < voice->startedAt) voice = &candidate;
+    }
+    releaseVoice(*voice);
+
+    // Rendered at the engine's own sample rate, so nothing has to be resampled while it plays
+    ma_uint32 sampleRate = ma_engine_get_sample_rate(&audio.engine);
+    voice->samples.resize((size_t)(PLUCK_LENGTH_S * sampleRate)); // keeps its memory between plucks: no allocation after the first
+    renderPluck(voice->samples.data(), (int)voice->samples.size(), frequency, (int)sampleRate, (unsigned)audio.pluckCount);
+
+    ma_audio_buffer_config config = ma_audio_buffer_config_init(ma_format_f32, 1, voice->samples.size(), voice->samples.data(), nullptr);
+    config.sampleRate = sampleRate;
+    if (ma_audio_buffer_init(&config, &voice->buffer) != MA_SUCCESS) return;
+    if (ma_sound_init_from_data_source(&audio.engine, &voice->buffer, MA_SOUND_FLAG_NO_SPATIALIZATION, nullptr, &voice->sound) != MA_SUCCESS){
+        ma_audio_buffer_uninit(&voice->buffer);
+        return;
+    }
+    voice->ready = true;
+    voice->startedAt = ++audio.pluckCount;
+    ma_sound_set_volume(&voice->sound, PLUCK_VOLUME);
+    ma_sound_start(&voice->sound);
 }

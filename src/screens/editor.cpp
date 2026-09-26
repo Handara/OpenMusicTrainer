@@ -1,5 +1,6 @@
 #include "screens/editor.h"
 
+#include "audio/audio.h"
 #include "core/chart.h"
 #include "core/music.h"
 #include "imgui.h"
@@ -56,6 +57,7 @@ struct EditorState {
     // Editing
     int snapIndex = 3;        // 1/16 notes
     int newNoteFret = 0;
+    bool previewSounds = true; // play a note's pitch when it's placed, clicked or re-fretted
     bool hasSelection = false;
     int selectedTick = 0;     // a note is identified by (tick, string): indices change as notes are added
     int selectedString = 0;
@@ -117,6 +119,11 @@ static void deleteNote(int tick, int stringIndex){
     track().notes.erase(it);
     if (editor.hasSelection && editor.selectedTick == tick && editor.selectedString == stringIndex) editor.hasSelection = false;
     editor.dirty = true;
+}
+
+// Lets you hear what you're placing: the string's open pitch plus the fret
+static void previewNote(int stringIndex, int fret){
+    if (editor.previewSounds) playPluck(midiToFrequency((float)(track().tuning[stringIndex] + fret)));
 }
 
 static int snapStep(){
@@ -188,6 +195,7 @@ static void drawSidePanel(){
     ImGui::SeparatorText("Notes");
     ImGui::Combo("Grid", &editor.snapIndex, SNAP_LABELS, SNAP_CHOICES);
     ImGui::SliderInt("New note fret", &editor.newNoteFret, 0, MAX_FRET);
+    ImGui::Checkbox("Hear notes", &editor.previewSounds);
     ImGui::SliderFloat("Zoom", &editor.pixelsPerBeat, MIN_PIXELS_PER_BEAT, MAX_PIXELS_PER_BEAT, "%.0f px/beat",
                        ImGuiSliderFlags_Logarithmic);
     if (const FrettedNote* note = selectedNote()){
@@ -295,8 +303,13 @@ static void drawTimeline(){
     draw->PopClipRect();
 
     if (ImGui::IsItemClicked(ImGuiMouseButton_Left)){
-        if (hoveredNote) select(hoveredNote->tick, hoveredNote->stringIndex);
-        else if (overGrid) addNote(snappedTick, hoverString, editor.newNoteFret);
+        if (hoveredNote){
+            select(hoveredNote->tick, hoveredNote->stringIndex);
+            previewNote(hoveredNote->stringIndex, hoveredNote->fret);
+        } else if (overGrid){
+            addNote(snappedTick, hoverString, editor.newNoteFret);
+            previewNote(hoverString, editor.newNoteFret);
+        }
     }
     if (ImGui::IsItemClicked(ImGuiMouseButton_Right) && hoveredNote){
         deleteNote(hoveredNote->tick, hoveredNote->stringIndex); // hoveredNote is invalid after this
@@ -326,6 +339,7 @@ static void handleEditingKeys(){
             note->fret = std::clamp(note->fret + fretChange, 0, MAX_FRET);
             editor.newNoteFret = note->fret; // keep placing notes at the fret just set
             editor.dirty = true;
+            previewNote(note->stringIndex, note->fret);
         } else {
             editor.newNoteFret = std::clamp(editor.newNoteFret + fretChange, 0, MAX_FRET);
         }
