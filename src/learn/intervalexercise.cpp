@@ -2,6 +2,7 @@
 
 #include "audio/audio.h"
 #include "core/music.h"
+#include "input/noteinput.h"
 #include "imgui.h"
 #include "raylib.h"
 #include "ui/ui.h"
@@ -20,8 +21,13 @@ const ImU32 FEEDBACK_RIGHT = IM_COL32(120, 220, 130, 255);
 const ImU32 FEEDBACK_WRONG = IM_COL32(255, 130, 110, 255);
 const ImU32 TEXT_DIM = IM_COL32(220, 200, 180, 200);
 
-IntervalExercise::IntervalExercise(const std::string& title, const IntervalConfig& config, const std::string& progressPath)
-    : title(title), progressPath(progressPath){
+const float LOWEST_EXPECTED_NOTE_HZ = 40.0f; // a bass's low E: anything from bass to voice can answer
+const double QUESTION_TAIL_S = 0.35;         // after the question's last note starts, keep ignoring input this long
+const double ANSWER_TIMEOUT_S = 5.0;         // a first note with no second one this long after is forgotten
+
+IntervalExercise::IntervalExercise(const std::string& title, const IntervalConfig& config, const std::string& progressPath,
+                                   const std::string& inputDevice)
+    : title(title), progressPath(progressPath), inputDevice(inputDevice){
     trainer.config = config;
     trainer.progress = loadIntervalProgress(progressPath);
     trainer.rng.seed(std::random_device{}()); // different questions every session
@@ -33,6 +39,7 @@ IntervalExercise::IntervalExercise(const std::string& title, const IntervalConfi
 // The destructor puts back what the constructor changed, so leaving the exercise in any way restores it
 IntervalExercise::~IntervalExercise(){
     stopPreviews();
+    stopNoteInput();
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 }
 
@@ -41,6 +48,45 @@ void IntervalExercise::playInterval(int firstPitch, int secondPitch){
     playPreview(midiToFrequency((float)firstPitch));
     float gap = trainer.config.direction == IntervalDirection::Harmonic ? 0.0f : trainer.config.gapSeconds;
     playPreview(midiToFrequency((float)secondPitch), gap);
+    // Through speakers the microphone hears these notes too: they mustn't count as the player's answer
+    listenFrom = GetTime() + gap + QUESTION_TAIL_S;
+    playedPitches.clear();
+    playedText.clear();
+}
+
+void IntervalExercise::setAnswerByPlaying(bool on){
+    inputError.clear();
+    if (on && !startNoteInput(inputDevice, LOWEST_EXPECTED_NOTE_HZ, inputError)) on = false;
+    if (!on) stopNoteInput();
+    byPlaying = on;
+    playedPitches.clear();
+    playedText.clear();
+}
+
+// The answer is the distance between the two notes the player plays, whatever note they start on:
+// hearing an interval and finding it on an instrument is the skill being practiced
+void IntervalExercise::listenForPlayedAnswer(){
+    for (const PlayedNote& note : updateNoteInput()){
+        double startedAt = GetTime() - note.age;
+        if (answered || startedAt < listenFrom) continue;
+        if (playedPitches.empty()) firstPlayedAt = startedAt;
+        playedPitches.push_back(note.pitch);
+        playedText += (playedText.empty() ? "" : "  ->  ") + std::string(pitchClassName(note.pitch)) + std::to_string(pitchOctave(note.pitch));
+        if (playedPitches.size() < 2) continue;
+
+        int distance = std::abs(playedPitches[1] - playedPitches[0]);
+        while (distance > INTERVAL_COUNT) distance -= INTERVAL_COUNT; // an interval plus octaves counts as the interval
+        if (distance == 0){
+            playedText += "   (the same note twice: try again)";
+            playedPitches.clear();
+            continue;
+        }
+        submit(distance);
+    }
+    if (playedPitches.size() == 1 && GetTime() - firstPlayedAt > ANSWER_TIMEOUT_S){
+        playedPitches.clear();
+        playedText.clear();
+    }
 }
 
 void IntervalExercise::nextQuestion(){
@@ -66,6 +112,7 @@ void IntervalExercise::submit(int semitones){
 }
 
 void IntervalExercise::update(){
+    if (byPlaying) listenForPlayedAnswer();
     if (ImGui::IsKeyPressed(ImGuiKey_Space) || ImGui::IsKeyPressed(ImGuiKey_Enter)){
         if (answered) nextQuestion();
         else playInterval(question.firstPitch, question.secondPitch);
@@ -126,6 +173,18 @@ void IntervalExercise::draw(){
         else if (answered && semitones == lastAnswer){ ImGui::PushStyleColor(ImGuiCol_Button, WRONG_COLOR); colors++; }
         if (ImGui::Button(label.c_str(), ImVec2(ANSWER_BUTTON_WIDTH, ANSWER_BUTTON_HEIGHT))) submit(semitones);
         ImGui::PopStyleColor(colors);
+    }
+
+    // Answering by playing: a checkbox, then what the microphone heard
+    ImGui::Dummy(ImVec2(0, 6));
+    bool playing = byPlaying;
+    ImGui::SetCursorPosX((ImGui::GetWindowWidth() - 360) / 2);
+    if (ImGui::Checkbox("Answer by playing (or singing)", &playing)) setAnswerByPlaying(playing);
+    if (!inputError.empty()) centeredErrorText("No input device: " + inputError);
+    if (byPlaying){
+        centeredColoredText(playedText.empty() ? "Play the two notes you heard, starting on any note"
+                                               : TextFormat("You played:  %s", playedText.c_str()), TEXT_DIM);
+        centeredColoredText(TextFormat("Input level %.0f dB", noteInputLevelDb()), TEXT_DIM);
     }
 
     ImGui::Dummy(ImVec2(0, 10));

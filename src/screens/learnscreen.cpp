@@ -10,7 +10,7 @@
 #include <memory>
 
 static struct {
-    LearnFolders folders;
+    LearnSetup setup;
     std::vector<ExerciseEntry> exercises;  // grouped by category, built-in first in each
     std::vector<std::string> progressText; // one per exercise, e.g. "3/12": read when the menu appears, not every frame
     // The running exercise, whatever kind it is. unique_ptr owns it: resetting it deletes the exercise
@@ -19,14 +19,15 @@ static struct {
 } learn;
 
 static std::string progressPath(const ExerciseEntry& entry){
-    return (std::filesystem::path(learn.folders.progress) / (entry.id + ".txt")).string();
+    return (std::filesystem::path(learn.setup.progress) / (entry.id + ".txt")).string();
 }
 
 // The only place that knows every exercise type: a new type is a new case here (and its class)
 static std::unique_ptr<Exercise> createExercise(const ExerciseEntry& entry){
     switch (entry.exercise.type){
         case ExerciseType::Intervals:
-            return std::make_unique<IntervalExercise>(entry.exercise.title, entry.exercise.intervals, progressPath(entry));
+            return std::make_unique<IntervalExercise>(entry.exercise.title, entry.exercise.intervals, progressPath(entry),
+                                                      learn.setup.settings.inputDevice);
     }
     return nullptr;
 }
@@ -44,8 +45,8 @@ static std::string progressSummary(const ExerciseEntry& entry){
 }
 
 static void refreshExercises(){
-    learn.exercises = scanExercises(learn.folders.builtInExercises, true);
-    std::vector<ExerciseEntry> userExercises = scanExercises(learn.folders.userExercises, false);
+    learn.exercises = scanExercises(learn.setup.builtInExercises, true);
+    std::vector<ExerciseEntry> userExercises = scanExercises(learn.setup.userExercises, false);
     learn.exercises.insert(learn.exercises.end(), userExercises.begin(), userExercises.end());
     // One heading per category: group everything by category. stable_sort keeps the existing order inside
     // each category, so built-in exercises stay first, each group sorted by title.
@@ -61,8 +62,8 @@ static void endExercise(){
     refreshExercises(); // new progress to show, and files may have been edited meanwhile
 }
 
-void openLearnScreen(const LearnFolders& folders){
-    learn.folders = folders;
+void openLearnScreen(const LearnSetup& setup){
+    learn.setup = setup;
     learn.exercise.reset();
     refreshExercises();
 }
@@ -113,7 +114,7 @@ static void exerciseMenu(bool& leave){
     }
 
     ImGui::Dummy(ImVec2(0, 20));
-    if (menuButton("Open exercises folder")) openFolder(learn.folders.userExercises);
+    if (menuButton("Open exercises folder")) openFolder(learn.setup.userExercises);
     if (menuButton("Back")) leave = true;
 }
 
