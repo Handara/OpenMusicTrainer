@@ -48,8 +48,8 @@ const int LANE_SPACING = 70;
 const int LANE_TOP_Y = 220;
 const int HIT_LINE_X = 180;
 const float SCROLL_SPEED = 300.0f; // pixels per second, placeholder until BPM-driven scroll lands
-const float PERFECT_WINDOW_PX = 12.0f;
-const float NEAR_WINDOW_PX = 30.0f;
+const float PERFECT_WINDOW_S = 0.040f; // max |timing error| in seconds for a perfect hit
+const float NEAR_WINDOW_S = 0.100f;
 const float HIT_FLASH_DURATION = 0.2f;
 const float RHYTHM_FILL_PER_PERFECT = 0.12f;
 
@@ -73,14 +73,16 @@ void registerMiss(GameState& state){
     state.rhythm = 0.0f;
 }
 
-void registerHit(GameState& state, Note& note, float distancePx){
-    if (distancePx <= PERFECT_WINDOW_PX){
+// timingError = note.time - press time: positive means early, negative means late
+void registerHit(GameState& state, Note& note, float timingError){
+    float absError = std::fabs(timingError);
+    if (absError <= PERFECT_WINDOW_S){
         state.combo++;
         state.multiplier = std::min(state.multiplier + 1, MAX_MULTIPLIER);
         state.score += 100 * state.multiplier;
         state.rhythm = std::min(1.0f, state.rhythm + RHYTHM_FILL_PER_PERFECT);
         note.wasPerfect = true;
-    } else if (distancePx <= NEAR_WINDOW_PX){
+    } else if (absError <= NEAR_WINDOW_S){
         state.combo++;
         state.score += 10 * state.multiplier;
         state.rhythm *= 0.5f;
@@ -95,19 +97,26 @@ void registerHit(GameState& state, Note& note, float distancePx){
 void handleInput(std::vector<Note>& notes, GameState& state, float patternTime){
     for (int lane = 0; lane < LANE_COUNT; lane++){
         if (!IsKeyPressed(laneKeys[lane])) continue;
+
+        // One press judges at most one note: the unjudged note in this lane closest in time
+        Note* nearest = nullptr;
+        float nearestError = 0.0f;
         for (Note& note : notes){
             if (note.lane != lane || note.judged) continue;
-            float x = HIT_LINE_X + (note.time - patternTime) * SCROLL_SPEED;
-            registerHit(state, note, std::fabs(x - HIT_LINE_X));
+            float error = note.time - patternTime;
+            if (nearest == nullptr || std::fabs(error) < std::fabs(nearestError)){
+                nearest = &note;
+                nearestError = error;
+            }
         }
+        if (nearest != nullptr) registerHit(state, *nearest, nearestError);
     }
 }
 
 void updateMisses(std::vector<Note>& notes, GameState& state, float patternTime){
     for (Note& note : notes){
         if (note.judged) continue;
-        float x = HIT_LINE_X + (note.time - patternTime) * SCROLL_SPEED;
-        if (x < HIT_LINE_X - NEAR_WINDOW_PX){
+        if (patternTime - note.time > NEAR_WINDOW_S){
             registerMiss(state);
             note.judged = true;
         }
