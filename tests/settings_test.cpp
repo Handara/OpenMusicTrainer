@@ -33,6 +33,7 @@ TEST_CASE("settings survive a save and load"){
     original.lowStringOnTop = false;
     original.noteViews.staff = true; // with the highway
     original.noteViews.tab = true;
+    original.noteViews.highwayFalls = true;
     original.frameRateLimit = 144;
     original.noteSpeed = 450.0f;
     original.globalOffsetMs = -35;
@@ -55,6 +56,7 @@ TEST_CASE("settings survive a save and load"){
     CHECK(loaded.noteViews.staff);
     CHECK(loaded.noteViews.tab);
     CHECK(loaded.noteViews.highway);
+    CHECK(loaded.noteViews.highwayFalls);
     CHECK(loaded.frameRateLimit == 144);
     CHECK(loaded.noteSpeed == doctest::Approx(450.0f));
     CHECK(loaded.globalOffsetMs == -35);
@@ -98,4 +100,15 @@ TEST_CASE("note views: any mix, and the older one-word form"){
         CHECK(settings.noteViews.highway == c.highway);
         CHECK(warnings.size() == c.warnings);
     }
+}
+
+TEST_CASE("the highway's direction is kept whatever order the lines come in"){
+    std::string path = settingsPath("direction.txt");
+    std::ofstream(path, std::ios::binary) << "version 1\nhighway_direction falling\nnote_view tab highway\n";
+    std::vector<std::string> warnings;
+    Settings settings = loadSettings(path, warnings);
+    CHECK(warnings.empty());
+    CHECK(settings.noteViews.highwayFalls); // reading note_view after it doesn't reset it
+    CHECK(settings.noteViews.tab);
+    CHECK_FALSE(Settings{}.noteViews.highwayFalls);  // across by default
 }

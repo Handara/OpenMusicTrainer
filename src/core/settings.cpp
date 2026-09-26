@@ -9,7 +9,8 @@
 const int SUPPORTED_SETTINGS_VERSION = 1;
 
 // The note views are stored as a list of words, "note_view staff tab highway", so the file stays readable.
-// "both" is how version 1 files first wrote sheet music plus the highway.
+// "both" is how version 1 files first wrote sheet music plus the highway. Only the three switches are read: the
+// highway's direction is a line of its own.
 static bool readNoteViews(const std::string& value, NoteViews& views){
     NoteViews read;
     read.highway = false;
@@ -23,7 +24,9 @@ static bool readNoteViews(const std::string& value, NoteViews& views){
         else return false;
     }
     if (!read.any()) return false;
-    views = read;
+    views.staff = read.staff;
+    views.tab = read.tab;
+    views.highway = read.highway;
     return true;
 }
 
@@ -60,6 +63,11 @@ Settings loadSettings(const std::string& path, std::vector<std::string>& warning
         else if (key == "note_view"){
             if (!readNoteViews(value, settings.noteViews)) warnings.push_back("line " + std::to_string(lineNumber) + ": unknown note view '" + value + "', keeping default");
         }
+        else if (key == "highway_direction"){
+            if (value == "across") settings.noteViews.highwayFalls = false;
+            else if (value == "falling") settings.noteViews.highwayFalls = true;
+            else warnings.push_back("line " + std::to_string(lineNumber) + ": highway_direction is across or falling, keeping default");
+        }
         else if (key == "low_string_on_top") settings.lowStringOnTop = value == "1";
         else if (key == "fullscreen") settings.fullscreen = value == "1";
         else if (key == "frame_rate_limit") number(settings.frameRateLimit, 0, 1000);
@@ -86,6 +94,7 @@ bool saveSettings(const std::string& path, const Settings& settings, std::string
     if (settings.noteViews.tab) out << " tab";
     if (settings.noteViews.highway) out << " highway";
     out << "\n";
+    out << "highway_direction " << (settings.noteViews.highwayFalls ? "falling" : "across") << "\n";
     out << "low_string_on_top " << (settings.lowStringOnTop ? 1 : 0) << "\n";
     out << "fullscreen " << (settings.fullscreen ? 1 : 0) << "\n";
     out << "frame_rate_limit " << settings.frameRateLimit << "\n\n";

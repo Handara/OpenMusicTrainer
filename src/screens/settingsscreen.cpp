@@ -114,11 +114,20 @@ static void displayTab(Settings& settings){
     ImGui::SameLine();
     if (ImGui::Checkbox("Highway", &views.highway) && !views.any()) views.highway = true;
 
-    ImGui::TextUnformatted("String order on the highway");
-    int stringOrder = settings.lowStringOnTop ? 0 : 1;
-    ImGui::RadioButton("Low E at the top", &stringOrder, 0);
+    ImGui::BeginDisabled(!views.highway);
+    ImGui::TextUnformatted("The highway");
+    int direction = views.highwayFalls ? 1 : 0;
+    ImGui::RadioButton("Scrolls across", &direction, 0);
     ImGui::SameLine();
-    ImGui::RadioButton("Low E at the bottom (like tab)", &stringOrder, 1);
+    ImGui::RadioButton("Falls down (strings side by side)", &direction, 1);
+    views.highwayFalls = direction == 1;
+    ImGui::EndDisabled();
+
+    ImGui::TextUnformatted("String order on the highway and in the editor");
+    int stringOrder = settings.lowStringOnTop ? 0 : 1;
+    ImGui::RadioButton("Low E at the top (left when falling)", &stringOrder, 0);
+    ImGui::SameLine();
+    ImGui::RadioButton("Low E at the bottom (right when falling)", &stringOrder, 1);
     settings.lowStringOnTop = stringOrder == 0;
 
     ImGui::SeparatorText("Window");

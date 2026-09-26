@@ -14,6 +14,7 @@ struct NoteViews {
     bool staff = false;   // sheet music
     bool tab = false;
     bool highway = true;
+    bool highwayFalls = false; // the highway's notes fall down columns (strings side by side) instead of scrolling across
     bool any() const { return staff || tab || highway; }
 };
 
@@ -27,7 +28,8 @@ struct Settings {
 
     // Display
     NoteViews noteViews;
-    bool lowStringOnTop = true;        // string order on the highway and in the editor: low E at the top, or at the bottom like tab
+    bool lowStringOnTop = true;        // string order on the highway and in the editor: low E at the top (on the left when the
+                                       // highway falls), or at the bottom like tab
     bool fullscreen = false;
     int frameRateLimit = 60;           // 0 = unlimited
 

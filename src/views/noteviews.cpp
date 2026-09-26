@@ -15,15 +15,28 @@ struct ViewSize { float weight; float maxHeight; };
 const ViewSize STAFF_SIZE = { 1.0f, 400.0f };
 const ViewSize TAB_SIZE = { 0.7f, 200.0f };
 const ViewSize HIGHWAY_SIZE = { 1.0f, 460.0f };
+const float FALLING_LANE_WIDTH = 70.0f;   // the falling highway's columns stop spreading here, like the lanes across
+const float FALLING_MAX_SHARE = 0.4f;     // of the width, when it shares the screen with other views
 
 void drawNoteViews(Rectangle area, const NoteViews& views, const std::vector<PlayNote>& notes, const Score& score,
                    const std::vector<int>& tuning, bool lowStringOnTop, TimeAxis axis){
+    // A falling highway runs top to bottom, so it can't stack with views whose time runs left to right: it gets a
+    // column of its own, on the right beside the others, or centered alone. The others stack in what's left.
+    if (views.highway && views.highwayFalls){
+        bool alone = !views.staff && !views.tab;
+        float width = std::min(tuning.size() * FALLING_LANE_WIDTH + 2 * FALLING_LANE_WIDTH, area.width * (alone ? 1.0f : FALLING_MAX_SHARE));
+        Rectangle column = { alone ? area.x + (area.width - width) / 2 : area.x + area.width - width, area.y, width, area.height };
+        drawHighway(column, notes, score, tuning, lowStringOnTop, true, axis);
+        if (alone) return;
+        area.width -= width + VIEW_GAP;
+    }
+
     // Top to bottom: sheet music over tab, like a printed guitar score, then the highway
     struct Shown { View view; ViewSize size; float height; };
     std::vector<Shown> shown;
     if (views.staff) shown.push_back({View::Staff, STAFF_SIZE, 0.0f});
     if (views.tab) shown.push_back({View::Tab, TAB_SIZE, 0.0f});
-    if (views.highway) shown.push_back({View::Highway, HIGHWAY_SIZE, 0.0f});
+    if (views.highway && !views.highwayFalls) shown.push_back({View::Highway, HIGHWAY_SIZE, 0.0f});
     if (shown.empty()) return;
 
     float totalWeight = 0.0f;
@@ -50,7 +63,7 @@ void drawNoteViews(Rectangle area, const NoteViews& views, const std::vector<Pla
         switch (shownView.view){
             case View::Staff:   drawStaff(viewArea, notes, score, axis); break;
             case View::Tab:     drawTab(viewArea, notes, score, (int)tuning.size(), axis); break;
-            case View::Highway: drawHighway(viewArea, notes, tuning, lowStringOnTop, axis); break;
+            case View::Highway: drawHighway(viewArea, notes, score, tuning, lowStringOnTop, false, axis); break;
         }
         y += shownView.height + VIEW_GAP;
     }
