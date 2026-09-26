@@ -74,6 +74,8 @@ static struct {
     bool captureReady = false;
 
     Voice voices[VOICE_COUNT];
+    Voice wake; // plays a moment of silence when an engine starts (see wakeEngineClock): not part of the pool,
+                // so nothing that stops the preview voices can cut it
     unsigned long long previewCount = 0;
     float previewVolume = 0.6f;
     std::string previewSoundName = "pluck";
@@ -121,6 +123,16 @@ static std::vector<std::string> deviceNames(ma_device_type type){
 std::vector<std::string> outputDeviceNames(){ return deviceNames(ma_device_type_playback); }
 std::vector<std::string> inputDeviceNames(){ return deviceNames(ma_device_type_capture); }
 
+static void releaseVoice(Voice& voice);
+static void startVoice(Voice& voice, const float* data, size_t frames, float pitchRatio, float volume, unsigned long long startFrame);
+
+// On some systems (PulseAudio under WSL, at least) the engine's clock doesn't start until the first sound plays,
+// and anything timed on it (the metronome, drills) would wait forever. A moment of silence gets it running for good.
+static void wakeEngineClock(){
+    audio.wake.samples.assign((size_t)(0.05f * ma_engine_get_sample_rate(&audio.engine)), 0.0f);
+    startVoice(audio.wake, audio.wake.samples.data(), audio.wake.samples.size(), 1.0f, 1.0f, 0);
+}
+
 static bool startEngine(const std::string& outputDevice, std::string& error){
     ma_device_id id;
     ma_engine_config config = ma_engine_config_init();
@@ -133,6 +145,7 @@ static bool startEngine(const std::string& outputDevice, std::string& error){
     }
     audio.engineReady = true;
     audio.engineClockStarted = false; // a new engine counts from zero again
+    wakeEngineClock();
     return true;
 }
 
@@ -155,6 +168,7 @@ static void releaseVoice(Voice& voice){
 
 static void stopEngine(){
     for (Voice& voice : audio.voices) releaseVoice(voice);
+    releaseVoice(audio.wake);
     unloadSong();
     if (audio.engineReady) ma_engine_uninit(&audio.engine);
     audio.engineReady = false;
@@ -247,6 +261,7 @@ double songPosition(){
     }
 
     double advance = now - audio.lastWallTime;
+    double previous = audio.smoothTime;
     audio.smoothTime += advance;
     audio.lastWallTime = now;
 
@@ -262,6 +277,7 @@ double songPosition(){
     if (drift > SNAP_THRESHOLD_S) audio.smoothTime += drift;          // the audio is well ahead: catch up at once
     else if (drift < -SNAP_THRESHOLD_S) audio.smoothTime -= advance;  // well behind: hold still until it catches up
     else audio.smoothTime += drift * DRIFT_CORRECTION;
+    audio.smoothTime = std::max(audio.smoothTime, previous); // a small correction must not step it back either
 
     return audio.looping ? std::fmod(audio.smoothTime, length) : audio.smoothTime;
 }
@@ -473,7 +489,7 @@ static Voice& takeVoice(){
 // Plays samples through a voice from `startFrame` on the engine clock (or now, if that has passed).
 // Scheduled on the engine's own clock, counted in samples: the sound starts on exactly the right sample,
 // however late this frame runs. Starting it from the game loop instead would be up to a frame late.
-static void startVoice(Voice& voice, const float* data, size_t frames, float pitchRatio, float volume, ma_uint64 startFrame){
+static void startVoice(Voice& voice, const float* data, size_t frames, float pitchRatio, float volume, unsigned long long startFrame){
     ma_uint32 sampleRate = ma_engine_get_sample_rate(&audio.engine);
     ma_audio_buffer_config config = ma_audio_buffer_config_init(ma_format_f32, 1, frames, data, nullptr);
     config.sampleRate = sampleRate;
@@ -538,11 +554,13 @@ double audioTime(){
     }
     // Same smoothing as songPosition: advance with real time, then close part of the gap to the engine's count
     double advance = now - audio.engineLastWallTime;
+    double previous = audio.engineSmoothTime;
     audio.engineSmoothTime += advance;
     audio.engineLastWallTime = now;
     double drift = engineTime - audio.engineSmoothTime;
     if (drift > SNAP_THRESHOLD_S) audio.engineSmoothTime = engineTime;
     else if (drift < -SNAP_THRESHOLD_S) audio.engineSmoothTime -= advance; // behind (device starting up): wait, never run backwards
     else audio.engineSmoothTime += drift * DRIFT_CORRECTION;
+    audio.engineSmoothTime = std::max(audio.engineSmoothTime, previous); // a small correction must not step it back either
     return audio.engineSmoothTime;
 }
