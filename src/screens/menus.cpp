@@ -10,8 +10,8 @@ MainMenuChoice mainMenuScreen(const std::string& error){
     MainMenuChoice choice = MainMenuChoice::None;
     beginMenu("MainMenu");
     menuTitle("OpenMusicTrainer");
+    focusNextWhenMenuAppears(); // keyboard navigation starts on Play
     if (menuButton("Play")) choice = MainMenuChoice::Play;
-    ImGui::SetItemDefaultFocus(); // keyboard navigation starts on Play
     if (menuButton("Editor")) choice = MainMenuChoice::Editor;
     if (menuButton("Tuner")) choice = MainMenuChoice::Tuner;
     if (menuButton("Settings")) choice = MainMenuChoice::Settings;
@@ -38,6 +38,7 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
         if (forEditing && song.builtIn) label += "  (built-in)";
 
         ImGui::PushID(i); // two songs with the same title must still be different widgets
+        if (i == 0) focusNextWhenMenuAppears();
         if (!song.error.empty()){
             ImGui::BeginDisabled();
             menuButton(label.c_str());
@@ -46,7 +47,6 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
         } else if (menuButton(label.c_str())){
             choice.songIndex = i;
         }
-        if (i == 0) ImGui::SetItemDefaultFocus();
         ImGui::PopID();
     }
 
@@ -74,8 +74,8 @@ ResultsChoice resultsScreen(const GameResult& result){
     centeredText(TextFormat("Notes hit  %d / %d  (%.1f%%)", hits, result.totalNotes, accuracy));
     ImGui::Dummy(ImVec2(0, 30));
 
+    focusNextWhenMenuAppears();
     if (menuButton("Retry")) choice = ResultsChoice::Retry;
-    ImGui::SetItemDefaultFocus();
     if (menuButton("Back to songs")) choice = ResultsChoice::BackToSongs;
     ImGui::End();
     return choice;
@@ -85,8 +85,8 @@ bool tunerScreen(){
     beginMenu("Tuner");
     drawTuner();
     ImGui::Dummy(ImVec2(0, 20));
+    focusNextWhenMenuAppears();
     bool back = menuButton("Back");
-    ImGui::SetItemDefaultFocus();
     ImGui::End();
     return back;
 }

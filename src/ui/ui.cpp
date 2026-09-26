@@ -108,6 +108,14 @@ void menuTitle(const char* text){
     ImGui::Dummy(ImVec2(0, 30));
 }
 
+void focusNextWhenMenuAppears(){
+    if (!ImGui::IsWindowAppearing()) return;
+    ImGui::SetKeyboardFocusHere();
+    // ImGui hides the keyboard cursor until an arrow key is pressed, and a hidden cursor ignores Enter/Space.
+    // Showing it right away makes Enter work at once; ImGui hides it again as soon as the mouse is used.
+    ImGui::SetNavCursorVisible(true);
+}
+
 bool menuButton(const char* label){
     ImGui::SetCursorPosX((ImGui::GetWindowWidth() - MENU_BUTTON_WIDTH) / 2);
     return ImGui::Button(label, ImVec2(MENU_BUTTON_WIDTH, MENU_BUTTON_HEIGHT));
