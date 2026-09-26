@@ -82,6 +82,7 @@ endfunction()
 # which keeps this layer reusable (editor, tests, a future server) and testable on its own.
 add_library(omt_core STATIC
     src/core/chart.cpp
+    src/core/exercisefile.cpp
     src/core/files.cpp
     src/core/intervals.cpp
     src/core/music.cpp
@@ -133,6 +134,7 @@ if(BUILD_TESTING)
     add_executable(omt_tests
         tests/main.cpp
         tests/chart_test.cpp
+        tests/exercisefile_test.cpp
         tests/intervals_test.cpp
         tests/music_test.cpp
         tests/notation_test.cpp
