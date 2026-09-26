@@ -92,6 +92,7 @@ add_library(omt_core STATIC
     src/core/notedetector.cpp
     src/core/paths.cpp
     src/core/pitch.cpp
+    src/core/scales.cpp
     src/core/settings.cpp
     src/core/songlibrary.cpp
     src/core/synth.cpp
@@ -147,6 +148,7 @@ if(BUILD_TESTING)
         tests/notation_test.cpp
         tests/notedetector_test.cpp
         tests/pitch_test.cpp
+        tests/scales_test.cpp
         tests/settings_test.cpp
         tests/synth_test.cpp
     )
