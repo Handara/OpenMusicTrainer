@@ -32,7 +32,8 @@ bool setPreviewSound(const std::string& name, const std::string& soundsDir, std:
 const char* previewSoundName();
 bool previewSoundHasPitch();
 void setPreviewVolume(float volume); // 0..1
-void playPreview(float frequency);
+void playPreview(float frequency, float delaySeconds = 0.0f); // the delay is timed on the audio clock, to the sample
+void stopPreviews();
 
 // Input from the default microphone / instrument, mono. Only runs between startCapture and stopCapture.
 bool startCapture(const std::string& inputDevice, std::string& error);

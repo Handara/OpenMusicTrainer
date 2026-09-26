@@ -36,7 +36,8 @@ struct Voice {
     ma_audio_buffer buffer;
     ma_sound sound;
     bool ready = false;
-    unsigned long long startedAt = 0; // which pluck this was, to find the oldest when all voices are busy
+    ma_uint64 startFrame = 0; // engine time (in frames) when it starts sounding: when all voices are busy,
+                              // the one that started earliest is reused (it has faded the most)
 };
 
 // All audio state lives here, like raylib's internal AUDIO struct. miniaudio objects keep
@@ -432,17 +433,29 @@ void setPreviewVolume(float volume){
     audio.previewVolume = volume;
 }
 
-void playPreview(float frequency){
+// Busy = sounding now, or scheduled to start later. ma_sound_is_playing alone isn't enough: it answers
+// for the current moment, so a note scheduled for later looks free until it starts.
+static bool voiceBusy(Voice& voice){
+    if (!voice.ready) return false;
+    return ma_sound_is_playing(&voice.sound) || ma_engine_get_time_in_pcm_frames(&audio.engine) < voice.startFrame;
+}
+
+void stopPreviews(){
+    for (Voice& voice : audio.voices) releaseVoice(voice);
+}
+
+void playPreview(float frequency, float delaySeconds){
     if (!audio.engineReady) return;
 
-    // A voice that finished playing, or else the oldest one (it has faded the most)
+    // A free voice, or else the one that has been sounding longest. Comparing start times on the audio
+    // clock matters: a note scheduled for later has the latest start, so it's never cut before it plays.
     Voice* voice = &audio.voices[0];
     for (Voice& candidate : audio.voices){
-        if (!candidate.ready || !ma_sound_is_playing(&candidate.sound)){
+        if (!voiceBusy(candidate)){
             voice = &candidate;
             break;
         }
-        if (candidate.startedAt < voice->startedAt) voice = &candidate;
+        if (candidate.startFrame < voice->startFrame) voice = &candidate;
     }
     releaseVoice(*voice);
 
@@ -470,10 +483,15 @@ void playPreview(float frequency){
         return;
     }
     voice->ready = true;
-    voice->startedAt = ++audio.previewCount;
+    audio.previewCount++;
     if (!audio.customSound.empty() && audio.customSoundRoot > 0.0f){
         ma_sound_set_pitch(&voice->sound, frequency / audio.customSoundRoot); // 2.0 = an octave up (and twice as short)
     }
     ma_sound_set_volume(&voice->sound, audio.previewVolume);
+
+    // Scheduled on the audio engine's own clock, counted in samples: the note starts on exactly the right
+    // sample, however late this frame runs. Starting it from the game loop instead would be up to a frame late.
+    voice->startFrame = ma_engine_get_time_in_pcm_frames(&audio.engine) + (ma_uint64)(delaySeconds * sampleRate);
+    if (delaySeconds > 0.0f) ma_sound_set_start_time_in_pcm_frames(&voice->sound, voice->startFrame);
     ma_sound_start(&voice->sound);
 }
