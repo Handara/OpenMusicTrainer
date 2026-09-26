@@ -1,0 +1,94 @@
+#include "ui/ui.h"
+
+#include "raylib.h"
+#include "rlImGui.h"
+
+const float UI_FONT_SIZE = 26.0f;
+const float TITLE_FONT_SIZE = 56.0f;
+const float MENU_BUTTON_WIDTH = 420.0f;
+const float MENU_BUTTON_HEIGHT = 56.0f;
+const ImVec4 ERROR_TEXT_COLOR = { 1.0f, 0.45f, 0.4f, 1.0f };
+
+const Color MENU_BG_TOP = { 28, 18, 14, 255 };
+const Color MENU_BG_BOTTOM = { 70, 42, 28, 255 };
+
+void initUi(const std::string& fontPath){
+    rlImGuiSetup(true);
+    ImGuiIO& io = ImGui::GetIO();
+    io.IniFilename = nullptr; // don't write imgui.ini: menu layout is fixed in code
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // arrows + Enter work in menus
+
+    if (FileExists(fontPath.c_str())){
+        io.FontDefault = io.Fonts->AddFontFromFileTTF(fontPath.c_str(), UI_FONT_SIZE);
+    } else {
+        TraceLog(LOG_WARNING, "UI font not found, using ImGui's default: %s", fontPath.c_str());
+    }
+
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.FontSizeBase = UI_FONT_SIZE;
+    style.FrameRounding = 8.0f;
+    style.ItemSpacing = ImVec2(12, 14);
+    style.Colors[ImGuiCol_Button] = ImVec4(0.45f, 0.28f, 0.18f, 0.85f);
+    style.Colors[ImGuiCol_ButtonHovered] = ImVec4(0.62f, 0.40f, 0.24f, 1.0f);
+    style.Colors[ImGuiCol_ButtonActive] = ImVec4(0.80f, 0.58f, 0.20f, 1.0f);
+    style.Colors[ImGuiCol_NavCursor] = ImVec4(1.0f, 0.80f, 0.30f, 1.0f);
+}
+
+void closeUi(){
+    rlImGuiShutdown();
+}
+
+void beginUiFrame(){
+    rlImGuiBegin();
+}
+
+void endUiFrame(){
+    rlImGuiEnd();
+}
+
+void drawMenuBackground(){
+    DrawRectangleGradientV(0, 0, GetScreenWidth(), GetScreenHeight(), MENU_BG_TOP, MENU_BG_BOTTOM);
+}
+
+void beginMenu(const char* id){
+    ImGui::SetNextWindowPos(ImVec2(0, 0));
+    ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove
+                           | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoSavedSettings;
+    ImGui::Begin(id, nullptr, flags);
+    ImGui::Dummy(ImVec2(0, 60)); // top margin
+}
+
+void centeredText(const char* text){
+    ImGui::SetCursorPosX((ImGui::GetWindowWidth() - ImGui::CalcTextSize(text).x) / 2);
+    ImGui::TextUnformatted(text);
+}
+
+void centeredColoredText(const char* text, ImU32 color){
+    ImGui::PushStyleColor(ImGuiCol_Text, color);
+    centeredText(text);
+    ImGui::PopStyleColor();
+}
+
+void menuTitle(const char* text){
+    ImGui::PushFont(nullptr, TITLE_FONT_SIZE); // same font, bigger size
+    centeredText(text);
+    ImGui::PopFont();
+    ImGui::Dummy(ImVec2(0, 30));
+}
+
+bool menuButton(const char* label){
+    ImGui::SetCursorPosX((ImGui::GetWindowWidth() - MENU_BUTTON_WIDTH) / 2);
+    return ImGui::Button(label, ImVec2(MENU_BUTTON_WIDTH, MENU_BUTTON_HEIGHT));
+}
+
+void centeredErrorText(const std::string& text){
+    // Errors can be long (they include file paths), so wrap them to the button column's width
+    float left = (ImGui::GetWindowWidth() - MENU_BUTTON_WIDTH) / 2;
+    ImGui::SetCursorPosX(left);
+    ImGui::PushStyleColor(ImGuiCol_Text, ERROR_TEXT_COLOR);
+    ImGui::PushTextWrapPos(left + MENU_BUTTON_WIDTH);
+    ImGui::TextUnformatted(text.c_str());
+    ImGui::PopTextWrapPos();
+    ImGui::PopStyleColor();
+}

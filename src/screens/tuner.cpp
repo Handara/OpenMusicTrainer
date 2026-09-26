@@ -1,10 +1,11 @@
-#include "tuner.h"
+#include "screens/tuner.h"
 
-#include "audio.h"
+#include "audio/audio.h"
 #include "imgui.h"
-#include "music.h"
-#include "pitch.h"
+#include "core/music.h"
+#include "core/pitch.h"
 #include "raylib.h"
+#include "ui/ui.h"
 
 #include <algorithm>
 #include <cmath>
@@ -93,13 +94,6 @@ void updateTuner(){
         tuner.smoothedMidi += (midi - tuner.smoothedMidi) * SMOOTHING;
     }
     tuner.lastDetectionTime = GetTime();
-}
-
-static void centeredColoredText(const char* text, ImU32 color){
-    ImGui::SetCursorPosX((ImGui::GetWindowWidth() - ImGui::CalcTextSize(text).x) / 2);
-    ImGui::PushStyleColor(ImGuiCol_Text, color);
-    ImGui::TextUnformatted(text);
-    ImGui::PopStyleColor();
 }
 
 void drawTuner(){

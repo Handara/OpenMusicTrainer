@@ -1,6 +1,6 @@
-#include "songlibrary.h"
+#include "core/songlibrary.h"
 
-#include "chart.h"
+#include "core/chart.h"
 
 #include <algorithm>
 #include <filesystem>

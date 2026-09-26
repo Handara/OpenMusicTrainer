@@ -1,0 +1,91 @@
+#include "screens/menus.h"
+
+#include "raylib.h"
+#include "screens/tuner.h"
+#include "ui/ui.h"
+
+// Immediate mode: these functions run every frame, drawing the widgets and reacting to clicks in the same call.
+
+MainMenuChoice mainMenuScreen(const std::string& error){
+    MainMenuChoice choice = MainMenuChoice::None;
+    beginMenu("MainMenu");
+    menuTitle("OpenMusicTrainer");
+    if (menuButton("Play")) choice = MainMenuChoice::Play;
+    ImGui::SetItemDefaultFocus(); // keyboard navigation starts on Play
+    if (menuButton("Tuner")) choice = MainMenuChoice::Tuner;
+
+    ImGui::BeginDisabled(); // not built yet
+    menuButton("Editor (coming soon)");
+    ImGui::EndDisabled();
+
+    if (menuButton("Quit")) choice = MainMenuChoice::Quit;
+    if (!error.empty()){
+        ImGui::Dummy(ImVec2(0, 10));
+        centeredErrorText(error);
+    }
+    ImGui::End();
+    return choice;
+}
+
+SongSelectChoice songSelectScreen(const std::vector<SongEntry>& songs, const std::string& error){
+    SongSelectChoice choice;
+    beginMenu("SongSelect");
+    menuTitle("Select a song");
+
+    if (songs.empty()) centeredText("No songs found");
+    for (int i = 0; i < (int)songs.size(); i++){
+        const SongEntry& song = songs[i];
+        std::string label = song.artist.empty() ? song.title : song.title + "  -  " + song.artist;
+
+        ImGui::PushID(i); // two songs with the same title must still be different widgets
+        if (!song.error.empty()){
+            ImGui::BeginDisabled();
+            menuButton(label.c_str());
+            ImGui::EndDisabled();
+            centeredErrorText(song.error);
+        } else if (menuButton(label.c_str())){
+            choice.songIndex = i;
+        }
+        if (i == 0) ImGui::SetItemDefaultFocus();
+        ImGui::PopID();
+    }
+
+    if (!error.empty()){
+        ImGui::Dummy(ImVec2(0, 10));
+        centeredErrorText(error);
+    }
+    ImGui::Dummy(ImVec2(0, 20));
+    if (menuButton("Back")) choice.back = true;
+    ImGui::End();
+    return choice;
+}
+
+ResultsChoice resultsScreen(const GameResult& result){
+    ResultsChoice choice = ResultsChoice::None;
+    int hits = result.perfectCount + result.nearCount;
+    float accuracy = result.totalNotes > 0 ? 100.0f * hits / result.totalNotes : 0.0f;
+
+    beginMenu("Results");
+    menuTitle(result.title.c_str());
+    centeredText(TextFormat("Score  %08d", result.score));
+    centeredText(TextFormat("Max combo  %d", result.maxCombo));
+    centeredText(TextFormat("Perfect %d    Near %d    Miss %d", result.perfectCount, result.nearCount, result.missCount));
+    centeredText(TextFormat("Notes hit  %d / %d  (%.1f%%)", hits, result.totalNotes, accuracy));
+    ImGui::Dummy(ImVec2(0, 30));
+
+    if (menuButton("Retry")) choice = ResultsChoice::Retry;
+    ImGui::SetItemDefaultFocus();
+    if (menuButton("Back to songs")) choice = ResultsChoice::BackToSongs;
+    ImGui::End();
+    return choice;
+}
+
+bool tunerScreen(){
+    beginMenu("Tuner");
+    drawTuner();
+    ImGui::Dummy(ImVec2(0, 20));
+    bool back = menuButton("Back");
+    ImGui::SetItemDefaultFocus();
+    ImGui::End();
+    return back;
+}

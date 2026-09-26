@@ -61,29 +61,49 @@ add_library(imgui STATIC
 target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR} ${rlimgui_SOURCE_DIR})
 target_link_libraries(imgui PUBLIC raylib)
 
-add_executable(OpenMusicTrainer
-    main.cpp chart.cpp audio.cpp gameplay.cpp songlibrary.cpp
-    music.cpp pitch.cpp tuner.cpp
-)
-target_link_libraries(OpenMusicTrainer PUBLIC raylib miniaudio imgui)
-
 # Warnings for our own code only (third-party libraries keep their own settings)
-if(MSVC)
-    target_compile_options(OpenMusicTrainer PRIVATE /W4)
-else()
-    target_compile_options(OpenMusicTrainer PRIVATE -Wall -Wextra)
-endif()
+function(enable_warnings target)
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /W4)
+    else()
+        target_compile_options(${target} PRIVATE -Wall -Wextra)
+    endif()
+endfunction()
+
+# Core: pure C++ (chart format, music theory, pitch detection, song library).
+# It deliberately does NOT link raylib, miniaudio or imgui: including one of them here fails to compile,
+# which keeps this layer reusable (editor, tests, a future server) and testable on its own.
+add_library(omt_core STATIC
+    src/core/chart.cpp
+    src/core/music.cpp
+    src/core/pitch.cpp
+    src/core/songlibrary.cpp
+)
+target_include_directories(omt_core PUBLIC src)
+enable_warnings(omt_core)
+
+# The game: audio, UI and screens on top of core
+add_executable(OpenMusicTrainer
+    src/main.cpp
+    src/audio/audio.cpp
+    src/ui/ui.cpp
+    src/screens/gameplay.cpp
+    src/screens/menus.cpp
+    src/screens/tuner.cpp
+)
+target_link_libraries(OpenMusicTrainer PRIVATE omt_core raylib miniaudio imgui)
+enable_warnings(OpenMusicTrainer)
 
 # Copy game data next to the executable on every build (only files that changed are copied)
 add_custom_target(copy_resources ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
-            ${CMAKE_SOURCE_DIR}/Ressources
-            $<TARGET_FILE_DIR:OpenMusicTrainer>/Ressources
+            ${CMAKE_SOURCE_DIR}/resources
+            $<TARGET_FILE_DIR:OpenMusicTrainer>/resources
     # UI font that ships with Dear ImGui (Apache 2.0 license)
-    COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:OpenMusicTrainer>/Ressources/fonts
+    COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:OpenMusicTrainer>/resources/fonts
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
             ${imgui_SOURCE_DIR}/misc/fonts/Roboto-Medium.ttf
-            $<TARGET_FILE_DIR:OpenMusicTrainer>/Ressources/fonts/Roboto-Medium.ttf
+            $<TARGET_FILE_DIR:OpenMusicTrainer>/resources/fonts/Roboto-Medium.ttf
 )
 add_dependencies(OpenMusicTrainer copy_resources)
 

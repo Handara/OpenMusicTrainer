@@ -1,8 +1,8 @@
-#include "gameplay.h"
+#include "screens/gameplay.h"
 
-#include "audio.h"
-#include "chart.h"
-#include "music.h"
+#include "audio/audio.h"
+#include "core/chart.h"
+#include "core/music.h"
 #include "raylib.h"
 
 #include <algorithm>
