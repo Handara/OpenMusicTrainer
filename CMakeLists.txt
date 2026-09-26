@@ -82,9 +82,11 @@ endfunction()
 # which keeps this layer reusable (editor, tests, a future server) and testable on its own.
 add_library(omt_core STATIC
     src/core/chart.cpp
+    src/core/files.cpp
     src/core/music.cpp
     src/core/paths.cpp
     src/core/pitch.cpp
+    src/core/settings.cpp
     src/core/songlibrary.cpp
 )
 target_include_directories(omt_core PUBLIC src)
@@ -125,6 +127,7 @@ if(BUILD_TESTING)
         tests/chart_test.cpp
         tests/music_test.cpp
         tests/pitch_test.cpp
+        tests/settings_test.cpp
     )
     target_link_libraries(omt_tests PRIVATE omt_core doctest::doctest)
     target_compile_definitions(omt_tests PRIVATE OMT_RESOURCES_DIR="${CMAKE_SOURCE_DIR}/resources/")

@@ -1,8 +1,9 @@
 #include "core/chart.h"
 
+#include "core/files.h"
+
 #include <algorithm>
 #include <charconv>
-#include <filesystem>
 #include <fstream>
 #include <sstream>
 
@@ -187,23 +188,7 @@ bool saveChart(const std::string& path, const Chart& chart, std::string& error){
         }
     }
 
-    // Write everything to a temporary file first, then swap it in with one rename
-    std::string tempPath = path + ".tmp";
-    {
-        std::ofstream file(tempPath, std::ios::binary); // binary: same "\n" line endings on every OS
-        file << out.str();
-        if (!file){
-            error = tempPath + ": could not write file";
-            return false;
-        }
-    } // closing the file here flushes it before the rename
-    std::error_code ec;
-    std::filesystem::rename(tempPath, path, ec);
-    if (ec){
-        error = path + ": could not replace file: " + ec.message();
-        return false;
-    }
-    return true;
+    return writeFileAtomically(path, out.str(), error);
 }
 
 // Walks the tempo map section by section, adding the duration of each section the tick passes through
