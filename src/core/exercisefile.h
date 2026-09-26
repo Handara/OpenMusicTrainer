@@ -2,6 +2,7 @@
 
 #include "core/drill.h"
 #include "core/intervals.h"
+#include "core/routine.h"
 
 #include <string>
 #include <vector>
@@ -36,8 +37,13 @@
 //   tempo 60 160 4               (start, goal, step, in bpm)
 //   pass 90                      (percent right for a pass to count as clean and speed up)
 //   tuning 40 45 50 55 59 64     (MIDI pitch per string, lowest first)
+//
+// A routine (`type routine`) is a playlist of other exercises, a few minutes each, done one after the other:
+//   step e-minor-open 3          (an exercise's file name without .exercise, then minutes: at least one step)
+//   step intervals-up 5
+// A built-in routine uses built-in exercises; the player's own routines look in their own exercises first.
 
-enum class ExerciseType { Intervals, Scale };
+enum class ExerciseType { Intervals, Scale, Routine };
 
 struct ExerciseFile {
     ExerciseType type = ExerciseType::Intervals;
@@ -47,6 +53,7 @@ struct ExerciseFile {
     std::string description;
     IntervalConfig intervals; // the rules, for type Intervals
     ScaleDrillConfig drill;   // the rules, for type Scale
+    std::vector<RoutineStep> routine; // the steps, for type Routine
 };
 
 // Strict, like charts: exercises are shared, so authors get a clear error with its line number.
@@ -54,6 +61,7 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
 
 struct ExerciseEntry {
     std::string path;
+    std::string name;   // the file name without ".exercise": how routines refer to it
     std::string id;     // names its progress file: "builtin-<file name>" or "user-<file name>"
     bool builtIn;
     ExerciseFile exercise; // if it failed to load, only the title (the file name) is set
@@ -62,3 +70,9 @@ struct ExerciseEntry {
 
 // Every *.exercise file in the folder, sorted by category then title
 std::vector<ExerciseEntry> scanExercises(const std::string& dir, bool builtIn);
+
+// The exercise a routine's step names, or nullptr if there's none
+const ExerciseEntry* findRoutineStep(const std::vector<ExerciseEntry>& entries, const ExerciseEntry& routine, const std::string& name);
+// A routine can only be checked once every exercise is loaded: this marks, with an error, each routine that names
+// a missing or broken exercise, or another routine (routines inside routines could loop forever)
+void checkRoutines(std::vector<ExerciseEntry>& entries);

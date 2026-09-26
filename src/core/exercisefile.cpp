@@ -1,7 +1,6 @@
 #include "core/exercisefile.h"
 
 #include <algorithm>
-#include <sstream>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -108,7 +107,8 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
         } else if (line.key == "type"){
             if (line.rest == "intervals") out.type = ExerciseType::Intervals;
             else if (line.rest == "scale") out.type = ExerciseType::Scale;
-            else return lineError("unknown exercise type '" + line.rest + "' (known: intervals, scale)");
+            else if (line.rest == "routine") out.type = ExerciseType::Routine;
+            else return lineError("unknown exercise type '" + line.rest + "' (known: intervals, scale, routine)");
             hasType = true;
         }
     }
@@ -165,6 +165,11 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
             }
         } else if (out.type == ExerciseType::Intervals && key == "gap"){
             if (!(ss >> config.gapSeconds) || config.gapSeconds < 0.1f || config.gapSeconds > 3.0f) return lineError("gap must be 0.1 to 3 seconds");
+        } else if (out.type == ExerciseType::Routine && key == "step"){
+            RoutineStep step;
+            if (!(ss >> step.exercise >> step.minutes)) return lineError("expected: step <exercise file name> <minutes>");
+            if (!(step.minutes > 0.0f && step.minutes <= 60.0f)) return lineError("a step lasts more than 0 and at most 60 minutes");
+            out.routine.push_back(step);
         } else if (out.type == ExerciseType::Scale && readDrillSetting(key, ss, out.drill, lineError)){
             if (!error.empty()) return false; // the setting was recognized but its value was wrong
         } else {
@@ -174,6 +179,10 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
     }
 
     if (out.title.empty()) return fileError("missing 'title'");
+    if (out.type == ExerciseType::Routine){
+        if (out.routine.empty()) return fileError("a routine needs at least one 'step'");
+        return true;
+    }
     if (out.type == ExerciseType::Scale){
         // Build it once now, so a drill that can't be played is reported here, where the author sees it
         std::vector<DrillNote> notes;
@@ -197,9 +206,10 @@ std::vector<ExerciseEntry> scanExercises(const std::string& dir, bool builtIn){
         ExerciseEntry entry;
         entry.path = file.path().string();
         entry.builtIn = builtIn;
-        entry.id = std::string(builtIn ? "builtin-" : "user-") + file.path().stem().string();
+        entry.name = file.path().stem().string();
+        entry.id = std::string(builtIn ? "builtin-" : "user-") + entry.name;
         if (!loadExerciseFile(entry.path, entry.exercise, entry.error)){
-            entry.exercise.title = file.path().stem().string();
+            entry.exercise.title = entry.name;
             // Menus show the error: the file name is enough there, the full path would take several lines
             if (entry.error.rfind(entry.path, 0) == 0) entry.error = file.path().filename().string() + entry.error.substr(entry.path.size());
         }
@@ -210,4 +220,28 @@ std::vector<ExerciseEntry> scanExercises(const std::string& dir, bool builtIn){
         return a.exercise.title < b.exercise.title;
     });
     return entries;
+}
+
+const ExerciseEntry* findRoutineStep(const std::vector<ExerciseEntry>& entries, const ExerciseEntry& routine, const std::string& name){
+    auto find = [&](bool builtIn) -> const ExerciseEntry* {
+        for (const ExerciseEntry& entry : entries) if (entry.builtIn == builtIn && entry.name == name) return &entry;
+        return nullptr;
+    };
+    if (const ExerciseEntry* own = find(routine.builtIn)) return own; // the routine's own folder first
+    // Then, for the player's routines, the built-in exercises. Built-in routines never depend on what a player installed.
+    return routine.builtIn ? nullptr : find(true);
+}
+
+void checkRoutines(std::vector<ExerciseEntry>& entries){
+    for (ExerciseEntry& entry : entries){
+        if (entry.exercise.type != ExerciseType::Routine || !entry.error.empty()) continue;
+        std::string fileName = entry.name + ".exercise";
+        for (const RoutineStep& step : entry.exercise.routine){
+            const ExerciseEntry* found = findRoutineStep(entries, entry, step.exercise);
+            if (!found) entry.error = fileName + ": step '" + step.exercise + "': there's no " + step.exercise + ".exercise";
+            else if (!found->error.empty()) entry.error = fileName + ": step '" + step.exercise + "' has an error of its own";
+            else if (found->exercise.type == ExerciseType::Routine) entry.error = fileName + ": step '" + step.exercise + "' is a routine: routines can't contain routines";
+            if (!entry.error.empty()) break;
+        }
+    }
 }

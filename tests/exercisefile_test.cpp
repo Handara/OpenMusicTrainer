@@ -108,6 +108,7 @@ TEST_CASE("scanning a folder finds exercise files, broken ones included"){
 
 TEST_CASE("every exercise shipped with the game loads"){
     std::vector<ExerciseEntry> entries = scanExercises(OMT_RESOURCES_DIR "exercises", true);
+    checkRoutines(entries); // built-in routines may only use built-in exercises: all of them must be found
     CHECK(entries.size() >= 4);
     for (const ExerciseEntry& entry : entries){
         CHECK_MESSAGE(entry.error.empty(), entry.error);
@@ -151,4 +152,78 @@ TEST_CASE("scale drill exercise files"){
             CHECK_MESSAGE(error.find(c.expected) != std::string::npos, error);
         }
     }
+}
+
+TEST_CASE("routine exercise files"){
+    ExerciseFile file;
+    std::string error;
+    REQUIRE_MESSAGE(loadExerciseFile(writeExercise("routine.exercise",
+        "version 1\ntype routine\ntitle Warm-up\ncategory Routines\nstep e-minor-open 3\nstep intervals-up 2.5\n"), file, error), error);
+    CHECK(file.type == ExerciseType::Routine);
+    REQUIRE(file.routine.size() == 2);
+    CHECK(file.routine[0].exercise == "e-minor-open");
+    CHECK(file.routine[0].minutes == doctest::Approx(3.0f));
+    CHECK(file.routine[1].minutes == doctest::Approx(2.5f));
+
+    const std::string head = "version 1\ntype routine\ntitle T\n";
+    struct Case { const char* name; std::string content; const char* expected; };
+    const Case cases[] = {
+        {"no steps",      head,                           "at least one 'step'"},
+        {"no minutes",    head + "step warmup\n",         "expected: step <exercise file name> <minutes>"},
+        {"zero minutes",  head + "step warmup 0\n",       "more than 0 and at most 60"},
+        {"too long",      head + "step warmup 90\n",      "more than 0 and at most 60"},
+        {"trailing text", head + "step warmup 3 fast\n",  "unexpected text after 'step'"},
+        {"drill setting", head + "tempo 60 120 4\n",      "unknown setting 'tempo'"},
+    };
+    for (const Case& c : cases){
+        SUBCASE(c.name){
+            CHECK_FALSE(loadExerciseFile(writeExercise("badroutine.exercise", c.content), file, error));
+            CHECK_MESSAGE(error.find(c.expected) != std::string::npos, error);
+        }
+    }
+}
+
+TEST_CASE("routine steps are found in the right folder"){
+    fs::path builtInDir = testDir() / "routines-builtin", userDir = testDir() / "routines-user";
+    fs::remove_all(builtInDir);
+    fs::remove_all(userDir);
+    fs::create_directories(builtInDir);
+    fs::create_directories(userDir);
+    const std::string intervals = "version 1\ntype intervals\n";
+    std::ofstream(builtInDir / "ears.exercise") << intervals << "title Built-in ears\n";
+    std::ofstream(builtInDir / "daily.exercise") << "version 1\ntype routine\ntitle Daily\nstep ears 5\n";
+    std::ofstream(builtInDir / "needs-yours.exercise") << "version 1\ntype routine\ntitle N\nstep mine 5\n";
+    std::ofstream(userDir / "ears.exercise") << intervals << "title My ears\n";
+    std::ofstream(userDir / "mine.exercise") << intervals << "title Mine\n";
+    std::ofstream(userDir / "my-daily.exercise") << "version 1\ntype routine\ntitle My daily\nstep ears 5\nstep daily 5\n";
+    std::ofstream(userDir / "typo.exercise") << "version 1\ntype routine\ntitle Typo\nstep eras 5\n";
+    std::ofstream(userDir / "broken.exercise") << "version 1\ntype nope\n";
+    std::ofstream(userDir / "uses-broken.exercise") << "version 1\ntype routine\ntitle U\nstep broken 5\n";
+    std::ofstream(userDir / "only-builtin.exercise") << "version 1\ntype routine\ntitle O\nstep mine 1\nstep ears 1\n";
+
+    std::vector<ExerciseEntry> entries = scanExercises(builtInDir.string(), true);
+    std::vector<ExerciseEntry> user = scanExercises(userDir.string(), false);
+    entries.insert(entries.end(), user.begin(), user.end());
+    checkRoutines(entries);
+    auto entry = [&](const std::string& name, bool builtIn) -> const ExerciseEntry& {
+        for (const ExerciseEntry& e : entries) if (e.name == name && e.builtIn == builtIn) return e;
+        FAIL("no entry " << name);
+        return entries[0];
+    };
+
+    // A built-in routine uses the built-in exercise, even when the player has one with the same name
+    const ExerciseEntry& daily = entry("daily", true);
+    CHECK(daily.error.empty());
+    CHECK(findRoutineStep(entries, daily, "ears")->exercise.title == "Built-in ears");
+    CHECK(entry("needs-yours", true).error.find("there's no mine.exercise") != std::string::npos);
+
+    // The player's routines look in their own exercises first, then the built-in ones
+    const ExerciseEntry& onlyBuiltIn = entry("only-builtin", false);
+    CHECK(onlyBuiltIn.error.empty());
+    CHECK(findRoutineStep(entries, onlyBuiltIn, "ears")->exercise.title == "My ears");
+    CHECK(findRoutineStep(entries, onlyBuiltIn, "mine")->exercise.title == "Mine");
+
+    CHECK(entry("my-daily", false).error == "my-daily.exercise: step 'daily' is a routine: routines can't contain routines");
+    CHECK(entry("typo", false).error.find("there's no eras.exercise") != std::string::npos);
+    CHECK(entry("uses-broken", false).error.find("step 'broken' has an error of its own") != std::string::npos);
 }
