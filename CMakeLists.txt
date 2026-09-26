@@ -119,6 +119,7 @@ add_executable(OpenMusicTrainer
     src/screens/settingsscreen.cpp
     src/screens/tuner.cpp
     src/views/highway.cpp
+    src/views/noteviews.cpp
     src/views/staff.cpp
 )
 target_link_libraries(OpenMusicTrainer PRIVATE omt_core raylib miniaudio imgui)

@@ -6,8 +6,7 @@
 #include "input/noteinput.h"
 #include "raylib.h"
 #include "ui/ui.h"
-#include "views/highway.h"
-#include "views/staff.h"
+#include "views/noteviews.h"
 
 #include <algorithm>
 #include <cmath>
@@ -151,18 +150,8 @@ void DrillExercise::draw(){
         centeredColoredText("Keys 1 to 6 play the strings, lowest first", TEXT_DIM);
     }
 
-    // The notes, in whichever view the settings choose, below the text
+    // The notes, in whichever views the settings choose, below the text
     float width = (float)GetScreenWidth(), height = (float)GetScreenHeight();
     TimeAxis axis = { (float)drillTime(), HIT_LINE_X, settings.noteSpeed };
-    Rectangle staffArea = {0, 0, 0, 0}, highwayArea = {0, 0, 0, 0};
-    switch (settings.noteView){
-        case NoteView::Highway: highwayArea = {0, height * 0.50f, width, height * 0.48f}; break;
-        case NoteView::Staff:   staffArea = {0, height * 0.50f, width, height * 0.48f}; break;
-        case NoteView::Both:
-            staffArea = {0, height * 0.48f, width, height * 0.24f};
-            highwayArea = {0, height * 0.73f, width, height * 0.26f};
-            break;
-    }
-    if (staffArea.height > 0) drawStaff(staffArea, notes, barTimes, axis);
-    if (highwayArea.height > 0) drawHighway(highwayArea, notes, config.tuning, settings.lowStringOnTop, axis);
+    drawNoteViews({0, height * 0.48f, width, height * 0.51f}, settings.noteViews, notes, barTimes, config.tuning, settings.lowStringOnTop, axis);
 }

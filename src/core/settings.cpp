@@ -8,8 +8,23 @@
 
 const int SUPPORTED_SETTINGS_VERSION = 1;
 
-// Stored as words rather than numbers, so the file stays readable and reordering the enum can't break it
-const char* const NOTE_VIEW_NAMES[] = { "highway", "staff", "both" };
+// The note views are stored as a list of words, "note_view staff highway", so the file stays readable.
+// "both" is how version 1 files first wrote sheet music plus the highway.
+static bool readNoteViews(const std::string& value, NoteViews& views){
+    NoteViews read;
+    read.highway = false;
+    std::istringstream words(value);
+    std::string word;
+    while (words >> word){
+        if (word == "staff") read.staff = true;
+        else if (word == "highway") read.highway = true;
+        else if (word == "both") read.staff = read.highway = true;
+        else return false;
+    }
+    if (!read.any()) return false;
+    views = read;
+    return true;
+}
 
 Settings loadSettings(const std::string& path, std::vector<std::string>& warnings){
     Settings settings;
@@ -42,9 +57,7 @@ Settings loadSettings(const std::string& path, std::vector<std::string>& warning
         else if (key == "preview_volume") number(settings.previewVolume, 0.0f, 1.0f);
         else if (key == "preview_sound"){ if (!value.empty()) settings.previewSound = value; }
         else if (key == "note_view"){
-            bool known = false;
-            for (int i = 0; i < 3; i++) if (value == NOTE_VIEW_NAMES[i]){ settings.noteView = (NoteView)i; known = true; }
-            if (!known) warnings.push_back("line " + std::to_string(lineNumber) + ": unknown note view '" + value + "', keeping default");
+            if (!readNoteViews(value, settings.noteViews)) warnings.push_back("line " + std::to_string(lineNumber) + ": unknown note view '" + value + "', keeping default");
         }
         else if (key == "low_string_on_top") settings.lowStringOnTop = value == "1";
         else if (key == "fullscreen") settings.fullscreen = value == "1";
@@ -67,7 +80,10 @@ bool saveSettings(const std::string& path, const Settings& settings, std::string
     out << "master_volume " << settings.masterVolume << "\n";
     out << "preview_volume " << settings.previewVolume << "\n";
     out << "preview_sound " << settings.previewSound << "\n\n";
-    out << "note_view " << NOTE_VIEW_NAMES[(int)settings.noteView] << "\n";
+    out << "note_view";
+    if (settings.noteViews.staff) out << " staff";
+    if (settings.noteViews.highway) out << " highway";
+    out << "\n";
     out << "low_string_on_top " << (settings.lowStringOnTop ? 1 : 0) << "\n";
     out << "fullscreen " << (settings.fullscreen ? 1 : 0) << "\n";
     out << "frame_rate_limit " << settings.frameRateLimit << "\n\n";

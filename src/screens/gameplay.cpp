@@ -2,13 +2,11 @@
 
 #include "audio/audio.h"
 #include "core/chart.h"
+#include "core/judge.h"
 #include "core/music.h"
 #include "input/noteinput.h"
 #include "raylib.h"
-#include "views/highway.h"
-#include "core/judge.h"
-#include "views/playnote.h"
-#include "views/staff.h"
+#include "views/noteviews.h"
 
 #include <algorithm>
 #include <cmath>
@@ -71,20 +69,6 @@ static void handleKeyboard(std::vector<PlayNote>& notes, GameState& state, float
         press.stringIndex = lane;
         JudgeResult result = judgeInput(notes, press);
         if (result.judgement != Judgement::Ignored) scoreHit(state, result.judgement, result.notesHit);
-    }
-}
-
-// Where each view goes on screen, as fractions of the window height, for each note view setting
-static void layoutViews(NoteView view, Rectangle& staffArea, Rectangle& highwayArea){
-    float width = (float)GetScreenWidth(), height = (float)GetScreenHeight();
-    staffArea = highwayArea = {0, 0, 0, 0};
-    switch (view){
-        case NoteView::Highway: highwayArea = {0, height * 0.25f, width, height * 0.60f}; break;
-        case NoteView::Staff:   staffArea = {0, height * 0.20f, width, height * 0.60f}; break;
-        case NoteView::Both:
-            staffArea = {0, height * 0.14f, width, height * 0.30f};
-            highwayArea = {0, height * 0.46f, width, height * 0.52f};
-            break;
     }
 }
 
@@ -204,12 +188,10 @@ void drawGameplay(){
     if (!game.active) return;
     DrawRectangleGradientV(0, 0, GetScreenWidth(), GetScreenHeight(), WOOD_DARK, WOOD_LIGHT);
     TimeAxis axis = { game.songTime, (float)HIT_LINE_X, game.options.noteSpeed };
-    Rectangle staffArea, highwayArea;
-    layoutViews(game.options.noteView, staffArea, highwayArea);
-    if (staffArea.height > 0) drawStaff(staffArea, game.notes, game.barTimes, axis);
-    if (highwayArea.height > 0){
-        drawHighway(highwayArea, game.notes, game.chart.frettedTracks[0].tuning, game.options.lowStringOnTop, axis);
-    }
+    float width = (float)GetScreenWidth(), height = (float)GetScreenHeight();
+    Rectangle viewsArea = { 0, height * 0.14f, width, height * 0.84f }; // below the HUD
+    drawNoteViews(viewsArea, game.options.noteViews, game.notes, game.barTimes, game.chart.frettedTracks[0].tuning,
+                  game.options.lowStringOnTop, axis);
     drawHUD(game.state);
     if (game.options.playWithInstrument){
         const char* heard = game.lastPlayedPitch >= 0

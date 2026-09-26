@@ -105,16 +105,14 @@ static void audioTab(Settings& settings, const std::string& soundsDir){
 
 static void displayTab(Settings& settings){
     ImGui::SeparatorText("Notes");
-    int view = (int)settings.noteView;
-    ImGui::TextUnformatted("Show notes as");
-    ImGui::RadioButton("Highway", &view, (int)NoteView::Highway);
+    // Any mix, stacked; unticking the last one ticks it straight back, since something must show the notes
+    NoteViews& views = settings.noteViews;
+    ImGui::TextUnformatted("Show notes as (any mix, stacked)");
+    if (ImGui::Checkbox("Sheet music", &views.staff) && !views.any()) views.staff = true;
     ImGui::SameLine();
-    ImGui::RadioButton("Sheet music", &view, (int)NoteView::Staff);
-    ImGui::SameLine();
-    ImGui::RadioButton("Both", &view, (int)NoteView::Both);
-    settings.noteView = (NoteView)view;
+    if (ImGui::Checkbox("Highway", &views.highway) && !views.any()) views.highway = true;
 
-    ImGui::TextUnformatted("String order");
+    ImGui::TextUnformatted("String order on the highway");
     int stringOrder = settings.lowStringOnTop ? 0 : 1;
     ImGui::RadioButton("Low E at the top", &stringOrder, 0);
     ImGui::SameLine();

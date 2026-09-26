@@ -104,7 +104,7 @@ static void startSong(const std::string& chartPath){
     options.noteSpeed = app.settings.noteSpeed;
     options.offsetSeconds = app.settings.globalOffsetMs / 1000.0f;
     options.lowStringOnTop = app.settings.lowStringOnTop;
-    options.noteView = app.settings.noteView;
+    options.noteViews = app.settings.noteViews;
     options.playWithInstrument = app.settings.playWithInstrument;
     options.inputDevice = app.settings.inputDevice;
     options.inputOffsetSeconds = app.settings.inputOffsetMs / 1000.0f;

@@ -18,7 +18,7 @@ struct GameplayOptions {
     float noteSpeed = 300.0f;  // pixels per second
     float offsetSeconds = 0.0f; // latency compensation: positive = notes are judged and drawn later
     bool lowStringOnTop = true;
-    NoteView noteView = NoteView::Highway;
+    NoteViews noteViews;
     bool playWithInstrument = false;  // judge notes played on the input device (the number keys work either way)
     std::string inputDevice;
     float inputOffsetSeconds = 0.0f;  // the input device's own delay (see calibration)
