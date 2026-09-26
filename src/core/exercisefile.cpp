@@ -1,6 +1,7 @@
 #include "core/exercisefile.h"
 
 #include <algorithm>
+#include <sstream>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -14,6 +15,54 @@ static bool atLineEnd(std::istringstream& ss){
     ss.clear();
     ss >> std::ws;
     return ss.eof();
+}
+
+// Reads one setting of a scale drill. Returns false if `key` isn't a drill setting; a wrong value is reported
+// through lineError (which sets the error) while still returning true.
+template <typename LineError>
+static bool readDrillSetting(const std::string& key, std::istringstream& ss, ScaleDrillConfig& drill, LineError& lineError){
+    std::string word;
+    if (key == "key"){
+        if (!(ss >> word) || !parsePitchClass(word, drill.rootPitchClass)) lineError("key must be a note name like G, F# or Bb");
+    } else if (key == "scale"){
+        if (!(ss >> word) || !findScale(word)) lineError("unknown scale '" + word + "'");
+        else drill.scale = word;
+    } else if (key == "octaves"){
+        if (!(ss >> drill.octaves) || drill.octaves < 1 || drill.octaves > 4) lineError("octaves must be 1 to 4");
+    } else if (key == "fingering"){
+        ss >> word;
+        if (word == "position") drill.fingering = Fingering::Position;
+        else if (word == "3nps") drill.fingering = Fingering::ThreeNotesPerString;
+        else lineError("fingering must be position or 3nps");
+    } else if (key == "position"){
+        if (!(ss >> drill.position) || drill.position < 0 || drill.position > 20) lineError("position must be a fret, 0 to 20");
+    } else if (key == "direction"){
+        ss >> word;
+        if (word == "up") drill.direction = DrillDirection::Up;
+        else if (word == "down") drill.direction = DrillDirection::Down;
+        else if (word == "up_down") drill.direction = DrillDirection::UpDown;
+        else lineError("direction must be up, down or up_down");
+    } else if (key == "notes_per_beat"){
+        if (!(ss >> drill.notesPerBeat) || drill.notesPerBeat < 1 || drill.notesPerBeat > 4) lineError("notes_per_beat must be 1 to 4");
+    } else if (key == "tempo"){
+        if (!(ss >> drill.startTempo >> drill.maxTempo >> drill.tempoStep) || drill.startTempo < 20 || drill.maxTempo > 400
+            || drill.startTempo > drill.maxTempo || drill.tempoStep < 1){
+            lineError("expected: tempo <start> <goal> <step>, with 20 <= start <= goal <= 400");
+        }
+    } else if (key == "pass"){
+        if (!(ss >> drill.passPercent) || drill.passPercent < 1 || drill.passPercent > 100) lineError("pass must be a percentage, 1 to 100");
+    } else if (key == "tuning"){
+        drill.tuning.clear();
+        int pitch;
+        while (ss >> pitch){
+            if (pitch < 0 || pitch > 127){ lineError("tuning pitches are MIDI notes 0-127"); return true; }
+            drill.tuning.push_back(pitch);
+        }
+        if (drill.tuning.empty()) lineError("expected: tuning <MIDI pitch per string, lowest first>");
+    } else {
+        return false;
+    }
+    return true;
 }
 
 bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& error){
@@ -58,7 +107,8 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
             if (!(ss >> version) || !atLineEnd(ss)) return lineError("expected: version <number>");
         } else if (line.key == "type"){
             if (line.rest == "intervals") out.type = ExerciseType::Intervals;
-            else return lineError("unknown exercise type '" + line.rest + "' (known: intervals)");
+            else if (line.rest == "scale") out.type = ExerciseType::Scale;
+            else return lineError("unknown exercise type '" + line.rest + "' (known: intervals, scale)");
             hasType = true;
         }
     }
@@ -115,6 +165,8 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
             }
         } else if (out.type == ExerciseType::Intervals && key == "gap"){
             if (!(ss >> config.gapSeconds) || config.gapSeconds < 0.1f || config.gapSeconds > 3.0f) return lineError("gap must be 0.1 to 3 seconds");
+        } else if (out.type == ExerciseType::Scale && readDrillSetting(key, ss, out.drill, lineError)){
+            if (!error.empty()) return false; // the setting was recognized but its value was wrong
         } else {
             return lineError("unknown setting '" + key + "' for this exercise type");
         }
@@ -122,6 +174,13 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
     }
 
     if (out.title.empty()) return fileError("missing 'title'");
+    if (out.type == ExerciseType::Scale){
+        // Build it once now, so a drill that can't be played is reported here, where the author sees it
+        std::vector<DrillNote> notes;
+        std::string drillError;
+        if (!buildScaleDrill(out.drill, notes, drillError)) return fileError(drillError);
+        return true;
+    }
     if (!poolSet) config.pool = IntervalConfig{}.pool; // the full course
     if (!startSet) config.startCount = std::min(2, (int)config.pool.size());
     if (config.startCount > (int)config.pool.size()) return fileError("'start' is more than the number of intervals");

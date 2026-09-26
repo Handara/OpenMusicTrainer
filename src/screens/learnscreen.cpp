@@ -1,6 +1,7 @@
 #include "screens/learnscreen.h"
 
 #include "core/exercisefile.h"
+#include "learn/drillexercise.h"
 #include "learn/intervalexercise.h"
 #include "raylib.h"
 #include "ui/ui.h"
@@ -28,6 +29,8 @@ static std::unique_ptr<Exercise> createExercise(const ExerciseEntry& entry){
         case ExerciseType::Intervals:
             return std::make_unique<IntervalExercise>(entry.exercise.title, entry.exercise.intervals, progressPath(entry),
                                                       learn.setup.settings.inputDevice);
+        case ExerciseType::Scale:
+            return std::make_unique<DrillExercise>(entry.exercise.title, entry.exercise.drill, progressPath(entry), learn.setup.settings);
     }
     return nullptr;
 }
@@ -39,6 +42,10 @@ static std::string progressSummary(const ExerciseEntry& entry){
             const IntervalConfig& config = entry.exercise.intervals;
             size_t unlocked = unlockedIntervals(config, loadIntervalProgress(progressPath(entry))).size();
             return TextFormat("%d/%d", (int)unlocked, (int)config.pool.size());
+        }
+        case ExerciseType::Scale: {
+            int best = loadDrillProgress(progressPath(entry)).bestCleanTempo;
+            return best > 0 ? TextFormat("best %d bpm", best) : "";
         }
     }
     return "";

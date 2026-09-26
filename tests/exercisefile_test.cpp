@@ -114,3 +114,41 @@ TEST_CASE("every exercise shipped with the game loads"){
         CHECK(entry.id.rfind("builtin-", 0) == 0);
     }
 }
+
+TEST_CASE("scale drill exercise files"){
+    ExerciseFile file;
+    std::string error;
+    REQUIRE_MESSAGE(loadExerciseFile(writeExercise("drill.exercise",
+        "version 1\ntype scale\ntitle A minor pentatonic\ncategory Technique\nkey A\nscale minor_pentatonic\n"
+        "position 5\ndirection up\nnotes_per_beat 3\ntempo 70 150 5\npass 85\n"), file, error), error);
+    CHECK(file.type == ExerciseType::Scale);
+    CHECK(file.drill.rootPitchClass == 9);
+    CHECK(file.drill.scale == "minor_pentatonic");
+    CHECK(file.drill.position == 5);
+    CHECK(file.drill.direction == DrillDirection::Up);
+    CHECK(file.drill.notesPerBeat == 3);
+    CHECK(file.drill.startTempo == 70);
+    CHECK(file.drill.maxTempo == 150);
+    CHECK(file.drill.passPercent == 85);
+
+    // Everything optional: G major, the defaults
+    REQUIRE(loadExerciseFile(writeExercise("drill2.exercise", "version 1\ntype scale\ntitle Defaults\n"), file, error));
+    CHECK(file.drill.scale == "major");
+
+    const std::string head = "version 1\ntype scale\ntitle T\n";
+    struct Case { const char* name; std::string content; const char* expected; };
+    const Case cases[] = {
+        {"bad key",          head + "key H\n",               "key must be a note name"},
+        {"unknown scale",    head + "scale bebop\n",         "unknown scale 'bebop'"},
+        {"tempo backwards",  head + "tempo 120 80 4\n",      "start <= goal"},
+        {"bad direction",    head + "direction sideways\n",  "direction must be up, down or up_down"},
+        {"interval setting", head + "intervals 4 3\n",       "unknown setting 'intervals'"},
+        {"doesn't fit",      head + "octaves 4\nposition 12\n", "doesn't fit around fret 12"},
+    };
+    for (const Case& c : cases){
+        SUBCASE(c.name){
+            CHECK_FALSE(loadExerciseFile(writeExercise("baddrill.exercise", c.content), file, error));
+            CHECK_MESSAGE(error.find(c.expected) != std::string::npos, error);
+        }
+    }
+}

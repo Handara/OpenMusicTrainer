@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/drill.h"
 #include "core/intervals.h"
 
 #include <string>
@@ -23,8 +24,20 @@
 //   gap 0.7                      (seconds between the two notes)
 //
 // Everything after `description` is optional and defaults to the classic full interval course.
+//
+// A scale drill (`type scale`) instead sets, all optional:
+//   key G                        (the root: C, F#, Bb...)
+//   scale major                  (see core/scales.cpp for every name)
+//   octaves 2
+//   fingering position           (position or 3nps: three notes per string)
+//   position 2                   (index finger's fret; default: one below the root on the lowest string)
+//   direction up_down            (up, down or up_down)
+//   notes_per_beat 2             (1 to 4)
+//   tempo 60 160 4               (start, goal, step, in bpm)
+//   pass 90                      (percent right for a pass to count as clean and speed up)
+//   tuning 40 45 50 55 59 64     (MIDI pitch per string, lowest first)
 
-enum class ExerciseType { Intervals };
+enum class ExerciseType { Intervals, Scale };
 
 struct ExerciseFile {
     ExerciseType type = ExerciseType::Intervals;
@@ -33,6 +46,7 @@ struct ExerciseFile {
     std::string author;
     std::string description;
     IntervalConfig intervals; // the rules, for type Intervals
+    ScaleDrillConfig drill;   // the rules, for type Scale
 };
 
 // Strict, like charts: exercises are shared, so authors get a clear error with its line number.

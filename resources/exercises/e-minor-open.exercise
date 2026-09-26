@@ -1,0 +1,13 @@
+# OpenMusicTrainer exercise
+version 1
+type scale
+title E minor, open position
+category Technique
+author OpenMusicTrainer
+description A first scale: open strings and the first four frets, two octaves, up and down.
+key E
+scale minor
+position 0
+direction up_down
+notes_per_beat 1
+tempo 50 120 4

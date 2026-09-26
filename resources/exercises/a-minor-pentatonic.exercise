@@ -1,0 +1,13 @@
+# OpenMusicTrainer exercise
+version 1
+type scale
+title A minor pentatonic, 5th position
+category Technique
+author OpenMusicTrainer
+description The rock and blues box: index finger on the 5th fret, two octaves in eighth notes.
+key A
+scale minor_pentatonic
+position 5
+direction up_down
+notes_per_beat 2
+tempo 60 180 4

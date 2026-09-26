@@ -1,0 +1,13 @@
+# OpenMusicTrainer exercise
+version 1
+type scale
+title G major, 2nd position
+category Technique
+author OpenMusicTrainer
+description The major scale box every guitarist knows, two octaves in eighth notes.
+key G
+scale major
+position 2
+direction up_down
+notes_per_beat 2
+tempo 60 160 4

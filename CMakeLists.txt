@@ -111,6 +111,7 @@ add_executable(OpenMusicTrainer
     src/screens/editor.cpp
     src/screens/gameplay.cpp
     src/screens/learnscreen.cpp
+    src/learn/drillexercise.cpp
     src/learn/intervalexercise.cpp
     src/screens/menus.cpp
     src/screens/settingsscreen.cpp
