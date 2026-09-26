@@ -13,7 +13,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(raylib)
 
-add_executable(OpenMusicTrainer main.cpp)
+add_executable(OpenMusicTrainer main.cpp chart.cpp)
 target_link_libraries(OpenMusicTrainer PUBLIC raylib)
 
 include(CTest)
