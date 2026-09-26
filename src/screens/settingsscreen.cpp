@@ -133,16 +133,29 @@ static void displayTab(Settings& settings){
     ImGui::TextDisabled("Higher frame rates make notes move more smoothly, if your screen can show them.");
 }
 
-static void gameplayTab(Settings& settings){
+static void gameplayTab(Settings& settings, SettingsChoice& choice){
+    ImGui::SeparatorText("Playing");
+    int input = settings.playWithInstrument ? 1 : 0;
+    ImGui::RadioButton("Keyboard (keys 1 to 6)", &input, 0);
+    ImGui::SameLine();
+    ImGui::RadioButton("My instrument (input device)", &input, 1);
+    settings.playWithInstrument = input == 1;
     ImGui::SliderFloat("Note speed", &settings.noteSpeed, 100.0f, 1500.0f, "%.0f px/s");
     ImGui::TextDisabled("Faster notes are spread further apart. Timing is judged the same at any speed.");
-    ImGui::Dummy(ImVec2(0, 10));
+
+    ImGui::SeparatorText("Latency");
     ImGui::SliderInt("Global offset", &settings.globalOffsetMs, -500, 500, "%d ms");
-    ImGui::TextWrapped("If notes seem to reach the line before you hear them (Bluetooth headphones, slow audio "
-                       "drivers), raise this until they match. Automatic calibration comes later.");
+    if (ImGui::Button("Calibrate by tapping")) choice = SettingsChoice::CalibrateTapping;
+    ImGui::SameLine();
+    ImGui::TextDisabled("How late sound reaches you (Bluetooth, slow drivers)");
+    ImGui::SliderInt("Input offset", &settings.inputOffsetMs, -500, 500, "%d ms");
+    if (ImGui::Button("Calibrate my instrument")) choice = SettingsChoice::CalibrateInstrument;
+    ImGui::SameLine();
+    ImGui::TextDisabled("Your input device's own delay. Tap first");
 }
 
-bool settingsScreen(Settings& settings, const std::string& soundsDir){
+SettingsChoice settingsScreen(Settings& settings, const std::string& soundsDir, const std::string& error){
+    SettingsChoice choice = SettingsChoice::None;
     beginMenu("Settings");
     menuTitle("Settings");
 
@@ -152,7 +165,7 @@ bool settingsScreen(Settings& settings, const std::string& soundsDir){
     if (ImGui::BeginTabBar("SettingsTabs")){
         if (ImGui::BeginTabItem("Audio")){ audioTab(settings, soundsDir); ImGui::EndTabItem(); }
         if (ImGui::BeginTabItem("Display")){ displayTab(settings); ImGui::EndTabItem(); }
-        if (ImGui::BeginTabItem("Gameplay")){ gameplayTab(settings); ImGui::EndTabItem(); }
+        if (ImGui::BeginTabItem("Gameplay")){ gameplayTab(settings, choice); ImGui::EndTabItem(); }
         ImGui::EndTabBar();
     }
     ImGui::PopItemWidth();
@@ -161,9 +174,10 @@ bool settingsScreen(Settings& settings, const std::string& soundsDir){
         if (screen.statusIsError) ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.4f, 1.0f), "%s", screen.status.c_str());
         else ImGui::TextWrapped("%s", screen.status.c_str());
     }
+    if (!error.empty()) ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.4f, 1.0f), "%s", error.c_str());
     ImGui::EndChild();
 
-    bool back = menuButton("Back");
+    if (menuButton("Back")) choice = SettingsChoice::Back;
     ImGui::End();
-    return back;
+    return choice;
 }

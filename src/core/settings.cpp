@@ -49,8 +49,10 @@ Settings loadSettings(const std::string& path, std::vector<std::string>& warning
         else if (key == "low_string_on_top") settings.lowStringOnTop = value == "1";
         else if (key == "fullscreen") settings.fullscreen = value == "1";
         else if (key == "frame_rate_limit") number(settings.frameRateLimit, 0, 1000);
+        else if (key == "play_with_instrument") settings.playWithInstrument = value == "1";
         else if (key == "note_speed") number(settings.noteSpeed, 100.0f, 1500.0f);
         else if (key == "global_offset_ms") number(settings.globalOffsetMs, -500, 500);
+        else if (key == "input_offset_ms") number(settings.inputOffsetMs, -500, 500);
         else warnings.push_back("line " + std::to_string(lineNumber) + ": unknown setting '" + key + "', ignored");
     }
     return settings;
@@ -69,7 +71,9 @@ bool saveSettings(const std::string& path, const Settings& settings, std::string
     out << "low_string_on_top " << (settings.lowStringOnTop ? 1 : 0) << "\n";
     out << "fullscreen " << (settings.fullscreen ? 1 : 0) << "\n";
     out << "frame_rate_limit " << settings.frameRateLimit << "\n\n";
+    out << "play_with_instrument " << (settings.playWithInstrument ? 1 : 0) << "\n";
     out << "note_speed " << settings.noteSpeed << "\n";
     out << "global_offset_ms " << settings.globalOffsetMs << "\n";
+    out << "input_offset_ms " << settings.inputOffsetMs << "\n";
     return writeFileAtomically(path, out.str(), error);
 }

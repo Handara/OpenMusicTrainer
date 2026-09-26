@@ -81,6 +81,7 @@ endfunction()
 # It deliberately does NOT link raylib, miniaudio or imgui: including one of them here fails to compile,
 # which keeps this layer reusable (editor, tests, a future server) and testable on its own.
 add_library(omt_core STATIC
+    src/core/calibration.cpp
     src/core/chart.cpp
     src/core/exercisefile.cpp
     src/core/files.cpp
@@ -104,6 +105,7 @@ add_executable(OpenMusicTrainer
     src/audio/audio.cpp
     src/input/noteinput.cpp
     src/ui/ui.cpp
+    src/screens/calibration.cpp
     src/screens/editor.cpp
     src/screens/gameplay.cpp
     src/screens/learnscreen.cpp
@@ -136,6 +138,7 @@ include(CTest)
 if(BUILD_TESTING)
     add_executable(omt_tests
         tests/main.cpp
+        tests/calibration_test.cpp
         tests/chart_test.cpp
         tests/exercisefile_test.cpp
         tests/intervals_test.cpp

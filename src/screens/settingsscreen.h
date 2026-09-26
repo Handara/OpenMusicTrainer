@@ -9,4 +9,6 @@
 
 void applyDisplaySettings(const Settings& settings); // fullscreen and frame rate: at startup, and when changed
 void openSettingsScreen(const std::string& soundsDir); // refreshes the device and sound lists
-bool settingsScreen(Settings& settings, const std::string& soundsDir); // true when the player pressed Back
+enum class SettingsChoice { None, Back, CalibrateTapping, CalibrateInstrument };
+// error: a problem from outside the screen to show (e.g. calibration couldn't open the input device)
+SettingsChoice settingsScreen(Settings& settings, const std::string& soundsDir, const std::string& error);

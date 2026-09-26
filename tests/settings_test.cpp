@@ -35,6 +35,8 @@ TEST_CASE("settings survive a save and load"){
     original.frameRateLimit = 144;
     original.noteSpeed = 450.0f;
     original.globalOffsetMs = -35;
+    original.inputOffsetMs = 22;
+    original.playWithInstrument = true;
 
     std::string path = settingsPath("settings.txt");
     std::string error;
@@ -53,6 +55,8 @@ TEST_CASE("settings survive a save and load"){
     CHECK(loaded.frameRateLimit == 144);
     CHECK(loaded.noteSpeed == doctest::Approx(450.0f));
     CHECK(loaded.globalOffsetMs == -35);
+    CHECK(loaded.inputOffsetMs == 22);
+    CHECK(loaded.playWithInstrument);
 }
 
 TEST_CASE("bad lines are reported but don't lose the rest"){

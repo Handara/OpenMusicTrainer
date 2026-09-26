@@ -3,6 +3,7 @@
 #include "core/paths.h"
 #include "core/settings.h"
 #include "core/songlibrary.h"
+#include "screens/calibration.h"
 #include "screens/editor.h"
 #include "screens/gameplay.h"
 #include "screens/learnscreen.h"
@@ -18,7 +19,7 @@
 
 namespace fs = std::filesystem;
 
-enum class Screen { MainMenu, SongSelect, Playing, Results, Tuner, EditorSelect, Editor, Settings, Learn };
+enum class Screen { MainMenu, SongSelect, Playing, Results, Tuner, EditorSelect, Editor, Settings, Learn, Calibration };
 
 // App-wide state shared between screens
 static struct {
@@ -37,6 +38,8 @@ static struct {
     std::string songSelectError;  // why the last song failed to start
     std::string mainMenuError;    // why the last main menu action failed (e.g. no input device)
     GameResult lastResult;
+    CalibrationMode calibrationMode = CalibrationMode::Tap;
+    std::string settingsError;    // why calibration couldn't start (e.g. no input device)
 } app;
 
 // --- Screen transitions -----------------------------------------------------------------------------
@@ -59,6 +62,23 @@ static void openDataFolder(){
 
 static void goToSettings(){
     openSettingsScreen(app.soundsDir);
+    app.settingsError.clear();
+    app.screen = Screen::Settings;
+}
+
+static void goToCalibration(CalibrationMode mode){
+    std::string error;
+    if (startCalibration(mode, app.settings, error)){
+        app.calibrationMode = mode;
+        app.settingsError.clear();
+        app.screen = Screen::Calibration;
+    } else {
+        app.settingsError = "Can't calibrate: " + error;
+    }
+}
+
+static void leaveCalibration(){
+    stopCalibration();
     app.screen = Screen::Settings;
 }
 
@@ -120,6 +140,7 @@ static void handleBackKey(){
         case Screen::Results: goToSongSelect(); break;
         case Screen::Tuner: leaveTuner(); break;
         case Screen::Settings: leaveSettings(); break;
+        case Screen::Calibration: leaveCalibration(); break;
         case Screen::Learn: if (learnBack()) app.screen = Screen::MainMenu; break;
         case Screen::EditorSelect: app.screen = Screen::MainMenu; break;
         case Screen::Editor: break; // the editor handles Esc itself, to warn about unsaved changes
@@ -174,8 +195,22 @@ static void runMenus(){
             if (tunerScreen()) leaveTuner();
             break;
         case Screen::Settings:
-            if (settingsScreen(app.settings, app.soundsDir)) leaveSettings();
+            switch (settingsScreen(app.settings, app.soundsDir, app.settingsError)){
+                case SettingsChoice::Back: leaveSettings(); break;
+                case SettingsChoice::CalibrateTapping: goToCalibration(CalibrationMode::Tap); break;
+                case SettingsChoice::CalibrateInstrument: goToCalibration(CalibrationMode::Instrument); break;
+                case SettingsChoice::None: break;
+            }
             break;
+        case Screen::Calibration: {
+            CalibrationChoice choice = calibrationScreen();
+            if (choice.apply){
+                if (app.calibrationMode == CalibrationMode::Tap) app.settings.globalOffsetMs = choice.offsetMs;
+                else app.settings.inputOffsetMs = choice.offsetMs;
+            }
+            if (choice.apply || choice.back) leaveCalibration();
+            break;
+        }
         case Screen::Learn:
             if (learnScreen()){
                 closeLearnScreen();
@@ -252,6 +287,7 @@ int main(void){
     stopTuner();
     closeEditor();
     closeLearnScreen(); // before the UI and audio it uses shut down
+    stopCalibration();
     closeUi();
     unloadStaffFont();
     CloseWindow();
