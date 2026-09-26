@@ -102,6 +102,7 @@ enable_warnings(omt_core)
 add_executable(OpenMusicTrainer
     src/main.cpp
     src/audio/audio.cpp
+    src/input/noteinput.cpp
     src/ui/ui.cpp
     src/screens/editor.cpp
     src/screens/gameplay.cpp
