@@ -139,7 +139,11 @@ std::vector<ExerciseEntry> scanExercises(const std::string& dir, bool builtIn){
         entry.path = file.path().string();
         entry.builtIn = builtIn;
         entry.id = std::string(builtIn ? "builtin-" : "user-") + file.path().stem().string();
-        if (!loadExerciseFile(entry.path, entry.exercise, entry.error)) entry.exercise.title = file.path().stem().string();
+        if (!loadExerciseFile(entry.path, entry.exercise, entry.error)){
+            entry.exercise.title = file.path().stem().string();
+            // Menus show the error: the file name is enough there, the full path would take several lines
+            if (entry.error.rfind(entry.path, 0) == 0) entry.error = file.path().filename().string() + entry.error.substr(entry.path.size());
+        }
         entries.push_back(entry);
     }
     std::sort(entries.begin(), entries.end(), [](const ExerciseEntry& a, const ExerciseEntry& b){

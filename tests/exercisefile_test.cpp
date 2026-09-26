@@ -101,7 +101,7 @@ TEST_CASE("scanning a folder finds exercise files, broken ones included"){
     CHECK(entries[0].exercise.title == "Alpha"); // sorted by category, then title
     CHECK(entries[1].exercise.title == "Beta");
     CHECK(entries[2].exercise.title == "broken"); // falls back to the file name
-    CHECK_FALSE(entries[2].error.empty());
+    CHECK(entries[2].error.rfind("broken.exercise:2: ", 0) == 0); // short: file name and line, not the full path
     CHECK(entries[0].id == "user-a");
     CHECK(scanExercises((dir / "missing").string(), true).empty());
 }
