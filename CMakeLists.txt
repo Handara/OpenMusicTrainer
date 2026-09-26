@@ -11,10 +11,27 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/raysan5/raylib.git
     GIT_TAG        5.5
 )
-FetchContent_MakeAvailable(raylib)
+FetchContent_Declare(
+    miniaudio
+    GIT_REPOSITORY https://github.com/mackron/miniaudio.git
+    GIT_TAG        0.11.25
+    GIT_SHALLOW    TRUE
+)
 
-add_executable(OpenMusicTrainer main.cpp chart.cpp)
-target_link_libraries(OpenMusicTrainer PUBLIC raylib)
+# raylib handles graphics, window and input only. Audio goes through miniaudio directly (audio.cpp),
+# which gives us capture devices and full control that raylib's audio module doesn't expose.
+set(CUSTOMIZE_BUILD ON CACHE BOOL "" FORCE)
+set(SUPPORT_MODULE_RAUDIO OFF CACHE BOOL "" FORCE)
+
+# Optional decoders and effect nodes we don't use yet
+set(MINIAUDIO_NO_LIBVORBIS ON CACHE BOOL "" FORCE)
+set(MINIAUDIO_NO_LIBOPUS ON CACHE BOOL "" FORCE)
+set(MINIAUDIO_NO_EXTRA_NODES ON CACHE BOOL "" FORCE)
+
+FetchContent_MakeAvailable(raylib miniaudio)
+
+add_executable(OpenMusicTrainer main.cpp chart.cpp audio.cpp)
+target_link_libraries(OpenMusicTrainer PUBLIC raylib miniaudio)
 
 # Copy game data next to the executable on every build (only files that changed are copied)
 add_custom_target(copy_resources ALL

@@ -32,6 +32,7 @@ struct Chart {
     int version;
     std::string title;
     std::string artist;
+    std::string audioFile; // relative to the chart file's folder, empty if the chart has none
     int resolution; // ticks per beat
     double offset;  // seconds into the audio where tick 0 falls
     int endTick;

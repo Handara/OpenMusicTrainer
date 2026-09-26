@@ -50,6 +50,8 @@ bool loadChart(const std::string& path, Chart& out, std::string& error){
             std::getline(ss >> std::ws, out.title);
         } else if (keyword == "artist"){
             std::getline(ss >> std::ws, out.artist);
+        } else if (keyword == "audio"){
+            std::getline(ss >> std::ws, out.audioFile);
         } else if (keyword == "resolution"){
             if (!(ss >> out.resolution)) return lineError("expected: resolution <ticks per beat>");
         } else if (keyword == "offset"){

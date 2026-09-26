@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "audio.h"
 #include "chart.h"
 #include <algorithm>
 #include <cmath>
@@ -185,11 +186,16 @@ int main(void){
     const int INITIAL_WINDOW_HEIGHT = 720;
 
     // Resources are copied next to the executable at build time, so this works from any working directory
-    std::string chartPath = std::string(GetApplicationDirectory()) + "Ressources/charts/test.chart";
+    std::string songDir = std::string(GetApplicationDirectory()) + "Ressources/songs/test-pattern/";
+    std::string chartPath = songDir + "song.chart";
     Chart chart;
     std::string error;
     if (!loadChart(chartPath, chart, error)){
         TraceLog(LOG_ERROR, "Failed to load chart: %s", error.c_str());
+        return 1;
+    }
+    if (chart.audioFile.empty()){
+        TraceLog(LOG_ERROR, "Chart has no 'audio' line: %s", chartPath.c_str());
         return 1;
     }
     const FrettedTrack& track = chart.frettedTracks[0];
@@ -205,18 +211,24 @@ int main(void){
     for (const FrettedNote& chartNote : track.notes){
         notes.push_back({(float)tickToSeconds(chart, chartNote.tick), chartNote.stringIndex, chartNote.fret});
     }
-    const float patternDuration = (float)tickToSeconds(chart, chart.endTick);
+
+    if (!initAudio(error) || !loadSong(songDir + chart.audioFile, error)){
+        TraceLog(LOG_ERROR, "Audio: %s", error.c_str());
+        closeAudio();
+        return 1;
+    }
+    TraceLog(LOG_INFO, "Audio: using %s backend, song is %.2f s", audioBackendName(), songLength());
 
     InitWindow(INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT, "OpenMusicTrainer");
     SetTargetFPS(60);
 
     GameState state = {0, 0, 1, 0.0f};
 
-    float elapsed = 0.0f;
+    playSong(true);
     float prevPatternTime = 0.0f;
     while(!WindowShouldClose()){
-        elapsed += GetFrameTime();
-        float patternTime = std::fmod(elapsed, patternDuration);
+        // The song's playback position is the clock: notes stay in sync with the music even if frames stutter
+        float patternTime = (float)songPosition();
         if (patternTime < prevPatternTime){
             for (Note& note : notes){
                 note.hitFlash = 0.0f;
@@ -237,6 +249,7 @@ int main(void){
         drawHUD(state);
         EndDrawing();
     }
+    closeAudio();
     CloseWindow();
     return 0;
 }
