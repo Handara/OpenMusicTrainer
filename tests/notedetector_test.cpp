@@ -106,3 +106,12 @@ TEST_CASE("the chunk size samples arrive in doesn't change anything"){
         CHECK(big[i].pitch == tiny[i].pitch);
     }
 }
+
+TEST_CASE("a long run of low notes: every pluck found on time, nothing extra"){
+    // Low notes ring for 0.6 s each: long, slow waves that a too-short level measurement mistakes for new notes
+    std::vector<TestNote> notes;
+    for (int k = 0; k < 24; k++) notes.push_back({1.03 + k * 0.6, 52 + k % 5});
+    NoteDetectorConfig config;
+    config.minFrequency = 40.0f;
+    checkMatches(detect(playNotes(notes, 16.0), 800, config), notes);
+}

@@ -34,6 +34,8 @@ struct NoteDetector {
     std::vector<float> hop;      // samples waiting to make a full hop
     std::vector<float> recentDb; // levels of the last few hops, to spot a sudden rise
     long long position = 0;      // samples fed so far
+    float envelope = 0.0f;       // the signal's level: jumps up at once, falls back slowly
+    float envelopeRelease = 0.0f; // how much of the envelope is kept each sample while it falls
 
     bool pitchPending = false;   // an onset happened, its pitch isn't known yet
     long long onsetSample = 0;

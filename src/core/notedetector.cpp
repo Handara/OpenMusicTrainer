@@ -13,6 +13,9 @@ const float PITCH_TIMEOUT_S = 0.15f;     // no pitch this long after an onset: i
 const int LEGATO_ANALYSIS_HOPS = 4;      // while a note rings, look for pitch changes every ~11 ms...
 const int LEGATO_CONFIRMATIONS = 3;      // ...and believe a change once it holds for 3 looks in a row
 const float MIN_CLARITY = 0.85f;         // how periodic a sound must be to count as a note
+// The level falls back over this time: longer than one cycle of the lowest note, so it doesn't wobble with the
+// wave's shape (a 2.7 ms hop of an E3 holds under half a cycle: its RMS would rise and dip like new notes)
+const float ENVELOPE_RELEASE_S = 0.05f;
 
 void initNoteDetector(NoteDetector& detector, int sampleRate, const NoteDetectorConfig& config){
     detector = NoteDetector{};
@@ -23,12 +26,13 @@ void initNoteDetector(NoteDetector& detector, int sampleRate, const NoteDetector
     detector.window.assign(pitchWindowSize(detector.pitch), 0.0f);
     detector.hop.reserve(detector.hopSize);
     detector.recentDb.assign(RECENT_HOPS, -120.0f);
+    detector.envelopeRelease = std::exp(-1.0f / (ENVELOPE_RELEASE_S * sampleRate));
 }
 
-static float levelDb(const float* samples, int count){
-    float sumSquares = 0.0f;
-    for (int i = 0; i < count; i++) sumSquares += samples[i] * samples[i];
-    return 20.0f * std::log10(std::max(std::sqrt(sumSquares / count), 1e-6f));
+// Envelope follower: rises instantly with the signal, falls slowly. Returns its level at the end of the hop, in dB.
+static float followEnvelope(NoteDetector& detector, const std::vector<float>& samples){
+    for (float s : samples) detector.envelope = std::max(std::fabs(s), detector.envelope * detector.envelopeRelease);
+    return 20.0f * std::log10(std::max(detector.envelope, 1e-6f));
 }
 
 // The pitch of the latest window, as a fractional MIDI number; negative if there's no clear pitch
@@ -56,7 +60,7 @@ static void processHop(NoteDetector& detector, std::vector<DetectedNote>& out){
     std::move(window.begin() + hopSize, window.end(), window.begin());
     std::copy(hop.begin(), hop.end(), window.end() - hopSize);
 
-    float level = levelDb(hop.data(), hopSize);
+    float level = followEnvelope(detector, hop);
     float recentMin = *std::min_element(detector.recentDb.begin(), detector.recentDb.end());
     detector.recentDb.erase(detector.recentDb.begin());
     detector.recentDb.push_back(level);
