@@ -21,7 +21,6 @@ const float NOTE_RADIUS = 14.0f;
 const float MIN_PIXELS_PER_BEAT = 20.0f;
 const float MAX_PIXELS_PER_BEAT = 800.0f;
 const float MIN_GRID_LINE_SPACING = 6.0f; // closer grid lines than this (in pixels) are hidden, only beats remain
-const int BEATS_PER_BAR = 4;              // the chart format has no time signatures yet: assume 4/4
 
 // Grid choices: snap positions per beat (a beat is a quarter note). 3, 6 and 12 give triplets.
 const int SNAP_DIVISIONS[] = { 1, 2, 3, 4, 6, 8, 12, 16 };
@@ -107,9 +106,8 @@ static void addNote(int tick, int stringIndex, int fret){
     if (it != notes.end() && it->tick == tick && it->stringIndex == stringIndex) it->fret = fret;
     else notes.insert(it, FrettedNote{tick, stringIndex, fret, 0});
 
-    // The chart must end after its last note
-    int beatsPerBar = editor.chart.resolution * BEATS_PER_BAR;
-    if (tick >= editor.chart.endTick) editor.chart.endTick = (tick / beatsPerBar + 1) * beatsPerBar;
+    // The chart must end after its last note: at the end of that note's bar
+    if (tick >= editor.chart.endTick) editor.chart.endTick = barStartTick(editor.chart, barNumberAt(editor.chart, tick) + 1);
     select(tick, stringIndex);
     editor.dirty = true;
 }
@@ -185,13 +183,55 @@ static void drawSidePanel(){
     if (chart.tempoMap.size() > 1) ImGui::TextDisabled("+ %d tempo changes", (int)chart.tempoMap.size() - 1);
     if (ImGui::InputDouble("Offset (s)", &chart.offset, 0.001, 0.01, "%.3f")) editor.dirty = true;
 
-    int ticksPerBar = chart.resolution * BEATS_PER_BAR;
-    int bars = (chart.endTick + ticksPerBar - 1) / ticksPerBar;
+    int bars = barNumberAt(chart, chart.endTick - 1) + 1;
     if (ImGui::InputInt("Length (bars)", &bars)){
         int lastNoteTick = track().notes.empty() ? 0 : track().notes.back().tick;
-        chart.endTick = std::max(std::max(bars, 1) * ticksPerBar, (lastNoteTick / ticksPerBar + 1) * ticksPerBar);
+        int barsNeeded = barNumberAt(chart, lastNoteTick) + 1; // never shorter than the last note's bar
+        chart.endTick = barStartTick(chart, std::max(std::max(bars, 1), barsNeeded));
         editor.dirty = true;
     }
+
+    // The song's time signature and key. Later changes must stay on bar lines, so with any, these are read-only
+    // here (edit them in the file); like the tempo, the number of changes is shown.
+    ImGui::SeparatorText("Notation");
+    TimeSignatureChange& time = chart.timeSignatures[0];
+    ImGui::BeginDisabled(chart.timeSignatures.size() > 1);
+    int beats = time.beats;
+    if (ImGui::InputInt("Beats per bar", &beats) && beats >= 1 && beats <= 32){
+        time.beats = beats;
+        editor.dirty = true;
+    }
+    if (ImGui::BeginCombo("Beat unit", TextFormat("1/%d", time.beatUnit))){
+        for (int unit = 1; unit <= 32; unit *= 2){
+            if ((chart.resolution * 4) % unit != 0) continue; // the resolution can't split a beat that small
+            if (ImGui::Selectable(TextFormat("1/%d", unit), unit == time.beatUnit)){
+                time.beatUnit = unit;
+                editor.dirty = true;
+            }
+        }
+        ImGui::EndCombo();
+    }
+    ImGui::EndDisabled();
+    if (chart.timeSignatures.size() > 1) ImGui::TextDisabled("+ %d time signature changes", (int)chart.timeSignatures.size() - 1);
+
+    KeySignature& key = chart.keys[0].key;
+    ImGui::BeginDisabled(chart.keys.size() > 1);
+    if (ImGui::BeginCombo("Key", keySignatureName(key).c_str())){
+        for (int fifths = -7; fifths <= 7; fifths++){
+            KeySignature option{fifths, key.minor};
+            std::string label = keySignatureName(option);
+            if (fifths != 0) label += TextFormat("   %d %s", std::abs(fifths), fifths > 0 ? "sharps" : "flats");
+            if (ImGui::Selectable(label.c_str(), fifths == key.fifths)){
+                key = option;
+                editor.dirty = true;
+            }
+        }
+        ImGui::EndCombo();
+    }
+    // Same signature, the relative key: G major <-> E minor
+    if (ImGui::Checkbox("Minor", &key.minor)) editor.dirty = true;
+    ImGui::EndDisabled();
+    if (chart.keys.size() > 1) ImGui::TextDisabled("+ %d key changes", (int)chart.keys.size() - 1);
 
     ImGui::SeparatorText("Notes");
     ImGui::Combo("Grid", &editor.snapIndex, SNAP_LABELS, SNAP_CHOICES);
@@ -201,7 +241,7 @@ static void drawSidePanel(){
                        ImGuiSliderFlags_Logarithmic);
     if (const FrettedNote* note = selectedNote()){
         int pitch = track().tuning[note->stringIndex] + note->fret;
-        ImGui::Text("Selected: bar %d, fret %d (%s%d)", note->tick / ticksPerBar + 1, note->fret,
+        ImGui::Text("Selected: bar %d, fret %d (%s%d)", barNumberAt(chart, note->tick) + 1, note->fret,
                     pitchClassName(pitch), pitchOctave(pitch));
     }
     ImGui::Text("%d notes", (int)track().notes.size());
@@ -248,13 +288,15 @@ static void drawTimeline(){
     int step = snapStep();
     if (editor.pixelsPerBeat / SNAP_DIVISIONS[editor.snapIndex] < MIN_GRID_LINE_SPACING) step = resolution;
     double viewEndTick = xToTick(gridRight);
-    int ticksPerBar = resolution * BEATS_PER_BAR;
     for (int tick = (int)(editor.viewStartTick / step) * step; tick <= viewEndTick; tick += step){
         float x = tickToX(tick);
-        bool isBar = tick % ticksPerBar == 0;
-        ImU32 color = isBar ? COLOR_BAR_LINE : (tick % resolution == 0 ? COLOR_BEAT_LINE : COLOR_SUBDIVISION_LINE);
+        int bar = barNumberAt(editor.chart, tick);
+        int barStart = barStartTick(editor.chart, bar);
+        int beatLength = resolution * 4 / timeSignatureAt(editor.chart, tick).beatUnit; // a beat of 1/8 is half a quarter
+        bool isBar = tick == barStart;
+        ImU32 color = isBar ? COLOR_BAR_LINE : ((tick - barStart) % beatLength == 0 ? COLOR_BEAT_LINE : COLOR_SUBDIVISION_LINE);
         draw->AddLine(ImVec2(x, rowsTop), ImVec2(x, origin.y + size.y), color, isBar ? 2.0f : 1.0f);
-        if (isBar) draw->AddText(ImVec2(x + 4, origin.y + 4), COLOR_TEXT, TextFormat("%d", tick / ticksPerBar + 1));
+        if (isBar) draw->AddText(ImVec2(x + 4, origin.y + 4), COLOR_TEXT, TextFormat("%d", bar + 1));
     }
 
     // Strings, labeled with their open-string note

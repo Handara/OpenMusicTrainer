@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 // Where notes go on a staff. Pure math: drawing is the view's job.
 
 // Guitar music is written an octave higher than it sounds (a treble clef with a small 8 below it),
@@ -23,3 +25,16 @@ int ledgerLineCount(int position);
 
 // Notes on or above the middle line get their stem pointing down, lower ones up, so stems stay on the staff
 bool stemUp(int position);
+
+// A key signature, as its place on the circle of fifths: the number of sharps (1 to 7) or flats (-1 to -7).
+// G major and E minor are 1 (F#), F major is -1 (Bb), C major and A minor are 0.
+struct KeySignature {
+    int fifths = 0;
+    bool minor = false;
+};
+
+// "G" + "major", "F#" + "minor", "Bb" + "major"... Each letter has its place on the circle of fifths (F -1, C 0,
+// G 1 ... B 5), a sharp moves 7 places up, a flat 7 down, and a minor key sits 3 below its major.
+// False for keys with more than 7 sharps or flats (G# major: write Ab major).
+bool parseKeySignature(const std::string& tonic, const std::string& mode, KeySignature& out);
+std::string keySignatureName(const KeySignature& key); // "G major", "Eb major", "F# minor"

@@ -7,7 +7,7 @@
 #include <fstream>
 #include <sstream>
 
-const int SUPPORTED_CHART_VERSION = 1;
+const int SUPPORTED_CHART_VERSION = 2; // 2 added time and key signatures; version 1 files load as 4/4 in C major
 
 // True if only whitespace is left on the line. Clears a failed read first, so that
 // leftover text after it (e.g. "abc" where a number was expected) is still detected.
@@ -65,6 +65,20 @@ bool loadChart(const std::string& path, Chart& out, std::string& error){
             if (!(ss >> tempo.tick >> tempo.bpm)) return lineError("expected: tempo <tick> <bpm>");
             if (tempo.tick < 0 || tempo.bpm <= 0.0) return lineError("tempo needs tick >= 0 and bpm > 0");
             out.tempoMap.push_back(tempo);
+        } else if (keyword == "time"){
+            TimeSignatureChange time{};
+            char slash = 0;
+            if (!(ss >> time.tick >> time.beats >> slash >> time.beatUnit) || slash != '/') return lineError("expected: time <tick> <beats>/<beat unit>, like time 0 3/4");
+            bool unitOk = time.beatUnit == 1 || time.beatUnit == 2 || time.beatUnit == 4 || time.beatUnit == 8 || time.beatUnit == 16 || time.beatUnit == 32;
+            if (time.tick < 0 || time.beats < 1 || time.beats > 32 || !unitOk) return lineError("time needs tick >= 0, 1-32 beats, and a beat unit of 1, 2, 4, 8, 16 or 32");
+            out.timeSignatures.push_back(time);
+        } else if (keyword == "key"){
+            KeyChange change{};
+            std::string tonic, mode;
+            if (!(ss >> change.tick >> tonic >> mode)) return lineError("expected: key <tick> <tonic> major|minor, like key 0 G major");
+            if (change.tick < 0) return lineError("key tick must be >= 0");
+            if (!parseKeySignature(tonic, mode, change.key)) return lineError("unknown key '" + tonic + " " + mode + "' (keys have at most 7 sharps or flats: G# major is Ab major)");
+            out.keys.push_back(change);
         } else if (keyword == "track"){
             std::string typeName;
             FrettedTrack newTrack;
@@ -123,6 +137,33 @@ bool loadChart(const std::string& path, Chart& out, std::string& error){
         }
     }
 
+    // Time and key signatures: optional, but when given they start at tick 0 and change only on bar lines
+    if (out.timeSignatures.empty()) out.timeSignatures.push_back({0, 4, 4});
+    if (out.keys.empty()) out.keys.push_back({0, KeySignature{}});
+    std::sort(out.timeSignatures.begin(), out.timeSignatures.end(),
+              [](const TimeSignatureChange& a, const TimeSignatureChange& b){ return a.tick < b.tick; });
+    std::sort(out.keys.begin(), out.keys.end(), [](const KeyChange& a, const KeyChange& b){ return a.tick < b.tick; });
+    if (out.timeSignatures[0].tick != 0) return chartError("needs a time signature at tick 0 (or none at all, for 4/4)");
+    if (out.keys[0].tick != 0) return chartError("needs a key at tick 0 (or none at all, for C major)");
+    for (size_t i = 0; i < out.timeSignatures.size(); i++){
+        const TimeSignatureChange& time = out.timeSignatures[i];
+        if ((out.resolution * 4) % time.beatUnit != 0){
+            return chartError("resolution " + std::to_string(out.resolution) + " can't divide a beat of 1/" + std::to_string(time.beatUnit));
+        }
+        if (i == 0) continue;
+        const TimeSignatureChange& before = out.timeSignatures[i-1];
+        if (time.tick == before.tick) return chartError("two time signatures at tick " + std::to_string(time.tick));
+        if ((time.tick - before.tick) % ticksPerBar(out, before) != 0){
+            return chartError("time signature at tick " + std::to_string(time.tick) + " isn't on a bar line");
+        }
+    }
+    std::vector<int> bars = barTicks(out);
+    for (size_t i = 0; i < out.keys.size(); i++){
+        int tick = out.keys[i].tick;
+        if (i > 0 && tick == out.keys[i-1].tick) return chartError("two keys at tick " + std::to_string(tick));
+        if (!std::binary_search(bars.begin(), bars.end(), tick)) return chartError("key at tick " + std::to_string(tick) + " isn't on a bar line");
+    }
+
     for (FrettedTrack& t : out.frettedTracks){
         if (t.tuning.empty()) return chartError("track '" + t.name + "' has no tuning");
 
@@ -175,6 +216,9 @@ bool saveChart(const std::string& path, const Chart& chart, std::string& error){
 
     out << "# tempo <tick> <bpm>\n";
     for (const TempoChange& tempo : chart.tempoMap) out << "tempo " << tempo.tick << " " << formatNumber(tempo.bpm) << "\n";
+    out << "# time <tick> <beats>/<beat unit>, key <tick> <tonic> major|minor\n";
+    for (const TimeSignatureChange& time : chart.timeSignatures) out << "time " << time.tick << " " << time.beats << "/" << time.beatUnit << "\n";
+    for (const KeyChange& key : chart.keys) out << "key " << key.tick << " " << keySignatureName(key.key) << "\n";
 
     for (const FrettedTrack& track : chart.frettedTracks){
         out << "\ntrack " << trackTypeName(track.type) << " " << track.name << "\n";
@@ -206,4 +250,46 @@ double tickToSeconds(const Chart& chart, int tick){
         seconds += beats * 60.0 / tempo.bpm;
     }
     return seconds;
+}
+
+int ticksPerBar(const Chart& chart, const TimeSignatureChange& time){
+    return time.beats * chart.resolution * 4 / time.beatUnit; // resolution is per quarter note: a beat of 1/8 is half of it
+}
+
+const TimeSignatureChange& timeSignatureAt(const Chart& chart, int tick){
+    // The last change at or before the tick. There's always one at tick 0.
+    auto after = std::upper_bound(chart.timeSignatures.begin(), chart.timeSignatures.end(), tick,
+                                  [](int t, const TimeSignatureChange& time){ return t < time.tick; });
+    return *(after - 1);
+}
+
+// Both walk the time signatures section by section: each holds a whole number of bars (changes are on bar lines)
+int barStartTick(const Chart& chart, int bar){
+    for (size_t i = 0; i < chart.timeSignatures.size(); i++){
+        const TimeSignatureChange& time = chart.timeSignatures[i];
+        int length = ticksPerBar(chart, time);
+        bool last = i + 1 == chart.timeSignatures.size();
+        int barsInSection = last ? bar + 1 : (chart.timeSignatures[i+1].tick - time.tick) / length;
+        if (bar < barsInSection) return time.tick + bar * length;
+        bar -= barsInSection;
+    }
+    return 0; // unreachable: the last section never runs out
+}
+
+int barNumberAt(const Chart& chart, int tick){
+    int bar = 0;
+    for (size_t i = 0; i < chart.timeSignatures.size(); i++){
+        const TimeSignatureChange& time = chart.timeSignatures[i];
+        int length = ticksPerBar(chart, time);
+        bool last = i + 1 == chart.timeSignatures.size();
+        if (last || tick < chart.timeSignatures[i+1].tick) return bar + std::max(0, tick - time.tick) / length;
+        bar += (chart.timeSignatures[i+1].tick - time.tick) / length;
+    }
+    return bar;
+}
+
+std::vector<int> barTicks(const Chart& chart){
+    std::vector<int> bars;
+    for (int bar = 0, tick = 0; (tick = barStartTick(chart, bar)) <= chart.endTick; bar++) bars.push_back(tick);
+    return bars;
 }

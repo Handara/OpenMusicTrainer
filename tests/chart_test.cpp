@@ -73,7 +73,13 @@ TEST_CASE("broken charts are rejected with a clear message"){
         {"note before tuning",  HEADER + "track guitar Lead\nn 960 0 0\n", "note before its track's tuning"},
         {"unknown track type",  HEADER + "track banjo X\n",                "unknown track type 'banjo'"},
         {"unknown keyword",     HEADER + TRACK + "bmp 120\n",              "unknown keyword 'bmp'"},
-        {"newer version",       "version 2\n" + HEADER.substr(10) + TRACK, "newer than this build supports"},
+        {"newer version",       "version 3\n" + HEADER.substr(10) + TRACK, "newer than this build supports"},
+        {"time without slash",  HEADER + "time 0 3 4\n" + TRACK,   "expected: time <tick> <beats>/<beat unit>"},
+        {"odd beat unit",       HEADER + "time 0 7/6\n" + TRACK,   "beat unit of 1, 2, 4, 8, 16 or 32"},
+        {"no time at tick 0",   HEADER + "time 1920 3/4\n" + TRACK, "needs a time signature at tick 0"},
+        {"time mid-bar",        HEADER + "time 0 4/4\ntime 960 3/4\n" + TRACK, "time signature at tick 960 isn't on a bar line"},
+        {"unknown key",         HEADER + "key 0 G# major\n" + TRACK, "unknown key 'G# major'"},
+        {"key mid-bar",         HEADER + "key 0 C major\nkey 480 G major\n" + TRACK, "key at tick 480 isn't on a bar line"},
         {"no tempo at tick 0",  "version 1\nresolution 480\nend 9600\ntempo 480 120\n" + TRACK, "needs a tempo at tick 0"},
         {"duplicate note",      HEADER + TRACK + "n 960 0 0\nn 960 0 3\n", "two notes on string 0 at tick 960"},
         {"note after end",      HEADER + TRACK + "n 99999 0 0\n",          "is after 'end'"},
@@ -104,6 +110,8 @@ TEST_CASE("save then load gives back the same chart"){
     original.offset = 0.1;                   // not exactly representable in binary: must survive anyway
     original.endTick = 9600;
     original.tempoMap = {{0, 128.33333333333334}, {1920, 90.0}};
+    original.timeSignatures = {{0, 4, 4}, {3840, 6, 8}};
+    original.keys = {{0, {-3, false}}, {3840, {3, true}}}; // Eb major, then F# minor
     FrettedTrack track;
     track.type = InstrumentType::Guitar;
     track.name = "Lead Guitar";
@@ -127,6 +135,14 @@ TEST_CASE("save then load gives back the same chart"){
     REQUIRE(loaded.tempoMap.size() == 2);
     CHECK(loaded.tempoMap[0].bpm == original.tempoMap[0].bpm);
     CHECK(loaded.tempoMap[1].tick == 1920);
+    REQUIRE(loaded.timeSignatures.size() == 2);
+    CHECK(loaded.timeSignatures[1].tick == 3840);
+    CHECK(loaded.timeSignatures[1].beats == 6);
+    CHECK(loaded.timeSignatures[1].beatUnit == 8);
+    REQUIRE(loaded.keys.size() == 2);
+    CHECK(loaded.keys[0].key.fifths == -3);
+    CHECK(loaded.keys[1].key.fifths == 3);
+    CHECK(loaded.keys[1].key.minor);
     REQUIRE(loaded.frettedTracks.size() == 1);
     const FrettedTrack& t = loaded.frettedTracks[0];
     CHECK(t.name == "Lead Guitar");
@@ -144,4 +160,40 @@ TEST_CASE("save then load gives back the same chart"){
     REQUIRE(saveChart(path, original, error));
     REQUIRE(loadChart(path, loaded, error));
     CHECK(loaded.title == "Changed");
+}
+
+TEST_CASE("version 1 charts are 4/4 in C major"){
+    Chart chart;
+    std::string error;
+    REQUIRE_MESSAGE(loadChart(writeTemp("v1.chart", HEADER + TRACK + "n 960 0 0\n"), chart, error), error);
+    REQUIRE(chart.timeSignatures.size() == 1);
+    CHECK(chart.timeSignatures[0].beats == 4);
+    CHECK(chart.timeSignatures[0].beatUnit == 4);
+    REQUIRE(chart.keys.size() == 1);
+    CHECK(chart.keys[0].key.fifths == 0);
+    CHECK(barTicks(chart) == std::vector<int>{0, 1920, 3840, 5760, 7680, 9600}); // end 9600 is on a bar line
+}
+
+TEST_CASE("bars follow the time signatures"){
+    Chart chart;
+    std::string error;
+    // 2 bars of 4/4, then 3/4 (1440 ticks a bar), then 6/8 (six eighths: also 1440 ticks)
+    REQUIRE_MESSAGE(loadChart(writeTemp("meters.chart",
+        "version 2\nresolution 480\nend 9000\ntempo 0 120\ntime 0 4/4\ntime 3840 3/4\ntime 6720 6/8\nkey 0 D major\n" + TRACK),
+        chart, error), error);
+    CHECK(barTicks(chart) == std::vector<int>{0, 1920, 3840, 5280, 6720, 8160});
+    CHECK(timeSignatureAt(chart, 0).beats == 4);
+    CHECK(timeSignatureAt(chart, 3839).beats == 4);
+    CHECK(timeSignatureAt(chart, 3840).beats == 3);
+    CHECK(timeSignatureAt(chart, 8000).beatUnit == 8);
+    CHECK(ticksPerBar(chart, {0, 6, 8}) == 1440);
+    CHECK(barNumberAt(chart, 0) == 0);
+    CHECK(barNumberAt(chart, 3839) == 1);
+    CHECK(barNumberAt(chart, 3840) == 2);  // the first 3/4 bar
+    CHECK(barNumberAt(chart, 6719) == 3);
+    CHECK(barNumberAt(chart, 20000) == 13); // past the end, 6/8 carries on: bar 4 + (20000 - 6720) / 1440
+    CHECK(barStartTick(chart, 3) == 5280);
+    CHECK(barStartTick(chart, 11) == 6720 + 7 * 1440);
+    CHECK(ticksPerBar(chart, {0, 2, 2}) == 1920); // cut time: two half notes
+    CHECK(chart.keys[0].key.fifths == 2);
 }

@@ -42,3 +42,28 @@ TEST_CASE("ledger lines and stems"){
     CHECK(stemUp(3));
     CHECK_FALSE(stemUp(4)); // middle line: stem down
 }
+
+TEST_CASE("key signatures from their names, and back"){
+    struct Case { const char* tonic; const char* mode; int fifths; };
+    const Case cases[] = {
+        {"C", "major", 0}, {"A", "minor", 0}, {"G", "major", 1}, {"E", "minor", 1}, {"F", "major", -1},
+        {"D", "minor", -1}, {"Bb", "major", -2}, {"Eb", "major", -3}, {"C", "minor", -3}, {"F#", "minor", 3},
+        {"B", "major", 5}, {"F#", "major", 6}, {"Gb", "major", -6}, {"C#", "major", 7}, {"Cb", "major", -7},
+        {"A#", "minor", 7}, {"Ab", "minor", -7},
+    };
+    for (const Case& c : cases){
+        CAPTURE(c.tonic);
+        CAPTURE(c.mode);
+        KeySignature key;
+        REQUIRE(parseKeySignature(c.tonic, c.mode, key));
+        CHECK(key.fifths == c.fifths);
+        CHECK(key.minor == (std::string(c.mode) == "minor"));
+        CHECK(keySignatureName(key) == std::string(c.tonic) + " " + c.mode);
+    }
+    KeySignature key;
+    CHECK_FALSE(parseKeySignature("G#", "major", key)); // 8 sharps: that's Ab major
+    CHECK_FALSE(parseKeySignature("Fb", "minor", key));
+    CHECK_FALSE(parseKeySignature("H", "major", key));
+    CHECK_FALSE(parseKeySignature("C", "dorian", key));
+    CHECK_FALSE(parseKeySignature("C##", "major", key));
+}

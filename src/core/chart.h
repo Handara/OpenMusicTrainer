@@ -1,16 +1,31 @@
 #pragma once
 
+#include "core/notation.h"
+
 #include <string>
 #include <vector>
 
 const int MAX_FRET = 24;
 
 // Song data as stored in a .chart file. Read-only once loaded: gameplay state lives elsewhere.
-// All musical time is in ticks, `resolution` ticks per beat.
+// All musical time is in ticks, `resolution` ticks per quarter note; tempos count quarter notes per minute,
+// whatever the time signature (as in MIDI).
 
 struct TempoChange {
     int tick;
     double bpm;
+};
+
+// Only for writing the music down (bar lines, note values, beams): timing comes from ticks and tempos alone
+struct TimeSignatureChange {
+    int tick;
+    int beats;    // 3 in 3/4
+    int beatUnit; // 4 in 3/4: the note value of a beat, as a fraction of a whole note (1, 2, 4, 8, 16 or 32)
+};
+
+struct KeyChange {
+    int tick;
+    KeySignature key;
 };
 
 struct FrettedNote {
@@ -39,6 +54,8 @@ struct Chart {
     double offset;  // seconds into the audio where tick 0 falls
     int endTick;
     std::vector<TempoChange> tempoMap; // sorted by tick, first entry at tick 0
+    std::vector<TimeSignatureChange> timeSignatures; // sorted, first at tick 0, each on a bar line; 4/4 if the file has none
+    std::vector<KeyChange> keys;                     // sorted, first at tick 0, each on a bar line; C major if none
     std::vector<FrettedTrack> frettedTracks;
 };
 
@@ -50,3 +67,11 @@ bool loadChart(const std::string& path, Chart& out, std::string& error);
 bool saveChart(const std::string& path, const Chart& chart, std::string& error);
 
 double tickToSeconds(const Chart& chart, int tick);
+
+int ticksPerBar(const Chart& chart, const TimeSignatureChange& time);
+const TimeSignatureChange& timeSignatureAt(const Chart& chart, int tick);
+// Bars counted from 0. Past the chart's end, the last time signature carries on.
+int barStartTick(const Chart& chart, int bar);
+int barNumberAt(const Chart& chart, int tick);
+// Where each bar starts, from tick 0 to the chart's end (included when it falls on a bar line)
+std::vector<int> barTicks(const Chart& chart);

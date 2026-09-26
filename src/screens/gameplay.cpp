@@ -138,9 +138,8 @@ bool startGameplay(const std::string& chartPath, const GameplayOptions& options,
         int pitch = track.tuning[chartNote.stringIndex] + chartNote.fret;
         game.notes.push_back({(float)tickToSeconds(game.chart, chartNote.tick), chartNote.stringIndex, chartNote.fret, pitch});
     }
-    const int ticksPerBar = game.chart.resolution * 4; // 4/4 until charts have time signatures
     game.barTimes.clear();
-    for (int tick = 0; tick <= game.chart.endTick; tick += ticksPerBar) game.barTimes.push_back((float)tickToSeconds(game.chart, tick));
+    for (int tick : barTicks(game.chart)) game.barTimes.push_back((float)tickToSeconds(game.chart, tick));
     game.state = {};
     game.state.multiplier = 1;
     game.options = options;
