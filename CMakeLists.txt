@@ -83,6 +83,7 @@ endfunction()
 add_library(omt_core STATIC
     src/core/chart.cpp
     src/core/files.cpp
+    src/core/intervals.cpp
     src/core/music.cpp
     src/core/notation.cpp
     src/core/paths.cpp
@@ -130,6 +131,7 @@ if(BUILD_TESTING)
     add_executable(omt_tests
         tests/main.cpp
         tests/chart_test.cpp
+        tests/intervals_test.cpp
         tests/music_test.cpp
         tests/notation_test.cpp
         tests/pitch_test.cpp
