@@ -41,6 +41,7 @@ struct Note {
 struct GameState {
     int score;
     int combo;
+    int multiplier; // increments on a perfect hit, unchanged on near, resets on miss
     float rhythm; // 0..1, the "rhythm" meter
 };
 
@@ -66,24 +67,24 @@ int laneY(int lane){
     return LANE_TOP_Y + lane*LANE_SPACING;
 }
 
-int scoreMultiplier(int combo){
-    return 1 + std::min(combo/10, 3); // caps at x4, like a Guitar Hero streak multiplier
-}
+const int MAX_MULTIPLIER = 4;
 
 void registerMiss(GameState& state){
     state.combo = 0;
+    state.multiplier = 1;
     state.rhythm = 0.0f;
 }
 
 void registerHit(GameState& state, Note& note, float distancePx){
     if (distancePx <= PERFECT_WINDOW_PX){
         state.combo++;
-        state.score += 100 * scoreMultiplier(state.combo);
+        state.multiplier = std::min(state.multiplier + 1, MAX_MULTIPLIER);
+        state.score += 100 * state.multiplier;
         state.rhythm = std::min(1.0f, state.rhythm + RHYTHM_FILL_PER_PERFECT);
         note.wasPerfect = true;
     } else if (distancePx <= NEAR_WINDOW_PX){
         state.combo++;
-        state.score += 10 * scoreMultiplier(state.combo);
+        state.score += 10 * state.multiplier;
         state.rhythm *= 0.5f;
         note.wasPerfect = false;
     } else {
@@ -155,7 +156,7 @@ void drawHUD(const GameState& state){
     int scoreWidth = MeasureText(scoreText, 36);
     DrawText(scoreText, WINDOW_WIDTH - scoreWidth - 20, barHeight + 10, 36, GOLD);
 
-    const char* comboText = TextFormat("%d COMBO  x%d", state.combo, scoreMultiplier(state.combo));
+    const char* comboText = TextFormat("%d COMBO  x%d", state.combo, state.multiplier);
     int comboWidth = MeasureText(comboText, 22);
     DrawText(comboText, WINDOW_WIDTH - comboWidth - 20, barHeight + 50, 22, RAYWHITE);
 }
@@ -170,7 +171,7 @@ int main(void){
         {5.5f, 4}, {6.5f, 1}, {7.0f, 3}, {7.5f, 5},
     };
     const float patternDuration = 9.0f;
-    GameState state = {0, 0, 0.0f};
+    GameState state = {0, 0, 1, 0.0f};
 
     float elapsed = 0.0f;
     float prevPatternTime = 0.0f;
