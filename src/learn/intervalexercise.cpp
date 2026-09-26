@@ -9,7 +9,6 @@
 #include <algorithm>
 #include <random>
 
-const float MELODIC_GAP_S = 0.7f;        // second note of a melodic interval starts this long after the first
 const double AUTO_NEXT_AFTER_S = 1.0;    // after a right answer, the next question plays by itself
 const float ANSWER_BUTTON_WIDTH = 170.0f;
 const float ANSWER_BUTTON_HEIGHT = 84.0f;
@@ -21,18 +20,9 @@ const ImU32 FEEDBACK_RIGHT = IM_COL32(120, 220, 130, 255);
 const ImU32 FEEDBACK_WRONG = IM_COL32(255, 130, 110, 255);
 const ImU32 TEXT_DIM = IM_COL32(220, 200, 180, 200);
 
-static const char* directionName(IntervalDirection direction){
-    switch (direction){
-        case IntervalDirection::Ascending: return "going up";
-        case IntervalDirection::Descending: return "going down";
-        case IntervalDirection::Harmonic: return "together";
-    }
-    return "";
-}
-
-IntervalExercise::IntervalExercise(IntervalDirection direction, const std::string& progressPath)
-    : progressPath(progressPath){
-    trainer.direction = direction;
+IntervalExercise::IntervalExercise(const std::string& title, const IntervalConfig& config, const std::string& progressPath)
+    : title(title), progressPath(progressPath){
+    trainer.config = config;
     trainer.progress = loadIntervalProgress(progressPath);
     trainer.rng.seed(std::random_device{}()); // different questions every session
     // Space and the number keys answer here, so ImGui's keyboard navigation (which also uses them) is off
@@ -49,7 +39,7 @@ IntervalExercise::~IntervalExercise(){
 void IntervalExercise::playInterval(int firstPitch, int secondPitch){
     stopPreviews(); // a replay shouldn't pile up on the last one
     playPreview(midiToFrequency((float)firstPitch));
-    float gap = trainer.direction == IntervalDirection::Harmonic ? 0.0f : MELODIC_GAP_S;
+    float gap = trainer.config.direction == IntervalDirection::Harmonic ? 0.0f : trainer.config.gapSeconds;
     playPreview(midiToFrequency((float)secondPitch), gap);
 }
 
@@ -81,7 +71,7 @@ void IntervalExercise::update(){
         else playInterval(question.firstPitch, question.secondPitch);
     }
     // Number keys pick answers in the order the buttons show them: 1 = first button ... 0 = tenth
-    std::vector<int> choices = unlockedIntervals(trainer.progress);
+    std::vector<int> choices = unlockedIntervals(trainer.config, trainer.progress);
     std::sort(choices.begin(), choices.end());
     for (int i = 0; i < (int)choices.size() && i < 10; i++){
         ImGuiKey key = i < 9 ? (ImGuiKey)(ImGuiKey_1 + i) : ImGuiKey_0;
@@ -93,16 +83,19 @@ void IntervalExercise::update(){
 
 void IntervalExercise::draw(){
     const IntervalProgress& progress = trainer.progress;
-    menuTitle(TextFormat("Intervals, %s", directionName(trainer.direction)));
+    const IntervalConfig& config = trainer.config;
+    menuTitle(title.c_str());
 
+    int unlocked = (int)unlockedIntervals(config, progress).size();
+    int poolSize = (int)config.pool.size();
     int recentCorrect = (int)std::count(progress.recent.begin(), progress.recent.end(), true);
     int percent = sessionAsked > 0 ? 100 * sessionCorrect / sessionAsked : 0;
     centeredColoredText(TextFormat("%d of %d intervals    This session: %d/%d (%d%%)    Streak %d, best %d",
-                                   progress.unlockedCount, INTERVAL_COUNT, sessionCorrect, sessionAsked, percent,
+                                   unlocked, poolSize, sessionCorrect, sessionAsked, percent,
                                    trainer.streak, progress.bestStreak), TEXT_DIM);
-    if (progress.unlockedCount < INTERVAL_COUNT){
+    if (unlocked < poolSize){
         centeredColoredText(TextFormat("Next interval unlocks at %d right out of your last %d: now %d",
-                                       UNLOCK_CORRECT, UNLOCK_WINDOW, recentCorrect), TEXT_DIM);
+                                       config.unlockCorrect, config.unlockWindow, recentCorrect), TEXT_DIM);
     }
     ImGui::Dummy(ImVec2(0, 10));
     if (menuButton(answered ? "Next  [Space]" : "Play again  [Space]")){
@@ -112,7 +105,7 @@ void IntervalExercise::draw(){
     ImGui::Dummy(ImVec2(0, 10));
 
     // Answer buttons in size order (easier to find than unlock order), with each interval's accuracy
-    std::vector<int> choices = unlockedIntervals(progress);
+    std::vector<int> choices = unlockedIntervals(trainer.config, progress);
     std::sort(choices.begin(), choices.end());
     int columns = std::min(ANSWER_COLUMNS, (int)choices.size());
     float rowWidth = columns * ANSWER_BUTTON_WIDTH + (columns - 1) * ImGui::GetStyle().ItemSpacing.x;
@@ -148,7 +141,7 @@ void IntervalExercise::draw(){
             if (ImGui::Button(TextFormat("Hear the %s", right.shortName), ImVec2(240, 44))) playInterval(question.firstPitch, question.secondPitch);
             ImGui::SameLine();
             int yourSecond = question.firstPitch + (question.secondPitch > question.firstPitch ? lastAnswer : -lastAnswer);
-            if (trainer.direction == IntervalDirection::Harmonic) yourSecond = question.firstPitch + lastAnswer;
+            if (trainer.config.direction == IntervalDirection::Harmonic) yourSecond = question.firstPitch + lastAnswer;
             if (ImGui::Button(TextFormat("Hear your %s", intervalInfo(lastAnswer).shortName), ImVec2(240, 44))) playInterval(question.firstPitch, yourSecond);
         }
         if (newlyUnlocked != 0){

@@ -34,7 +34,8 @@ static std::string progressPath(const char* file){
 
 static void refreshProgressSummaries(){
     for (int i = 0; i < INTERVAL_MODE_COUNT; i++){
-        learn.unlocked[i] = loadIntervalProgress(progressPath(INTERVAL_MODES[i].progressFile)).unlockedCount;
+        IntervalConfig config;
+        learn.unlocked[i] = (int)unlockedIntervals(config, loadIntervalProgress(progressPath(INTERVAL_MODES[i].progressFile))).size();
     }
 }
 
@@ -78,7 +79,9 @@ bool learnScreen(){
             std::string label = std::string(mode.label) + TextFormat("   %d/%d", learn.unlocked[i], INTERVAL_COUNT);
             if (i == 0) focusNextWhenMenuAppears();
             if (menuButton(label.c_str())){
-                learn.exercise = std::make_unique<IntervalExercise>(mode.direction, progressPath(mode.progressFile));
+                IntervalConfig config;
+                config.direction = mode.direction;
+                learn.exercise = std::make_unique<IntervalExercise>(mode.label, config, progressPath(mode.progressFile));
             }
         }
         ImGui::Dummy(ImVec2(0, 20));

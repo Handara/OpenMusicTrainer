@@ -12,22 +12,21 @@ const IntervalInfo INTERVALS[INTERVAL_COUNT] = {
     { 9, "M6", "Major 6th" }, { 10, "m7", "Minor 7th" }, { 11, "M7", "Major 7th" }, { 12, "P8", "Octave" },
 };
 
-// Questions start from a random low note in a comfortable middle range, so the top note stays pleasant too
-const int LOWEST_ROOT = 48;  // C3
-const int HIGHEST_ROOT = 67; // G4: plus an octave is G5
 const int SUPPORTED_PROGRESS_VERSION = 1;
 
 const IntervalInfo& intervalInfo(int semitones){
     return INTERVALS[std::clamp(semitones, 1, INTERVAL_COUNT) - 1];
 }
 
-std::vector<int> unlockedIntervals(const IntervalProgress& progress){
-    int count = std::clamp(progress.unlockedCount, STARTING_INTERVALS, INTERVAL_COUNT);
-    return std::vector<int>(INTERVAL_UNLOCK_ORDER, INTERVAL_UNLOCK_ORDER + count);
+std::vector<int> unlockedIntervals(const IntervalConfig& config, const IntervalProgress& progress){
+    int poolSize = (int)config.pool.size();
+    int count = std::clamp(progress.unlockedCount, std::min(config.startCount, poolSize), poolSize);
+    return std::vector<int>(config.pool.begin(), config.pool.begin() + count);
 }
 
 IntervalQuestion nextIntervalQuestion(IntervalTrainer& trainer){
-    std::vector<int> intervals = unlockedIntervals(trainer.progress);
+    const IntervalConfig& config = trainer.config;
+    std::vector<int> intervals = unlockedIntervals(config, trainer.progress);
 
     // Weak intervals come up more: weight grows with how often an interval is answered wrong.
     // Accuracy starts from 1 right out of 2 (a neutral guess) so a new interval isn't judged on 1 answer.
@@ -37,20 +36,21 @@ IntervalQuestion nextIntervalQuestion(IntervalTrainer& trainer){
         const IntervalStats& stats = trainer.progress.stats[semitones];
         double accuracy = (stats.correct + 1.0) / (stats.asked + 2.0);
         double weight = 1.0 + 4.0 * (1.0 - accuracy);
-        if (semitones == intervals.back() && (int)intervals.size() > STARTING_INTERVALS) weight *= 2.0;
+        if (semitones == intervals.back() && (int)intervals.size() > config.startCount) weight *= 2.0;
         weights.push_back(weight);
     }
     std::discrete_distribution<int> pickInterval(weights.begin(), weights.end());
     int semitones = intervals[pickInterval(trainer.rng)];
-    int root = std::uniform_int_distribution<int>(LOWEST_ROOT, HIGHEST_ROOT)(trainer.rng);
+    int root = std::uniform_int_distribution<int>(config.lowestRoot, config.highestRoot)(trainer.rng);
 
     IntervalQuestion question = { semitones, root, root + semitones };
-    if (trainer.direction == IntervalDirection::Descending) std::swap(question.firstPitch, question.secondPitch);
+    if (config.direction == IntervalDirection::Descending) std::swap(question.firstPitch, question.secondPitch);
     return question;
 }
 
 IntervalAnswerResult answerInterval(IntervalTrainer& trainer, const IntervalQuestion& question, int answeredSemitones){
     IntervalProgress& progress = trainer.progress;
+    const IntervalConfig& config = trainer.config;
     IntervalAnswerResult result = { answeredSemitones == question.semitones, 0 };
 
     IntervalStats& stats = progress.stats[question.semitones];
@@ -60,11 +60,12 @@ IntervalAnswerResult answerInterval(IntervalTrainer& trainer, const IntervalQues
     progress.bestStreak = std::max(progress.bestStreak, trainer.streak);
 
     progress.recent.push_back(result.correct);
-    if ((int)progress.recent.size() > UNLOCK_WINDOW) progress.recent.erase(progress.recent.begin());
+    if ((int)progress.recent.size() > config.unlockWindow) progress.recent.erase(progress.recent.begin());
     int recentCorrect = (int)std::count(progress.recent.begin(), progress.recent.end(), true);
-    if ((int)progress.recent.size() == UNLOCK_WINDOW && recentCorrect >= UNLOCK_CORRECT && progress.unlockedCount < INTERVAL_COUNT){
-        result.unlocked = INTERVAL_UNLOCK_ORDER[progress.unlockedCount];
-        progress.unlockedCount++;
+    int unlockedNow = (int)unlockedIntervals(config, progress).size();
+    if ((int)progress.recent.size() >= config.unlockWindow && recentCorrect >= config.unlockCorrect && unlockedNow < (int)config.pool.size()){
+        result.unlocked = config.pool[unlockedNow];
+        progress.unlockedCount = unlockedNow + 1;
         progress.recent.clear(); // earn the next one with the new interval in the mix
     }
     return result;
@@ -81,14 +82,14 @@ IntervalProgress loadIntervalProgress(const std::string& path){
         if (!(ss >> key) || key[0] == '#') continue;
         if (key == "unlocked"){
             ss >> progress.unlockedCount;
-            progress.unlockedCount = std::clamp(progress.unlockedCount, STARTING_INTERVALS, INTERVAL_COUNT);
+            progress.unlockedCount = std::clamp(progress.unlockedCount, 0, INTERVAL_COUNT); // the exercise's own limits apply on use
         } else if (key == "best_streak"){
             ss >> progress.bestStreak;
         } else if (key == "recent"){
             std::string answers;
             ss >> answers;
             for (char c : answers) if (c == '0' || c == '1') progress.recent.push_back(c == '1');
-            if ((int)progress.recent.size() > UNLOCK_WINDOW) progress.recent.erase(progress.recent.begin(), progress.recent.end() - UNLOCK_WINDOW);
+            if ((int)progress.recent.size() > MAX_UNLOCK_WINDOW) progress.recent.erase(progress.recent.begin(), progress.recent.end() - MAX_UNLOCK_WINDOW);
         } else if (key == "stats"){
             int semitones, asked, correct;
             if (ss >> semitones >> asked >> correct && semitones >= 1 && semitones <= INTERVAL_COUNT && asked >= correct && correct >= 0){

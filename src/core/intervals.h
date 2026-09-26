@@ -17,13 +17,24 @@ const int INTERVAL_COUNT = 12;
 // From a half step (1 semitone) to an octave (12)
 const IntervalInfo& intervalInfo(int semitones);
 
-// The order new intervals unlock in: very different sounds first, easily confused ones (m2, M7, tritone) last
-const int INTERVAL_UNLOCK_ORDER[INTERVAL_COUNT] = { 7, 4, 12, 5, 3, 2, 9, 10, 8, 1, 11, 6 };
-const int STARTING_INTERVALS = 2;
-const int UNLOCK_WINDOW = 10;   // look at the last 10 answers...
-const int UNLOCK_CORRECT = 9;   // ...and unlock the next interval once 9 of them are right
-
 enum class IntervalDirection { Ascending, Descending, Harmonic }; // low then high, high then low, together
+
+const int MAX_UNLOCK_WINDOW = 50;
+
+// The rules of one interval exercise. Exercise files set these (see core/exercisefile.h);
+// the defaults are the classic full course.
+struct IntervalConfig {
+    IntervalDirection direction = IntervalDirection::Ascending;
+    // The intervals practiced, in the order they unlock: very different sounds first,
+    // easily confused ones (m2, M7, tritone) last
+    std::vector<int> pool = { 7, 4, 12, 5, 3, 2, 9, 10, 8, 1, 11, 6 };
+    int startCount = 2;       // unlocked from the start
+    int unlockCorrect = 9;    // the next interval unlocks once this many...
+    int unlockWindow = 10;    // ...of the last this many answers are right
+    int lowestRoot = 48;      // questions start on a random note in this range (MIDI; C3)
+    int highestRoot = 67;     // (G4: plus an octave is G5)
+    float gapSeconds = 0.7f;  // between the two notes, when they're played one after the other
+};
 
 struct IntervalQuestion {
     int semitones;
@@ -37,20 +48,20 @@ struct IntervalStats {
 };
 
 struct IntervalProgress {
-    int unlockedCount = STARTING_INTERVALS;
+    int unlockedCount = 0;                   // 0 = just started: the config's startCount applies
     IntervalStats stats[INTERVAL_COUNT + 1]; // indexed by semitones, 1..12
-    std::vector<bool> recent;                // the latest answers (true = right), up to UNLOCK_WINDOW
+    std::vector<bool> recent;                // the latest answers (true = right), up to the unlock window
     int bestStreak = 0;
 };
 
 struct IntervalTrainer {
-    IntervalDirection direction = IntervalDirection::Ascending;
+    IntervalConfig config;
     IntervalProgress progress;
     std::mt19937 rng;
     int streak = 0; // current run of right answers
 };
 
-std::vector<int> unlockedIntervals(const IntervalProgress& progress); // semitones, in unlock order
+std::vector<int> unlockedIntervals(const IntervalConfig& config, const IntervalProgress& progress); // in unlock order
 
 IntervalQuestion nextIntervalQuestion(IntervalTrainer& trainer);
 

@@ -8,7 +8,7 @@
 // Hear an interval, name it. Progress (unlocked intervals, stats) is saved after every answer.
 class IntervalExercise : public Exercise {
 public:
-    IntervalExercise(IntervalDirection direction, const std::string& progressPath);
+    IntervalExercise(const std::string& title, const IntervalConfig& config, const std::string& progressPath);
     ~IntervalExercise() override;
 
     void update() override;
@@ -21,6 +21,7 @@ private:
     void submit(int semitones);
 
     IntervalTrainer trainer;
+    std::string title;
     std::string progressPath;
     std::string saveError;
 

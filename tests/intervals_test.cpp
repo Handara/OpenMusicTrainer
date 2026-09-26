@@ -24,7 +24,7 @@ TEST_CASE("a new trainer only asks the starting intervals, in range, in the chos
     }
     CHECK(asked == std::set<int>{7, 4}); // P5 and M3
 
-    trainer.direction = IntervalDirection::Descending;
+    trainer.config.direction = IntervalDirection::Descending;
     IntervalQuestion down = nextIntervalQuestion(trainer);
     CHECK(down.firstPitch - down.secondPitch == down.semitones); // descending: second note lower
 }
@@ -52,7 +52,7 @@ TEST_CASE("guessing doesn't unlock anything"){
         IntervalQuestion q = nextIntervalQuestion(trainer);
         answerInterval(trainer, q, i % 2 == 0 ? q.semitones : 1); // half right
     }
-    CHECK(trainer.progress.unlockedCount == STARTING_INTERVALS);
+    CHECK(unlockedIntervals(trainer.config, trainer.progress).size() == 2);
 }
 
 TEST_CASE("weak intervals are asked more often"){
@@ -99,5 +99,27 @@ TEST_CASE("progress survives a save and load"){
     CHECK(loaded.stats[4].asked == 0);
 
     IntervalProgress missing = loadIntervalProgress((dir / "no_such_file.txt").string());
-    CHECK(missing.unlockedCount == STARTING_INTERVALS); // a fresh start
+    CHECK(missing.unlockedCount == 0); // a fresh start
+}
+
+TEST_CASE("an exercise's own rules: a small pool, a custom unlock rule and range"){
+    IntervalTrainer trainer;
+    trainer.rng.seed(6);
+    trainer.config.pool = { 4, 3, 7 };     // M3 vs m3 first, then the 5th
+    trainer.config.startCount = 2;
+    trainer.config.unlockCorrect = 3;
+    trainer.config.unlockWindow = 3;
+    trainer.config.lowestRoot = trainer.config.highestRoot = 60;
+    std::set<int> asked;
+    for (int i = 0; i < 50; i++){
+        IntervalQuestion q = nextIntervalQuestion(trainer);
+        CHECK(q.firstPitch == 60);
+        if (i < 2){ asked.insert(q.semitones); answerInterval(trainer, q, q.semitones); }
+    }
+    CHECK(unlockedIntervals(trainer.config, trainer.progress).size() == 2); // 2 right, the rule needs 3
+    IntervalQuestion q = nextIntervalQuestion(trainer);
+    CHECK(answerInterval(trainer, q, q.semitones).unlocked == 7);
+    CHECK(unlockedIntervals(trainer.config, trainer.progress).size() == 3);
+    q = nextIntervalQuestion(trainer);
+    CHECK(answerInterval(trainer, q, q.semitones).unlocked == 0); // everything is already unlocked
 }
