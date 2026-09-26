@@ -1,0 +1,27 @@
+# OpenMusicTrainer chart
+version 1
+title Test Pattern
+artist Unknown
+resolution 480
+offset 0.0
+end 8640
+
+# tempo <tick> <bpm>, one line per tempo change
+tempo 0 120
+
+track guitar Lead
+# tuning: MIDI pitch per string, low to high (standard E)
+tuning 40 45 50 55 59 64
+# n <tick> <string> <fret> [duration]
+n 960 0 0
+n 1440 1 0
+n 1920 2 0
+n 2400 3 0
+n 2880 4 0
+n 3360 5 0
+n 4320 0 3
+n 4800 2 2
+n 5280 4 1
+n 6240 1 5
+n 6720 3 2
+n 7200 5 0

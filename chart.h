@@ -39,4 +39,7 @@ struct Chart {
     std::vector<FrettedTrack> frettedTracks;
 };
 
+// Reads and validates a .chart file. On failure returns false and sets `error` to "path:line: message".
+bool loadChart(const std::string& path, Chart& out, std::string& error);
+
 double tickToSeconds(const Chart& chart, int tick);
