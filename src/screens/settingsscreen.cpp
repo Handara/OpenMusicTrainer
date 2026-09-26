@@ -104,6 +104,14 @@ static void audioTab(Settings& settings, const std::string& soundsDir){
 }
 
 static void displayTab(Settings& settings){
+    ImGui::SeparatorText("Notes");
+    int stringOrder = settings.lowStringOnTop ? 0 : 1;
+    ImGui::RadioButton("Low E at the top", &stringOrder, 0);
+    ImGui::SameLine();
+    ImGui::RadioButton("Low E at the bottom (like tab)", &stringOrder, 1);
+    settings.lowStringOnTop = stringOrder == 0;
+
+    ImGui::SeparatorText("Window");
     if (ImGui::Checkbox("Fullscreen", &settings.fullscreen)) applyDisplaySettings(settings);
 
     int choice = FRAME_RATE_CHOICE_COUNT - 1;

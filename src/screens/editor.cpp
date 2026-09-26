@@ -47,6 +47,7 @@ struct EditorState {
     std::string songFolder;
     std::string userSongsDir;
     bool builtIn = false;
+    bool lowStringOnTop = true; // string order setting: which row each string is drawn in
     bool dirty = false;       // changed since the last save
     std::string status;       // last save result or hint, shown in the top bar
 
@@ -235,7 +236,9 @@ static void drawTimeline(){
     float rowHeight = std::min(MAX_ROW_HEIGHT, (size.y - RULER_HEIGHT) / stringCount);
     auto tickToX = [&](double tick){ return gridLeft + (float)((tick - editor.viewStartTick) / resolution * editor.pixelsPerBeat); };
     auto xToTick = [&](float x){ return editor.viewStartTick + (x - gridLeft) / editor.pixelsPerBeat * resolution; };
-    auto rowY = [&](int stringIndex){ return rowsTop + (stringIndex + 0.5f) * rowHeight; };
+    // String <-> screen row, following the string order setting (the mapping is its own inverse)
+    auto stringToRow = [&](int stringIndex){ return editor.lowStringOnTop ? stringIndex : stringCount - 1 - stringIndex; };
+    auto rowY = [&](int stringIndex){ return rowsTop + (stringToRow(stringIndex) + 0.5f) * rowHeight; };
 
     ImDrawList* draw = ImGui::GetWindowDrawList();
     draw->AddRectFilled(origin, ImVec2(gridRight, origin.y + size.y), COLOR_TIMELINE_BG);
@@ -290,8 +293,9 @@ static void drawTimeline(){
     }
 
     // Mouse: where a new note would go (snapped to the grid), and clicks
-    int hoverString = (int)std::floor((mouse.y - rowsTop) / rowHeight);
-    bool overGrid = hovered && mouse.x >= gridLeft && hoverString >= 0 && hoverString < stringCount;
+    int hoverRow = (int)std::floor((mouse.y - rowsTop) / rowHeight);
+    bool overGrid = hovered && mouse.x >= gridLeft && hoverRow >= 0 && hoverRow < stringCount;
+    int hoverString = stringToRow(hoverRow);
     int snappedTick = std::max(0, (int)std::lround(xToTick(mouse.x) / snapStep()) * snapStep());
     if (overGrid && !hoveredNote){
         ImVec2 ghost(tickToX(snappedTick), rowY(hoverString));
@@ -351,7 +355,7 @@ static void handleEditingKeys(){
 
 // --- Screen -------------------------------------------------------------------------------------------
 
-bool openEditor(const SongEntry& song, const std::string& userSongsDir, std::string& error){
+bool openEditor(const SongEntry& song, const std::string& userSongsDir, bool lowStringOnTop, std::string& error){
     closeEditor();
     EditorState fresh;
     if (!loadChart(song.chartPath, fresh.chart, error)) return false;
@@ -360,6 +364,7 @@ bool openEditor(const SongEntry& song, const std::string& userSongsDir, std::str
     fresh.userSongsDir = userSongsDir;
     fresh.builtIn = song.builtIn;
     if (song.builtIn) fresh.status = "Built-in song: saving creates your own copy";
+    fresh.lowStringOnTop = lowStringOnTop;
     fresh.active = true;
     editor = fresh;
 

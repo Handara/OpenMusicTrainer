@@ -30,6 +30,7 @@ TEST_CASE("settings survive a save and load"){
     original.previewVolume = 0.25f;
     original.previewSound = "my rain.wav";
     original.fullscreen = true;
+    original.lowStringOnTop = false;
     original.frameRateLimit = 144;
     original.noteSpeed = 450.0f;
     original.globalOffsetMs = -35;
@@ -46,6 +47,7 @@ TEST_CASE("settings survive a save and load"){
     CHECK(loaded.previewVolume == doctest::Approx(0.25f));
     CHECK(loaded.previewSound == "my rain.wav");
     CHECK(loaded.fullscreen);
+    CHECK_FALSE(loaded.lowStringOnTop);
     CHECK(loaded.frameRateLimit == 144);
     CHECK(loaded.noteSpeed == doctest::Approx(450.0f));
     CHECK(loaded.globalOffsetMs == -35);

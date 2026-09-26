@@ -66,7 +66,7 @@ static void leaveSettings(){
 
 static void editSong(const SongEntry& song){
     std::string error;
-    if (openEditor(song, app.userSongsDir, error)){
+    if (openEditor(song, app.userSongsDir, app.settings.lowStringOnTop, error)){
         app.songSelectError.clear();
         app.screen = Screen::Editor;
     } else {
@@ -79,6 +79,7 @@ static void startSong(const std::string& chartPath){
     GameplayOptions options;
     options.noteSpeed = app.settings.noteSpeed;
     options.offsetSeconds = app.settings.globalOffsetMs / 1000.0f;
+    options.lowStringOnTop = app.settings.lowStringOnTop;
     if (startGameplay(chartPath, options, error)){
         app.currentChartPath = chartPath;
         app.songSelectError.clear();

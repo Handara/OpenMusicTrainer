@@ -17,6 +17,7 @@ struct Settings {
     std::string previewSound = "pluck"; // a built-in sound, or a file name in the user's sounds folder
 
     // Display
+    bool lowStringOnTop = true;        // string order on the highway and in the editor: low E at the top, or at the bottom like tab
     bool fullscreen = false;
     int frameRateLimit = 60;           // 0 = unlimited
 

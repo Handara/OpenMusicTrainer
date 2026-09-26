@@ -38,6 +38,7 @@ Settings loadSettings(const std::string& path, std::vector<std::string>& warning
         else if (key == "master_volume") number(settings.masterVolume, 0.0f, 1.0f);
         else if (key == "preview_volume") number(settings.previewVolume, 0.0f, 1.0f);
         else if (key == "preview_sound"){ if (!value.empty()) settings.previewSound = value; }
+        else if (key == "low_string_on_top") settings.lowStringOnTop = value == "1";
         else if (key == "fullscreen") settings.fullscreen = value == "1";
         else if (key == "frame_rate_limit") number(settings.frameRateLimit, 0, 1000);
         else if (key == "note_speed") number(settings.noteSpeed, 100.0f, 1500.0f);
@@ -56,6 +57,7 @@ bool saveSettings(const std::string& path, const Settings& settings, std::string
     out << "master_volume " << settings.masterVolume << "\n";
     out << "preview_volume " << settings.previewVolume << "\n";
     out << "preview_sound " << settings.previewSound << "\n\n";
+    out << "low_string_on_top " << (settings.lowStringOnTop ? 1 : 0) << "\n";
     out << "fullscreen " << (settings.fullscreen ? 1 : 0) << "\n";
     out << "frame_rate_limit " << settings.frameRateLimit << "\n\n";
     out << "note_speed " << settings.noteSpeed << "\n";

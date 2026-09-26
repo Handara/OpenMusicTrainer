@@ -46,8 +46,14 @@ const Color WOOD_DARK = { 61, 38, 27, 255 };
 const Color WOOD_LIGHT = { 110, 70, 45, 255 };
 const Color TRACK_PANEL = { 30, 18, 12, 200 };
 
+// Set when a song starts. Strings are numbered from the lowest (0) up; which screen row each one gets
+// depends on the player's string order setting, decided here and nowhere else.
+static int laneCount = 6;
+static bool lowStringOnTop = true;
+
 static int laneY(int lane){
-    return LANE_TOP_Y + lane*LANE_SPACING;
+    int row = lowStringOnTop ? lane : laneCount - 1 - lane;
+    return LANE_TOP_Y + row*LANE_SPACING;
 }
 
 const int MAX_MULTIPLIER = 4;
@@ -115,9 +121,8 @@ static void updateMisses(std::vector<Note>& notes, GameState& state, float songT
 static void drawFretboard(const std::vector<Note>& notes, float songTime, const std::vector<int>& tuning, float noteSpeed){
     DrawRectangleGradientV(0, 0, GetScreenWidth(), GetScreenHeight(), WOOD_DARK, WOOD_LIGHT);
 
-    int laneCount = (int)tuning.size();
-    int panelTop = laneY(0) - 40;
-    int panelHeight = laneY(laneCount-1) - laneY(0) + 80;
+    int panelTop = LANE_TOP_Y - 40;
+    int panelHeight = (laneCount - 1) * LANE_SPACING + 80;
     DrawRectangle(0, panelTop, GetScreenWidth(), panelHeight, TRACK_PANEL);
 
     for (int i = 0; i < laneCount; i++){
@@ -200,6 +205,8 @@ bool startGameplay(const std::string& chartPath, const GameplayOptions& options,
     game.state = {};
     game.state.multiplier = 1;
     game.options = options;
+    laneCount = (int)track.tuning.size();
+    lowStringOnTop = options.lowStringOnTop;
     game.songTime = 0.0f;
     game.active = true;
     playSong(false);
