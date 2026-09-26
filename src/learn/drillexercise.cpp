@@ -34,6 +34,7 @@ DrillExercise::DrillExercise(const std::string& title, const ScaleDrillConfig& c
 }
 
 DrillExercise::~DrillExercise(){
+    stopPreviews(); // clicks already handed to the audio engine would otherwise still play after leaving
     stopNoteInput();
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 }

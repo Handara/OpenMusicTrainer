@@ -3,6 +3,7 @@
 #include "core/exercisefile.h"
 #include "learn/drillexercise.h"
 #include "learn/intervalexercise.h"
+#include "learn/routineexercise.h"
 #include "raylib.h"
 #include "ui/ui.h"
 
@@ -31,6 +32,15 @@ static std::unique_ptr<Exercise> createExercise(const ExerciseEntry& entry){
                                                       learn.setup.settings.inputDevice);
         case ExerciseType::Scale:
             return std::make_unique<DrillExercise>(entry.exercise.title, entry.exercise.drill, progressPath(entry), learn.setup.settings);
+        case ExerciseType::Routine: {
+            std::vector<RoutineExercise::Step> steps;
+            for (const RoutineStep& step : entry.exercise.routine){
+                // Always found: checkRoutines gave the routine an error otherwise, and it couldn't be started
+                steps.push_back({*findRoutineStep(learn.exercises, entry, step.exercise), step.minutes * 60.0});
+            }
+            // It's handed this very function to start its steps with
+            return std::make_unique<RoutineExercise>(entry.exercise.title, steps, progressPath(entry), createExercise);
+        }
     }
     return nullptr;
 }
@@ -47,6 +57,13 @@ static std::string progressSummary(const ExerciseEntry& entry){
             int best = loadDrillProgress(progressPath(entry)).bestCleanTempo;
             return best > 0 ? TextFormat("best %d bpm", best) : "";
         }
+        case ExerciseType::Routine: {
+            RoutineProgress progress = loadRoutineProgress(progressPath(entry));
+            int day = today(), streak = currentStreak(progress, day);
+            std::string summary = doneOnDay(progress, day) ? "done today" : "";
+            if (streak > 1) summary += TextFormat("%s%d day streak", summary.empty() ? "" : ", ", streak);
+            return summary;
+        }
     }
     return "";
 }
@@ -55,6 +72,7 @@ static void refreshExercises(){
     learn.exercises = scanExercises(learn.setup.builtInExercises, true);
     std::vector<ExerciseEntry> userExercises = scanExercises(learn.setup.userExercises, false);
     learn.exercises.insert(learn.exercises.end(), userExercises.begin(), userExercises.end());
+    checkRoutines(learn.exercises); // needs every exercise, built-in and the player's
     // One heading per category: group everything by category. stable_sort keeps the existing order inside
     // each category, so built-in exercises stay first, each group sorted by title.
     std::stable_sort(learn.exercises.begin(), learn.exercises.end(), [](const ExerciseEntry& a, const ExerciseEntry& b){
