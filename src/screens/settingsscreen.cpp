@@ -105,6 +105,16 @@ static void audioTab(Settings& settings, const std::string& soundsDir){
 
 static void displayTab(Settings& settings){
     ImGui::SeparatorText("Notes");
+    int view = (int)settings.noteView;
+    ImGui::TextUnformatted("Show notes as");
+    ImGui::RadioButton("Highway", &view, (int)NoteView::Highway);
+    ImGui::SameLine();
+    ImGui::RadioButton("Sheet music", &view, (int)NoteView::Staff);
+    ImGui::SameLine();
+    ImGui::RadioButton("Both", &view, (int)NoteView::Both);
+    settings.noteView = (NoteView)view;
+
+    ImGui::TextUnformatted("String order");
     int stringOrder = settings.lowStringOnTop ? 0 : 1;
     ImGui::RadioButton("Low E at the top", &stringOrder, 0);
     ImGui::SameLine();

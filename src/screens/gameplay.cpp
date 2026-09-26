@@ -2,22 +2,15 @@
 
 #include "audio/audio.h"
 #include "core/chart.h"
-#include "core/music.h"
 #include "raylib.h"
+#include "views/highway.h"
+#include "views/playnote.h"
+#include "views/staff.h"
 
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
 #include <vector>
-
-struct Note {
-    float time;       // song time in seconds when the note crosses the hit line
-    int lane;         // string index, 0 = lowest string
-    int fret;
-    float hitFlash = 0.0f;   // seconds remaining to render as hit, 0 = not hit
-    bool judged = false;     // true once this note has been hit or has missed
-    bool wasPerfect = false; // true if the judgement that set hitFlash was a perfect hit
-};
 
 struct GameState {
     int score;
@@ -31,31 +24,15 @@ struct GameState {
 };
 
 const int MAX_LANES = 6; // limited by the number keys and the vertical layout for now
-const int LANE_SPACING = 70;
-const int LANE_TOP_Y = 220;
 const int HIT_LINE_X = 180;
 const float PERFECT_WINDOW_S = 0.040f; // max |timing error| in seconds for a perfect hit
 const float NEAR_WINDOW_S = 0.100f;
-const float HIT_FLASH_DURATION = 0.2f;
 const float RHYTHM_FILL_PER_PERFECT = 0.12f;
 
 const int laneKeys[MAX_LANES] = { KEY_ONE, KEY_TWO, KEY_THREE, KEY_FOUR, KEY_FIVE, KEY_SIX };
-const Color laneColors[MAX_LANES] = { RED, ORANGE, GOLD, GREEN, SKYBLUE, PURPLE };
 
 const Color WOOD_DARK = { 61, 38, 27, 255 };
 const Color WOOD_LIGHT = { 110, 70, 45, 255 };
-const Color TRACK_PANEL = { 30, 18, 12, 200 };
-
-// Set when a song starts. Strings are numbered from the lowest (0) up; which screen row each one gets
-// depends on the player's string order setting, decided here and nowhere else.
-static int laneCount = 6;
-static bool lowStringOnTop = true;
-
-static int laneY(int lane){
-    int row = lowStringOnTop ? lane : laneCount - 1 - lane;
-    return LANE_TOP_Y + row*LANE_SPACING;
-}
-
 const int MAX_MULTIPLIER = 4;
 
 static void registerMiss(GameState& state){
@@ -66,7 +43,7 @@ static void registerMiss(GameState& state){
 }
 
 // timingError = note.time - press time: positive means early, negative means late
-static void registerHit(GameState& state, Note& note, float timingError){
+static void registerHit(GameState& state, PlayNote& note, float timingError){
     float absError = std::fabs(timingError);
     if (absError <= PERFECT_WINDOW_S){
         state.combo++;
@@ -89,15 +66,15 @@ static void registerHit(GameState& state, Note& note, float timingError){
     note.judged = true;
 }
 
-static void handleInput(std::vector<Note>& notes, GameState& state, float songTime, int laneCount){
+static void handleInput(std::vector<PlayNote>& notes, GameState& state, float songTime, int laneCount){
     for (int lane = 0; lane < laneCount; lane++){
         if (!IsKeyPressed(laneKeys[lane])) continue;
 
         // One press judges at most one note: the unjudged note in this lane closest in time
-        Note* nearest = nullptr;
+        PlayNote* nearest = nullptr;
         float nearestError = 0.0f;
-        for (Note& note : notes){
-            if (note.lane != lane || note.judged) continue;
+        for (PlayNote& note : notes){
+            if (note.stringIndex != lane || note.judged) continue;
             float error = note.time - songTime;
             if (nearest == nullptr || std::fabs(error) < std::fabs(nearestError)){
                 nearest = &note;
@@ -108,8 +85,8 @@ static void handleInput(std::vector<Note>& notes, GameState& state, float songTi
     }
 }
 
-static void updateMisses(std::vector<Note>& notes, GameState& state, float songTime){
-    for (Note& note : notes){
+static void updateMisses(std::vector<PlayNote>& notes, GameState& state, float songTime){
+    for (PlayNote& note : notes){
         if (note.judged) continue;
         if (songTime - note.time > NEAR_WINDOW_S){
             registerMiss(state);
@@ -118,38 +95,17 @@ static void updateMisses(std::vector<Note>& notes, GameState& state, float songT
     }
 }
 
-static void drawFretboard(const std::vector<Note>& notes, float songTime, const std::vector<int>& tuning, float noteSpeed){
-    DrawRectangleGradientV(0, 0, GetScreenWidth(), GetScreenHeight(), WOOD_DARK, WOOD_LIGHT);
-
-    int panelTop = LANE_TOP_Y - 40;
-    int panelHeight = (laneCount - 1) * LANE_SPACING + 80;
-    DrawRectangle(0, panelTop, GetScreenWidth(), panelHeight, TRACK_PANEL);
-
-    for (int i = 0; i < laneCount; i++){
-        DrawLine(0, laneY(i), GetScreenWidth(), laneY(i), Fade(WHITE, 0.15f));
-        DrawCircleLines(HIT_LINE_X, laneY(i), 22, Fade(laneColors[i], 0.8f));
-        const char* label = TextFormat("%s%d [%d]", pitchClassName(tuning[i]), pitchOctave(tuning[i]), i+1);
-        DrawText(label, 10, laneY(i)-10, 20, RAYWHITE);
-    }
-    DrawLine(HIT_LINE_X, panelTop, HIT_LINE_X, panelTop+panelHeight, GOLD);
-
-    for (const Note& note : notes){
-        float x = HIT_LINE_X + (note.time - songTime) * noteSpeed;
-        if (x > -50 && x < GetScreenWidth() + 50){
-            Color color = laneColors[note.lane];
-            if (note.hitFlash > 0.0f){
-                float t = note.hitFlash / HIT_FLASH_DURATION;
-                Color ringColor = note.wasPerfect ? WHITE : YELLOW;
-                DrawCircleLines((int)x, laneY(note.lane), 22 + (1.0f-t)*20, Fade(ringColor, t));
-                color = ringColor;
-            }
-            DrawCircle((int)x, laneY(note.lane), 16, color);
-            DrawCircleLines((int)x, laneY(note.lane), 16, RAYWHITE);
-
-            const char* fretText = TextFormat("%d", note.fret);
-            int fretWidth = MeasureText(fretText, 20);
-            DrawText(fretText, (int)x - fretWidth/2, laneY(note.lane) - 10, 20, BLACK);
-        }
+// Where each view goes on screen, as fractions of the window height, for each note view setting
+static void layoutViews(NoteView view, Rectangle& staffArea, Rectangle& highwayArea){
+    float width = (float)GetScreenWidth(), height = (float)GetScreenHeight();
+    staffArea = highwayArea = {0, 0, 0, 0};
+    switch (view){
+        case NoteView::Highway: highwayArea = {0, height * 0.25f, width, height * 0.60f}; break;
+        case NoteView::Staff:   staffArea = {0, height * 0.20f, width, height * 0.60f}; break;
+        case NoteView::Both:
+            staffArea = {0, height * 0.14f, width, height * 0.30f};
+            highwayArea = {0, height * 0.46f, width, height * 0.52f};
+            break;
     }
 }
 
@@ -171,7 +127,8 @@ static void drawHUD(const GameState& state){
 // Everything the play screen needs while a song is running
 static struct {
     Chart chart;
-    std::vector<Note> notes;
+    std::vector<PlayNote> notes;
+    std::vector<float> barTimes; // song times where bars start, for the staff's bar lines
     GameState state;
     GameplayOptions options;
     float songTime = 0.0f;
@@ -200,13 +157,15 @@ bool startGameplay(const std::string& chartPath, const GameplayOptions& options,
     game.notes.clear();
     game.notes.reserve(track.notes.size());
     for (const FrettedNote& chartNote : track.notes){
-        game.notes.push_back({(float)tickToSeconds(game.chart, chartNote.tick), chartNote.stringIndex, chartNote.fret});
+        int pitch = track.tuning[chartNote.stringIndex] + chartNote.fret;
+        game.notes.push_back({(float)tickToSeconds(game.chart, chartNote.tick), chartNote.stringIndex, chartNote.fret, pitch});
     }
+    const int ticksPerBar = game.chart.resolution * 4; // 4/4 until charts have time signatures
+    game.barTimes.clear();
+    for (int tick = 0; tick <= game.chart.endTick; tick += ticksPerBar) game.barTimes.push_back((float)tickToSeconds(game.chart, tick));
     game.state = {};
     game.state.multiplier = 1;
     game.options = options;
-    laneCount = (int)track.tuning.size();
-    lowStringOnTop = options.lowStringOnTop;
     game.songTime = 0.0f;
     game.active = true;
     playSong(false);
@@ -221,7 +180,7 @@ bool updateGameplay(){
     // slow drivers), a positive offset moves notes and judging later to match what you hear
     game.songTime = (float)(songPosition() - game.options.offsetSeconds);
 
-    for (Note& note : game.notes){
+    for (PlayNote& note : game.notes){
         if (note.hitFlash > 0.0f) note.hitFlash -= GetFrameTime();
     }
     const FrettedTrack& track = game.chart.frettedTracks[0];
@@ -230,7 +189,7 @@ bool updateGameplay(){
 
     if (songEnded()){
         // Anything still unjudged when the music stops counts as missed
-        for (Note& note : game.notes){
+        for (PlayNote& note : game.notes){
             if (!note.judged){
                 registerMiss(game.state);
                 note.judged = true;
@@ -243,7 +202,14 @@ bool updateGameplay(){
 
 void drawGameplay(){
     if (!game.active) return;
-    drawFretboard(game.notes, game.songTime, game.chart.frettedTracks[0].tuning, game.options.noteSpeed);
+    DrawRectangleGradientV(0, 0, GetScreenWidth(), GetScreenHeight(), WOOD_DARK, WOOD_LIGHT);
+    TimeAxis axis = { game.songTime, (float)HIT_LINE_X, game.options.noteSpeed };
+    Rectangle staffArea, highwayArea;
+    layoutViews(game.options.noteView, staffArea, highwayArea);
+    if (staffArea.height > 0) drawStaff(staffArea, game.notes, game.barTimes, axis);
+    if (highwayArea.height > 0){
+        drawHighway(highwayArea, game.notes, game.chart.frettedTracks[0].tuning, game.options.lowStringOnTop, axis);
+    }
     drawHUD(game.state);
 }
 

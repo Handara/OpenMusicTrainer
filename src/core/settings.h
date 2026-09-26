@@ -8,6 +8,9 @@
 const char* const BUILT_IN_PREVIEW_SOUNDS[] = { "pluck", "soft", "keys", "drop" };
 const int BUILT_IN_PREVIEW_SOUND_COUNT = 4;
 
+// How notes are shown while playing: the scrolling highway, sheet music, or both stacked
+enum class NoteView { Highway, Staff, Both };
+
 struct Settings {
     // Audio
     std::string outputDevice;          // device name as the system reports it; empty = system default
@@ -17,6 +20,7 @@ struct Settings {
     std::string previewSound = "pluck"; // a built-in sound, or a file name in the user's sounds folder
 
     // Display
+    NoteView noteView = NoteView::Highway;
     bool lowStringOnTop = true;        // string order on the highway and in the editor: low E at the top, or at the bottom like tab
     bool fullscreen = false;
     int frameRateLimit = 60;           // 0 = unlimited

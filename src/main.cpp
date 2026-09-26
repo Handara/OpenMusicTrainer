@@ -9,6 +9,7 @@
 #include "screens/settingsscreen.h"
 #include "screens/tuner.h"
 #include "ui/ui.h"
+#include "views/staff.h"
 
 #include <filesystem>
 #include <string>
@@ -80,6 +81,7 @@ static void startSong(const std::string& chartPath){
     options.noteSpeed = app.settings.noteSpeed;
     options.offsetSeconds = app.settings.globalOffsetMs / 1000.0f;
     options.lowStringOnTop = app.settings.lowStringOnTop;
+    options.noteView = app.settings.noteView;
     if (startGameplay(chartPath, options, error)){
         app.currentChartPath = chartPath;
         app.songSelectError.clear();
@@ -209,6 +211,7 @@ int main(void){
     SetExitKey(KEY_NULL); // Esc means "back" (handleBackKey), not "quit"
     applyDisplaySettings(app.settings);
     initUi(app.resourcesDir + "fonts/Roboto-Medium.ttf");
+    if (!loadStaffFont(app.resourcesDir + "fonts/Bravura.otf")) TraceLog(LOG_WARNING, "Music font not found: sheet music uses plain shapes");
 
     while (!WindowShouldClose() && !app.quit){
         handleBackKey();
@@ -233,6 +236,7 @@ int main(void){
     stopTuner();
     closeEditor();
     closeUi();
+    unloadStaffFont();
     CloseWindow();
     closeAudio();
     return 0;

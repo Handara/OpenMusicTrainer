@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/settings.h"
+
 #include <string>
 
 struct GameResult {
@@ -16,6 +18,7 @@ struct GameplayOptions {
     float noteSpeed = 300.0f;  // pixels per second
     float offsetSeconds = 0.0f; // latency compensation: positive = notes are judged and drawn later
     bool lowStringOnTop = true;
+    NoteView noteView = NoteView::Highway;
 };
 
 // The play screen: one song played once, judged against the chart's first fretted track.
