@@ -85,6 +85,7 @@ add_library(omt_core STATIC
     src/core/exercisefile.cpp
     src/core/files.cpp
     src/core/intervals.cpp
+    src/core/judge.cpp
     src/core/music.cpp
     src/core/notation.cpp
     src/core/paths.cpp
@@ -136,6 +137,7 @@ if(BUILD_TESTING)
         tests/chart_test.cpp
         tests/exercisefile_test.cpp
         tests/intervals_test.cpp
+        tests/judge_test.cpp
         tests/music_test.cpp
         tests/notation_test.cpp
         tests/pitch_test.cpp

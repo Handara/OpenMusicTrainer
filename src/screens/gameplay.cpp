@@ -4,6 +4,7 @@
 #include "core/chart.h"
 #include "raylib.h"
 #include "views/highway.h"
+#include "core/judge.h"
 #include "views/playnote.h"
 #include "views/staff.h"
 
@@ -25,8 +26,6 @@ struct GameState {
 
 const int MAX_LANES = 6; // limited by the number keys and the vertical layout for now
 const int HIT_LINE_X = 180;
-const float PERFECT_WINDOW_S = 0.040f; // max |timing error| in seconds for a perfect hit
-const float NEAR_WINDOW_S = 0.100f;
 const float RHYTHM_FILL_PER_PERFECT = 0.12f;
 
 const int laneKeys[MAX_LANES] = { KEY_ONE, KEY_TWO, KEY_THREE, KEY_FOUR, KEY_FIVE, KEY_SIX };
@@ -35,63 +34,41 @@ const Color WOOD_DARK = { 61, 38, 27, 255 };
 const Color WOOD_LIGHT = { 110, 70, 45, 255 };
 const int MAX_MULTIPLIER = 4;
 
-static void registerMiss(GameState& state){
+static void scoreMisses(GameState& state, int count){
+    if (count == 0) return;
     state.combo = 0;
     state.multiplier = 1;
-    state.missCount++;
+    state.missCount += count;
     state.rhythm = 0.0f;
 }
 
-// timingError = note.time - press time: positive means early, negative means late
-static void registerHit(GameState& state, PlayNote& note, float timingError){
-    float absError = std::fabs(timingError);
-    if (absError <= PERFECT_WINDOW_S){
+// Scoring is the game's own rule on top of judging: perfect hits build the multiplier, near hits don't
+static void scoreHit(GameState& state, Judgement judgement, int notesHit){
+    for (int i = 0; i < notesHit; i++){
         state.combo++;
-        state.multiplier = std::min(state.multiplier + 1, MAX_MULTIPLIER);
-        state.score += 100 * state.multiplier;
-        state.rhythm = std::min(1.0f, state.rhythm + RHYTHM_FILL_PER_PERFECT);
-        state.perfectCount++;
-        note.wasPerfect = true;
-    } else if (absError <= NEAR_WINDOW_S){
-        state.combo++;
-        state.score += 10 * state.multiplier;
-        state.rhythm *= 0.5f;
-        state.nearCount++;
-        note.wasPerfect = false;
-    } else {
-        return; // outside the hittable window entirely, treat as a stray press
+        if (judgement == Judgement::Perfect){
+            state.multiplier = std::min(state.multiplier + 1, MAX_MULTIPLIER);
+            state.score += 100 * state.multiplier;
+            state.rhythm = std::min(1.0f, state.rhythm + RHYTHM_FILL_PER_PERFECT);
+            state.perfectCount++;
+        } else {
+            state.score += 10 * state.multiplier;
+            state.rhythm *= 0.5f;
+            state.nearCount++;
+        }
     }
     state.maxCombo = std::max(state.maxCombo, state.combo);
-    note.hitFlash = HIT_FLASH_DURATION;
-    note.judged = true;
 }
 
-static void handleInput(std::vector<PlayNote>& notes, GameState& state, float songTime, int laneCount){
+// Number keys 1 to 6 stand for the strings, lowest first
+static void handleKeyboard(std::vector<PlayNote>& notes, GameState& state, float songTime, int laneCount){
     for (int lane = 0; lane < laneCount; lane++){
         if (!IsKeyPressed(laneKeys[lane])) continue;
-
-        // One press judges at most one note: the unjudged note in this lane closest in time
-        PlayNote* nearest = nullptr;
-        float nearestError = 0.0f;
-        for (PlayNote& note : notes){
-            if (note.stringIndex != lane || note.judged) continue;
-            float error = note.time - songTime;
-            if (nearest == nullptr || std::fabs(error) < std::fabs(nearestError)){
-                nearest = &note;
-                nearestError = error;
-            }
-        }
-        if (nearest != nullptr) registerHit(state, *nearest, nearestError);
-    }
-}
-
-static void updateMisses(std::vector<PlayNote>& notes, GameState& state, float songTime){
-    for (PlayNote& note : notes){
-        if (note.judged) continue;
-        if (songTime - note.time > NEAR_WINDOW_S){
-            registerMiss(state);
-            note.judged = true;
-        }
+        PlayerInput press;
+        press.time = songTime;
+        press.stringIndex = lane;
+        JudgeResult result = judgeInput(notes, press);
+        if (result.judgement != Judgement::Ignored) scoreHit(state, result.judgement, result.notesHit);
     }
 }
 
@@ -184,17 +161,12 @@ bool updateGameplay(){
         if (note.hitFlash > 0.0f) note.hitFlash -= GetFrameTime();
     }
     const FrettedTrack& track = game.chart.frettedTracks[0];
-    handleInput(game.notes, game.state, game.songTime, (int)track.tuning.size());
-    updateMisses(game.notes, game.state, game.songTime);
+    handleKeyboard(game.notes, game.state, game.songTime, (int)track.tuning.size());
+    scoreMisses(game.state, markMisses(game.notes, game.songTime));
 
     if (songEnded()){
         // Anything still unjudged when the music stops counts as missed
-        for (PlayNote& note : game.notes){
-            if (!note.judged){
-                registerMiss(game.state);
-                note.judged = true;
-            }
-        }
+        scoreMisses(game.state, markMisses(game.notes, game.songTime + 1e9));
         return false;
     }
     return true;
