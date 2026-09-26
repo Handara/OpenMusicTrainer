@@ -2,6 +2,7 @@
 
 #include "audio.h"
 #include "chart.h"
+#include "music.h"
 #include "raylib.h"
 
 #include <algorithm>
@@ -41,8 +42,6 @@ const float RHYTHM_FILL_PER_PERFECT = 0.12f;
 
 const int laneKeys[MAX_LANES] = { KEY_ONE, KEY_TWO, KEY_THREE, KEY_FOUR, KEY_FIVE, KEY_SIX };
 const Color laneColors[MAX_LANES] = { RED, ORANGE, GOLD, GREEN, SKYBLUE, PURPLE };
-
-const char* const pitchClassNames[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
 
 const Color WOOD_DARK = { 61, 38, 27, 255 };
 const Color WOOD_LIGHT = { 110, 70, 45, 255 };
@@ -125,8 +124,7 @@ static void drawFretboard(const std::vector<Note>& notes, float songTime, const 
     for (int i = 0; i < laneCount; i++){
         DrawLine(0, laneY(i), GetScreenWidth(), laneY(i), Fade(WHITE, 0.15f));
         DrawCircleLines(HIT_LINE_X, laneY(i), 22, Fade(laneColors[i], 0.8f));
-        // MIDI pitch 60 is C4, so octave = pitch/12 - 1
-        const char* label = TextFormat("%s%d [%d]", pitchClassNames[tuning[i] % 12], tuning[i]/12 - 1, i+1);
+        const char* label = TextFormat("%s%d [%d]", pitchClassName(tuning[i]), pitchOctave(tuning[i]), i+1);
         DrawText(label, 10, laneY(i)-10, 20, RAYWHITE);
     }
     DrawLine(HIT_LINE_X, panelTop, HIT_LINE_X, panelTop+panelHeight, GOLD);

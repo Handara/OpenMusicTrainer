@@ -4,6 +4,12 @@ project(OpenMusicTrainer VERSION 0.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Without a build type CMake compiles unoptimized, and real-time audio analysis is ~4x slower that way.
+# Default to optimized code that still has debug info. (Visual Studio picks the type at build time: --config)
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Build type" FORCE)
+endif()
+
 include(FetchContent)
 
 FetchContent_Declare(
@@ -55,7 +61,10 @@ add_library(imgui STATIC
 target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR} ${rlimgui_SOURCE_DIR})
 target_link_libraries(imgui PUBLIC raylib)
 
-add_executable(OpenMusicTrainer main.cpp chart.cpp audio.cpp gameplay.cpp songlibrary.cpp)
+add_executable(OpenMusicTrainer
+    main.cpp chart.cpp audio.cpp gameplay.cpp songlibrary.cpp
+    music.cpp pitch.cpp tuner.cpp
+)
 target_link_libraries(OpenMusicTrainer PUBLIC raylib miniaudio imgui)
 
 # Warnings for our own code only (third-party libraries keep their own settings)

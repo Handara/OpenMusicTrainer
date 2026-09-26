@@ -4,6 +4,7 @@
 #include "audio.h"
 #include "gameplay.h"
 #include "songlibrary.h"
+#include "tuner.h"
 #include <string>
 #include <vector>
 
@@ -33,7 +34,7 @@ void drawStaff(Font bravura, Vector2 position, int staffTopPosY, int staffWidth)
     }
 }
 
-enum class Screen { MainMenu, SongSelect, Playing, Results };
+enum class Screen { MainMenu, SongSelect, Playing, Results, Tuner };
 
 const float UI_FONT_SIZE = 26.0f;
 const float TITLE_FONT_SIZE = 56.0f;
@@ -52,6 +53,7 @@ static struct {
     std::vector<SongEntry> songs;
     std::string currentChartPath; // the song being played, kept for Retry
     std::string songSelectError;  // why the last song failed to start
+    std::string mainMenuError;    // why the last main menu action failed (e.g. no input device)
     GameResult lastResult;
 } app;
 
@@ -74,6 +76,21 @@ static void startSong(const std::string& chartPath){
     }
 }
 
+static void goToTuner(){
+    std::string error;
+    if (startTuner(error)){
+        app.mainMenuError.clear();
+        app.screen = Screen::Tuner;
+    } else {
+        app.mainMenuError = error;
+    }
+}
+
+static void leaveTuner(){
+    stopTuner();
+    app.screen = Screen::MainMenu;
+}
+
 // Esc always means "back". Handled in one place so a single press can't trigger two transitions in one frame.
 static void handleBackKey(){
     if (!IsKeyPressed(KEY_ESCAPE)) return;
@@ -82,6 +99,7 @@ static void handleBackKey(){
         case Screen::SongSelect: app.screen = Screen::MainMenu; break;
         case Screen::Playing: stopGameplay(); goToSongSelect(); break;
         case Screen::Results: goToSongSelect(); break;
+        case Screen::Tuner: leaveTuner(); break;
     }
 }
 
@@ -134,12 +152,16 @@ static void mainMenuScreen(){
     if (menuButton("Play")) goToSongSelect();
     ImGui::SetItemDefaultFocus(); // keyboard navigation starts on Play
 
+    if (menuButton("Tuner")) goToTuner();
     ImGui::BeginDisabled(); // not built yet
     menuButton("Editor (coming soon)");
-    menuButton("Tuner (coming soon)");
     ImGui::EndDisabled();
 
     if (menuButton("Quit")) app.quit = true;
+    if (!app.mainMenuError.empty()){
+        ImGui::Dummy(ImVec2(0, 10));
+        centeredErrorText(app.mainMenuError);
+    }
     ImGui::End();
 }
 
@@ -193,6 +215,15 @@ static void resultsScreen(){
     ImGui::End();
 }
 
+static void tunerScreen(){
+    beginMenu("Tuner");
+    drawTuner();
+    ImGui::Dummy(ImVec2(0, 20));
+    if (menuButton("Back")) leaveTuner();
+    ImGui::SetItemDefaultFocus();
+    ImGui::End();
+}
+
 static void setupImGui(){
     rlImGuiSetup(true);
     ImGuiIO& io = ImGui::GetIO();
@@ -242,6 +273,7 @@ int main(void){
             stopGameplay();
             app.screen = Screen::Results;
         }
+        if (app.screen == Screen::Tuner) updateTuner();
 
         BeginDrawing();
         if (app.screen == Screen::Playing){
@@ -256,12 +288,14 @@ int main(void){
             case Screen::SongSelect: songSelectScreen(); break;
             case Screen::Playing: break; // gameplay draws with raylib only
             case Screen::Results: resultsScreen(); break;
+            case Screen::Tuner: tunerScreen(); break;
         }
         rlImGuiEnd();
         EndDrawing();
     }
 
     stopGameplay();
+    stopTuner();
     rlImGuiShutdown();
     CloseWindow();
     closeAudio();

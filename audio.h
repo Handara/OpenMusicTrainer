@@ -16,3 +16,10 @@ void playSong(bool loop);
 bool songEnded();      // true once a non-looping song has played to its end
 double songLength();   // seconds
 double songPosition(); // seconds, smoothed between audio updates; call once per frame
+
+// Input from the default microphone / instrument, mono. Only runs between startCapture and stopCapture.
+bool startCapture(std::string& error);
+void stopCapture();
+int captureSampleRate();
+const char* captureDeviceName();
+int readCapture(float* out, int maxFrames); // moves captured samples out, oldest first; returns how many
