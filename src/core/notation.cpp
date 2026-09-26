@@ -1,17 +1,56 @@
 #include "core/notation.h"
 
-// For each of the 12 pitch classes (C, C#, D, ...): its letter (C = 0 ... B = 6) and whether it needs a sharp
-const int LETTER_OF_PITCH_CLASS[12] = { 0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6 };
-const int SHARP_OF_PITCH_CLASS[12]  = { 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0 };
+// The seven letters C D E F G A B (0 to 6) and the pitch class of each without sharps or flats
+const int NATURAL_PITCH_CLASS[7] = { 0, 2, 4, 5, 7, 9, 11 };
+// The order sharps and flats are added to key signatures, as letters: F C G D A E B, and B E A D G C F
+const int SHARP_ORDER[7] = { 3, 0, 4, 1, 5, 2, 6 };
+const int FLAT_ORDER[7]  = { 6, 2, 5, 1, 4, 0, 3 };
+// Their places on the treble staff: F5 C5 G5 D5 A4 E5 B4, and B4 E5 A4 D5 G4 C5 F4
+const int SHARP_POSITIONS[7] = { 8, 5, 9, 6, 3, 7, 4 };
+const int FLAT_POSITIONS[7]  = { 4, 7, 3, 6, 2, 5, 1 };
 
 // E4, the treble staff's bottom line, as a count of letter steps from C-1 (MIDI octave -1): octave 4, letter E
 const int TREBLE_BOTTOM_LINE_STEP = (4 + 1) * 7 + 2;
 
-StaffNote trebleStaffNote(int writtenPitch){
+int keyAlteration(const KeySignature& key, int letter){
+    for (int i = 0; i < key.fifths; i++) if (SHARP_ORDER[i] == letter) return 1;
+    for (int i = 0; i < -key.fifths; i++) if (FLAT_ORDER[i] == letter) return -1;
+    return 0;
+}
+
+int keySignaturePosition(const KeySignature& key, int index){
+    return key.fifths >= 0 ? SHARP_POSITIONS[index] : FLAT_POSITIONS[index];
+}
+
+StaffNote trebleStaffNote(int writtenPitch, const KeySignature& key){
     int pitchClass = ((writtenPitch % 12) + 12) % 12;
-    int octave = (writtenPitch - pitchClass) / 12;          // MIDI octaves counted from C-1 = 0
-    int step = octave * 7 + LETTER_OF_PITCH_CLASS[pitchClass]; // letter steps: 7 per octave, whatever the sharps
-    return { step - TREBLE_BOTTOM_LINE_STEP, SHARP_OF_PITCH_CLASS[pitchClass] };
+    // Which letter, with which alteration: the key's own spelling first, then a plain natural, then a sharp or flat
+    int letter = -1, alteration = 0;
+    for (int l = 0; l < 7 && letter < 0; l++){
+        int a = keyAlteration(key, l);
+        if ((NATURAL_PITCH_CLASS[l] + a + 12) % 12 == pitchClass){ letter = l; alteration = a; }
+    }
+    for (int l = 0; l < 7 && letter < 0; l++) if (NATURAL_PITCH_CLASS[l] == pitchClass){ letter = l; alteration = 0; }
+    int sharpOrFlat = key.fifths >= 0 ? 1 : -1;
+    for (int l = 0; l < 7 && letter < 0; l++){
+        if ((NATURAL_PITCH_CLASS[l] + sharpOrFlat + 12) % 12 == pitchClass){ letter = l; alteration = sharpOrFlat; }
+    }
+    // The letter's octave: B#3 sounds as C4 and Cb4 as B3, so it comes from the pitch minus the alteration
+    int natural = writtenPitch - alteration;
+    int octave = (natural - NATURAL_PITCH_CLASS[letter]) / 12; // MIDI octaves counted from C-1 = 0
+    int step = octave * 7 + letter;                            // letter steps: 7 per octave
+    return { step - TREBLE_BOTTOM_LINE_STEP, alteration };
+}
+
+Accidental accidentalFor(const StaffNote& note, const KeySignature& key, BarAccidentals& bar){
+    auto written = bar.alterations.find(note.position);
+    int letter = ((note.position + TREBLE_BOTTOM_LINE_STEP) % 7 + 7) % 7;
+    int inForce = written != bar.alterations.end() ? written->second : keyAlteration(key, letter);
+    if (note.alteration == inForce) return Accidental::None;
+    bar.alterations[note.position] = note.alteration;
+    if (note.alteration > 0) return Accidental::Sharp;
+    if (note.alteration < 0) return Accidental::Flat;
+    return Accidental::Natural;
 }
 
 int ledgerLineCount(int position){

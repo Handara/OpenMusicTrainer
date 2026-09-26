@@ -108,10 +108,10 @@ void drawStaff(Rectangle area, const std::vector<PlayNote>& notes, const std::ve
 
         if (music.loaded){
             drawGlyph(GLYPH_NOTEHEAD_BLACK, left - music.noteheadOffsetX * glyphScale(space), y, space, color);
-            if (staffNote.accidental > 0) drawGlyph(GLYPH_SHARP, left - 1.3f * space, y, space, color);
+            if (staffNote.alteration > 0) drawGlyph(GLYPH_SHARP, left - 1.3f * space, y, space, color);
         } else {
             DrawEllipse((int)x, (int)y, noteheadWidth / 2, space * 0.45f, color);
-            if (staffNote.accidental > 0) DrawText("#", (int)(left - 1.2f * space), (int)(y - space), (int)(2 * space), color);
+            if (staffNote.alteration > 0) DrawText("#", (int)(left - 1.2f * space), (int)(y - space), (int)(2 * space), color);
         }
     }
 

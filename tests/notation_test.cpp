@@ -11,14 +11,14 @@ TEST_CASE("treble staff positions"){
     CHECK(trebleStaffNote(81).position == 10); // A5: one ledger line above
 }
 
-TEST_CASE("black keys are spelled as sharps on the natural's position"){
+TEST_CASE("in C major, black keys are spelled as sharps on the natural's position"){
     StaffNote cSharp = trebleStaffNote(61);
     CHECK(cSharp.position == -2); // same position as C
-    CHECK(cSharp.accidental == 1);
-    CHECK(trebleStaffNote(60).accidental == 0);
+    CHECK(cSharp.alteration == 1);
+    CHECK(trebleStaffNote(60).alteration == 0);
     StaffNote fSharp = trebleStaffNote(66);
     CHECK(fSharp.position == 1);  // on F's space
-    CHECK(fSharp.accidental == 1);
+    CHECK(fSharp.alteration == 1);
 }
 
 TEST_CASE("guitar open strings, written an octave up"){
@@ -66,4 +66,70 @@ TEST_CASE("key signatures from their names, and back"){
     CHECK_FALSE(parseKeySignature("H", "major", key));
     CHECK_FALSE(parseKeySignature("C", "dorian", key));
     CHECK_FALSE(parseKeySignature("C##", "major", key));
+}
+
+static KeySignature keyOf(const char* tonic, const char* mode){
+    KeySignature key;
+    REQUIRE(parseKeySignature(tonic, mode, key));
+    return key;
+}
+
+TEST_CASE("the key decides the spelling"){
+    KeySignature fMajor = keyOf("F", "major"), gMajor = keyOf("G", "major");
+    StaffNote bFlat = trebleStaffNote(70, fMajor); // Bb4: on B's line, not A's space
+    CHECK(bFlat.position == 4);
+    CHECK(bFlat.alteration == -1);
+    StaffNote fSharp = trebleStaffNote(66, gMajor);
+    CHECK(fSharp.position == 1);
+    CHECK(fSharp.alteration == 1);
+    CHECK(trebleStaffNote(70, gMajor).alteration == 1); // not in G major: sharp, as A#
+    CHECK(trebleStaffNote(70, gMajor).position == 3);
+    CHECK(trebleStaffNote(61, fMajor).alteration == -1); // not in F major, a flat key: Db
+    CHECK(trebleStaffNote(61, fMajor).position == -1);
+    CHECK(trebleStaffNote(65, gMajor).alteration == 0); // F natural in G major: F, not E#
+    CHECK(trebleStaffNote(65, gMajor).position == 1);
+
+    // Keys whose notes need unusual letters: E# in F# major, Cb in Gb major, one octave-crossing each
+    StaffNote eSharp = trebleStaffNote(65, keyOf("F#", "major"));
+    CHECK(eSharp.position == 0); // E's line
+    CHECK(eSharp.alteration == 1);
+    StaffNote cFlat = trebleStaffNote(71, keyOf("Gb", "major")); // B4 sounds, written Cb5
+    CHECK(cFlat.position == 5);
+    CHECK(cFlat.alteration == -1);
+    StaffNote bSharp = trebleStaffNote(72, keyOf("C#", "major")); // C5 sounds, written B#4
+    CHECK(bSharp.position == 4);
+    CHECK(bSharp.alteration == 1);
+}
+
+TEST_CASE("key signature symbols"){
+    CHECK(keyAlteration(keyOf("D", "major"), 3) == 1);  // F#
+    CHECK(keyAlteration(keyOf("D", "major"), 0) == 1);  // C#
+    CHECK(keyAlteration(keyOf("D", "major"), 4) == 0);  // G
+    CHECK(keyAlteration(keyOf("Eb", "major"), 5) == -1); // Ab
+    CHECK(keyAlteration(keyOf("Eb", "major"), 1) == 0);  // D
+    CHECK(keySignaturePosition(keyOf("G", "major"), 0) == 8);  // F# on the top line
+    CHECK(keySignaturePosition(keyOf("F", "major"), 0) == 4);  // Bb on the middle line
+    CHECK(keySignaturePosition(keyOf("Eb", "major"), 2) == 3); // then Eb, then Ab in the second space
+}
+
+TEST_CASE("accidentals hold until the bar line"){
+    KeySignature gMajor = keyOf("G", "major");
+    BarAccidentals bar;
+    CHECK(accidentalFor(trebleStaffNote(66, gMajor), gMajor, bar) == Accidental::None);    // F#: in the key signature
+    CHECK(accidentalFor(trebleStaffNote(65, gMajor), gMajor, bar) == Accidental::Natural); // F natural
+    CHECK(accidentalFor(trebleStaffNote(65, gMajor), gMajor, bar) == Accidental::None);    // again: the natural holds
+    CHECK(accidentalFor(trebleStaffNote(66, gMajor), gMajor, bar) == Accidental::Sharp);   // back to F#: say so
+    CHECK(accidentalFor(trebleStaffNote(77, gMajor), gMajor, bar) == Accidental::Natural); // F5: another position
+    bar = {};                                                                              // a new bar
+    CHECK(accidentalFor(trebleStaffNote(66, gMajor), gMajor, bar) == Accidental::None);
+
+    KeySignature cMajor;
+    BarAccidentals cBar;
+    CHECK(accidentalFor(trebleStaffNote(61), cMajor, cBar) == Accidental::Sharp);
+    CHECK(accidentalFor(trebleStaffNote(61), cMajor, cBar) == Accidental::None);
+    CHECK(accidentalFor(trebleStaffNote(60), cMajor, cBar) == Accidental::Natural);
+    KeySignature fMajor = keyOf("F", "major");
+    BarAccidentals fBar;
+    CHECK(accidentalFor(trebleStaffNote(61, fMajor), fMajor, fBar) == Accidental::Flat);  // Db
+    CHECK(accidentalFor(trebleStaffNote(71, fMajor), fMajor, fBar) == Accidental::Natural); // B natural in F
 }
