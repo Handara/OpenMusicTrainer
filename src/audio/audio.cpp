@@ -15,7 +15,8 @@
 // songPosition() runs a smooth clock on the wall clock and pulls it toward the audio position each call.
 // Each call closes this fraction of the gap: small enough to average out the audio position's ~10 ms steps.
 const double DRIFT_CORRECTION = 0.05;
-// A bigger gap means the audio really jumped (seek, stall, device change): snap instead of easing.
+// A bigger gap means the audio really jumped. Ahead: snap to it. Behind (the device starting up, a stall):
+// wait for it instead, because a game clock must never run backwards.
 const double SNAP_THRESHOLD_S = 0.1;
 
 // Captured audio waiting for the main thread. At 48 kHz this is ~0.34 s: room for several slow frames.
@@ -245,7 +246,8 @@ double songPosition(){
         return audioTime;
     }
 
-    audio.smoothTime += now - audio.lastWallTime;
+    double advance = now - audio.lastWallTime;
+    audio.smoothTime += advance;
     audio.lastWallTime = now;
 
     // Where the smooth clock is inside the song, and how far the audio is from it
@@ -257,7 +259,8 @@ double songPosition(){
         if (drift < -length / 2) drift += length;
     }
 
-    if (std::fabs(drift) > SNAP_THRESHOLD_S) audio.smoothTime += drift;
+    if (drift > SNAP_THRESHOLD_S) audio.smoothTime += drift;          // the audio is well ahead: catch up at once
+    else if (drift < -SNAP_THRESHOLD_S) audio.smoothTime -= advance;  // well behind: hold still until it catches up
     else audio.smoothTime += drift * DRIFT_CORRECTION;
 
     return audio.looping ? std::fmod(audio.smoothTime, length) : audio.smoothTime;
