@@ -2,8 +2,6 @@
 #include <vector>
 #include <cmath>
 
-#define WINDOW_HEIGHT GetScreenHeight()
-#define WINDOW_WIDTH GetScreenWidth()
 #define G_CLEF_CODEPOINT 0xE050
 #define NOTE_CODEPOINT 0xE1D5
 
@@ -117,14 +115,14 @@ void updateMisses(std::vector<Note>& notes, GameState& state, float patternTime)
 }
 
 void drawFretboard(const std::vector<Note>& notes, float patternTime){
-    DrawRectangleGradientV(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, WOOD_DARK, WOOD_LIGHT);
+    DrawRectangleGradientV(0, 0, GetScreenWidth(), GetScreenHeight(), WOOD_DARK, WOOD_LIGHT);
 
     int panelTop = laneY(0) - 40;
     int panelHeight = laneY(LANE_COUNT-1) - laneY(0) + 80;
-    DrawRectangle(0, panelTop, WINDOW_WIDTH, panelHeight, TRACK_PANEL);
+    DrawRectangle(0, panelTop, GetScreenWidth(), panelHeight, TRACK_PANEL);
 
     for (int i = 0; i < LANE_COUNT; i++){
-        DrawLine(0, laneY(i), WINDOW_WIDTH, laneY(i), Fade(WHITE, 0.15f));
+        DrawLine(0, laneY(i), GetScreenWidth(), laneY(i), Fade(WHITE, 0.15f));
         DrawCircleLines(HIT_LINE_X, laneY(i), 22, Fade(laneColors[i], 0.8f));
         DrawText(TextFormat("%s [%d]", laneNames[i], i+1), 10, laneY(i)-10, 20, RAYWHITE);
     }
@@ -132,7 +130,7 @@ void drawFretboard(const std::vector<Note>& notes, float patternTime){
 
     for (const Note& note : notes){
         float x = HIT_LINE_X + (note.time - patternTime) * SCROLL_SPEED;
-        if (x > -50 && x < WINDOW_WIDTH + 50){
+        if (x > -50 && x < GetScreenWidth() + 50){
             Color color = laneColors[note.lane];
             if (note.hitFlash > 0.0f){
                 float t = note.hitFlash / HIT_FLASH_DURATION;
@@ -148,21 +146,24 @@ void drawFretboard(const std::vector<Note>& notes, float patternTime){
 
 void drawHUD(const GameState& state){
     const int barHeight = 16;
-    DrawRectangle(0, 0, WINDOW_WIDTH, barHeight, Fade(BLACK, 0.5f));
-    DrawRectangle(0, 0, (int)(WINDOW_WIDTH * state.rhythm), barHeight, ColorLerp(RED, GREEN, state.rhythm));
+    DrawRectangle(0, 0, GetScreenWidth(), barHeight, Fade(BLACK, 0.5f));
+    DrawRectangle(0, 0, (int)(GetScreenWidth() * state.rhythm), barHeight, ColorLerp(RED, GREEN, state.rhythm));
     DrawText("RHYTHM", 10, barHeight + 4, 14, Fade(RAYWHITE, 0.7f));
 
     const char* scoreText = TextFormat("%08d", state.score);
     int scoreWidth = MeasureText(scoreText, 36);
-    DrawText(scoreText, WINDOW_WIDTH - scoreWidth - 20, barHeight + 10, 36, GOLD);
+    DrawText(scoreText, GetScreenWidth() - scoreWidth - 20, barHeight + 10, 36, GOLD);
 
     const char* comboText = TextFormat("%d COMBO  x%d", state.combo, state.multiplier);
     int comboWidth = MeasureText(comboText, 22);
-    DrawText(comboText, WINDOW_WIDTH - comboWidth - 20, barHeight + 50, 22, RAYWHITE);
+    DrawText(comboText, GetScreenWidth() - comboWidth - 20, barHeight + 50, 22, RAYWHITE);
 }
 
 int main(void){
-    InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "OpenMusicTrainer");
+    const int INITIAL_WINDOW_WIDTH = 1280;
+    const int INITIAL_WINDOW_HEIGHT = 720;
+
+    InitWindow(INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT, "OpenMusicTrainer");
     SetTargetFPS(60);
 
     std::vector<Note> notes = {
