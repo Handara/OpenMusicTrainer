@@ -123,7 +123,7 @@ static void deleteNote(int tick, int stringIndex){
 
 // Lets you hear what you're placing: the string's open pitch plus the fret
 static void previewNote(int stringIndex, int fret){
-    if (editor.previewSounds) playPluck(midiToFrequency((float)(track().tuning[stringIndex] + fret)));
+    if (editor.previewSounds) playPreview(midiToFrequency((float)(track().tuning[stringIndex] + fret)));
 }
 
 static int snapStep(){

@@ -3,6 +3,8 @@
 #include "raylib.h"
 #include "rlImGui.h"
 
+#include <filesystem>
+
 const float UI_FONT_SIZE = 26.0f;
 const float TITLE_FONT_SIZE = 56.0f;
 const float MENU_BUTTON_WIDTH = 420.0f;
@@ -48,6 +50,13 @@ void endUiFrame(){
 
 void drawMenuBackground(){
     DrawRectangleGradientV(0, 0, GetScreenWidth(), GetScreenHeight(), MENU_BG_TOP, MENU_BG_BOTTOM);
+}
+
+void openFolder(const std::string& path){
+    // raylib's OpenURL hands the path to the system (Explorer, Finder, xdg-open), which opens folders too.
+    // make_preferred() gives Explorer the backslashes it expects on Windows.
+    std::string native = std::filesystem::path(path).make_preferred().string();
+    OpenURL(native.c_str());
 }
 
 void beginMenu(const char* id){

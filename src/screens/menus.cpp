@@ -14,6 +14,7 @@ MainMenuChoice mainMenuScreen(const std::string& error){
     ImGui::SetItemDefaultFocus(); // keyboard navigation starts on Play
     if (menuButton("Editor")) choice = MainMenuChoice::Editor;
     if (menuButton("Tuner")) choice = MainMenuChoice::Tuner;
+    if (menuButton("Settings")) choice = MainMenuChoice::Settings;
 
     if (menuButton("Quit")) choice = MainMenuChoice::Quit;
     if (!error.empty()){

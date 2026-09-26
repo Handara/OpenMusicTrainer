@@ -13,6 +13,7 @@ void beginUiFrame(); // ImGui widgets can be used between these two, inside Begi
 void endUiFrame();
 
 void drawMenuBackground();
+void openFolder(const std::string& path); // in Explorer / Finder / the Linux file manager
 void beginMenu(const char* id); // pair with ImGui::End()
 void menuTitle(const char* text);
 bool menuButton(const char* label);

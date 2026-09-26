@@ -1,10 +1,12 @@
 #include "raylib.h"
 #include "audio/audio.h"
 #include "core/paths.h"
+#include "core/settings.h"
 #include "core/songlibrary.h"
 #include "screens/editor.h"
 #include "screens/gameplay.h"
 #include "screens/menus.h"
+#include "screens/settingsscreen.h"
 #include "screens/tuner.h"
 #include "ui/ui.h"
 
@@ -14,7 +16,7 @@
 
 namespace fs = std::filesystem;
 
-enum class Screen { MainMenu, SongSelect, Playing, Results, Tuner, EditorSelect, Editor };
+enum class Screen { MainMenu, SongSelect, Playing, Results, Tuner, EditorSelect, Editor, Settings };
 
 // App-wide state shared between screens
 static struct {
@@ -23,6 +25,9 @@ static struct {
     std::string resourcesDir;     // shipped with the game, read-only
     std::string userDataDir;      // the player's own files (see core/paths.h)
     std::string userSongsDir;
+    std::string soundsDir;        // the player's own preview sounds
+    std::string settingsPath;
+    Settings settings;
     std::vector<SongEntry> songs;
     std::string currentChartPath; // the song being played, kept for Retry
     std::string songSelectError;  // why the last song failed to start
@@ -45,10 +50,18 @@ static void goToSongSelect(){
 }
 
 static void openDataFolder(){
-    // raylib's OpenURL hands the path to the system (Explorer, Finder, xdg-open), which opens folders too.
-    // make_preferred() gives Explorer the backslashes it expects on Windows.
-    std::string path = fs::path(app.userDataDir).make_preferred().string();
-    OpenURL(path.c_str());
+    openFolder(app.userDataDir);
+}
+
+static void goToSettings(){
+    openSettingsScreen(app.soundsDir);
+    app.screen = Screen::Settings;
+}
+
+static void leaveSettings(){
+    std::string error;
+    if (!saveSettings(app.settingsPath, app.settings, error)) TraceLog(LOG_WARNING, "Settings: %s", error.c_str());
+    app.screen = Screen::MainMenu;
 }
 
 static void editSong(const SongEntry& song){
@@ -63,7 +76,10 @@ static void editSong(const SongEntry& song){
 
 static void startSong(const std::string& chartPath){
     std::string error;
-    if (startGameplay(chartPath, error)){
+    GameplayOptions options;
+    options.noteSpeed = app.settings.noteSpeed;
+    options.offsetSeconds = app.settings.globalOffsetMs / 1000.0f;
+    if (startGameplay(chartPath, options, error)){
         app.currentChartPath = chartPath;
         app.songSelectError.clear();
         app.screen = Screen::Playing;
@@ -75,7 +91,7 @@ static void startSong(const std::string& chartPath){
 
 static void goToTuner(){
     std::string error;
-    if (startTuner(error)){
+    if (startTuner(app.settings.inputDevice, error)){
         app.mainMenuError.clear();
         app.screen = Screen::Tuner;
     } else {
@@ -97,6 +113,7 @@ static void handleBackKey(){
         case Screen::Playing: stopGameplay(); goToSongSelect(); break;
         case Screen::Results: goToSongSelect(); break;
         case Screen::Tuner: leaveTuner(); break;
+        case Screen::Settings: leaveSettings(); break;
         case Screen::EditorSelect: app.screen = Screen::MainMenu; break;
         case Screen::Editor: break; // the editor handles Esc itself, to warn about unsaved changes
     }
@@ -110,6 +127,7 @@ static void runMenus(){
                 case MainMenuChoice::Play: goToSongSelect(); break;
                 case MainMenuChoice::Editor: goToSongList(Screen::EditorSelect); break;
                 case MainMenuChoice::Tuner: goToTuner(); break;
+                case MainMenuChoice::Settings: goToSettings(); break;
                 case MainMenuChoice::Quit: app.quit = true; break;
                 case MainMenuChoice::None: break;
             }
@@ -144,6 +162,9 @@ static void runMenus(){
         case Screen::Tuner:
             if (tunerScreen()) leaveTuner();
             break;
+        case Screen::Settings:
+            if (settingsScreen(app.settings, app.soundsDir)) leaveSettings();
+            break;
         case Screen::Playing: break; // gameplay draws with raylib only
     }
 }
@@ -156,21 +177,36 @@ int main(void){
     app.resourcesDir = std::string(GetApplicationDirectory()) + "resources/";
     app.userDataDir = userDataDir();
     app.userSongsDir = (fs::path(app.userDataDir) / "songs").string();
-    std::error_code ec;
-    fs::create_directories(app.userSongsDir, ec);
-    if (ec) TraceLog(LOG_WARNING, "Could not create %s: %s", app.userSongsDir.c_str(), ec.message().c_str());
+    app.soundsDir = (fs::path(app.userDataDir) / "sounds").string();
+    app.settingsPath = (fs::path(app.userDataDir) / "settings.txt").string();
+    for (const std::string& dir : {app.userSongsDir, app.soundsDir}){
+        std::error_code ec;
+        fs::create_directories(dir, ec);
+        if (ec) TraceLog(LOG_WARNING, "Could not create %s: %s", dir.c_str(), ec.message().c_str());
+    }
     TraceLog(LOG_INFO, "User data folder: %s", app.userDataDir.c_str());
 
+    std::vector<std::string> warnings;
+    app.settings = loadSettings(app.settingsPath, warnings);
+    for (const std::string& warning : warnings) TraceLog(LOG_WARNING, "Settings: %s", warning.c_str());
+
     std::string error;
-    if (!initAudio(error)){
+    if (!initAudio(app.settings.outputDevice, error)){
         TraceLog(LOG_ERROR, "Audio: %s", error.c_str());
         return 1;
     }
-    TraceLog(LOG_INFO, "Audio: using %s backend", audioBackendName());
+    TraceLog(LOG_INFO, "Audio: using %s backend, output '%s'", audioBackendName(), outputDeviceName());
+    setMasterVolume(app.settings.masterVolume);
+    setPreviewVolume(app.settings.previewVolume);
+    if (!setPreviewSound(app.settings.previewSound, app.soundsDir, error)){
+        TraceLog(LOG_WARNING, "Preview sound: %s (using the pluck)", error.c_str());
+        app.settings.previewSound = "pluck";
+        setPreviewSound("pluck", app.soundsDir, error);
+    }
 
     InitWindow(INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT, "OpenMusicTrainer");
-    SetTargetFPS(60);
     SetExitKey(KEY_NULL); // Esc means "back" (handleBackKey), not "quit"
+    applyDisplaySettings(app.settings);
     initUi(app.resourcesDir + "fonts/Roboto-Medium.ttf");
 
     while (!WindowShouldClose() && !app.quit){

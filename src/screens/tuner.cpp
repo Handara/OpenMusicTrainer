@@ -38,9 +38,9 @@ static struct {
     bool active = false;
 } tuner;
 
-bool startTuner(std::string& error){
+bool startTuner(const std::string& inputDevice, std::string& error){
     stopTuner();
-    if (!startCapture(error)) return false;
+    if (!startCapture(inputDevice, error)) return false;
 
     // Everything is sized once here from the device's sample rate, so updateTuner never allocates
     initPitchDetector(tuner.detector, captureSampleRate(), MIN_FREQUENCY, MAX_FREQUENCY);

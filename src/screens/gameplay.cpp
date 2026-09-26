@@ -34,7 +34,6 @@ const int MAX_LANES = 6; // limited by the number keys and the vertical layout f
 const int LANE_SPACING = 70;
 const int LANE_TOP_Y = 220;
 const int HIT_LINE_X = 180;
-const float SCROLL_SPEED = 300.0f; // pixels per second, placeholder until BPM-driven scroll lands
 const float PERFECT_WINDOW_S = 0.040f; // max |timing error| in seconds for a perfect hit
 const float NEAR_WINDOW_S = 0.100f;
 const float HIT_FLASH_DURATION = 0.2f;
@@ -113,7 +112,7 @@ static void updateMisses(std::vector<Note>& notes, GameState& state, float songT
     }
 }
 
-static void drawFretboard(const std::vector<Note>& notes, float songTime, const std::vector<int>& tuning){
+static void drawFretboard(const std::vector<Note>& notes, float songTime, const std::vector<int>& tuning, float noteSpeed){
     DrawRectangleGradientV(0, 0, GetScreenWidth(), GetScreenHeight(), WOOD_DARK, WOOD_LIGHT);
 
     int laneCount = (int)tuning.size();
@@ -130,7 +129,7 @@ static void drawFretboard(const std::vector<Note>& notes, float songTime, const 
     DrawLine(HIT_LINE_X, panelTop, HIT_LINE_X, panelTop+panelHeight, GOLD);
 
     for (const Note& note : notes){
-        float x = HIT_LINE_X + (note.time - songTime) * SCROLL_SPEED;
+        float x = HIT_LINE_X + (note.time - songTime) * noteSpeed;
         if (x > -50 && x < GetScreenWidth() + 50){
             Color color = laneColors[note.lane];
             if (note.hitFlash > 0.0f){
@@ -169,11 +168,12 @@ static struct {
     Chart chart;
     std::vector<Note> notes;
     GameState state;
+    GameplayOptions options;
     float songTime = 0.0f;
     bool active = false;
 } game;
 
-bool startGameplay(const std::string& chartPath, std::string& error){
+bool startGameplay(const std::string& chartPath, const GameplayOptions& options, std::string& error){
     stopGameplay();
     if (!loadChart(chartPath, game.chart, error)) return false;
     if (game.chart.audioFile.empty()){
@@ -199,6 +199,7 @@ bool startGameplay(const std::string& chartPath, std::string& error){
     }
     game.state = {};
     game.state.multiplier = 1;
+    game.options = options;
     game.songTime = 0.0f;
     game.active = true;
     playSong(false);
@@ -209,7 +210,9 @@ bool updateGameplay(){
     if (!game.active) return false;
 
     // The song's playback position is the clock: notes stay in sync with the music even if frames stutter
-    game.songTime = (float)songPosition();
+    // The offset shifts the whole game against the audio: if sound reaches your ears late (Bluetooth,
+    // slow drivers), a positive offset moves notes and judging later to match what you hear
+    game.songTime = (float)(songPosition() - game.options.offsetSeconds);
 
     for (Note& note : game.notes){
         if (note.hitFlash > 0.0f) note.hitFlash -= GetFrameTime();
@@ -233,7 +236,7 @@ bool updateGameplay(){
 
 void drawGameplay(){
     if (!game.active) return;
-    drawFretboard(game.notes, game.songTime, game.chart.frettedTracks[0].tuning);
+    drawFretboard(game.notes, game.songTime, game.chart.frettedTracks[0].tuning, game.options.noteSpeed);
     drawHUD(game.state);
 }
 

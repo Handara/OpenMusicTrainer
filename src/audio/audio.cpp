@@ -1,9 +1,13 @@
 #include "audio/audio.h"
 
+#include "core/pitch.h"
+#include "core/settings.h"
 #include "core/synth.h"
 #include "miniaudio.h"
 
+#include <algorithm>
 #include <chrono>
+#include <filesystem>
 #include <cmath>
 #include <cstring>
 #include <vector>
@@ -19,11 +23,14 @@ const ma_uint32 CAPTURE_BUFFER_FRAMES = 16384;
 
 // Preview sounds (e.g. the editor playing a note you place). Several can ring at once, like real strings.
 const int VOICE_COUNT = 8;
-const float PLUCK_LENGTH_S = 1.5f;
-const float PLUCK_VOLUME = 0.6f;
+const float PREVIEW_LENGTH_S = 1.5f;     // built-in sounds
+const float MAX_CUSTOM_SOUND_S = 3.0f;   // longer sound files are cut (and faded) here
+const char* const SOUND_FILE_EXTENSIONS[] = { ".wav", ".mp3", ".flac" }; // what miniaudio decodes out of the box
+const float SILENCE_LEVEL = 0.001f;      // -60 dB: quieter than this at the start of a sound file counts as silence
 
 // One preview sound: its samples, and the miniaudio objects playing them.
-// ma_audio_buffer reads straight from `samples` (no copy), so they must stay alive while it plays.
+// ma_audio_buffer reads straight from the samples (no copy), so they must stay alive while it plays:
+// built-in sounds are rendered into the voice's own `samples`, custom sounds are read from `customSound`.
 struct Voice {
     std::vector<float> samples;
     ma_audio_buffer buffer;
@@ -35,6 +42,8 @@ struct Voice {
 // All audio state lives here, like raylib's internal AUDIO struct. miniaudio objects keep
 // pointers to each other, so they must never move in memory: a single static instance guarantees it.
 static struct {
+    ma_context context; // the connection to the system's audio (WASAPI, PulseAudio...): lists and opens devices
+    bool contextReady = false;
     ma_engine engine;
     ma_sound song;
     bool engineReady = false;
@@ -56,7 +65,12 @@ static struct {
     bool captureReady = false;
 
     Voice voices[VOICE_COUNT];
-    unsigned long long pluckCount = 0;
+    unsigned long long previewCount = 0;
+    float previewVolume = 0.6f;
+    std::string previewSoundName = "pluck";
+    std::string soundsDir;
+    std::vector<float> customSound;   // the decoded file, at the engine's sample rate; empty for built-in sounds
+    float customSoundRoot = 0.0f;     // its detected pitch in Hz, 0 if it has none (then it never gets re-pitched)
 } audio;
 
 static double wallClockSeconds(){
@@ -64,14 +78,62 @@ static double wallClockSeconds(){
     return duration<double>(steady_clock::now().time_since_epoch()).count();
 }
 
-bool initAudio(std::string& error){
-    ma_result result = ma_engine_init(nullptr, &audio.engine); // default output device and settings
+// Finds a device by the name the system gives it. Names are what the settings file stores:
+// device ids are opaque, backend-specific data, but a name is readable and stays the same between runs.
+static bool findDevice(ma_device_type type, const std::string& name, ma_device_id& id){
+    if (name.empty() || !audio.contextReady) return false;
+    ma_device_info* playback; ma_uint32 playbackCount;
+    ma_device_info* capture; ma_uint32 captureCount;
+    if (ma_context_get_devices(&audio.context, &playback, &playbackCount, &capture, &captureCount) != MA_SUCCESS) return false;
+    ma_device_info* devices = type == ma_device_type_playback ? playback : capture;
+    ma_uint32 count = type == ma_device_type_playback ? playbackCount : captureCount;
+    for (ma_uint32 i = 0; i < count; i++){
+        if (name == devices[i].name){
+            id = devices[i].id;
+            return true;
+        }
+    }
+    return false;
+}
+
+static std::vector<std::string> deviceNames(ma_device_type type){
+    std::vector<std::string> names;
+    ma_device_info* playback; ma_uint32 playbackCount;
+    ma_device_info* capture; ma_uint32 captureCount;
+    if (!audio.contextReady || ma_context_get_devices(&audio.context, &playback, &playbackCount, &capture, &captureCount) != MA_SUCCESS){
+        return names;
+    }
+    ma_device_info* devices = type == ma_device_type_playback ? playback : capture;
+    ma_uint32 count = type == ma_device_type_playback ? playbackCount : captureCount;
+    for (ma_uint32 i = 0; i < count; i++) names.push_back(devices[i].name); // copied: the list is only valid until the next query
+    return names;
+}
+
+std::vector<std::string> outputDeviceNames(){ return deviceNames(ma_device_type_playback); }
+std::vector<std::string> inputDeviceNames(){ return deviceNames(ma_device_type_capture); }
+
+static bool startEngine(const std::string& outputDevice, std::string& error){
+    ma_device_id id;
+    ma_engine_config config = ma_engine_config_init();
+    config.pContext = &audio.context;
+    config.pPlaybackDeviceID = findDevice(ma_device_type_playback, outputDevice, id) ? &id : nullptr; // not found: system default
+    ma_result result = ma_engine_init(&config, &audio.engine);
     if (result != MA_SUCCESS){
-        error = std::string("could not start audio engine: ") + ma_result_description(result);
+        error = std::string("could not start audio output: ") + ma_result_description(result);
         return false;
     }
     audio.engineReady = true;
     return true;
+}
+
+bool initAudio(const std::string& outputDevice, std::string& error){
+    ma_result result = ma_context_init(nullptr, 0, nullptr, &audio.context); // every backend available, best first
+    if (result != MA_SUCCESS){
+        error = std::string("could not connect to the system's audio: ") + ma_result_description(result);
+        return false;
+    }
+    audio.contextReady = true;
+    return startEngine(outputDevice, error);
 }
 
 static void releaseVoice(Voice& voice){
@@ -81,18 +143,41 @@ static void releaseVoice(Voice& voice){
     voice.ready = false;
 }
 
-void closeAudio(){
+static void stopEngine(){
     for (Voice& voice : audio.voices) releaseVoice(voice);
-    stopCapture();
     unloadSong();
     if (audio.engineReady) ma_engine_uninit(&audio.engine);
     audio.engineReady = false;
 }
 
+void closeAudio(){
+    stopCapture();
+    stopEngine();
+    if (audio.contextReady) ma_context_uninit(&audio.context);
+    audio.contextReady = false;
+}
+
+bool setOutputDevice(const std::string& outputDevice, std::string& error){
+    float volume = audio.engineReady ? ma_engine_get_volume(&audio.engine) : 1.0f;
+    stopEngine();
+    if (!startEngine(outputDevice, error)) return false;
+    ma_engine_set_volume(&audio.engine, volume);
+    // A custom preview sound was decoded at the old device's sample rate: decode it again
+    std::string ignored;
+    if (!setPreviewSound(audio.previewSoundName, audio.soundsDir, ignored)) setPreviewSound("pluck", audio.soundsDir, ignored);
+    return true;
+}
+
+const char* outputDeviceName(){
+    return audio.engineReady ? ma_engine_get_device(&audio.engine)->playback.name : "none";
+}
+
+void setMasterVolume(float volume){
+    if (audio.engineReady) ma_engine_set_volume(&audio.engine, volume);
+}
+
 const char* audioBackendName(){
-    if (!audio.engineReady) return "none";
-    ma_device* device = ma_engine_get_device(&audio.engine);
-    return ma_get_backend_name(device->pContext->backend);
+    return audio.contextReady ? ma_get_backend_name(audio.context.backend) : "none";
 }
 
 bool loadSong(const std::string& path, std::string& error){
@@ -189,8 +274,12 @@ static void captureCallback(ma_device* device, void* output, const void* input, 
     // If the buffer was full, the rest is dropped: the main thread stopped reading, old audio is useless anyway
 }
 
-bool startCapture(std::string& error){
+bool startCapture(const std::string& inputDevice, std::string& error){
     stopCapture();
+    if (!audio.contextReady){
+        error = "audio is not running";
+        return false;
+    }
 
     // miniaudio's ring buffer is lock-free for exactly one writer thread and one reader thread
     ma_result result = ma_pcm_rb_init(ma_format_f32, 1, CAPTURE_BUFFER_FRAMES, nullptr, nullptr, &audio.captureBuffer);
@@ -204,7 +293,9 @@ bool startCapture(std::string& error){
     config.capture.channels = 1; // pitch detection needs one channel; miniaudio mixes stereo inputs down
     config.sampleRate = 0;       // the device's native rate, so nothing gets resampled
     config.dataCallback = captureCallback;
-    result = ma_device_init(nullptr, &config, &audio.captureDevice);
+    ma_device_id id;
+    if (findDevice(ma_device_type_capture, inputDevice, id)) config.capture.pDeviceID = &id; // not found: system default
+    result = ma_device_init(&audio.context, &config, &audio.captureDevice);
     if (result != MA_SUCCESS){
         ma_pcm_rb_uninit(&audio.captureBuffer);
         error = std::string("could not open input device: ") + ma_result_description(result);
@@ -250,7 +341,98 @@ int readCapture(float* out, int maxFrames){
     return total;
 }
 
-void playPluck(float frequency){
+static bool isSoundFile(const std::filesystem::path& path){
+    std::string extension = path.extension().string();
+    std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char c){ return (char)std::tolower(c); });
+    for (const char* known : SOUND_FILE_EXTENSIONS) if (extension == known) return true;
+    return false;
+}
+
+std::vector<std::string> previewSoundNames(const std::string& soundsDir){
+    std::vector<std::string> names(BUILT_IN_PREVIEW_SOUNDS, BUILT_IN_PREVIEW_SOUNDS + BUILT_IN_PREVIEW_SOUND_COUNT);
+    std::vector<std::string> files;
+    std::error_code ec;
+    for (const auto& entry : std::filesystem::directory_iterator(soundsDir, ec)){
+        if (entry.is_regular_file() && isSoundFile(entry.path())) files.push_back(entry.path().filename().string());
+    }
+    std::sort(files.begin(), files.end());
+    names.insert(names.end(), files.begin(), files.end());
+    return names;
+}
+
+bool setPreviewSound(const std::string& name, const std::string& soundsDir, std::string& error){
+    // Voices may be reading the current custom sound: stop them before it changes
+    for (Voice& voice : audio.voices) releaseVoice(voice);
+    audio.soundsDir = soundsDir;
+
+    for (const char* builtIn : BUILT_IN_PREVIEW_SOUNDS){
+        if (name == builtIn){
+            audio.previewSoundName = name;
+            audio.customSound.clear();
+            return true;
+        }
+    }
+    if (!audio.engineReady){
+        error = "audio is not running";
+        return false;
+    }
+
+    // A sound file: decode it once, to mono floats at the engine's rate, so playing it costs nothing extra
+    std::string path = (std::filesystem::path(soundsDir) / name).string();
+    ma_uint32 sampleRate = ma_engine_get_sample_rate(&audio.engine);
+    ma_decoder_config config = ma_decoder_config_init(ma_format_f32, 1, sampleRate);
+    ma_uint64 frameCount = 0;
+    void* frames = nullptr;
+    ma_result result = ma_decode_file(path.c_str(), &config, &frameCount, &frames);
+    if (result != MA_SUCCESS){
+        error = path + ": could not load sound: " + ma_result_description(result);
+        return false;
+    }
+    // Skip silence at the start (MP3 encoders add some, recordings often have some): a sound that starts
+    // late would make every preview and click sound late
+    const float* samples = (const float*)frames;
+    ma_uint64 first = 0;
+    while (first < frameCount && std::fabs(samples[first]) < SILENCE_LEVEL) first++;
+    ma_uint64 keep = std::min<ma_uint64>(frameCount - first, (ma_uint64)(MAX_CUSTOM_SOUND_S * sampleRate));
+    audio.customSound.assign(samples + first, samples + first + keep);
+    ma_free(frames, nullptr); // miniaudio allocated it; it's copied into our vector now
+    if (audio.customSound.empty()){
+        error = path + ": the sound file is empty";
+        return false;
+    }
+    if (first + keep < frameCount){ // cut short: fade the new end so it doesn't click
+        int fade = std::min((int)keep, (int)(0.01f * sampleRate));
+        for (int i = 0; i < fade; i++) audio.customSound[keep - 1 - i] *= (float)i / fade;
+    }
+
+    // Find the sound's own pitch, so notes can be played by speeding it up or slowing it down.
+    // Measured just after the attack, where most sounds are loudest and steadiest.
+    PitchDetector detector;
+    initPitchDetector(detector, (int)sampleRate, 30.0f, 2000.0f);
+    int window = pitchWindowSize(detector);
+    int start = std::min((int)(0.05f * sampleRate), std::max(0, (int)audio.customSound.size() - window));
+    audio.customSoundRoot = 0.0f;
+    if ((int)audio.customSound.size() >= window){
+        PitchResult pitch = detectPitch(detector, audio.customSound.data() + start, window);
+        if (pitch.frequency > 0.0f && pitch.clarity > 0.8f) audio.customSoundRoot = pitch.frequency;
+    }
+    audio.previewSoundName = name;
+    return true;
+}
+
+const char* previewSoundName(){
+    return audio.previewSoundName.c_str();
+}
+
+bool previewSoundHasPitch(){
+    return audio.customSound.empty() || audio.customSoundRoot > 0.0f;
+}
+
+void setPreviewVolume(float volume){
+    audio.previewVolume = volume;
+}
+
+void playPreview(float frequency){
     if (!audio.engineReady) return;
 
     // A voice that finished playing, or else the oldest one (it has faded the most)
@@ -264,12 +446,23 @@ void playPluck(float frequency){
     }
     releaseVoice(*voice);
 
-    // Rendered at the engine's own sample rate, so nothing has to be resampled while it plays
+    // Built-in sounds are rendered at the engine's own sample rate and pitch, so nothing is resampled.
+    // A custom sound plays from the shared decoded copy, re-pitched to the note if it has a pitch.
     ma_uint32 sampleRate = ma_engine_get_sample_rate(&audio.engine);
-    voice->samples.resize((size_t)(PLUCK_LENGTH_S * sampleRate)); // keeps its memory between plucks: no allocation after the first
-    renderPluck(voice->samples.data(), (int)voice->samples.size(), frequency, (int)sampleRate, (unsigned)audio.pluckCount);
+    const float* data;
+    size_t frames;
+    if (audio.customSound.empty()){
+        voice->samples.resize((size_t)(PREVIEW_LENGTH_S * sampleRate)); // keeps its memory between notes: no allocation after the first
+        renderBuiltInSound(audio.previewSoundName.c_str(), voice->samples.data(), (int)voice->samples.size(), frequency,
+                           (int)sampleRate, (unsigned)audio.previewCount);
+        data = voice->samples.data();
+        frames = voice->samples.size();
+    } else {
+        data = audio.customSound.data();
+        frames = audio.customSound.size();
+    }
 
-    ma_audio_buffer_config config = ma_audio_buffer_config_init(ma_format_f32, 1, voice->samples.size(), voice->samples.data(), nullptr);
+    ma_audio_buffer_config config = ma_audio_buffer_config_init(ma_format_f32, 1, frames, data, nullptr);
     config.sampleRate = sampleRate;
     if (ma_audio_buffer_init(&config, &voice->buffer) != MA_SUCCESS) return;
     if (ma_sound_init_from_data_source(&audio.engine, &voice->buffer, MA_SOUND_FLAG_NO_SPATIALIZATION, nullptr, &voice->sound) != MA_SUCCESS){
@@ -277,7 +470,10 @@ void playPluck(float frequency){
         return;
     }
     voice->ready = true;
-    voice->startedAt = ++audio.pluckCount;
-    ma_sound_set_volume(&voice->sound, PLUCK_VOLUME);
+    voice->startedAt = ++audio.previewCount;
+    if (!audio.customSound.empty() && audio.customSoundRoot > 0.0f){
+        ma_sound_set_pitch(&voice->sound, frequency / audio.customSoundRoot); // 2.0 = an octave up (and twice as short)
+    }
+    ma_sound_set_volume(&voice->sound, audio.previewVolume);
     ma_sound_start(&voice->sound);
 }
