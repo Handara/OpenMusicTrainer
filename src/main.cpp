@@ -12,6 +12,7 @@
 #include "screens/tuner.h"
 #include "ui/ui.h"
 #include "views/staff.h"
+#include "views/tab.h"
 
 #include <filesystem>
 #include <string>
@@ -266,6 +267,7 @@ int main(void){
     applyDisplaySettings(app.settings);
     initUi(app.resourcesDir + "fonts/Roboto-Medium.ttf");
     if (!loadStaffFont(app.resourcesDir + "fonts/Bravura.otf")) TraceLog(LOG_WARNING, "Music font not found: sheet music uses plain shapes");
+    if (!loadTabFont(app.resourcesDir + "fonts/Roboto-Medium.ttf")) TraceLog(LOG_WARNING, "Text font not found: tab uses the pixel font");
 
     while (!WindowShouldClose() && !app.quit){
         handleBackKey();
@@ -293,6 +295,7 @@ int main(void){
     stopCalibration();
     closeUi();
     unloadStaffFont();
+    unloadTabFont();
     CloseWindow();
     closeAudio();
     return 0;

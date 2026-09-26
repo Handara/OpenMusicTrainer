@@ -110,6 +110,8 @@ static void displayTab(Settings& settings){
     ImGui::TextUnformatted("Show notes as (any mix, stacked)");
     if (ImGui::Checkbox("Sheet music", &views.staff) && !views.any()) views.staff = true;
     ImGui::SameLine();
+    if (ImGui::Checkbox("Tab", &views.tab) && !views.any()) views.tab = true;
+    ImGui::SameLine();
     if (ImGui::Checkbox("Highway", &views.highway) && !views.any()) views.highway = true;
 
     ImGui::TextUnformatted("String order on the highway");

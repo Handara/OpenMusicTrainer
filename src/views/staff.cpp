@@ -18,12 +18,6 @@ const float STEM_LENGTH = 3.5f;        // in staff spaces, the engraving standar
 const float LINE_THICKNESS = 0.11f;
 const float CLEF_AREA_WIDTH = 3.6f;    // notes that have passed the hit line slide under the clef
 
-const Color PAPER = { 242, 232, 212, 255 };
-const Color INK = { 34, 26, 22, 255 };
-const Color HIT_LINE = { 200, 150, 40, 255 };
-const Color PERFECT_COLOR = { 40, 170, 80, 255 };
-const Color NEAR_COLOR = { 210, 150, 20, 255 };
-
 static struct {
     Font font;
     bool loaded = false;

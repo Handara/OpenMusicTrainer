@@ -8,12 +8,13 @@
 const char* const BUILT_IN_PREVIEW_SOUNDS[] = { "pluck", "soft", "keys", "drop" };
 const int BUILT_IN_PREVIEW_SOUND_COUNT = 4;
 
-// How notes are shown while playing: any mix of the views, stacked top to bottom (sheet music, then the
+// How notes are shown while playing: any mix of the views, stacked top to bottom (sheet music, tab, then the
 // highway). At least one is always on.
 struct NoteViews {
     bool staff = false;   // sheet music
+    bool tab = false;
     bool highway = true;
-    bool any() const { return staff || highway; }
+    bool any() const { return staff || tab || highway; }
 };
 
 struct Settings {

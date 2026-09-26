@@ -32,6 +32,7 @@ TEST_CASE("settings survive a save and load"){
     original.fullscreen = true;
     original.lowStringOnTop = false;
     original.noteViews.staff = true; // with the highway
+    original.noteViews.tab = true;
     original.frameRateLimit = 144;
     original.noteSpeed = 450.0f;
     original.globalOffsetMs = -35;
@@ -52,6 +53,7 @@ TEST_CASE("settings survive a save and load"){
     CHECK(loaded.fullscreen);
     CHECK_FALSE(loaded.lowStringOnTop);
     CHECK(loaded.noteViews.staff);
+    CHECK(loaded.noteViews.tab);
     CHECK(loaded.noteViews.highway);
     CHECK(loaded.frameRateLimit == 144);
     CHECK(loaded.noteSpeed == doctest::Approx(450.0f));
@@ -76,13 +78,14 @@ TEST_CASE("bad lines are reported but don't lose the rest"){
 }
 
 TEST_CASE("note views: any mix, and the older one-word form"){
-    struct Case { const char* line; bool staff, highway; size_t warnings; };
+    struct Case { const char* line; bool staff, tab, highway; size_t warnings; };
     const Case cases[] = {
-        {"note_view staff",          true,  false, 0},
-        {"note_view highway staff",  true,  true,  0},
-        {"note_view both",           true,  true,  0}, // how files first wrote it
-        {"note_view",                false, true,  1}, // nothing on: keep the default
-        {"note_view staff piano",    false, true,  1}, // an unknown word: keep the default, not half of it
+        {"note_view staff",          true,  false, false, 0},
+        {"note_view staff tab",      true,  true,  false, 0},
+        {"note_view highway staff",  true,  false, true,  0},
+        {"note_view both",           true,  false, true,  0}, // how files first wrote it
+        {"note_view",                false, false, true,  1}, // nothing on: keep the default
+        {"note_view tab piano",      false, false, true,  1}, // an unknown word: keep the default, not half of it
     };
     for (const Case& c : cases){
         CAPTURE(c.line);
@@ -91,6 +94,7 @@ TEST_CASE("note views: any mix, and the older one-word form"){
         std::vector<std::string> warnings;
         Settings settings = loadSettings(path, warnings);
         CHECK(settings.noteViews.staff == c.staff);
+        CHECK(settings.noteViews.tab == c.tab);
         CHECK(settings.noteViews.highway == c.highway);
         CHECK(warnings.size() == c.warnings);
     }
