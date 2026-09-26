@@ -1,6 +1,9 @@
 #include "raylib.h"
-#include <vector>
+#include "chart.h"
+#include <algorithm>
 #include <cmath>
+#include <string>
+#include <vector>
 
 #define G_CLEF_CODEPOINT 0xE050
 #define NOTE_CODEPOINT 0xE1D5
@@ -31,6 +34,7 @@ void drawStaff(Font bravura, Vector2 position, int staffTopPosY, int staffWidth)
 struct Note {
     float time;       // seconds from pattern start when the note crosses the hit line
     int lane;         // string index, 0 = lowest string
+    int fret;
     float hitFlash;   // seconds remaining to render as hit, 0 = not hit
     bool judged;       // true once this note has been hit or has missed
     bool wasPerfect;   // true if the judgement that set hitFlash was a perfect hit
@@ -43,7 +47,7 @@ struct GameState {
     float rhythm; // 0..1, the "rhythm" meter
 };
 
-const int LANE_COUNT = 6;
+const int MAX_LANES = 6; // limited by the number keys and the vertical layout for now
 const int LANE_SPACING = 70;
 const int LANE_TOP_Y = 220;
 const int HIT_LINE_X = 180;
@@ -53,9 +57,10 @@ const float NEAR_WINDOW_S = 0.100f;
 const float HIT_FLASH_DURATION = 0.2f;
 const float RHYTHM_FILL_PER_PERFECT = 0.12f;
 
-const char* laneNames[LANE_COUNT] = { "E", "A", "D", "G", "B", "e" };
-const int laneKeys[LANE_COUNT] = { KEY_ONE, KEY_TWO, KEY_THREE, KEY_FOUR, KEY_FIVE, KEY_SIX };
-const Color laneColors[LANE_COUNT] = { RED, ORANGE, GOLD, GREEN, SKYBLUE, PURPLE };
+const int laneKeys[MAX_LANES] = { KEY_ONE, KEY_TWO, KEY_THREE, KEY_FOUR, KEY_FIVE, KEY_SIX };
+const Color laneColors[MAX_LANES] = { RED, ORANGE, GOLD, GREEN, SKYBLUE, PURPLE };
+
+const char* pitchClassNames[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
 
 const Color WOOD_DARK = { 61, 38, 27, 255 };
 const Color WOOD_LIGHT = { 110, 70, 45, 255 };
@@ -94,8 +99,8 @@ void registerHit(GameState& state, Note& note, float timingError){
     note.judged = true;
 }
 
-void handleInput(std::vector<Note>& notes, GameState& state, float patternTime){
-    for (int lane = 0; lane < LANE_COUNT; lane++){
+void handleInput(std::vector<Note>& notes, GameState& state, float patternTime, int laneCount){
+    for (int lane = 0; lane < laneCount; lane++){
         if (!IsKeyPressed(laneKeys[lane])) continue;
 
         // One press judges at most one note: the unjudged note in this lane closest in time
@@ -123,17 +128,20 @@ void updateMisses(std::vector<Note>& notes, GameState& state, float patternTime)
     }
 }
 
-void drawFretboard(const std::vector<Note>& notes, float patternTime){
+void drawFretboard(const std::vector<Note>& notes, float patternTime, const std::vector<int>& tuning){
     DrawRectangleGradientV(0, 0, GetScreenWidth(), GetScreenHeight(), WOOD_DARK, WOOD_LIGHT);
 
+    int laneCount = (int)tuning.size();
     int panelTop = laneY(0) - 40;
-    int panelHeight = laneY(LANE_COUNT-1) - laneY(0) + 80;
+    int panelHeight = laneY(laneCount-1) - laneY(0) + 80;
     DrawRectangle(0, panelTop, GetScreenWidth(), panelHeight, TRACK_PANEL);
 
-    for (int i = 0; i < LANE_COUNT; i++){
+    for (int i = 0; i < laneCount; i++){
         DrawLine(0, laneY(i), GetScreenWidth(), laneY(i), Fade(WHITE, 0.15f));
         DrawCircleLines(HIT_LINE_X, laneY(i), 22, Fade(laneColors[i], 0.8f));
-        DrawText(TextFormat("%s [%d]", laneNames[i], i+1), 10, laneY(i)-10, 20, RAYWHITE);
+        // MIDI pitch 60 is C4, so octave = pitch/12 - 1
+        const char* label = TextFormat("%s%d [%d]", pitchClassNames[tuning[i] % 12], tuning[i]/12 - 1, i+1);
+        DrawText(label, 10, laneY(i)-10, 20, RAYWHITE);
     }
     DrawLine(HIT_LINE_X, panelTop, HIT_LINE_X, panelTop+panelHeight, GOLD);
 
@@ -149,6 +157,10 @@ void drawFretboard(const std::vector<Note>& notes, float patternTime){
             }
             DrawCircle((int)x, laneY(note.lane), 16, color);
             DrawCircleLines((int)x, laneY(note.lane), 16, RAYWHITE);
+
+            const char* fretText = TextFormat("%d", note.fret);
+            int fretWidth = MeasureText(fretText, 20);
+            DrawText(fretText, (int)x - fretWidth/2, laneY(note.lane) - 10, 20, BLACK);
         }
     }
 }
@@ -172,15 +184,32 @@ int main(void){
     const int INITIAL_WINDOW_WIDTH = 1280;
     const int INITIAL_WINDOW_HEIGHT = 720;
 
+    // Resources are copied next to the executable at build time, so this works from any working directory
+    std::string chartPath = std::string(GetApplicationDirectory()) + "Ressources/charts/test.chart";
+    Chart chart;
+    std::string error;
+    if (!loadChart(chartPath, chart, error)){
+        TraceLog(LOG_ERROR, "Failed to load chart: %s", error.c_str());
+        return 1;
+    }
+    const FrettedTrack& track = chart.frettedTracks[0];
+    if ((int)track.tuning.size() > MAX_LANES){
+        TraceLog(LOG_ERROR, "Track '%s' has %d strings, the prototype supports up to %d",
+                 track.name.c_str(), (int)track.tuning.size(), MAX_LANES);
+        return 1;
+    }
+
+    // Gameplay notes: the chart's notes converted to seconds, plus per-run judging state
+    std::vector<Note> notes;
+    notes.reserve(track.notes.size());
+    for (const FrettedNote& chartNote : track.notes){
+        notes.push_back({(float)tickToSeconds(chart, chartNote.tick), chartNote.stringIndex, chartNote.fret});
+    }
+    const float patternDuration = (float)tickToSeconds(chart, chart.endTick);
+
     InitWindow(INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT, "OpenMusicTrainer");
     SetTargetFPS(60);
 
-    std::vector<Note> notes = {
-        {1.0f, 0}, {1.5f, 1}, {2.0f, 2}, {2.5f, 3},
-        {3.0f, 4}, {3.5f, 5}, {4.5f, 0}, {5.0f, 2},
-        {5.5f, 4}, {6.5f, 1}, {7.0f, 3}, {7.5f, 5},
-    };
-    const float patternDuration = 9.0f;
     GameState state = {0, 0, 1, 0.0f};
 
     float elapsed = 0.0f;
@@ -199,12 +228,12 @@ int main(void){
         for (Note& note : notes){
             if (note.hitFlash > 0.0f) note.hitFlash -= GetFrameTime();
         }
-        handleInput(notes, state, patternTime);
+        handleInput(notes, state, patternTime, (int)track.tuning.size());
         updateMisses(notes, state, patternTime);
 
         BeginDrawing();
         ClearBackground(RAYWHITE);
-        drawFretboard(notes, patternTime);
+        drawFretboard(notes, patternTime, track.tuning);
         drawHUD(state);
         EndDrawing();
     }
