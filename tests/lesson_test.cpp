@@ -1,6 +1,7 @@
 #include "doctest/doctest.h"
 
 #include "core/lesson.h"
+#include "core/paths.h"
 
 #include <filesystem>
 #include <fstream>
@@ -11,7 +12,7 @@ static const char* CHART = "version 2\nresolution 480\nend 1920\ntempo 0 120\ntr
 
 // A lesson folder in the temp directory: its lesson.lesson, plus stand-in media (the loader only checks they exist)
 static std::string lessonFolder(const std::string& name, const std::string& lesson){
-    fs::path folder = fs::temp_directory_path() / "omt_tests" / "lessons" / name;
+    fs::path folder = fs::temp_directory_path() / "lahn_tests" / "lessons" / name;
     fs::remove_all(folder);
     fs::create_directories(folder);
     std::ofstream(folder / LESSON_FILE_NAME, std::ios::binary) << lesson;
@@ -25,7 +26,7 @@ static const std::string HEADER = "version 1\ntitle First chords\n";
 
 TEST_CASE("a full lesson loads"){
     std::string folder = lessonFolder("full",
-        "# OpenMusicTrainer lesson\r\n" + HEADER + "category Guitar basics\nauthor Someone\ndescription Two chords.\n"
+        "# lahn lesson\r\n" + HEADER + "category Guitar basics\nauthor Someone\ndescription Two chords.\n"
         "\nstep text\ntitle What is a chord?\ntext Three notes or more.\ntext A second paragraph.\n"
         "step image\nfile em.png\ncaption E minor\n"
         "step image\nfile photo.JPG\n"
@@ -131,7 +132,7 @@ TEST_CASE("goals: the step's own, or the usual one"){
 }
 
 TEST_CASE("scanning lessons and checking their exercises"){
-    fs::path dir = fs::temp_directory_path() / "omt_tests" / "lessons";
+    fs::path dir = fs::temp_directory_path() / "lahn_tests" / "lessons";
     lessonFolder("uses-drill", HEADER + "category A\nstep exercise\nexercise drill\n");
     lessonFolder("uses-routine", HEADER + "category A\nstep exercise\nexercise daily\n");
     lessonFolder("uses-nothing", HEADER + "category A\nstep exercise\nexercise nope\n");
@@ -167,11 +168,36 @@ TEST_CASE("lesson progress: passed steps stay passed, and it survives a save and
     progress.reached = 5;
     progress.completed = true;
 
-    std::string path = (fs::temp_directory_path() / "omt_tests" / "lesson-progress.txt").string(), error;
+    std::string path = (fs::temp_directory_path() / "lahn_tests" / "lesson-progress.txt").string(), error;
     REQUIRE(saveLessonProgress(path, progress, error));
     LessonProgress loaded = loadLessonProgress(path);
     CHECK(loaded.reached == 5);
     CHECK(loaded.passed == std::vector<int>{1, 4});
     CHECK(loaded.completed);
     CHECK(loadLessonProgress(path + ".missing").reached == 0);
+}
+
+TEST_CASE("the data folder moves to the new name once, and never over anything"){
+    fs::path dir = fs::temp_directory_path() / "lahn_tests" / "rename";
+    fs::remove_all(dir);
+    fs::create_directories(dir / "old" / "songs");
+    std::ofstream(dir / "old" / "settings.txt") << "version 1\n";
+    std::string error;
+    REQUIRE(moveUserDataFolder((dir / "old").string(), (dir / "new").string(), error));
+    CHECK(fs::exists(dir / "new" / "settings.txt"));
+    CHECK(fs::is_directory(dir / "new" / "songs"));
+    CHECK_FALSE(fs::exists(dir / "old"));
+
+    // Both there (moved before, then an old copy came back): the new one is kept, the old one left alone
+    fs::create_directories(dir / "old");
+    std::ofstream(dir / "old" / "settings.txt") << "old\n";
+    REQUIRE(moveUserDataFolder((dir / "old").string(), (dir / "new").string(), error));
+    std::ifstream kept(dir / "new" / "settings.txt");
+    std::string line;
+    std::getline(kept, line);
+    CHECK(line == "version 1");
+    CHECK(fs::exists(dir / "old" / "settings.txt"));
+
+    CHECK(moveUserDataFolder((dir / "nothing").string(), (dir / "new2").string(), error)); // nothing to move: fine
+    CHECK_FALSE(fs::exists(dir / "new2"));
 }

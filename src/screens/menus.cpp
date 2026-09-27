@@ -9,7 +9,7 @@
 MainMenuChoice mainMenuScreen(const std::string& error){
     MainMenuChoice choice = MainMenuChoice::None;
     beginMenu("MainMenu");
-    menuTitle("OpenMusicTrainer");
+    menuTitle("lahn");
     focusNextWhenMenuAppears(); // keyboard navigation starts on Play
     if (menuButton("Play")) choice = MainMenuChoice::Play;
     if (menuButton("Learn")) choice = MainMenuChoice::Learn;

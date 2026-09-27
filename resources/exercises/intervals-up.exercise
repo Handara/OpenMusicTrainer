@@ -1,8 +1,8 @@
-# OpenMusicTrainer exercise
+# lahn exercise
 version 1
 type intervals
 title Intervals going up
 category Ear training
-author OpenMusicTrainer
+author lahn
 description Two notes, low then high. Name the distance between them. New intervals unlock as you get them right.
 direction up

@@ -54,7 +54,7 @@ TEST_CASE("the day streak"){
 
 TEST_CASE("routine progress survives a save and load"){
     RoutineProgress original{7, daysFromDate(2026, 9, 26), 4, 6};
-    std::filesystem::path dir = std::filesystem::temp_directory_path() / "omt_tests";
+    std::filesystem::path dir = std::filesystem::temp_directory_path() / "lahn_tests";
     std::filesystem::create_directories(dir);
     std::string path = (dir / "routine.txt").string(), error;
     REQUIRE(saveRoutineProgress(path, original, error));

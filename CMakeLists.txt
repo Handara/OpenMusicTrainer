@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.26)
-project(OpenMusicTrainer VERSION 0.1.0 LANGUAGES C CXX) # C: pl_mpeg
+project(lahn VERSION 0.1.0 LANGUAGES C CXX) # C: pl_mpeg
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -93,7 +93,7 @@ endfunction()
 # Core: pure C++ (chart format, music theory, pitch detection, song library).
 # It deliberately does NOT link raylib, miniaudio or imgui: including one of them here fails to compile,
 # which keeps this layer reusable (editor, tests, a future server) and testable on its own.
-add_library(omt_core STATIC
+add_library(lahn_core STATIC
     src/core/calibration.cpp
     src/core/chart.cpp
     src/core/drill.cpp
@@ -114,11 +114,11 @@ add_library(omt_core STATIC
     src/core/songlibrary.cpp
     src/core/synth.cpp
 )
-target_include_directories(omt_core PUBLIC src)
-enable_warnings(omt_core)
+target_include_directories(lahn_core PUBLIC src)
+enable_warnings(lahn_core)
 
 # The game: audio, UI and screens on top of core
-add_executable(OpenMusicTrainer
+add_executable(lahn
     src/main.cpp
     src/audio/audio.cpp
     src/input/noteinput.cpp
@@ -143,27 +143,27 @@ add_executable(OpenMusicTrainer
     src/views/tab.cpp
     src/video/video.cpp
 )
-target_link_libraries(OpenMusicTrainer PRIVATE omt_core raylib miniaudio imgui pl_mpeg)
-enable_warnings(OpenMusicTrainer)
+target_link_libraries(lahn PRIVATE lahn_core raylib miniaudio imgui pl_mpeg)
+enable_warnings(lahn)
 
 # Copy game data next to the executable on every build (only files that changed are copied)
 add_custom_target(copy_resources ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
             ${CMAKE_SOURCE_DIR}/resources
-            $<TARGET_FILE_DIR:OpenMusicTrainer>/resources
+            $<TARGET_FILE_DIR:lahn>/resources
     # UI font that ships with Dear ImGui (Apache 2.0 license)
-    COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:OpenMusicTrainer>/resources/fonts
+    COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:lahn>/resources/fonts
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
             ${imgui_SOURCE_DIR}/misc/fonts/Roboto-Medium.ttf
-            $<TARGET_FILE_DIR:OpenMusicTrainer>/resources/fonts/Roboto-Medium.ttf
+            $<TARGET_FILE_DIR:lahn>/resources/fonts/Roboto-Medium.ttf
 )
-add_dependencies(OpenMusicTrainer copy_resources)
+add_dependencies(lahn copy_resources)
 
 # Tests: build, then run `ctest --test-dir build --output-on-failure`.
-# They link only omt_core, which also proves the core works without the game around it.
+# They link only lahn_core, which also proves the core works without the game around it.
 include(CTest)
 if(BUILD_TESTING)
-    add_executable(omt_tests
+    add_executable(lahn_tests
         tests/main.cpp
         tests/calibration_test.cpp
         tests/chart_test.cpp
@@ -182,10 +182,10 @@ if(BUILD_TESTING)
         tests/settings_test.cpp
         tests/synth_test.cpp
     )
-    target_link_libraries(omt_tests PRIVATE omt_core doctest::doctest)
-    target_compile_definitions(omt_tests PRIVATE OMT_RESOURCES_DIR="${CMAKE_SOURCE_DIR}/resources/")
-    enable_warnings(omt_tests)
-    add_test(NAME core_tests COMMAND omt_tests)
+    target_link_libraries(lahn_tests PRIVATE lahn_core doctest::doctest)
+    target_compile_definitions(lahn_tests PRIVATE LAHN_RESOURCES_DIR="${CMAKE_SOURCE_DIR}/resources/")
+    enable_warnings(lahn_tests)
+    add_test(NAME core_tests COMMAND lahn_tests)
 endif()
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})

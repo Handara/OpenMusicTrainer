@@ -246,6 +246,9 @@ int main(void){
     // Resources are copied next to the executable at build time, so this works from any working directory
     app.resourcesDir = std::string(GetApplicationDirectory()) + "resources/";
     app.userDataDir = userDataDir();
+    // The game was called OpenMusicTrainer: its data folder moves to the new name the first time
+    std::string moveError;
+    if (!moveUserDataFolder(oldUserDataDir(), app.userDataDir, moveError)) TraceLog(LOG_WARNING, "%s", moveError.c_str());
     app.userSongsDir = (fs::path(app.userDataDir) / "songs").string();
     app.soundsDir = (fs::path(app.userDataDir) / "sounds").string();
     app.settingsPath = (fs::path(app.userDataDir) / "settings.txt").string();
@@ -277,7 +280,7 @@ int main(void){
         setPreviewSound("pluck", app.soundsDir, error);
     }
 
-    InitWindow(INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT, "OpenMusicTrainer");
+    InitWindow(INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT, "lahn");
     SetExitKey(KEY_NULL); // Esc means "back" (handleBackKey), not "quit"
     applyDisplaySettings(app.settings);
     initUi(app.resourcesDir + "fonts/Roboto-Medium.ttf");

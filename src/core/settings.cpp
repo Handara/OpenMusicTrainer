@@ -82,7 +82,7 @@ Settings loadSettings(const std::string& path, std::vector<std::string>& warning
 
 bool saveSettings(const std::string& path, const Settings& settings, std::string& error){
     std::ostringstream out;
-    out << "# OpenMusicTrainer settings\n";
+    out << "# lahn settings\n";
     out << "version " << SUPPORTED_SETTINGS_VERSION << "\n\n";
     out << "output_device " << settings.outputDevice << "\n";
     out << "input_device " << settings.inputDevice << "\n";

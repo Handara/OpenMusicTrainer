@@ -8,7 +8,7 @@
 namespace fs = std::filesystem;
 
 static std::string settingsPath(const std::string& name){
-    fs::path dir = fs::temp_directory_path() / "omt_tests";
+    fs::path dir = fs::temp_directory_path() / "lahn_tests";
     fs::create_directories(dir);
     return (dir / name).string();
 }

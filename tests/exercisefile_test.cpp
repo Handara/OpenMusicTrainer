@@ -8,7 +8,7 @@
 namespace fs = std::filesystem;
 
 static fs::path testDir(){
-    fs::path dir = fs::temp_directory_path() / "omt_tests" / "exercises";
+    fs::path dir = fs::temp_directory_path() / "lahn_tests" / "exercises";
     fs::create_directories(dir);
     return dir;
 }
@@ -23,7 +23,7 @@ static const std::string HEADER = "version 1\ntype intervals\ntitle Test\n";
 
 TEST_CASE("a full exercise file loads"){
     std::string path = writeExercise("thirds.exercise",
-        "# OpenMusicTrainer exercise\r\n" + HEADER +
+        "# lahn exercise\r\n" + HEADER +
         "category Ear training\nauthor Someone\ndescription Major or minor?\n"
         "direction down\nintervals 4 3 7\nstart 2\nunlock 4 5\nrange 50 60\ngap 1.2\n");
     ExerciseFile file;
@@ -107,7 +107,7 @@ TEST_CASE("scanning a folder finds exercise files, broken ones included"){
 }
 
 TEST_CASE("every exercise shipped with the game loads"){
-    std::vector<ExerciseEntry> entries = scanExercises(OMT_RESOURCES_DIR "exercises", true);
+    std::vector<ExerciseEntry> entries = scanExercises(LAHN_RESOURCES_DIR "exercises", true);
     checkRoutines(entries); // built-in routines may only use built-in exercises: all of them must be found
     CHECK(entries.size() >= 4);
     for (const ExerciseEntry& entry : entries){

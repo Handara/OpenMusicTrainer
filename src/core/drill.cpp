@@ -108,7 +108,7 @@ DrillProgress loadDrillProgress(const std::string& path){
 
 bool saveDrillProgress(const std::string& path, const DrillProgress& progress, std::string& error){
     std::ostringstream out;
-    out << "# OpenMusicTrainer progress: scale drill\n";
+    out << "# lahn progress: scale drill\n";
     out << "version 1\n";
     out << "tempo " << progress.tempo << "\n";
     out << "best_clean_tempo " << progress.bestCleanTempo << "\n";

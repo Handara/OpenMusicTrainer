@@ -8,7 +8,7 @@
 namespace fs = std::filesystem;
 
 static std::string tempPath(const std::string& name){
-    fs::path dir = fs::temp_directory_path() / "omt_tests";
+    fs::path dir = fs::temp_directory_path() / "lahn_tests";
     fs::create_directories(dir);
     return (dir / name).string();
 }
@@ -25,7 +25,7 @@ static const std::string TRACK = "track guitar Lead\ntuning 40 45 50 55 59 64\n"
 TEST_CASE("the test chart shipped with the game loads"){
     Chart chart;
     std::string error;
-    REQUIRE_MESSAGE(loadChart(OMT_RESOURCES_DIR "songs/test-pattern/song.chart", chart, error), error);
+    REQUIRE_MESSAGE(loadChart(LAHN_RESOURCES_DIR "songs/test-pattern/song.chart", chart, error), error);
     CHECK(chart.title == "Test Pattern");
     CHECK(chart.audioFile == "audio.wav");
     REQUIRE(chart.frettedTracks.size() == 1);
