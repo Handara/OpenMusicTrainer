@@ -128,6 +128,9 @@ void initTheme(const std::string& resourcesDir, ThemeMode mode){
         theme.arabicWordmark = LoadTexture(wordmark.c_str());
         GenTextureMipmaps(&theme.arabicWordmark);                  // drawn much smaller than it's stored
         SetTextureFilter(theme.arabicWordmark, TEXTURE_FILTER_TRILINEAR);
+        // The image is cropped tight to the letters: a texture that repeats would blend its opposite edge into
+        // them when drawn small (faint lines along the edges), so it stops at its edges instead
+        SetTextureWrap(theme.arabicWordmark, TEXTURE_WRAP_CLAMP);
     }
     setTheme(mode);
 }

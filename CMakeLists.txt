@@ -129,6 +129,7 @@ add_executable(lahn
     src/screens/gameplay.cpp
     src/screens/learnscreen.cpp
     src/screens/lessoneditor.cpp
+    src/screens/mainmenu.cpp
     src/learn/drillexercise.cpp
     src/learn/intervalexercise.cpp
     src/learn/lessonplayer.cpp

@@ -6,27 +6,6 @@
 
 // Immediate mode: these functions run every frame, drawing the widgets and reacting to clicks in the same call.
 
-MainMenuChoice mainMenuScreen(const std::string& error){
-    MainMenuChoice choice = MainMenuChoice::None;
-    beginMenu("MainMenu");
-    menuTitle("lahn");
-    focusNextWhenMenuAppears(); // keyboard navigation starts on Play
-    if (menuButton("Play")) choice = MainMenuChoice::Play;
-    if (menuButton("Learn")) choice = MainMenuChoice::Learn;
-    if (menuButton("Song editor")) choice = MainMenuChoice::Editor;
-    if (menuButton("Lesson editor")) choice = MainMenuChoice::LessonEditor;
-    if (menuButton("Tuner")) choice = MainMenuChoice::Tuner;
-    if (menuButton("Settings")) choice = MainMenuChoice::Settings;
-
-    if (menuButton("Quit")) choice = MainMenuChoice::Quit;
-    if (!error.empty()){
-        ImGui::Dummy(ImVec2(0, 10));
-        centeredErrorText(error);
-    }
-    ImGui::End();
-    return choice;
-}
-
 SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry>& songs, const std::string& error,
                                   bool forEditing){
     SongSelectChoice choice;

@@ -8,6 +8,7 @@
 #include "screens/gameplay.h"
 #include "screens/learnscreen.h"
 #include "screens/lessoneditor.h"
+#include "screens/mainmenu.h"
 #include "screens/menus.h"
 #include "screens/settingsscreen.h"
 #include "screens/tuner.h"
@@ -158,7 +159,7 @@ static void handleBackKey(){
 static void runMenus(){
     switch (app.screen){
         case Screen::MainMenu:
-            switch (mainMenuScreen(app.mainMenuError)){
+            switch (mainMenuScreen({app.settings.inputDevice}, app.mainMenuError)){
                 case MainMenuChoice::Play: goToSongSelect(); break;
                 case MainMenuChoice::Learn:
                     openLearnScreen({app.resourcesDir + "exercises", app.userExercisesDir, app.resourcesDir + "lessons", app.userLessonsDir,
