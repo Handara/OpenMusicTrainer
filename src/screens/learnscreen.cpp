@@ -112,7 +112,17 @@ static std::unique_ptr<Exercise> openLesson(const LessonEntry& entry){
         const ExerciseEntry* found = step.type == LessonStepType::Exercise ? findExercise(learn.exercises, entry.builtIn, step.exercise) : nullptr;
         stepExercises.push_back(found ? *found : ExerciseEntry{});
     }
-    return std::make_unique<LessonPlayer>(entry, stepExercises, createExercise, progressPath(entry.id));
+    // Play steps play like songs, with the player's own settings
+    const Settings& settings = learn.setup.settings;
+    GameplayOptions play;
+    play.noteSpeed = settings.noteSpeed;
+    play.offsetSeconds = settings.globalOffsetMs / 1000.0f;
+    play.lowStringOnTop = settings.lowStringOnTop;
+    play.noteViews = settings.noteViews;
+    play.playWithInstrument = settings.playWithInstrument;
+    play.inputDevice = settings.inputDevice;
+    play.inputOffsetSeconds = settings.inputOffsetMs / 1000.0f;
+    return std::make_unique<LessonPlayer>(entry, stepExercises, createExercise, play, progressPath(entry.id));
 }
 
 static void endExercise(){

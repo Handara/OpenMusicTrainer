@@ -1,10 +1,12 @@
 #include "learn/lessonplayer.h"
 
 #include "imgui.h"
+#include "learn/playexercise.h"
 #include "raylib.h"
 #include "ui/ui.h"
 
 #include <algorithm>
+#include <filesystem>
 
 const float MAX_STEP_WIDTH = 900.0f;
 const float DOT_RADIUS = 6.0f;
@@ -18,8 +20,9 @@ const ImU32 TEXT_GOOD = IM_COL32(120, 220, 130, 255);
 const ImVec4 GOOD_BUTTON = { 0.25f, 0.62f, 0.32f, 1.0f };
 
 LessonPlayer::LessonPlayer(const LessonEntry& entry, std::vector<ExerciseEntry> stepExercises, ExerciseFactory create,
-                           const std::string& progressPath)
-    : lesson(entry.lesson), folder(entry.folder), stepExercises(std::move(stepExercises)), create(create), progressPath(progressPath){
+                           const GameplayOptions& playOptions, const std::string& progressPath)
+    : lesson(entry.lesson), folder(entry.folder), stepExercises(std::move(stepExercises)), create(create),
+      playOptions(playOptions), progressPath(progressPath){
     progress = loadLessonProgress(progressPath);
     // Reopens where the student was; a finished lesson starts over from the top
     current = progress.completed ? 0 : std::clamp(progress.reached, 0, (int)lesson.steps.size() - 1);
@@ -57,9 +60,9 @@ void LessonPlayer::goTo(int index){
 }
 
 void LessonPlayer::startStep(){
-    if (step().type != LessonStepType::Exercise) return;
-    releaseLessonMedia(media); // the exercise may need the audio the step's media holds
-    running = create(stepExercises[current]);
+    releaseLessonMedia(media); // what runs may need the audio the step's media holds
+    if (step().type == LessonStepType::Exercise) running = create(stepExercises[current]);
+    else if (step().type == LessonStepType::Play) running = std::make_unique<PlayExercise>((std::filesystem::path(folder) / step().file).string(), playOptions);
 }
 
 void LessonPlayer::stopStep(){
@@ -76,14 +79,15 @@ void LessonPlayer::update(){
     if (running->wantsToLeave()) stopStep();
 }
 
-// While an exercise runs: one line in the top-right corner, as in routines, with the goal and the way back
+// While an exercise or song runs: one line at the top, centered (the corners are taken: a drill's Back button,
+// a song's score), with the goal and the way back
 void LessonPlayer::drawGoalBar(){
     bool passed = stepPassed(progress, current);
     std::string text = passed ? "Goal reached!    " : lessonGoalText(step(), &stepExercises[current]) + TextFormat("  (now %d)    ", running->lessonScore());
     const char* label = passed ? "Continue the lesson" : "Back to the lesson";
     ImGuiStyle& style = ImGui::GetStyle();
     float width = ImGui::CalcTextSize(text.c_str()).x + style.ItemSpacing.x + ImGui::CalcTextSize(label).x + 2 * style.FramePadding.x;
-    ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() - width - BAR_MARGIN, BAR_MARGIN));
+    ImGui::SetCursorPos(ImVec2((ImGui::GetWindowWidth() - width) / 2, BAR_MARGIN));
     ImGui::AlignTextToFramePadding();
     ImGui::PushStyleColor(ImGuiCol_Text, passed ? TEXT_GOOD : TEXT_DIM);
     ImGui::TextUnformatted(text.c_str());
@@ -135,11 +139,9 @@ void LessonPlayer::draw(){
     if (hasGoal()){
         ImGui::Dummy(ImVec2(0, 10));
         bool passed = stepPassed(progress, current);
-        if (step().type == LessonStepType::Play){
-            ImGui::TextColored(ImColor(TEXT_DIM), "Playing along inside lessons comes next");
-        } else if (ImGui::Button(passed ? "Practice again" : "Start", ImVec2(200, 44))){
-            startStep();
-        }
+        const char* label = passed ? (step().type == LessonStepType::Play ? "Play again" : "Practice again")
+                                   : (step().type == LessonStepType::Play ? "Play" : "Start");
+        if (ImGui::Button(label, ImVec2(200, 44))) startStep();
         if (passed) ImGui::TextColored(ImColor(TEXT_GOOD), "Passed");
         else ImGui::TextColored(ImColor(TEXT_DIM), "Reach the goal to go on");
     }

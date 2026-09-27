@@ -3,6 +3,7 @@
 #include "core/lesson.h"
 #include "learn/exercise.h"
 #include "learn/lessonview.h"
+#include "screens/gameplay.h"
 
 #include <memory>
 #include <string>
@@ -14,8 +15,9 @@
 class LessonPlayer : public Exercise {
 public:
     // `stepExercises`: for each step, the exercise it runs (a copy; empty for other steps)
+    // `playOptions`: how play steps play (the player's gameplay settings)
     LessonPlayer(const LessonEntry& entry, std::vector<ExerciseEntry> stepExercises, ExerciseFactory create,
-                 const std::string& progressPath);
+                 const GameplayOptions& playOptions, const std::string& progressPath);
     ~LessonPlayer() override;
 
     void update() override;
@@ -28,7 +30,7 @@ private:
     int goal() const;
     bool canGoOn() const;           // the step's goal is met, or it has none
     void goTo(int index);
-    void startStep();               // runs the step's exercise
+    void startStep();               // runs the step's exercise, or plays its song
     void stopStep();
     void save();
     void drawDots();
@@ -38,6 +40,7 @@ private:
     std::string folder;
     std::vector<ExerciseEntry> stepExercises;
     ExerciseFactory create;
+    GameplayOptions playOptions;
     std::string progressPath;
     LessonProgress progress;
     std::string saveError;
