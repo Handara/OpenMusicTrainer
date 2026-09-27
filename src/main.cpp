@@ -7,6 +7,7 @@
 #include "screens/editor.h"
 #include "screens/gameplay.h"
 #include "screens/learnscreen.h"
+#include "screens/lessoneditor.h"
 #include "screens/menus.h"
 #include "screens/settingsscreen.h"
 #include "screens/tuner.h"
@@ -20,7 +21,7 @@
 
 namespace fs = std::filesystem;
 
-enum class Screen { MainMenu, SongSelect, Playing, Results, Tuner, EditorSelect, Editor, Settings, Learn, Calibration };
+enum class Screen { MainMenu, SongSelect, Playing, Results, Tuner, EditorSelect, Editor, LessonEditor, Settings, Learn, Calibration };
 
 // App-wide state shared between screens
 static struct {
@@ -32,6 +33,7 @@ static struct {
     std::string soundsDir;        // the player's own preview sounds
     std::string progressDir;      // learn mode progress
     std::string userExercisesDir; // the player's own learn mode exercises
+    std::string userLessonsDir;   // the player's own lessons, one folder each
     std::string settingsPath;
     Settings settings;
     std::vector<SongEntry> songs;
@@ -147,7 +149,8 @@ static void handleBackKey(){
         case Screen::Calibration: leaveCalibration(); break;
         case Screen::Learn: if (learnBack()) app.screen = Screen::MainMenu; break;
         case Screen::EditorSelect: app.screen = Screen::MainMenu; break;
-        case Screen::Editor: break; // the editor handles Esc itself, to warn about unsaved changes
+        case Screen::Editor: break;       // the editors handle Esc themselves, to warn about unsaved changes
+        case Screen::LessonEditor: break;
     }
 }
 
@@ -162,6 +165,10 @@ static void runMenus(){
                     app.screen = Screen::Learn;
                     break;
                 case MainMenuChoice::Editor: goToSongList(Screen::EditorSelect); break;
+                case MainMenuChoice::LessonEditor:
+                    openLessonEditor({app.resourcesDir + "lessons", app.userLessonsDir, app.resourcesDir + "exercises", app.userExercisesDir});
+                    app.screen = Screen::LessonEditor;
+                    break;
                 case MainMenuChoice::Tuner: goToTuner(); break;
                 case MainMenuChoice::Settings: goToSettings(); break;
                 case MainMenuChoice::Quit: app.quit = true; break;
@@ -186,6 +193,12 @@ static void runMenus(){
             if (editorScreen() == EditorChoice::Back){
                 closeEditor();
                 goToSongList(Screen::EditorSelect); // rescan: saving a built-in song created a new one
+            }
+            break;
+        case Screen::LessonEditor:
+            if (lessonEditorScreen() == LessonEditorChoice::Back){
+                closeLessonEditor();
+                app.screen = Screen::MainMenu;
             }
             break;
         case Screen::Results:
@@ -237,7 +250,8 @@ int main(void){
     app.settingsPath = (fs::path(app.userDataDir) / "settings.txt").string();
     app.progressDir = (fs::path(app.userDataDir) / "progress").string();
     app.userExercisesDir = (fs::path(app.userDataDir) / "exercises").string();
-    for (const std::string& dir : {app.userSongsDir, app.soundsDir, app.progressDir, app.userExercisesDir}){
+    app.userLessonsDir = (fs::path(app.userDataDir) / "lessons").string();
+    for (const std::string& dir : {app.userSongsDir, app.soundsDir, app.progressDir, app.userExercisesDir, app.userLessonsDir}){
         std::error_code ec;
         fs::create_directories(dir, ec);
         if (ec) TraceLog(LOG_WARNING, "Could not create %s: %s", dir.c_str(), ec.message().c_str());
@@ -291,7 +305,8 @@ int main(void){
     stopGameplay();
     stopTuner();
     closeEditor();
-    closeLearnScreen(); // before the UI and audio it uses shut down
+    closeLearnScreen(); // before the UI and audio they use shut down
+    closeLessonEditor();
     stopCalibration();
     closeUi();
     unloadStaffFont();

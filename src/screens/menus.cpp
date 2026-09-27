@@ -13,7 +13,8 @@ MainMenuChoice mainMenuScreen(const std::string& error){
     focusNextWhenMenuAppears(); // keyboard navigation starts on Play
     if (menuButton("Play")) choice = MainMenuChoice::Play;
     if (menuButton("Learn")) choice = MainMenuChoice::Learn;
-    if (menuButton("Editor")) choice = MainMenuChoice::Editor;
+    if (menuButton("Song editor")) choice = MainMenuChoice::Editor;
+    if (menuButton("Lesson editor")) choice = MainMenuChoice::LessonEditor;
     if (menuButton("Tuner")) choice = MainMenuChoice::Tuner;
     if (menuButton("Settings")) choice = MainMenuChoice::Settings;
 
