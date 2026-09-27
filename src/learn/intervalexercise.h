@@ -15,6 +15,7 @@ public:
     void update() override;
     void draw() override;
     bool wantsToLeave() const override { return leave; }
+    int lessonScore() const override { return trainer.streak; } // right answers in a row
 
 private:
     void nextQuestion();

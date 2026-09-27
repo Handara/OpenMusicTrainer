@@ -69,6 +69,17 @@ bool saveLesson(const std::string& folder, const Lesson& lesson, std::string& er
 // The goal a step really has: its own, or the usual one for what it runs
 int lessonGoal(const LessonStep& step, ExerciseType exerciseType = ExerciseType::Intervals);
 
+// Where a student is in a lesson. Steps with a goal stay passed once passed.
+struct LessonProgress {
+    int reached = 0;           // the furthest step reached (the lesson reopens there)
+    std::vector<int> passed;   // steps whose goal was met, sorted
+    bool completed = false;    // finished at least once
+};
+bool stepPassed(const LessonProgress& progress, int step);
+void passStep(LessonProgress& progress, int step);
+LessonProgress loadLessonProgress(const std::string& path); // lenient, like all progress files
+bool saveLessonProgress(const std::string& path, const LessonProgress& progress, std::string& error);
+
 struct LessonEntry {
     std::string folder;
     std::string id;     // names its progress file: "builtin-<folder name>" or "user-<folder name>"

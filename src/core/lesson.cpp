@@ -259,3 +259,40 @@ void checkLessonExercises(std::vector<LessonEntry>& lessons, const std::vector<E
         }
     }
 }
+
+bool stepPassed(const LessonProgress& progress, int step){
+    return std::binary_search(progress.passed.begin(), progress.passed.end(), step);
+}
+
+void passStep(LessonProgress& progress, int step){
+    auto at = std::lower_bound(progress.passed.begin(), progress.passed.end(), step);
+    if (at == progress.passed.end() || *at != step) progress.passed.insert(at, step);
+}
+
+LessonProgress loadLessonProgress(const std::string& path){
+    LessonProgress progress;
+    std::ifstream file(path);
+    std::string line;
+    while (std::getline(file, line)){
+        std::istringstream ss(line);
+        std::string key;
+        if (!(ss >> key) || key[0] == '#') continue;
+        int value;
+        if (key == "reached" && ss >> value && value >= 0) progress.reached = value;
+        else if (key == "completed" && ss >> value) progress.completed = value == 1;
+        else if (key == "passed") while (ss >> value) if (value >= 0) passStep(progress, value);
+    }
+    return progress;
+}
+
+bool saveLessonProgress(const std::string& path, const LessonProgress& progress, std::string& error){
+    std::ostringstream out;
+    out << "# OpenMusicTrainer progress: lesson\n";
+    out << "version 1\n";
+    out << "reached " << progress.reached << "\n";
+    out << "passed";
+    for (int step : progress.passed) out << " " << step;
+    out << "\n";
+    out << "completed " << (progress.completed ? 1 : 0) << "\n";
+    return writeFileAtomically(path, out.str(), error);
+}

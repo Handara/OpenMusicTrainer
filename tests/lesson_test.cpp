@@ -155,3 +155,23 @@ TEST_CASE("scanning lessons and checking their exercises"){
     CHECK(errorOf("user-uses-nothing") == "uses-nothing/lesson.lesson: step 1 (nope): there's no nope.exercise");
     CHECK(errorOf("user-bad").find("bad/lesson.lesson:") == 0); // broken files show a short path
 }
+
+TEST_CASE("lesson progress: passed steps stay passed, and it survives a save and load"){
+    LessonProgress progress;
+    passStep(progress, 4);
+    passStep(progress, 1);
+    passStep(progress, 4); // twice: kept once
+    CHECK(progress.passed == std::vector<int>{1, 4});
+    CHECK(stepPassed(progress, 4));
+    CHECK_FALSE(stepPassed(progress, 2));
+    progress.reached = 5;
+    progress.completed = true;
+
+    std::string path = (fs::temp_directory_path() / "omt_tests" / "lesson-progress.txt").string(), error;
+    REQUIRE(saveLessonProgress(path, progress, error));
+    LessonProgress loaded = loadLessonProgress(path);
+    CHECK(loaded.reached == 5);
+    CHECK(loaded.passed == std::vector<int>{1, 4});
+    CHECK(loaded.completed);
+    CHECK(loadLessonProgress(path + ".missing").reached == 0);
+}

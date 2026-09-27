@@ -161,7 +161,8 @@ static void runMenus(){
             switch (mainMenuScreen(app.mainMenuError)){
                 case MainMenuChoice::Play: goToSongSelect(); break;
                 case MainMenuChoice::Learn:
-                    openLearnScreen({app.resourcesDir + "exercises", app.userExercisesDir, app.progressDir, app.settings});
+                    openLearnScreen({app.resourcesDir + "exercises", app.userExercisesDir, app.resourcesDir + "lessons", app.userLessonsDir,
+                                     app.progressDir, app.settings});
                     app.screen = Screen::Learn;
                     break;
                 case MainMenuChoice::Editor: goToSongList(Screen::EditorSelect); break;

@@ -19,7 +19,7 @@ std::string lessonGoalText(const LessonStep& step, const ExerciseEntry* exercise
     if (step.type != LessonStepType::Exercise || !exercise) return "";
     int goal = lessonGoal(step, exercise->exercise.type);
     if (exercise->exercise.type == ExerciseType::Scale) return "Goal: " + std::to_string(goal) + (goal == 1 ? " clean pass" : " clean passes");
-    return "Goal: " + std::to_string(goal) + " right answers in a row";
+    return "Goal: " + std::to_string(goal) + (goal == 1 ? " right answer" : " right answers in a row");
 }
 
 void releaseLessonMedia(LessonMedia& media){

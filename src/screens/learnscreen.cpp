@@ -2,7 +2,9 @@
 
 #include "core/exercisefile.h"
 #include "learn/drillexercise.h"
+#include "core/lesson.h"
 #include "learn/intervalexercise.h"
+#include "learn/lessonplayer.h"
 #include "learn/routineexercise.h"
 #include "raylib.h"
 #include "ui/ui.h"
@@ -15,13 +17,19 @@ static struct {
     LearnSetup setup;
     std::vector<ExerciseEntry> exercises;  // grouped by category, built-in first in each
     std::vector<std::string> progressText; // one per exercise, e.g. "3/12": read when the menu appears, not every frame
+    std::vector<LessonEntry> lessons;
+    std::vector<std::string> lessonProgressText;
     // The running exercise, whatever kind it is. unique_ptr owns it: resetting it deletes the exercise
     // (running its destructor), so there's no manual delete to forget.
     std::unique_ptr<Exercise> exercise;
 } learn;
 
+static std::string progressPath(const std::string& id){
+    return (std::filesystem::path(learn.setup.progress) / (id + ".txt")).string();
+}
+
 static std::string progressPath(const ExerciseEntry& entry){
-    return (std::filesystem::path(learn.setup.progress) / (entry.id + ".txt")).string();
+    return progressPath(entry.id);
 }
 
 // The only place that knows every exercise type: a new type is a new case here (and its class)
@@ -80,6 +88,31 @@ static void refreshExercises(){
     });
     learn.progressText.clear();
     for (const ExerciseEntry& entry : learn.exercises) learn.progressText.push_back(progressSummary(entry));
+
+    // Lessons, built-in first; their exercise steps are checked against the exercises just loaded
+    learn.lessons = scanLessons(learn.setup.builtInLessons, true);
+    std::vector<LessonEntry> userLessons = scanLessons(learn.setup.userLessons, false);
+    learn.lessons.insert(learn.lessons.end(), userLessons.begin(), userLessons.end());
+    checkLessonExercises(learn.lessons, learn.exercises);
+    learn.lessonProgressText.clear();
+    for (const LessonEntry& entry : learn.lessons){
+        LessonProgress progress = loadLessonProgress(progressPath(entry.id));
+        int steps = (int)entry.lesson.steps.size();
+        if (!entry.error.empty()) learn.lessonProgressText.push_back("");
+        else if (progress.completed) learn.lessonProgressText.push_back("done");
+        else if (progress.reached > 0) learn.lessonProgressText.push_back(TextFormat("step %d of %d", progress.reached + 1, steps));
+        else learn.lessonProgressText.push_back("");
+    }
+}
+
+static std::unique_ptr<Exercise> openLesson(const LessonEntry& entry){
+    // Each step's exercise, found now: a copy, since the lists are rebuilt when the lesson ends
+    std::vector<ExerciseEntry> stepExercises;
+    for (const LessonStep& step : entry.lesson.steps){
+        const ExerciseEntry* found = step.type == LessonStepType::Exercise ? findExercise(learn.exercises, entry.builtIn, step.exercise) : nullptr;
+        stepExercises.push_back(found ? *found : ExerciseEntry{});
+    }
+    return std::make_unique<LessonPlayer>(entry, stepExercises, createExercise, progressPath(entry.id));
 }
 
 static void endExercise(){
@@ -107,6 +140,27 @@ bool learnBack(){
 
 static void exerciseMenu(bool& leave){
     menuTitle("Learn");
+    bool focusGiven = false;
+
+    // Lessons first: they're where a beginner starts
+    if (!learn.lessons.empty()){
+        centeredText("Lessons");
+        for (int i = 0; i < (int)learn.lessons.size(); i++){
+            const LessonEntry& entry = learn.lessons[i];
+            std::string label = entry.lesson.title;
+            if (!learn.lessonProgressText[i].empty()) label += "   " + learn.lessonProgressText[i];
+            if (!entry.builtIn) label += "  (yours)";
+            ImGui::PushID(("lesson" + std::to_string(i)).c_str());
+            if (!focusGiven){ focusNextWhenMenuAppears(); focusGiven = true; }
+            ImGui::BeginDisabled(!entry.error.empty());
+            if (menuButton(label.c_str())) learn.exercise = openLesson(entry);
+            ImGui::EndDisabled();
+            if (!entry.error.empty()) centeredErrorText(entry.error);
+            else if (!entry.lesson.description.empty()) ImGui::SetItemTooltip("%s", entry.lesson.description.c_str());
+            ImGui::PopID();
+        }
+        ImGui::Dummy(ImVec2(0, 10));
+    }
     if (learn.exercises.empty()) centeredText("No exercises found");
 
     std::string category;
@@ -122,7 +176,7 @@ static void exerciseMenu(bool& leave){
         if (!entry.builtIn) label += "  (yours)";
 
         ImGui::PushID(i);
-        if (i == 0) focusNextWhenMenuAppears();
+        if (!focusGiven){ focusNextWhenMenuAppears(); focusGiven = true; }
         if (!entry.error.empty()){
             ImGui::BeginDisabled();
             menuButton(label.c_str());
@@ -140,6 +194,7 @@ static void exerciseMenu(bool& leave){
 
     ImGui::Dummy(ImVec2(0, 20));
     if (menuButton("Open exercises folder")) openFolder(learn.setup.userExercises);
+    if (menuButton("Open lessons folder")) openFolder(learn.setup.userLessons);
     if (menuButton("Back")) leave = true;
 }
 

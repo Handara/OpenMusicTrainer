@@ -69,6 +69,7 @@ void DrillExercise::finishPass(){
     int total = (int)notes.size();
     float accuracy = total > 0 ? 100.0f * hits / total : 0.0f;
     DrillPassOutcome outcome = finishDrillPass(config, progress, tempo, accuracy);
+    if (outcome.clean) cleanPassesNow++;
     std::string error;
     saveDrillProgress(progressPath, progress, error);
 

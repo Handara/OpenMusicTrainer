@@ -20,6 +20,7 @@ public:
     void update() override;
     void draw() override;
     bool wantsToLeave() const override { return leave; }
+    int lessonScore() const override { return cleanPassesNow; }
 
 private:
     void startPass();
@@ -45,6 +46,7 @@ private:
     Score score;                   // the pass written down, in audio time
 
     int hits = 0, perfects = 0;
+    int cleanPassesNow = 0;        // clean passes since the drill was opened (a lesson's goal counts these)
     std::string passText;          // the last pass's result
     std::string inputError;
     int lastPlayedPitch = -1;
