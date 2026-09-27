@@ -113,6 +113,7 @@ add_library(lahn_core STATIC
     src/core/settings.cpp
     src/core/songlibrary.cpp
     src/core/synth.cpp
+    src/core/today.cpp
 )
 target_include_directories(lahn_core PUBLIC src)
 enable_warnings(lahn_core)
@@ -178,6 +179,7 @@ if(BUILD_TESTING)
         tests/scales_test.cpp
         tests/settings_test.cpp
         tests/synth_test.cpp
+        tests/today_test.cpp
     )
     target_link_libraries(lahn_tests PRIVATE lahn_core doctest::doctest)
     target_compile_definitions(lahn_tests PRIVATE LAHN_RESOURCES_DIR="${CMAKE_SOURCE_DIR}/resources/")

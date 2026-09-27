@@ -2,6 +2,8 @@
 
 #include "audio/audio.h"
 #include "core/music.h"
+#include "core/routine.h"
+#include "core/today.h"
 #include "imgui.h"
 #include "raylib.h"
 #include "ui/theme.h"
@@ -49,7 +51,54 @@ static struct {
     float shift[ITEM_COUNT] = {};   // each name's step to the right, easing in and out
     double ringStart = -100.0;      // when the string was last plucked
     float ringStrength = 1.0f;
+    TodaySummary today;             // read when the menu appears, not every frame
 } menu;
+
+// The "today" panel: a card on the right, level with the list
+static void drawToday(ImDrawList* draw, ImVec2 topLeft, float width, float s){
+    const UiFonts& fonts = uiFonts();
+    const TodaySummary& today = menu.today;
+    const float pad = 26 * s, labelSize = 13 * s, textSize = 19 * s;
+    float x = topLeft.x + pad, y = topLeft.y + pad, inner = width - 2 * pad;
+    auto label = [&](const char* text){
+        draw->AddText(fonts.mono, labelSize, ImVec2(x, y), uiColor(UiColor::Dim), text);
+        y += labelSize + 8 * s;
+    };
+    auto line = [&](ImFont* font, float size, UiColor color, const std::string& text){
+        draw->AddText(font, size, ImVec2(x, y), uiColor(color), text.c_str(), nullptr, inner); // wraps inside the card
+        y += font ? font->CalcTextSizeA(size, FLT_MAX, inner, text.c_str()).y : size;
+    };
+
+    // The card goes under the text, so it's drawn first: its height comes from the rows it always has
+    float height = pad * 2 + (labelSize + 8 * s) * 3 + 46 * s + 22 * s + textSize * 3 + 26 * s;
+    draw->AddRectFilled(ImVec2(topLeft.x, topLeft.y + 3 * s), ImVec2(topLeft.x + width, topLeft.y + height + 3 * s), uiColor(UiColor::Ink, 0.04f), 10 * s);
+    draw->AddRectFilled(topLeft, ImVec2(topLeft.x + width, topLeft.y + height), uiColor(UiColor::Card), 10 * s);
+
+    label("DAY STREAK");
+    std::string days = std::to_string(today.streakDays);
+    draw->AddText(fonts.heavy, 46 * s, ImVec2(x, y), uiColor(UiColor::Ink), days.c_str());
+    float numberWidth = fonts.heavy ? fonts.heavy->CalcTextSizeA(46 * s, FLT_MAX, 0.0f, days.c_str()).x : 30 * s;
+    draw->AddText(fonts.bold, 18 * s, ImVec2(x + numberWidth + 8 * s, y + 22 * s), uiColor(UiColor::Dim), today.streakDays == 1 ? "day" : "days");
+    y += 46 * s + 22 * s;
+
+    label("TODAY");
+    if (today.hasRoutine){
+        line(fonts.text, textSize, UiColor::Ink, today.routineTitle + TextFormat("  ·  %.0f min", today.routineMinutes));
+        y += 6 * s;
+        // Done or not: a full brass bar, or an empty track
+        draw->AddRectFilled(ImVec2(x, y), ImVec2(x + inner, y + 4 * s), uiColor(UiColor::StaffLine), 2 * s);
+        if (today.routineDoneToday) draw->AddRectFilled(ImVec2(x, y), ImVec2(x + inner, y + 4 * s), uiColor(UiColor::Accent), 2 * s);
+        y += 12 * s;
+        line(fonts.text, 15 * s, today.routineDoneToday ? UiColor::Good : UiColor::Dim, today.routineDoneToday ? "Done today" : "Not yet today");
+    } else {
+        line(fonts.text, textSize, UiColor::Dim, "Make a routine to practice every day");
+    }
+    y += 18 * s;
+
+    label("NEXT GOAL");
+    if (today.hasDrill) line(fonts.bold, textSize, UiColor::Accent, today.drillTitle + TextFormat(" at %d bpm", today.drillTempo));
+    else line(fonts.text, textSize, UiColor::Dim, "Try a scale drill in Learn");
+}
 
 static void select(int index){
     if (index == menu.selected) return;
@@ -71,6 +120,14 @@ static MainMenuChoice confirm(int index){
 MainMenuChoice mainMenuScreen(const MainMenuInfo& info, const std::string& error){
     MainMenuChoice choice = MainMenuChoice::None;
     beginMenu("MainMenu");
+    if (ImGui::IsWindowAppearing()){
+        // Coming back to the menu: read the progress again, it may have changed
+        std::vector<ExerciseEntry> exercises = scanExercises(info.builtInExercises, true);
+        std::vector<ExerciseEntry> user = scanExercises(info.userExercises, false);
+        exercises.insert(exercises.end(), user.begin(), user.end());
+        checkRoutines(exercises);
+        menu.today = summarizeToday(exercises, info.progressDir, today());
+    }
     ImDrawList* draw = ImGui::GetWindowDrawList();
     const UiFonts& fonts = uiFonts();
     const float width = ImGui::GetWindowWidth(), height = ImGui::GetWindowHeight();
@@ -138,6 +195,8 @@ MainMenuChoice mainMenuScreen(const MainMenuInfo& info, const std::string& error
     }
     draw->AddPolyline(points, SEGMENTS + 1, uiColor(UiColor::Accent), ImDrawFlags_None, std::max(1.5f, 1.6f * s));
     draw->AddCircleFilled(ImVec2(end, menu.stringY), 3.2f * s, uiColor(UiColor::Accent));
+
+    drawToday(draw, ImVec2(width * 0.58f, menuTop), width * 0.35f, s);
 
     // The footer: what the game listens to, and which game this is
     float footY = height - 40 * s;
