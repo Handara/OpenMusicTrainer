@@ -3,6 +3,7 @@
 #include "audio/audio.h"
 #include "imgui.h"
 #include "rlImGui.h"
+#include "video/video.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -24,7 +25,21 @@ std::string lessonGoalText(const LessonStep& step, const ExerciseEntry* exercise
 void releaseLessonMedia(LessonMedia& media){
     if (!media.imagePath.empty()) UnloadTexture(media.texture);
     if (!media.audioPath.empty()) unloadSong();
+    if (!media.videoPath.empty()) closeVideo();
     media = LessonMedia{};
+}
+
+// As big as fits, keeping its shape: never wider than the step, nor taller than about half the window
+static void drawFitted(const Texture2D& texture, float width){
+    float maxHeight = ImGui::GetIO().DisplaySize.y * MAX_IMAGE_HEIGHT;
+    float scale = std::min(width / texture.width, maxHeight / texture.height);
+    float w = texture.width * scale, h = texture.height * scale;
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (width - w) / 2);
+    rlImGuiImageSize(&texture, (int)w, (int)h);
+}
+
+static void drawTime(double position, double length){
+    ImGui::Text("%d:%02d / %d:%02d", (int)position / 60, (int)position % 60, (int)length / 60, (int)length % 60);
 }
 
 static void drawImage(const std::string& path, LessonMedia& media, float width){
@@ -40,12 +55,35 @@ static void drawImage(const std::string& path, LessonMedia& media, float width){
         media.imagePath = path;
         media.error.clear();
     }
-    // As big as fits, keeping its shape: never wider than the step, nor taller than about half the window
-    float maxHeight = ImGui::GetIO().DisplaySize.y * MAX_IMAGE_HEIGHT;
-    float scale = std::min(width / media.texture.width, maxHeight / media.texture.height);
-    float w = media.texture.width * scale, h = media.texture.height * scale;
-    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (width - w) / 2);
-    rlImGuiImageSize(&media.texture, (int)w, (int)h);
+    drawFitted(media.texture, width);
+}
+
+// The first picture until Play; Stop closes it, and it opens again on its first picture
+static void drawVideo(const std::string& path, LessonMedia& media, float width){
+    if (media.videoPath != path){
+        if (!media.videoPath.empty()) closeVideo();
+        media.videoPath.clear();
+        if (!media.audioPath.empty()){ unloadSong(); media.audioPath.clear(); } // the video's sound needs the song stream
+        std::string error;
+        if (!openVideo(path, error)){
+            media.error = error;
+            return;
+        }
+        media.videoPath = path;
+        media.error.clear();
+    }
+    drawFitted(videoTexture(), width);
+    bool playing = videoPlaying();
+    if (ImGui::Button(playing ? "Stop" : "Play", ImVec2(120, 0))){
+        if (playing){
+            closeVideo();
+            media.videoPath.clear();
+        } else {
+            playVideo();
+        }
+    }
+    ImGui::SameLine();
+    drawTime(videoPosition(), videoLength());
 }
 
 static void drawAudio(const std::string& path, LessonMedia& media){
@@ -70,8 +108,7 @@ static void drawAudio(const std::string& path, LessonMedia& media){
     }
     if (media.audioPath == path){
         ImGui::SameLine();
-        double position = songPosition(), length = songLength();
-        ImGui::Text("%d:%02d / %d:%02d", (int)position / 60, (int)position % 60, (int)length / 60, (int)length % 60);
+        drawTime(songPosition(), songLength());
     }
 }
 
@@ -99,7 +136,7 @@ void drawLessonStep(const LessonStep& step, const std::string& folder, const Exe
             if (!step.file.empty()) drawAudio(path, media);
             break;
         case LessonStepType::Video:
-            ImGui::TextColored(ImColor(TEXT_DIM), "Video: %s (plays here once the video player is built)", step.file.c_str());
+            if (!step.file.empty()) drawVideo(path, media, width);
             break;
         case LessonStepType::Exercise:
             if (exercise) ImGui::Text("Exercise: %s", exercise->exercise.title.c_str());

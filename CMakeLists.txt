@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.26)
-project(OpenMusicTrainer VERSION 0.1.0 LANGUAGES CXX)
+project(OpenMusicTrainer VERSION 0.1.0 LANGUAGES C CXX) # C: pl_mpeg
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -54,7 +54,19 @@ set(MINIAUDIO_NO_LIBVORBIS ON CACHE BOOL "" FORCE)
 set(MINIAUDIO_NO_LIBOPUS ON CACHE BOOL "" FORCE)
 set(MINIAUDIO_NO_EXTRA_NODES ON CACHE BOOL "" FORCE)
 
-FetchContent_MakeAvailable(raylib miniaudio imgui rlimgui doctest)
+# pl_mpeg: MPEG-1 video and MP2 audio in one public-domain header, for videos in lessons. It has no release tags,
+# so it's pinned to a commit.
+FetchContent_Declare(
+    pl_mpeg
+    GIT_REPOSITORY https://github.com/phoboslab/pl_mpeg.git
+    GIT_TAG        c871f2be022ece7ef4f64230b4fb8e1fb9eb6023
+)
+
+FetchContent_MakeAvailable(raylib miniaudio imgui rlimgui doctest pl_mpeg)
+
+# pl_mpeg is one header; its code is compiled once, in C, in a library of its own
+add_library(pl_mpeg STATIC src/video/pl_mpeg.c)
+target_include_directories(pl_mpeg PUBLIC ${pl_mpeg_SOURCE_DIR})
 
 # Dear ImGui and rlImGui ship no CMake build of their own, so we compile their sources as one library
 add_library(imgui STATIC
@@ -127,8 +139,9 @@ add_executable(OpenMusicTrainer
     src/views/noteviews.cpp
     src/views/staff.cpp
     src/views/tab.cpp
+    src/video/video.cpp
 )
-target_link_libraries(OpenMusicTrainer PRIVATE omt_core raylib miniaudio imgui)
+target_link_libraries(OpenMusicTrainer PRIVATE omt_core raylib miniaudio imgui pl_mpeg)
 enable_warnings(OpenMusicTrainer)
 
 # Copy game data next to the executable on every build (only files that changed are copied)

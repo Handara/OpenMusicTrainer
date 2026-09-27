@@ -24,6 +24,13 @@ bool songEnded();      // true once a non-looping song has played to its end
 double songLength();   // seconds
 double songPosition(); // seconds, smoothed between audio updates; call once per frame
 
+// A song whose samples come from a function instead of a file: the sound of a video, decoded as it plays. The
+// function runs on the audio thread, so it must only work from memory, never wait on anything: it fills `out` with
+// up to `frames` interleaved float frames and returns how many it wrote (fewer means the end). It's called until
+// unloadSong(), which must come before whatever the function reads from is freed.
+using SongReader = int (*)(void* user, float* out, int frames);
+bool loadSongFromReader(SongReader reader, void* user, int sampleRate, int channels, double lengthSeconds, std::string& error);
+
 // Short sounds at a pitch, for previews (e.g. the editor). Several can overlap.
 // The sound is a built-in one (core/settings.h) or a file in the sounds folder; files with a clear pitch
 // are re-pitched to each note, others play as they are.

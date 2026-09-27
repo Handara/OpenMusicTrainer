@@ -266,8 +266,10 @@ static void fileField(LessonStep& step){
     if (ImGui::Button("Refresh")) refreshFolderFiles();
     std::string list;
     for (const std::string& extension : extensions) list += (list.empty() ? "" : ", ") + extension;
-    ImGui::TextColored(ImColor(TEXT_DIM), "Put %s files in the lesson's folder, then Refresh", list.c_str());
-    if (step.type == LessonStepType::Video) ImGui::TextColored(ImColor(TEXT_DIM), "%s", VIDEO_CONVERT_HINT);
+    ImGui::PushStyleColor(ImGuiCol_Text, ImColor(TEXT_DIM).Value);
+    ImGui::TextWrapped("Put %s files in the lesson's folder, then Refresh", list.c_str());
+    if (step.type == LessonStepType::Video) ImGui::TextWrapped("%s", VIDEO_CONVERT_HINT);
+    ImGui::PopStyleColor();
 }
 
 static void fieldsPanel(){

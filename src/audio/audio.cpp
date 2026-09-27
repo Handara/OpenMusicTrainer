@@ -6,6 +6,7 @@
 #include "miniaudio.h"
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <filesystem>
 #include <cmath>
@@ -43,6 +44,18 @@ struct Voice {
                               // the one that started earliest is reused (it has faded the most)
 };
 
+// A song read from a function (loadSongFromReader), as a miniaudio "data source": a struct that starts with
+// ma_data_source_base, plus the functions miniaudio calls on it (the vtable below). onRead runs on the audio thread.
+struct ReaderSource {
+    ma_data_source_base base; // must come first: miniaudio treats a pointer to this struct as a data source
+    SongReader reader = nullptr;
+    void* user = nullptr;
+    ma_uint32 sampleRate = 0;
+    ma_uint32 channels = 0;
+    ma_uint64 length = 0;
+    std::atomic<ma_uint64> cursor{0}; // frames read so far: written by the audio thread, read by songPosition()
+};
+
 // All audio state lives here, like raylib's internal AUDIO struct. miniaudio objects keep
 // pointers to each other, so they must never move in memory: a single static instance guarantees it.
 static struct {
@@ -55,6 +68,8 @@ static struct {
 
     ma_uint32 songSampleRate = 0;
     double songLengthS = 0.0;
+    ReaderSource readerSource; // the song's source when it comes from a function
+    bool songFromReader = false;
     bool looping = false;
 
     // Clock smoothing: the audio position only changes when the audio thread processes a chunk,
@@ -222,9 +237,73 @@ bool loadSong(const std::string& path, std::string& error){
     return true;
 }
 
+static ma_result readerRead(ma_data_source* source, void* out, ma_uint64 frameCount, ma_uint64* framesRead){
+    ReaderSource* self = (ReaderSource*)source;
+    int read = self->reader(self->user, (float*)out, (int)frameCount);
+    self->cursor += read;
+    *framesRead = read;
+    return read == 0 ? MA_AT_END : MA_SUCCESS;
+}
+
+// It plays from the start only: the one seek allowed is to where it already is (playSong seeks to 0 before starting)
+static ma_result readerSeek(ma_data_source* source, ma_uint64 frame){
+    return frame == ((ReaderSource*)source)->cursor ? MA_SUCCESS : MA_NOT_IMPLEMENTED;
+}
+
+static ma_result readerFormat(ma_data_source* source, ma_format* format, ma_uint32* channels, ma_uint32* sampleRate,
+                              ma_channel* channelMap, size_t channelMapCapacity){
+    ReaderSource* self = (ReaderSource*)source;
+    *format = ma_format_f32;
+    *channels = self->channels;
+    *sampleRate = self->sampleRate;
+    ma_channel_map_init_standard(ma_standard_channel_map_default, channelMap, channelMapCapacity, self->channels);
+    return MA_SUCCESS;
+}
+
+static ma_result readerCursor(ma_data_source* source, ma_uint64* cursor){
+    *cursor = ((ReaderSource*)source)->cursor;
+    return MA_SUCCESS;
+}
+
+static ma_result readerLength(ma_data_source* source, ma_uint64* length){
+    *length = ((ReaderSource*)source)->length;
+    return MA_SUCCESS;
+}
+
+static ma_data_source_vtable READER_VTABLE = { readerRead, readerSeek, readerFormat, readerCursor, readerLength, nullptr, 0 };
+
+bool loadSongFromReader(SongReader reader, void* user, int sampleRate, int channels, double lengthSeconds, std::string& error){
+    unloadSong();
+    ReaderSource& source = audio.readerSource;
+    ma_data_source_config config = ma_data_source_config_init();
+    config.vtable = &READER_VTABLE;
+    ma_result result = ma_data_source_init(&config, &source.base);
+    if (result == MA_SUCCESS){
+        source.reader = reader;
+        source.user = user;
+        source.sampleRate = (ma_uint32)sampleRate;
+        source.channels = (ma_uint32)channels;
+        source.length = (ma_uint64)(lengthSeconds * sampleRate);
+        source.cursor = 0;
+        result = ma_sound_init_from_data_source(&audio.engine, &source.base, MA_SOUND_FLAG_NO_SPATIALIZATION, nullptr, &audio.song);
+    }
+    if (result != MA_SUCCESS){
+        error = std::string("could not start the video's sound: ") + ma_result_description(result);
+        return false;
+    }
+    audio.songSampleRate = (ma_uint32)sampleRate;
+    audio.songLengthS = lengthSeconds;
+    audio.songReady = true;
+    audio.songFromReader = true;
+    return true;
+}
+
 void unloadSong(){
+    // Uninitializing the sound detaches it from the audio thread, so the reader is never called after this
     if (audio.songReady) ma_sound_uninit(&audio.song);
+    if (audio.songFromReader) ma_data_source_uninit(&audio.readerSource.base);
     audio.songReady = false;
+    audio.songFromReader = false;
 }
 
 void playSong(bool loop){
