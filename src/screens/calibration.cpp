@@ -5,6 +5,7 @@
 #include "input/noteinput.h"
 #include "raylib.h"
 #include "ui/ui.h"
+#include "ui/theme.h"
 
 #include <cmath>
 #include <vector>
@@ -16,10 +17,6 @@ const double LEAD_IN_S = 1.0;    // silence before the first click
 const double LOOKAHEAD_S = 0.2;  // clicks are handed to the audio engine this far ahead
 const float LOWEST_EXPECTED_NOTE_HZ = 40.0f;
 
-const ImU32 DOT_DONE = IM_COL32(242, 184, 77, 255);
-const ImU32 DOT_WARMUP = IM_COL32(242, 184, 77, 110);
-const ImU32 DOT_TODO = IM_COL32(255, 255, 255, 40);
-const ImU32 TEXT_DIM = IM_COL32(220, 200, 180, 200);
 
 static struct {
     CalibrationMode mode = CalibrationMode::Tap;
@@ -90,7 +87,7 @@ static void drawBeatDots(){
     float y = ImGui::GetCursorScreenPos().y + 12;
     ImDrawList* draw = ImGui::GetWindowDrawList();
     for (int i = 0; i < BEATS; i++){
-        ImU32 color = i >= played ? DOT_TODO : (i < WARMUP_BEATS ? DOT_WARMUP : DOT_DONE);
+        ImU32 color = i >= played ? uiColor(UiColor::Dim, 0.3f) : (i < WARMUP_BEATS ? uiColor(UiColor::Accent, 0.45f) : uiColor(UiColor::Accent));
         draw->AddCircleFilled(ImVec2(left + i * spacing, y), i % 4 == 0 ? 8.0f : 6.0f, color);
     }
     ImGui::Dummy(ImVec2(0, 30));
@@ -105,7 +102,7 @@ CalibrationChoice calibrationScreen(){
     menuTitle(tap ? "Calibrate: tapping" : "Calibrate: your instrument");
     centeredText(tap ? "Press Space on every click you hear. Close your eyes: go by ear, not by the screen."
                      : "Play one short note on every click you hear: any note, muted strings are fine.");
-    centeredColoredText("The first 4 clicks are to find the pulse; the next 20 are measured.", TEXT_DIM);
+    centeredColoredText("The first 4 clicks are to find the pulse; the next 20 are measured.", uiColor(UiColor::Dim));
     ImGui::Dummy(ImVec2(0, 10));
     drawBeatDots();
     centeredText(TextFormat("%s counted: %d", tap ? "Taps" : "Notes", (int)calibration.differences.size()));
@@ -120,7 +117,7 @@ CalibrationChoice calibrationScreen(){
             centeredText(TextFormat("Measured %+d ms, steady within %d ms, from %d %s",
                                     measuredMs, (int)std::lround(estimate.spread * 1000), estimate.count, tap ? "taps" : "notes"));
             centeredText(TextFormat("New %s offset: %+d ms", tap ? "global" : "input", offsetMs));
-            if (estimate.spread > 0.03) centeredColoredText("That's quite uneven: trying again may give a better result.", TEXT_DIM);
+            if (estimate.spread > 0.03) centeredColoredText("That's quite uneven: trying again may give a better result.", uiColor(UiColor::Dim));
             if (menuButton("Apply")){
                 choice.apply = true;
                 choice.offsetMs = offsetMs;

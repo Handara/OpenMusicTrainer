@@ -3,6 +3,7 @@
 #include "audio/audio.h"
 #include "raylib.h"
 #include "ui/ui.h"
+#include "ui/theme.h"
 
 #include <vector>
 
@@ -180,10 +181,10 @@ SettingsChoice settingsScreen(Settings& settings, const std::string& soundsDir, 
     ImGui::PopItemWidth();
     if (!screen.status.empty()){
         ImGui::Dummy(ImVec2(0, 6));
-        if (screen.statusIsError) ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.4f, 1.0f), "%s", screen.status.c_str());
+        if (screen.statusIsError) ImGui::TextColored(uiColorVec(UiColor::Bad), "%s", screen.status.c_str());
         else ImGui::TextWrapped("%s", screen.status.c_str());
     }
-    if (!error.empty()) ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.4f, 1.0f), "%s", error.c_str());
+    if (!error.empty()) ImGui::TextColored(uiColorVec(UiColor::Bad), "%s", error.c_str());
     ImGui::EndChild();
 
     if (menuButton("Back")) choice = SettingsChoice::Back;

@@ -3,14 +3,12 @@
 #include "imgui.h"
 #include "raylib.h"
 #include "ui/ui.h"
+#include "ui/theme.h"
 
 #include <algorithm>
 #include <cmath>
 
 const float BAR_MARGIN = 20.0f;
-const ImU32 TEXT_DIM = IM_COL32(220, 200, 180, 200);
-const ImU32 TEXT_GOOD = IM_COL32(120, 220, 130, 255);
-const ImVec4 TIME_UP_COLOR = { 0.25f, 0.62f, 0.32f, 1.0f };
 
 RoutineExercise::RoutineExercise(const std::string& title, std::vector<Step> steps, const std::string& progressPath, ExerciseFactory create)
     : title(title), steps(std::move(steps)), progressPath(progressPath), create(create){
@@ -69,18 +67,21 @@ void RoutineExercise::drawStepBar(){
     float width = ImGui::CalcTextSize(text.c_str()).x + style.ItemSpacing.x + buttonWidth;
     ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() - width - BAR_MARGIN, BAR_MARGIN));
     ImGui::AlignTextToFramePadding(); // the text sits level with the button's label
-    ImGui::PushStyleColor(ImGuiCol_Text, timeUp ? TEXT_GOOD : TEXT_DIM);
+    ImGui::PushStyleColor(ImGuiCol_Text, timeUp ? uiColor(UiColor::Good) : uiColor(UiColor::Dim));
     ImGui::TextUnformatted(text.c_str());
     ImGui::PopStyleColor();
     ImGui::SameLine();
-    if (timeUp) ImGui::PushStyleColor(ImGuiCol_Button, TIME_UP_COLOR);
+    if (timeUp){
+        ImGui::PushStyleColor(ImGuiCol_Button, uiColorVec(UiColor::Good));
+        ImGui::PushStyleColor(ImGuiCol_Text, uiColorVec(UiColor::Card)); // light text on the filled button
+    }
     if (ImGui::Button(label)) nextStep();
-    if (timeUp) ImGui::PopStyleColor();
+    if (timeUp) ImGui::PopStyleColor(2);
 }
 
 void RoutineExercise::drawDone(){
     menuTitle(title.c_str());
-    centeredColoredText("Routine done!", TEXT_GOOD);
+    centeredColoredText("Routine done!", uiColor(UiColor::Good));
     int seconds = (int)std::round(practicedSeconds);
     centeredText(TextFormat("Practiced for %d:%02d", seconds / 60, seconds % 60));
     int streak = currentStreak(progress, today());

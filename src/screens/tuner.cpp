@@ -6,6 +6,7 @@
 #include "core/pitch.h"
 #include "raylib.h"
 #include "ui/ui.h"
+#include "ui/theme.h"
 
 #include <algorithm>
 #include <cmath>
@@ -23,10 +24,6 @@ const float IN_TUNE_CENTS = 5.0f;           // about the smallest difference mos
 const float NOTE_FONT_SIZE = 140.0f;
 const float SCALE_WIDTH = 600.0f;
 const float SCALE_HEIGHT = 90.0f;
-const ImU32 COLOR_IDLE = IM_COL32(150, 130, 120, 255);
-const ImU32 COLOR_IN_TUNE = IM_COL32(90, 220, 110, 255);
-const ImU32 COLOR_OUT_OF_TUNE = IM_COL32(255, 160, 60, 255);
-const ImU32 COLOR_TICK = IM_COL32(220, 200, 180, 160);
 
 static struct {
     PitchDetector detector;
@@ -100,7 +97,7 @@ void drawTuner(){
     bool showingNote = GetTime() - tuner.lastDetectionTime < HOLD_TIME_S;
     int nearestNote = (int)std::lround(tuner.smoothedMidi);
     float cents = (tuner.smoothedMidi - nearestNote) * 100.0f;
-    ImU32 color = !showingNote ? COLOR_IDLE : std::fabs(cents) <= IN_TUNE_CENTS ? COLOR_IN_TUNE : COLOR_OUT_OF_TUNE;
+    ImU32 color = !showingNote ? uiColor(UiColor::Dim) : std::fabs(cents) <= IN_TUNE_CENTS ? uiColor(UiColor::Good) : uiColor(UiColor::Accent);
 
     // Note name and details
     ImGui::PushFont(nullptr, NOTE_FONT_SIZE);
@@ -108,7 +105,7 @@ void drawTuner(){
                         color);
     ImGui::PopFont();
     centeredColoredText(showingNote ? TextFormat("%.1f Hz    %+.0f cents", midiToFrequency(tuner.smoothedMidi), cents)
-                                    : "Play a note", COLOR_TICK);
+                                    : "Play a note", uiColor(UiColor::Dim, 0.8f));
 
     // Cents scale from -50 (a quarter tone flat) to +50 (a quarter tone sharp), drawn with ImGui's draw list
     ImDrawList* draw = ImGui::GetWindowDrawList();
@@ -119,14 +116,14 @@ void drawTuner(){
     auto centsToX = [&](float c){ return centerX + std::clamp(c, -50.0f, 50.0f) / 50.0f * (SCALE_WIDTH / 2); };
 
     draw->AddRectFilled(ImVec2(centsToX(-IN_TUNE_CENTS), top), ImVec2(centsToX(IN_TUNE_CENTS), bottom),
-                        IM_COL32(90, 220, 110, 50), 4.0f);
+                        uiColor(UiColor::Good, 0.2f), 4.0f);
     for (int c = -50; c <= 50; c += 10){
         float tickHeight = c == 0 ? SCALE_HEIGHT : (c % 50 == 0 ? SCALE_HEIGHT * 0.6f : SCALE_HEIGHT * 0.35f);
         draw->AddLine(ImVec2(centsToX((float)c), bottom - tickHeight), ImVec2(centsToX((float)c), bottom),
-                      COLOR_TICK, c == 0 ? 3.0f : 1.5f);
+                      uiColor(UiColor::Dim, 0.8f), c == 0 ? 3.0f : 1.5f);
     }
-    draw->AddText(ImVec2(left - 20, bottom + 8), COLOR_TICK, "-50");
-    draw->AddText(ImVec2(left + SCALE_WIDTH - 20, bottom + 8), COLOR_TICK, "+50");
+    draw->AddText(ImVec2(left - 20, bottom + 8), uiColor(UiColor::Dim, 0.8f), "-50");
+    draw->AddText(ImVec2(left + SCALE_WIDTH - 20, bottom + 8), uiColor(UiColor::Dim, 0.8f), "+50");
     if (showingNote){
         float needleX = centsToX(cents);
         draw->AddLine(ImVec2(needleX, top - 12), ImVec2(needleX, bottom + 4), color, 5.0f);
@@ -138,9 +135,9 @@ void drawTuner(){
     float meterTop = ImGui::GetCursorScreenPos().y;
     float fill = std::clamp((tuner.levelDb + 60.0f) / 60.0f, 0.0f, 1.0f);
     float gateX = left + (SILENCE_THRESHOLD_DB + 60.0f) / 60.0f * SCALE_WIDTH;
-    draw->AddRectFilled(ImVec2(left, meterTop), ImVec2(left + SCALE_WIDTH, meterTop + 12), IM_COL32(0, 0, 0, 90), 3.0f);
-    draw->AddRectFilled(ImVec2(left, meterTop), ImVec2(left + fill * SCALE_WIDTH, meterTop + 12), COLOR_IN_TUNE, 3.0f);
-    draw->AddLine(ImVec2(gateX, meterTop - 4), ImVec2(gateX, meterTop + 16), COLOR_TICK, 2.0f);
+    draw->AddRectFilled(ImVec2(left, meterTop), ImVec2(left + SCALE_WIDTH, meterTop + 12), uiColor(UiColor::StaffLine), 3.0f);
+    draw->AddRectFilled(ImVec2(left, meterTop), ImVec2(left + fill * SCALE_WIDTH, meterTop + 12), uiColor(UiColor::Good), 3.0f);
+    draw->AddLine(ImVec2(gateX, meterTop - 4), ImVec2(gateX, meterTop + 16), uiColor(UiColor::Dim, 0.8f), 2.0f);
     ImGui::Dummy(ImVec2(0, 24));
-    centeredColoredText(TextFormat("Input: %s    %.0f dB", captureDeviceName(), tuner.levelDb), COLOR_TICK);
+    centeredColoredText(TextFormat("Input: %s    %.0f dB", captureDeviceName(), tuner.levelDb), uiColor(UiColor::Dim, 0.8f));
 }

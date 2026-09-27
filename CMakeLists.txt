@@ -122,6 +122,7 @@ add_executable(lahn
     src/main.cpp
     src/audio/audio.cpp
     src/input/noteinput.cpp
+    src/ui/theme.cpp
     src/ui/ui.cpp
     src/screens/calibration.cpp
     src/screens/editor.cpp
@@ -151,11 +152,6 @@ add_custom_target(copy_resources ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
             ${CMAKE_SOURCE_DIR}/resources
             $<TARGET_FILE_DIR:lahn>/resources
-    # UI font that ships with Dear ImGui (Apache 2.0 license)
-    COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:lahn>/resources/fonts
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${imgui_SOURCE_DIR}/misc/fonts/Roboto-Medium.ttf
-            $<TARGET_FILE_DIR:lahn>/resources/fonts/Roboto-Medium.ttf
 )
 add_dependencies(lahn copy_resources)
 

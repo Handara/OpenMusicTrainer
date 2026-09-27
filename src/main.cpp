@@ -283,9 +283,9 @@ int main(void){
     InitWindow(INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT, "lahn");
     SetExitKey(KEY_NULL); // Esc means "back" (handleBackKey), not "quit"
     applyDisplaySettings(app.settings);
-    initUi(app.resourcesDir + "fonts/Roboto-Medium.ttf");
+    initUi(app.resourcesDir);
     if (!loadStaffFont(app.resourcesDir + "fonts/Bravura.otf")) TraceLog(LOG_WARNING, "Music font not found: sheet music uses plain shapes");
-    if (!loadTabFont(app.resourcesDir + "fonts/Roboto-Medium.ttf")) TraceLog(LOG_WARNING, "Text font not found: tab uses the pixel font");
+    if (!loadTabFont(app.resourcesDir + "fonts/Figtree-Bold.ttf")) TraceLog(LOG_WARNING, "Text font not found: tab uses the pixel font");
 
     while (!WindowShouldClose() && !app.quit){
         handleBackKey();

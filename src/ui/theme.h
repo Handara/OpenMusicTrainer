@@ -1,0 +1,46 @@
+#pragma once
+
+#include "imgui.h"
+#include "raylib.h"
+
+#include <string>
+
+// lahn's look: a calm palette with one bright accent, the fonts, and the wordmark. Everything that draws menus takes
+// its colors from here by role, never as fixed values, so light and dark both work.
+
+enum class ThemeMode { Light, Dark };
+
+// Colors by what they're for
+enum class UiColor {
+    Background, // the screen
+    Card,       // panels that sit on it
+    Ink,        // text and marks
+    Dim,        // secondary text, what isn't selected
+    StaffLine,  // the faint lines the screen sits on, and quiet borders
+    Accent,     // brass: the one bright color, for what matters right now
+    Good,       // right, passed, in tune
+    Bad,        // wrong, missed
+};
+
+// Loads the fonts and the wordmark and styles ImGui: after InitWindow and ImGui's setup
+void initTheme(const std::string& resourcesDir, ThemeMode mode);
+void closeTheme();
+void setTheme(ThemeMode mode); // restyles ImGui at once
+ThemeMode currentTheme();
+
+Color themeColor(UiColor role);
+ImU32 uiColor(UiColor role, float alpha = 1.0f);
+ImVec4 uiColorVec(UiColor role, float alpha = 1.0f);
+
+// The fonts, for ImGui::PushFont(font, size); each is null if its file is missing (ImGui's own is used then)
+struct UiFonts {
+    ImFont* text = nullptr;   // Figtree Medium: everything you read
+    ImFont* bold = nullptr;   // Figtree Bold: menu items, headings
+    ImFont* heavy = nullptr;  // Figtree ExtraBold: the wordmark, big numbers
+    ImFont* mono = nullptr;   // Chivo Mono: labels, readouts, shortcut keys
+};
+const UiFonts& uiFonts();
+
+// "lahn | لحن": the name in both scripts, split by a string. `height` is the Latin letters' size in pixels.
+// Returns the width drawn.
+float drawWordmark(ImDrawList* draw, ImVec2 topLeft, float height);

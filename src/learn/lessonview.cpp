@@ -4,6 +4,7 @@
 #include "imgui.h"
 #include "rlImGui.h"
 #include "video/video.h"
+#include "ui/theme.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -12,7 +13,6 @@ namespace fs = std::filesystem;
 
 const float HEADING_SCALE = 1.5f;       // a step's title, compared with body text
 const float MAX_IMAGE_HEIGHT = 0.55f;   // of the window's height, so the caption and buttons stay in view
-const ImU32 TEXT_DIM = IM_COL32(220, 200, 180, 200);
 
 std::string lessonGoalText(const LessonStep& step, const ExerciseEntry* exercise){
     if (step.type == LessonStepType::Play) return "Goal: hit " + std::to_string(lessonGoal(step)) + "% of the notes";
@@ -140,19 +140,19 @@ void drawLessonStep(const LessonStep& step, const std::string& folder, const Exe
             break;
         case LessonStepType::Exercise:
             if (exercise) ImGui::Text("Exercise: %s", exercise->exercise.title.c_str());
-            else ImGui::TextColored(ImColor(TEXT_DIM), "Exercise: %s (not found)", step.exercise.c_str());
+            else ImGui::TextColored(ImColor(uiColor(UiColor::Dim)), "Exercise: %s (not found)", step.exercise.c_str());
             if (exercise && !exercise->exercise.description.empty()) ImGui::TextWrapped("%s", exercise->exercise.description.c_str());
-            ImGui::TextColored(ImColor(TEXT_DIM), "%s", lessonGoalText(step, exercise).c_str());
+            ImGui::TextColored(ImColor(uiColor(UiColor::Dim)), "%s", lessonGoalText(step, exercise).c_str());
             break;
         case LessonStepType::Play:
             ImGui::Text("Play along: %s", step.file.c_str());
-            ImGui::TextColored(ImColor(TEXT_DIM), "%s", lessonGoalText(step, nullptr).c_str());
+            ImGui::TextColored(ImColor(uiColor(UiColor::Dim)), "%s", lessonGoalText(step, nullptr).c_str());
             break;
     }
     if (!step.caption.empty()){
         ImGui::Dummy(ImVec2(0, 4));
-        ImGui::TextColored(ImColor(TEXT_DIM), "%s", step.caption.c_str());
+        ImGui::TextColored(ImColor(uiColor(UiColor::Dim)), "%s", step.caption.c_str());
     }
-    if (!media.error.empty()) ImGui::TextColored(ImColor(255, 130, 110), "%s", media.error.c_str());
+    if (!media.error.empty()) ImGui::TextColored(ImColor(uiColor(UiColor::Bad)), "%s", media.error.c_str());
     ImGui::PopTextWrapPos();
 }

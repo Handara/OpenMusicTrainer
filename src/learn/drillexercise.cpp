@@ -7,6 +7,7 @@
 #include "raylib.h"
 #include "ui/ui.h"
 #include "views/noteviews.h"
+#include "ui/theme.h"
 
 #include <algorithm>
 #include <cmath>
@@ -16,8 +17,6 @@ const double LEAD_IN_S = 0.3;      // silence before the count-in
 const double LOOKAHEAD_S = 0.2;    // metronome clicks are handed to the audio engine this far ahead
 const float HIT_LINE_X = 180.0f;
 const int MAX_KEY_LANES = 6;
-const ImU32 TEXT_DIM = IM_COL32(220, 200, 180, 200);
-const ImU32 TEXT_GOOD = IM_COL32(120, 220, 130, 255);
 
 DrillExercise::DrillExercise(const std::string& title, const ScaleDrillConfig& config, const std::string& progressPath,
                              const Settings& settings)
@@ -137,7 +136,7 @@ void DrillExercise::draw(){
     menuTitle(title.c_str());
     int shownTempo = running ? tempo : drillTempo(config, progress);
     centeredColoredText(TextFormat("%s in %s    %d bpm    best clean %d bpm    goal %d bpm", scale ? scale->displayName : "",
-                                   pitchClassName(config.rootPitchClass), shownTempo, progress.bestCleanTempo, config.maxTempo), TEXT_DIM);
+                                   pitchClassName(config.rootPitchClass), shownTempo, progress.bestCleanTempo, config.maxTempo), uiColor(UiColor::Dim));
     if (!running){
         centeredText("Press Space to start. The metronome counts one bar in, then play along.");
     } else {
@@ -145,13 +144,13 @@ void DrillExercise::draw(){
         if (t < firstNoteTime) centeredText("Get ready...");
         else centeredText(TextFormat("%d of %d notes hit (%d perfect)    Space to stop", hits, (int)notes.size(), perfects));
     }
-    if (!passText.empty()) centeredColoredText(passText.c_str(), TEXT_GOOD);
+    if (!passText.empty()) centeredColoredText(passText.c_str(), uiColor(UiColor::Good));
     if (!inputError.empty()) centeredErrorText(inputError);
     if (noteInputActive()){
         centeredColoredText(lastPlayedPitch >= 0 ? TextFormat("Listening: you played %s%d", pitchClassName(lastPlayedPitch), pitchOctave(lastPlayedPitch))
-                                                 : "Listening to your instrument", TEXT_DIM);
+                                                 : "Listening to your instrument", uiColor(UiColor::Dim));
     } else {
-        centeredColoredText("Keys 1 to 6 play the strings, lowest first", TEXT_DIM);
+        centeredColoredText("Keys 1 to 6 play the strings, lowest first", uiColor(UiColor::Dim));
     }
 
     // The notes, in whichever views the settings choose, below the text

@@ -6,6 +6,7 @@
 #include "learn/lessonview.h"
 #include "raylib.h"
 #include "ui/ui.h"
+#include "ui/theme.h"
 
 #include <algorithm>
 #include <cctype>
@@ -16,7 +17,6 @@ namespace fs = std::filesystem;
 
 const float STEPS_PANEL_WIDTH = 330.0f;
 const float FIELDS_PANEL_WIDTH = 400.0f;
-const ImU32 TEXT_DIM = IM_COL32(220, 200, 180, 200);
 const char* const UNSAVED_POPUP = "Unsaved changes";
 const char* const STEP_TYPE_LABELS[] = { "Text", "Image", "Audio", "Video", "Exercise", "Play" }; // LessonStepType order
 // Lessons play video in MPEG-1 (see the video player): the command that converts any video to it
@@ -266,7 +266,7 @@ static void fileField(LessonStep& step){
     if (ImGui::Button("Refresh")) refreshFolderFiles();
     std::string list;
     for (const std::string& extension : extensions) list += (list.empty() ? "" : ", ") + extension;
-    ImGui::PushStyleColor(ImGuiCol_Text, ImColor(TEXT_DIM).Value);
+    ImGui::PushStyleColor(ImGuiCol_Text, ImColor(uiColor(UiColor::Dim)).Value);
     ImGui::TextWrapped("Put %s files in the lesson's folder, then Refresh", list.c_str());
     if (step.type == LessonStepType::Video) ImGui::TextWrapped("%s", VIDEO_CONVERT_HINT);
     ImGui::PopStyleColor();
@@ -331,7 +331,7 @@ static void fieldsPanel(){
         }
         LessonStep usual = step;
         usual.goal = 0;
-        ImGui::TextColored(ImColor(TEXT_DIM), "0 = the usual (%s)", lessonGoalText(usual, stepExercise(step)).c_str());
+        ImGui::TextColored(ImColor(uiColor(UiColor::Dim)), "0 = the usual (%s)", lessonGoalText(usual, stepExercise(step)).c_str());
     }
     ImGui::PopItemWidth();
 }

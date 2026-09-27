@@ -4,6 +4,7 @@
 #include "learn/playexercise.h"
 #include "raylib.h"
 #include "ui/ui.h"
+#include "ui/theme.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -12,12 +13,6 @@ const float MAX_STEP_WIDTH = 900.0f;
 const float DOT_RADIUS = 6.0f;
 const float DOT_SPACING = 22.0f;
 const float BAR_MARGIN = 20.0f;
-const ImU32 DOT_CURRENT = IM_COL32(230, 180, 60, 255);
-const ImU32 DOT_SEEN = IM_COL32(220, 200, 180, 160);
-const ImU32 DOT_AHEAD = IM_COL32(220, 200, 180, 70);
-const ImU32 TEXT_DIM = IM_COL32(220, 200, 180, 200);
-const ImU32 TEXT_GOOD = IM_COL32(120, 220, 130, 255);
-const ImVec4 GOOD_BUTTON = { 0.25f, 0.62f, 0.32f, 1.0f };
 
 LessonPlayer::LessonPlayer(const LessonEntry& entry, std::vector<ExerciseEntry> stepExercises, ExerciseFactory create,
                            const GameplayOptions& playOptions, const std::string& progressPath)
@@ -89,13 +84,16 @@ void LessonPlayer::drawGoalBar(){
     float width = ImGui::CalcTextSize(text.c_str()).x + style.ItemSpacing.x + ImGui::CalcTextSize(label).x + 2 * style.FramePadding.x;
     ImGui::SetCursorPos(ImVec2((ImGui::GetWindowWidth() - width) / 2, BAR_MARGIN));
     ImGui::AlignTextToFramePadding();
-    ImGui::PushStyleColor(ImGuiCol_Text, passed ? TEXT_GOOD : TEXT_DIM);
+    ImGui::PushStyleColor(ImGuiCol_Text, passed ? uiColor(UiColor::Good) : uiColor(UiColor::Dim));
     ImGui::TextUnformatted(text.c_str());
     ImGui::PopStyleColor();
     ImGui::SameLine();
-    if (passed) ImGui::PushStyleColor(ImGuiCol_Button, GOOD_BUTTON);
+    if (passed){
+        ImGui::PushStyleColor(ImGuiCol_Button, uiColorVec(UiColor::Good));
+        ImGui::PushStyleColor(ImGuiCol_Text, uiColorVec(UiColor::Card)); // light text on the filled button
+    }
     if (ImGui::Button(label)) stopStep();
-    if (passed) ImGui::PopStyleColor();
+    if (passed) ImGui::PopStyleColor(2);
 }
 
 // A row of dots under the title: done, this one, still ahead
@@ -107,9 +105,9 @@ void LessonPlayer::drawDots(){
     ImDrawList* draw = ImGui::GetWindowDrawList();
     for (int i = 0; i < count; i++){
         ImVec2 center(x + i * DOT_SPACING, y);
-        if (i == current) draw->AddCircleFilled(center, DOT_RADIUS + 1, DOT_CURRENT);
-        else if (i <= progress.reached) draw->AddCircleFilled(center, DOT_RADIUS, DOT_SEEN);
-        else draw->AddCircle(center, DOT_RADIUS, DOT_AHEAD, 0, 1.5f);
+        if (i == current) draw->AddCircleFilled(center, DOT_RADIUS + 1, uiColor(UiColor::Accent));
+        else if (i <= progress.reached) draw->AddCircleFilled(center, DOT_RADIUS, uiColor(UiColor::Dim));
+        else draw->AddCircle(center, DOT_RADIUS, uiColor(UiColor::Dim, 0.4f), 0, 1.5f);
     }
     ImGui::Dummy(ImVec2(0, DOT_RADIUS * 2 + 12));
 }
@@ -142,8 +140,8 @@ void LessonPlayer::draw(){
         const char* label = passed ? (step().type == LessonStepType::Play ? "Play again" : "Practice again")
                                    : (step().type == LessonStepType::Play ? "Play" : "Start");
         if (ImGui::Button(label, ImVec2(200, 44))) startStep();
-        if (passed) ImGui::TextColored(ImColor(TEXT_GOOD), "Passed");
-        else ImGui::TextColored(ImColor(TEXT_DIM), "Reach the goal to go on");
+        if (passed) ImGui::TextColored(ImColor(uiColor(UiColor::Good)), "Passed");
+        else ImGui::TextColored(ImColor(uiColor(UiColor::Dim)), "Reach the goal to go on");
     }
     ImGui::EndChild();
 

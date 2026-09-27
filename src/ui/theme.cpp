@@ -1,0 +1,178 @@
+#include "ui/theme.h"
+
+#include <algorithm>
+
+const float UI_FONT_SIZE = 26.0f;
+
+// The palettes, from the design mockups: cool neutrals, and brass as the one accent
+struct Palette {
+    Color background, card, ink, dim, staffLine, accent, good, bad;
+};
+const Palette LIGHT = {
+    {242, 243, 245, 255}, {255, 255, 255, 255}, {19, 22, 27, 255}, {122, 128, 140, 255},
+    {225, 228, 233, 255}, {217, 138, 0, 255}, {31, 138, 76, 255}, {200, 64, 47, 255},
+};
+const Palette DARK = {
+    {15, 19, 23, 255}, {21, 27, 33, 255}, {238, 241, 244, 255}, {109, 120, 131, 255},
+    {27, 34, 41, 255}, {255, 200, 97, 255}, {111, 214, 138, 255}, {255, 138, 118, 255},
+};
+
+static struct {
+    ThemeMode mode = ThemeMode::Light;
+    UiFonts fonts;
+    Texture2D arabicWordmark{};
+} theme;
+
+static const Palette& palette(){
+    return theme.mode == ThemeMode::Dark ? DARK : LIGHT;
+}
+
+Color themeColor(UiColor role){
+    const Palette& p = palette();
+    switch (role){
+        case UiColor::Background: return p.background;
+        case UiColor::Card:       return p.card;
+        case UiColor::Ink:        return p.ink;
+        case UiColor::Dim:        return p.dim;
+        case UiColor::StaffLine:  return p.staffLine;
+        case UiColor::Accent:     return p.accent;
+        case UiColor::Good:       return p.good;
+        case UiColor::Bad:        return p.bad;
+    }
+    return p.ink;
+}
+
+ImVec4 uiColorVec(UiColor role, float alpha){
+    Color c = themeColor(role);
+    return ImVec4(c.r / 255.0f, c.g / 255.0f, c.b / 255.0f, c.a / 255.0f * alpha);
+}
+
+ImU32 uiColor(UiColor role, float alpha){
+    return ImGui::ColorConvertFloat4ToU32(uiColorVec(role, alpha));
+}
+
+// A color between two others: for hover and pressed states between the card and the ink
+static ImVec4 mix(UiColor from, UiColor to, float amount){
+    ImVec4 a = uiColorVec(from), b = uiColorVec(to);
+    return ImVec4(a.x + (b.x - a.x) * amount, a.y + (b.y - a.y) * amount, a.z + (b.z - a.z) * amount, 1.0f);
+}
+
+static void styleImGui(){
+    ImGuiStyle& style = ImGui::GetStyle();
+    if (theme.mode == ThemeMode::Dark) ImGui::StyleColorsDark(&style);
+    else ImGui::StyleColorsLight(&style);
+    style.FontSizeBase = UI_FONT_SIZE;
+    style.FrameRounding = 6.0f;
+    style.ChildRounding = 8.0f;
+    style.PopupRounding = 8.0f;
+    style.GrabRounding = 6.0f;
+    style.FrameBorderSize = 1.0f;
+    style.ItemSpacing = ImVec2(12, 14);
+    style.FramePadding = ImVec2(12, 8);
+
+    ImVec4* c = style.Colors;
+    c[ImGuiCol_Text] = uiColorVec(UiColor::Ink);
+    c[ImGuiCol_TextDisabled] = uiColorVec(UiColor::Dim);
+    c[ImGuiCol_WindowBg] = uiColorVec(UiColor::Background);
+    c[ImGuiCol_ChildBg] = ImVec4(0, 0, 0, 0);
+    c[ImGuiCol_PopupBg] = uiColorVec(UiColor::Card);
+    c[ImGuiCol_Border] = uiColorVec(UiColor::StaffLine);
+    c[ImGuiCol_BorderShadow] = ImVec4(0, 0, 0, 0);
+    // Fields and buttons are cards on the background; hovering leans toward the ink, pressing lights the accent
+    c[ImGuiCol_FrameBg] = uiColorVec(UiColor::Card);
+    c[ImGuiCol_FrameBgHovered] = mix(UiColor::Card, UiColor::Ink, 0.06f);
+    c[ImGuiCol_FrameBgActive] = mix(UiColor::Card, UiColor::Ink, 0.12f);
+    c[ImGuiCol_Button] = uiColorVec(UiColor::Card);
+    c[ImGuiCol_ButtonHovered] = mix(UiColor::Card, UiColor::Ink, 0.08f);
+    c[ImGuiCol_ButtonActive] = uiColorVec(UiColor::Accent, 0.9f);
+    c[ImGuiCol_Header] = mix(UiColor::Card, UiColor::Ink, 0.08f);
+    c[ImGuiCol_HeaderHovered] = mix(UiColor::Card, UiColor::Ink, 0.12f);
+    c[ImGuiCol_HeaderActive] = uiColorVec(UiColor::Accent, 0.9f);
+    c[ImGuiCol_Tab] = uiColorVec(UiColor::Background);
+    c[ImGuiCol_TabHovered] = mix(UiColor::Card, UiColor::Ink, 0.08f);
+    c[ImGuiCol_TabSelected] = uiColorVec(UiColor::Card);
+    c[ImGuiCol_TabSelectedOverline] = uiColorVec(UiColor::Accent);
+    c[ImGuiCol_CheckMark] = uiColorVec(UiColor::Accent);
+    c[ImGuiCol_SliderGrab] = uiColorVec(UiColor::Accent);
+    c[ImGuiCol_SliderGrabActive] = uiColorVec(UiColor::Accent);
+    c[ImGuiCol_Separator] = uiColorVec(UiColor::StaffLine);
+    c[ImGuiCol_SeparatorHovered] = uiColorVec(UiColor::Accent, 0.6f);
+    c[ImGuiCol_SeparatorActive] = uiColorVec(UiColor::Accent);
+    c[ImGuiCol_ScrollbarBg] = ImVec4(0, 0, 0, 0);
+    c[ImGuiCol_ScrollbarGrab] = uiColorVec(UiColor::StaffLine);
+    c[ImGuiCol_ScrollbarGrabHovered] = uiColorVec(UiColor::Dim, 0.6f);
+    c[ImGuiCol_ScrollbarGrabActive] = uiColorVec(UiColor::Dim);
+    c[ImGuiCol_NavCursor] = uiColorVec(UiColor::Accent);
+    c[ImGuiCol_TextSelectedBg] = uiColorVec(UiColor::Accent, 0.3f);
+    c[ImGuiCol_ModalWindowDimBg] = uiColorVec(UiColor::Ink, 0.25f);
+}
+
+void initTheme(const std::string& resourcesDir, ThemeMode mode){
+    ImGuiIO& io = ImGui::GetIO();
+    auto load = [&](const char* file) -> ImFont* {
+        std::string path = resourcesDir + "fonts/" + file;
+        if (!FileExists(path.c_str())){
+            TraceLog(LOG_WARNING, "Font not found, using ImGui's own: %s", path.c_str());
+            return nullptr;
+        }
+        return io.Fonts->AddFontFromFileTTF(path.c_str(), UI_FONT_SIZE);
+    };
+    theme.fonts.text = load("Figtree-Medium.ttf");
+    theme.fonts.bold = load("Figtree-Bold.ttf");
+    theme.fonts.heavy = load("Figtree-ExtraBold.ttf");
+    theme.fonts.mono = load("ChivoMono-Regular.ttf");
+    if (theme.fonts.text) io.FontDefault = theme.fonts.text;
+
+    std::string wordmark = resourcesDir + "images/lahn-arabic.png";
+    if (FileExists(wordmark.c_str())){
+        theme.arabicWordmark = LoadTexture(wordmark.c_str());
+        GenTextureMipmaps(&theme.arabicWordmark);                  // drawn much smaller than it's stored
+        SetTextureFilter(theme.arabicWordmark, TEXTURE_FILTER_TRILINEAR);
+    }
+    setTheme(mode);
+}
+
+void closeTheme(){
+    if (theme.arabicWordmark.id != 0) UnloadTexture(theme.arabicWordmark);
+    theme.arabicWordmark = {};
+}
+
+void setTheme(ThemeMode mode){
+    theme.mode = mode;
+    styleImGui();
+}
+
+ThemeMode currentTheme(){
+    return theme.mode;
+}
+
+const UiFonts& uiFonts(){
+    return theme.fonts;
+}
+
+float drawWordmark(ImDrawList* draw, ImVec2 topLeft, float height){
+    ImFont* font = theme.fonts.heavy ? theme.fonts.heavy : ImGui::GetFont();
+    ImU32 ink = uiColor(UiColor::Ink);
+    // Tight letters, like the mockup: each one drawn with a little of the space taken out
+    const char* latin = "lahn";
+    float x = topLeft.x;
+    for (const char* c = latin; *c; c++){
+        char letter[2] = { *c, 0 };
+        draw->AddText(font, height, ImVec2(x, topLeft.y), ink, letter);
+        x += font->CalcTextSizeA(height, FLT_MAX, 0.0f, letter).x - height * 0.045f;
+    }
+    // The string between the scripts, in the accent
+    float gap = height * 0.32f;
+    float top = topLeft.y + height * 0.18f, bottom = topLeft.y + height * 0.92f;
+    x += gap;
+    draw->AddLine(ImVec2(x, top), ImVec2(x, bottom), uiColor(UiColor::Accent), std::max(1.5f, height * 0.035f));
+    x += gap;
+    // The Arabic name: a white image tinted to the ink, as tall as the Latin letters' ascenders
+    if (theme.arabicWordmark.id != 0){
+        float h = bottom - top + height * 0.08f;
+        float w = h * theme.arabicWordmark.width / theme.arabicWordmark.height;
+        draw->AddImage(ImTextureID(theme.arabicWordmark.id), ImVec2(x, top - height * 0.04f), ImVec2(x + w, top - height * 0.04f + h), ImVec2(0, 0), ImVec2(1, 1), ink);
+        x += w;
+    }
+    return x - topLeft.x;
+}

@@ -3,10 +3,10 @@
 #include "imgui.h"
 #include "raylib.h"
 #include "ui/ui.h"
+#include "ui/theme.h"
 
 #include <algorithm>
 
-const ImU32 TEXT_DIM = IM_COL32(220, 200, 180, 200);
 
 PlayExercise::PlayExercise(const std::string& chartPath, const GameplayOptions& options) : chartPath(chartPath), options(options){
     start();
@@ -46,7 +46,7 @@ void PlayExercise::draw(){
     if (hasResult){
         centeredText(TextFormat("Hit %d of %d notes (%d%%)", last.perfectCount + last.nearCount, last.totalNotes, percentHit(last)));
         centeredColoredText(TextFormat("Perfect %d    Near %d    Miss %d    Best run %d%%", last.perfectCount, last.nearCount,
-                                       last.missCount, bestPercent), TEXT_DIM);
+                                       last.missCount, bestPercent), uiColor(UiColor::Dim));
     }
     ImGui::Dummy(ImVec2(0, 20));
     if (error.empty() && menuButton("Play again")) start();
