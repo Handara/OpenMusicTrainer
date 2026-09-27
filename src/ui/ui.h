@@ -7,7 +7,8 @@
 // Shared look and layout for ImGui screens. Each menu is one invisible full-screen window
 // with its content centered horizontally.
 
-void initUi(const std::string& resourcesDir); // after InitWindow: sets up ImGui, the theme (fonts, colors), keyboard navigation
+// After InitWindow: sets up ImGui, the theme (fonts, colors, light or dark), keyboard navigation
+void initUi(const std::string& resourcesDir, bool darkTheme);
 void closeUi();
 void beginUiFrame(); // ImGui widgets can be used between these two, inside BeginDrawing/EndDrawing
 void endUiFrame();

@@ -10,12 +10,12 @@ const float TITLE_FONT_SIZE = 56.0f;
 const float MENU_BUTTON_WIDTH = 420.0f;
 const float MENU_BUTTON_HEIGHT = 56.0f;
 
-void initUi(const std::string& resourcesDir){
+void initUi(const std::string& resourcesDir, bool darkTheme){
     rlImGuiSetup(true);
     ImGuiIO& io = ImGui::GetIO();
     io.IniFilename = nullptr; // don't write imgui.ini: menu layout is fixed in code
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // arrows + Enter work in menus
-    initTheme(resourcesDir, ThemeMode::Light); // fonts, colors and the wordmark (ui/theme)
+    initTheme(resourcesDir, darkTheme ? ThemeMode::Dark : ThemeMode::Light); // fonts, colors and the wordmark (ui/theme)
 }
 
 void closeUi(){

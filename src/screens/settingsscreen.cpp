@@ -131,6 +131,16 @@ static void displayTab(Settings& settings){
     ImGui::RadioButton("Low E at the bottom (right when falling)", &stringOrder, 1);
     settings.lowStringOnTop = stringOrder == 0;
 
+    ImGui::SeparatorText("Colors");
+    int colors = settings.darkTheme ? 1 : 0;
+    ImGui::RadioButton("Light", &colors, 0);
+    ImGui::SameLine();
+    ImGui::RadioButton("Dark", &colors, 1);
+    if ((colors == 1) != settings.darkTheme){
+        settings.darkTheme = colors == 1;
+        setTheme(settings.darkTheme ? ThemeMode::Dark : ThemeMode::Light); // at once, so the choice can be seen
+    }
+
     ImGui::SeparatorText("Window");
     if (ImGui::Checkbox("Fullscreen", &settings.fullscreen)) applyDisplaySettings(settings);
 

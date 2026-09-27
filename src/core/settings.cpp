@@ -70,6 +70,10 @@ Settings loadSettings(const std::string& path, std::vector<std::string>& warning
         }
         else if (key == "low_string_on_top") settings.lowStringOnTop = value == "1";
         else if (key == "fullscreen") settings.fullscreen = value == "1";
+        else if (key == "theme"){
+            if (value == "light" || value == "dark") settings.darkTheme = value == "dark";
+            else warnings.push_back("line " + std::to_string(lineNumber) + ": theme is light or dark, keeping default");
+        }
         else if (key == "frame_rate_limit") number(settings.frameRateLimit, 0, 1000);
         else if (key == "play_with_instrument") settings.playWithInstrument = value == "1";
         else if (key == "note_speed") number(settings.noteSpeed, 100.0f, 1500.0f);
@@ -96,6 +100,7 @@ bool saveSettings(const std::string& path, const Settings& settings, std::string
     out << "\n";
     out << "highway_direction " << (settings.noteViews.highwayFalls ? "falling" : "across") << "\n";
     out << "low_string_on_top " << (settings.lowStringOnTop ? 1 : 0) << "\n";
+    out << "theme " << (settings.darkTheme ? "dark" : "light") << "\n";
     out << "fullscreen " << (settings.fullscreen ? 1 : 0) << "\n";
     out << "frame_rate_limit " << settings.frameRateLimit << "\n\n";
     out << "play_with_instrument " << (settings.playWithInstrument ? 1 : 0) << "\n";
