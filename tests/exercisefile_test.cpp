@@ -214,14 +214,14 @@ TEST_CASE("routine steps are found in the right folder"){
     // A built-in routine uses the built-in exercise, even when the player has one with the same name
     const ExerciseEntry& daily = entry("daily", true);
     CHECK(daily.error.empty());
-    CHECK(findRoutineStep(entries, daily, "ears")->exercise.title == "Built-in ears");
+    CHECK(findExercise(entries, daily.builtIn, "ears")->exercise.title == "Built-in ears");
     CHECK(entry("needs-yours", true).error.find("there's no mine.exercise") != std::string::npos);
 
     // The player's routines look in their own exercises first, then the built-in ones
     const ExerciseEntry& onlyBuiltIn = entry("only-builtin", false);
     CHECK(onlyBuiltIn.error.empty());
-    CHECK(findRoutineStep(entries, onlyBuiltIn, "ears")->exercise.title == "My ears");
-    CHECK(findRoutineStep(entries, onlyBuiltIn, "mine")->exercise.title == "Mine");
+    CHECK(findExercise(entries, onlyBuiltIn.builtIn, "ears")->exercise.title == "My ears");
+    CHECK(findExercise(entries, onlyBuiltIn.builtIn, "mine")->exercise.title == "Mine");
 
     CHECK(entry("my-daily", false).error == "my-daily.exercise: step 'daily' is a routine: routines can't contain routines");
     CHECK(entry("typo", false).error.find("there's no eras.exercise") != std::string::npos);

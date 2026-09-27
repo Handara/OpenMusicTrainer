@@ -47,6 +47,7 @@ FetchContent_Declare(
 # which gives us capture devices and full control that raylib's audio module doesn't expose.
 set(CUSTOMIZE_BUILD ON CACHE BOOL "" FORCE)
 set(SUPPORT_MODULE_RAUDIO OFF CACHE BOOL "" FORCE)
+set(SUPPORT_FILEFORMAT_JPG ON CACHE BOOL "" FORCE) # lesson images: photos are usually JPG (PNG is on already)
 
 # Optional decoders and effect nodes we don't use yet
 set(MINIAUDIO_NO_LIBVORBIS ON CACHE BOOL "" FORCE)
@@ -88,6 +89,7 @@ add_library(omt_core STATIC
     src/core/files.cpp
     src/core/intervals.cpp
     src/core/judge.cpp
+    src/core/lesson.cpp
     src/core/music.cpp
     src/core/notation.cpp
     src/core/notedetector.cpp
@@ -152,6 +154,7 @@ if(BUILD_TESTING)
         tests/exercisefile_test.cpp
         tests/intervals_test.cpp
         tests/judge_test.cpp
+        tests/lesson_test.cpp
         tests/music_test.cpp
         tests/notation_test.cpp
         tests/notedetector_test.cpp

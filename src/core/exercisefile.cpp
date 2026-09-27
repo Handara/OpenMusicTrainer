@@ -222,14 +222,14 @@ std::vector<ExerciseEntry> scanExercises(const std::string& dir, bool builtIn){
     return entries;
 }
 
-const ExerciseEntry* findRoutineStep(const std::vector<ExerciseEntry>& entries, const ExerciseEntry& routine, const std::string& name){
+const ExerciseEntry* findExercise(const std::vector<ExerciseEntry>& entries, bool fromBuiltIn, const std::string& name){
     auto find = [&](bool builtIn) -> const ExerciseEntry* {
         for (const ExerciseEntry& entry : entries) if (entry.builtIn == builtIn && entry.name == name) return &entry;
         return nullptr;
     };
-    if (const ExerciseEntry* own = find(routine.builtIn)) return own; // the routine's own folder first
-    // Then, for the player's routines, the built-in exercises. Built-in routines never depend on what a player installed.
-    return routine.builtIn ? nullptr : find(true);
+    if (const ExerciseEntry* own = find(fromBuiltIn)) return own; // the asker's own folder first
+    // Then, for the player's own, the built-in exercises. Built-in content never depends on what a player installed.
+    return fromBuiltIn ? nullptr : find(true);
 }
 
 void checkRoutines(std::vector<ExerciseEntry>& entries){
@@ -237,7 +237,7 @@ void checkRoutines(std::vector<ExerciseEntry>& entries){
         if (entry.exercise.type != ExerciseType::Routine || !entry.error.empty()) continue;
         std::string fileName = entry.name + ".exercise";
         for (const RoutineStep& step : entry.exercise.routine){
-            const ExerciseEntry* found = findRoutineStep(entries, entry, step.exercise);
+            const ExerciseEntry* found = findExercise(entries, entry.builtIn, step.exercise);
             if (!found) entry.error = fileName + ": step '" + step.exercise + "': there's no " + step.exercise + ".exercise";
             else if (!found->error.empty()) entry.error = fileName + ": step '" + step.exercise + "' has an error of its own";
             else if (found->exercise.type == ExerciseType::Routine) entry.error = fileName + ": step '" + step.exercise + "' is a routine: routines can't contain routines";

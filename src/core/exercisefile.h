@@ -71,8 +71,9 @@ struct ExerciseEntry {
 // Every *.exercise file in the folder, sorted by category then title
 std::vector<ExerciseEntry> scanExercises(const std::string& dir, bool builtIn);
 
-// The exercise a routine's step names, or nullptr if there's none
-const ExerciseEntry* findRoutineStep(const std::vector<ExerciseEntry>& entries, const ExerciseEntry& routine, const std::string& name);
+// The exercise a routine or lesson names, or nullptr if there's none. Something built in only uses built-in
+// exercises (so it works the same for everyone); the player's own look in their own exercises first.
+const ExerciseEntry* findExercise(const std::vector<ExerciseEntry>& entries, bool fromBuiltIn, const std::string& name);
 // A routine can only be checked once every exercise is loaded: this marks, with an error, each routine that names
 // a missing or broken exercise, or another routine (routines inside routines could loop forever)
 void checkRoutines(std::vector<ExerciseEntry>& entries);

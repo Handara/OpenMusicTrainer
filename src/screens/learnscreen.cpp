@@ -36,7 +36,7 @@ static std::unique_ptr<Exercise> createExercise(const ExerciseEntry& entry){
             std::vector<RoutineExercise::Step> steps;
             for (const RoutineStep& step : entry.exercise.routine){
                 // Always found: checkRoutines gave the routine an error otherwise, and it couldn't be started
-                steps.push_back({*findRoutineStep(learn.exercises, entry, step.exercise), step.minutes * 60.0});
+                steps.push_back({*findExercise(learn.exercises, entry.builtIn, step.exercise), step.minutes * 60.0});
             }
             // It's handed this very function to start its steps with
             return std::make_unique<RoutineExercise>(entry.exercise.title, steps, progressPath(entry), createExercise);
