@@ -15,7 +15,7 @@
 #include "ui/transition.h"
 #include "ui/ui.h"
 #include "views/staff.h"
-#include "views/tab.h"
+#include "views/viewfont.h"
 
 #include <filesystem>
 #include <string>
@@ -238,7 +238,7 @@ static void runMenus(){
                 app.screen = Screen::MainMenu;
             }
             break;
-        case Screen::Playing: break; // gameplay draws with raylib only
+        case Screen::Playing: drawGameplayHud(); break; // the note views are drawn before the UI, with raylib
     }
 }
 
@@ -288,7 +288,7 @@ int main(void){
     applyDisplaySettings(app.settings);
     initUi(app.resourcesDir, app.settings.darkTheme);
     if (!loadStaffFont(app.resourcesDir + "fonts/Bravura.otf")) TraceLog(LOG_WARNING, "Music font not found: sheet music uses plain shapes");
-    if (!loadTabFont(app.resourcesDir + "fonts/Figtree-Bold.ttf")) TraceLog(LOG_WARNING, "Text font not found: tab uses the pixel font");
+    if (!loadViewFont(app.resourcesDir + "fonts/Figtree-Bold.ttf")) TraceLog(LOG_WARNING, "Text font not found: the note views use the pixel font");
 
     while (!WindowShouldClose() && !app.quit){
         const Screen shown = app.screen; // the screen this frame draws
@@ -325,7 +325,7 @@ int main(void){
     unloadTransition();
     closeUi();
     unloadStaffFont();
-    unloadTabFont();
+    unloadViewFont();
     CloseWindow();
     closeAudio();
     return 0;

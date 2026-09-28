@@ -133,7 +133,7 @@ static void drawTimeNumber(int number, float centerX, float y, float space){
     float x = centerX - width / 2;
     for (char digit : digits){
         int glyph = GLYPH_TIME_SIGNATURE_0 + digit - '0';
-        drawGlyph(glyph, x, y, space, INK);
+        drawGlyph(glyph, x, y, space, themeColor(UiColor::Ink));
         x += glyphWidth(glyph, space);
     }
 }
@@ -185,7 +185,7 @@ float staffBarLineGap(float areaHeight){
 static void drawKeySignature(const Staff& staff, const KeySignature& key, float x){
     for (int i = 0; i < std::abs(key.fifths); i++){
         int glyph = key.fifths > 0 ? GLYPH_SHARP : GLYPH_FLAT;
-        drawGlyph(glyph, x + i * KEY_ACCIDENTAL_WIDTH * staff.space, staff.yAt(keySignaturePosition(key, i)), staff.space, INK);
+        drawGlyph(glyph, x + i * KEY_ACCIDENTAL_WIDTH * staff.space, staff.yAt(keySignaturePosition(key, i)), staff.space, themeColor(UiColor::Ink));
     }
 }
 
@@ -199,8 +199,8 @@ static void drawRest(const Staff& staff, const ScoreEvent& rest, float x, float 
     if (rest.wholeBarRest) x = (x + barEndX) / 2; // in the middle of its bar
     // A whole rest hangs from the second line down; the others sit on (or are centered on) the middle line
     int position = rest.value == NoteValue::Whole ? 6 : 4;
-    drawGlyphCentered(glyph, x, staff.yAt(position), staff.space, INK);
-    if (rest.dots > 0) drawGlyph(GLYPH_AUGMENTATION_DOT, x + glyphWidth(glyph, staff.space) / 2 + 0.3f * staff.space, staff.yAt(5), staff.space, INK);
+    drawGlyphCentered(glyph, x, staff.yAt(position), staff.space, themeColor(UiColor::Ink));
+    if (rest.dots > 0) drawGlyph(GLYPH_AUGMENTATION_DOT, x + glyphWidth(glyph, staff.space) / 2 + 0.3f * staff.space, staff.yAt(5), staff.space, themeColor(UiColor::Ink));
 }
 
 // Draws the chords of one beam group (or one lone chord): noteheads, accidentals, dots, stems, flags or beams, ties.
@@ -226,7 +226,7 @@ static float drawGroup(const Staff& staff, const Score& score, size_t first, siz
             Head head{};
             head.position = written.position;
             head.accidental = tiedOver ? Accidental::None : accidentalFor(written, key, bar);
-            head.color = note.hitFlash > 0.0f ? (note.wasPerfect ? PERFECT_COLOR : NEAR_COLOR) : INK;
+            head.color = note.hitFlash > 0.0f ? (note.wasPerfect ? themeColor(UiColor::Good) : themeColor(UiColor::Accent)) : themeColor(UiColor::Ink);
             column.heads.push_back(head);
         }
         std::sort(column.heads.begin(), column.heads.end(), [](const Head& a, const Head& b){ return a.position < b.position; });
@@ -277,8 +277,8 @@ static float drawGroup(const Staff& staff, const Score& score, size_t first, siz
         for (const Head& head : column.heads){
             // Ledger lines, a little wider than the notehead, on every line between the staff and the note
             float ledgerLeft = head.x - 0.3f * space, ledgerRight = head.x + column.width + 0.3f * space;
-            for (int p = -2; p >= head.position; p -= 2) DrawLineEx({ledgerLeft, staff.yAt(p)}, {ledgerRight, staff.yAt(p)}, staff.thickness, INK);
-            for (int p = STAFF_TOP_LINE + 2; p <= head.position; p += 2) DrawLineEx({ledgerLeft, staff.yAt(p)}, {ledgerRight, staff.yAt(p)}, staff.thickness, INK);
+            for (int p = -2; p >= head.position; p -= 2) DrawLineEx({ledgerLeft, staff.yAt(p)}, {ledgerRight, staff.yAt(p)}, staff.thickness, themeColor(UiColor::Ink));
+            for (int p = STAFF_TOP_LINE + 2; p <= head.position; p += 2) DrawLineEx({ledgerLeft, staff.yAt(p)}, {ledgerRight, staff.yAt(p)}, staff.thickness, themeColor(UiColor::Ink));
             drawGlyph(column.glyph, head.x, staff.yAt(head.position), space, head.color);
             top = std::min(top, staff.yAt(head.position) - space);
         }
@@ -322,7 +322,7 @@ static float drawGroup(const Staff& staff, const Score& score, size_t first, siz
                 Vector2 start = { head.x + column.width + 0.1f * space, y };
                 Vector2 end = { endX, y };
                 Vector2 bend = { (start.x + end.x) / 2, y + (up ? 0.9f : -0.9f) * space };
-                DrawSplineSegmentBezierQuadratic(start, bend, end, TIE_THICKNESS * space, INK);
+                DrawSplineSegmentBezierQuadratic(start, bend, end, TIE_THICKNESS * space, themeColor(UiColor::Ink));
             }
         }
     }
@@ -335,7 +335,7 @@ static float drawGroup(const Staff& staff, const Score& score, size_t first, siz
             float thickness = BEAM_THICKNESS * space;
             auto drawBeam = [&](float fromX, float toX){
                 float left = std::min(fromX, toX), right = std::max(fromX, toX);
-                DrawRectangleRec({left - STEM_THICKNESS * space / 2, up ? y : y - thickness, right - left + STEM_THICKNESS * space, thickness}, INK);
+                DrawRectangleRec({left - STEM_THICKNESS * space / 2, up ? y : y - thickness, right - left + STEM_THICKNESS * space, thickness}, themeColor(UiColor::Ink));
             };
             for (size_t c = 0; c < columns.size(); c++){
                 bool has = beamCount(columns[c].event->value) >= level;
@@ -364,9 +364,9 @@ void drawStaff(Rectangle area, const std::vector<PlayNote>& notes, const Score& 
     const float right = area.x + area.width;
 
     BeginScissorMode((int)area.x, (int)area.y, (int)area.width, (int)area.height); // nothing drawn outside the area
-    DrawRectangleRec(area, PAPER);
+    DrawRectangleRec(area, themeColor(UiColor::Card));
     auto drawStaffLines = [&](float fromX, float toX){
-        for (int line = 0; line <= STAFF_TOP_LINE; line += 2) DrawLineEx({fromX, staff.yAt(line)}, {toX, staff.yAt(line)}, staff.thickness, INK);
+        for (int line = 0; line <= STAFF_TOP_LINE; line += 2) DrawLineEx({fromX, staff.yAt(line)}, {toX, staff.yAt(line)}, staff.thickness, themeColor(UiColor::Ink));
     };
     drawStaffLines(area.x, right);
 
@@ -377,8 +377,8 @@ void drawStaff(Rectangle area, const std::vector<PlayNote>& notes, const Score& 
         float x = axis.xAt(bar.time) - axis.barLineGap;
         if (x < area.x - 10 * space || x > right + 10 * space) continue;
         bool closing = b + 1 == score.bars.size();
-        DrawLineEx({x, staff.yAt(STAFF_TOP_LINE)}, {x, staff.yAt(0)}, staff.thickness * (closing ? 4.0f : 1.4f), INK);
-        if (closing) DrawLineEx({x - 0.6f * space, staff.yAt(STAFF_TOP_LINE)}, {x - 0.6f * space, staff.yAt(0)}, staff.thickness * 1.4f, INK);
+        DrawLineEx({x, staff.yAt(STAFF_TOP_LINE)}, {x, staff.yAt(0)}, staff.thickness * (closing ? 4.0f : 1.4f), themeColor(UiColor::Ink));
+        if (closing) DrawLineEx({x - 0.6f * space, staff.yAt(STAFF_TOP_LINE)}, {x - 0.6f * space, staff.yAt(0)}, staff.thickness * 1.4f, themeColor(UiColor::Ink));
         if (closing) continue;
         float before = x - 0.5f * space;
         if (bar.showTimeSignature){
@@ -387,7 +387,7 @@ void drawStaff(Rectangle area, const std::vector<PlayNote>& notes, const Score& 
         }
         if (bar.showKey) drawKeySignature(staff, bar.key, before - std::abs(bar.key.fifths) * KEY_ACCIDENTAL_WIDTH * space);
     }
-    DrawLineEx({axis.hitLineX, area.y + space}, {axis.hitLineX, area.y + area.height - space}, 2.0f, HIT_LINE);
+    DrawLineEx({axis.hitLineX, area.y + space}, {axis.hitLineX, area.y + area.height - space}, 2.0f, themeColor(UiColor::Accent));
 
     // The events: from the start of the bar of the first one on screen (accidentals depend on what came before it
     // in its bar), to the first one past the right edge
@@ -434,7 +434,7 @@ void drawStaff(Rectangle area, const std::vector<PlayNote>& notes, const Score& 
             top = std::min(top, tupletTops[j].second);
             j++;
         }
-        drawGlyphCentered(GLYPH_TUPLET_3, (fromX + toX) / 2, std::min(top, staff.yAt(STAFF_TOP_LINE + 2)) - 0.3f * space, space, INK);
+        drawGlyphCentered(GLYPH_TUPLET_3, (fromX + toX) / 2, std::min(top, staff.yAt(STAFF_TOP_LINE + 2)) - 0.3f * space, space, themeColor(UiColor::Ink));
         k = j;
     }
 
@@ -443,9 +443,9 @@ void drawStaff(Rectangle area, const std::vector<PlayNote>& notes, const Score& 
     size_t barNow = 0;
     while (barNow + 1 < score.bars.size() && score.bars[barNow + 1].time <= axis.songTime) barNow++;
     float leadRight = area.x + staffLeadWidth(area.height, score) - LEAD_MARGIN * space;
-    DrawRectangleRec({area.x, area.y, leadRight - area.x, area.height}, PAPER);
+    DrawRectangleRec({area.x, area.y, leadRight - area.x, area.height}, themeColor(UiColor::Card));
     drawStaffLines(area.x, leadRight);
-    drawGlyph(GLYPH_TREBLE_CLEF_8VB, area.x + 0.5f * space, staff.yAt(2), space, INK); // a G clef curls around the G line
+    drawGlyph(GLYPH_TREBLE_CLEF_8VB, area.x + 0.5f * space, staff.yAt(2), space, themeColor(UiColor::Ink)); // a G clef curls around the G line
     if (!score.bars.empty()){
         const ScoreBar& bar = score.bars[barNow];
         float keyX = area.x + CLEF_WIDTH * space;

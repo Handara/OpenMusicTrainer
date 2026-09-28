@@ -5,12 +5,16 @@
 #include "core/judge.h"
 #include "core/music.h"
 #include "core/score.h"
+#include "imgui.h"
 #include "input/noteinput.h"
 #include "raylib.h"
+#include "ui/menulist.h"
+#include "ui/theme.h"
 #include "views/noteviews.h"
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <filesystem>
 #include <vector>
 
@@ -31,8 +35,6 @@ const float RHYTHM_FILL_PER_PERFECT = 0.12f;
 
 const int laneKeys[MAX_LANES] = { KEY_ONE, KEY_TWO, KEY_THREE, KEY_FOUR, KEY_FIVE, KEY_SIX };
 
-const Color WOOD_DARK = { 61, 38, 27, 255 };
-const Color WOOD_LIGHT = { 110, 70, 45, 255 };
 const int MAX_MULTIPLIER = 4;
 
 static void scoreMisses(GameState& state, int count){
@@ -85,21 +87,6 @@ static void handleInstrument(std::vector<PlayNote>& notes, GameState& state, flo
         if (result.judgement != Judgement::Ignored) scoreHit(state, result.judgement, result.notesHit);
         lastPlayedPitch = played.pitch;
     }
-}
-
-static void drawHUD(const GameState& state){
-    const int barHeight = 16;
-    DrawRectangle(0, 0, GetScreenWidth(), barHeight, Fade(BLACK, 0.5f));
-    DrawRectangle(0, 0, (int)(GetScreenWidth() * state.rhythm), barHeight, ColorLerp(RED, GREEN, state.rhythm));
-    DrawText("RHYTHM", 10, barHeight + 4, 14, Fade(RAYWHITE, 0.7f));
-
-    const char* scoreText = TextFormat("%08d", state.score);
-    int scoreWidth = MeasureText(scoreText, 36);
-    DrawText(scoreText, GetScreenWidth() - scoreWidth - 20, barHeight + 10, 36, GOLD);
-
-    const char* comboText = TextFormat("%d COMBO  x%d", state.combo, state.multiplier);
-    int comboWidth = MeasureText(comboText, 22);
-    DrawText(comboText, GetScreenWidth() - comboWidth - 20, barHeight + 50, 22, RAYWHITE);
 }
 
 // Everything the play screen needs while a song is running
@@ -185,18 +172,50 @@ bool updateGameplay(){
 
 void drawGameplay(){
     if (!game.active) return;
-    DrawRectangleGradientV(0, 0, GetScreenWidth(), GetScreenHeight(), WOOD_DARK, WOOD_LIGHT);
+    ClearBackground(themeColor(UiColor::Background));
     TimeAxis axis = { game.songTime, (float)HIT_LINE_X, game.options.noteSpeed };
     float width = (float)GetScreenWidth(), height = (float)GetScreenHeight();
     Rectangle viewsArea = { 0, height * 0.14f, width, height * 0.84f }; // below the HUD
     drawNoteViews(viewsArea, game.options.noteViews, game.notes, game.score, game.chart.frettedTracks[0].tuning,
                   game.options.lowStringOnTop, axis);
-    drawHUD(game.state);
+}
+
+void drawGameplayHud(){
+    if (!game.active) return;
+    ImDrawList* draw = ImGui::GetForegroundDrawList();
+    const UiFonts& fonts = uiFonts();
+    const GameState& state = game.state;
+    const float s = menuScale(), width = ImGui::GetIO().DisplaySize.x;
+    const float margin = 28 * s, top = 22 * s;
+    auto textWidth = [](ImFont* font, float size, const char* text){
+        return font ? font->CalcTextSizeA(size, FLT_MAX, 0.0f, text).x : size * 0.6f * std::strlen(text);
+    };
+
+    // The rhythm meter: a thin brass line along the top edge, filling as perfect hits keep coming
+    draw->AddRectFilled(ImVec2(0, 0), ImVec2(width, 4 * s), uiColor(UiColor::StaffLine));
+    draw->AddRectFilled(ImVec2(0, 0), ImVec2(width * state.rhythm, 4 * s), uiColor(UiColor::Accent));
+
+    // The song on the left, with what the instrument is heard playing, so the player can trust the input
+    draw->AddText(fonts.bold, 24 * s, ImVec2(margin, top), uiColor(UiColor::Ink), game.chart.title.c_str());
+    std::string below = game.chart.artist;
     if (game.options.playWithInstrument){
-        const char* heard = game.lastPlayedPitch >= 0
+        std::string heard = game.lastPlayedPitch >= 0
             ? TextFormat("You played %s%d", pitchClassName(game.lastPlayedPitch), pitchOctave(game.lastPlayedPitch)) : "Listening...";
-        DrawText(heard, 20, 40, 22, RAYWHITE);
+        below += below.empty() ? heard : "  ·  " + heard;
     }
+    draw->AddText(fonts.text, 16 * s, ImVec2(margin, top + 30 * s), uiColor(UiColor::Dim), below.c_str());
+
+    // The score on the right, the combo and multiplier under it: the multiplier in brass once it's working
+    const char* score = TextFormat("%d", state.score);
+    draw->AddText(fonts.heavy, 34 * s, ImVec2(width - margin - textWidth(fonts.heavy, 34 * s, score), top - 4 * s), uiColor(UiColor::Ink), score);
+    const char* multiplier = TextFormat("x%d", state.multiplier);
+    float multiplierWidth = textWidth(fonts.mono, 15 * s, multiplier);
+    float lineY = top + 38 * s;
+    draw->AddText(fonts.mono, 15 * s, ImVec2(width - margin - multiplierWidth, lineY),
+                  uiColor(state.multiplier > 1 ? UiColor::Accent : UiColor::Dim), multiplier);
+    const char* combo = TextFormat("COMBO %d  ·  ", state.combo);
+    draw->AddText(fonts.mono, 15 * s, ImVec2(width - margin - multiplierWidth - textWidth(fonts.mono, 15 * s, combo), lineY),
+                  uiColor(UiColor::Dim), combo);
 }
 
 void stopGameplay(){

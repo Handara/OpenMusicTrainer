@@ -1,12 +1,15 @@
 #include "views/highway.h"
 
 #include "core/music.h"
+#include "views/viewfont.h"
 
 #include <algorithm>
 
 const float MAX_LANE_SPACING = 70.0f;
-const Color TRACK_PANEL = { 30, 18, 12, 200 };
-const Color LANE_COLORS[] = { RED, ORANGE, GOLD, GREEN, SKYBLUE, PURPLE };
+// One color per string, low to high, so a string can be told at a glance: deep enough for white fret numbers, and
+// the same in light and dark
+const Color STRING_COLORS[] = { {200, 70, 62, 255}, {214, 120, 40, 255}, {190, 145, 30, 255},
+                                {52, 140, 90, 255}, {50, 120, 190, 255}, {128, 90, 190, 255} };
 
 // Both directions draw the same things; only which screen axis is time and which is the strings differs. Positions
 // are worked out as "along" (time) and "across" (the strings), then turned into x and y at the last moment.
@@ -18,7 +21,7 @@ void drawHighway(Rectangle area, const std::vector<PlayNote>& notes, const Score
     const float scale = spacing / MAX_LANE_SPACING; // shrink notes and text along with the lanes
     const float noteRadius = 16.0f * scale;
     const float targetRadius = 22.0f * scale;
-    const int fontSize = std::max(10, (int)(20 * scale));
+    const float fontSize = std::max(10.0f, 20.0f * scale);
     const float firstLane = (falls ? area.x : area.y) + (acrossLength - spacing * (laneCount - 1)) / 2;
     // Which lane each string gets depends on the string order setting, decided here and nowhere else
     auto laneAt = [&](int stringIndex){
@@ -34,7 +37,8 @@ void drawHighway(Rectangle area, const std::vector<PlayNote>& notes, const Score
     auto timeAt = [&](float along){ return falls ? axis.songTime + (hitAlong - along) / axis.noteSpeed : axis.timeAt(along); };
     auto point = [&](float along, float across){ return falls ? Vector2{across, along} : Vector2{along, across}; };
 
-    DrawRectangleRec(area, TRACK_PANEL);
+    const Color line = themeColor(UiColor::StaffLine);
+    DrawRectangleRec(area, themeColor(UiColor::Card));
     BeginScissorMode((int)area.x, (int)area.y, (int)area.width, (int)area.height);
     const float acrossStart = firstLane - spacing / 2, acrossEnd = firstLane + spacing * (laneCount - 0.5f);
 
@@ -42,22 +46,19 @@ void drawHighway(Rectangle area, const std::vector<PlayNote>& notes, const Score
     for (const ScoreBar& bar : score.bars){
         float along = alongAt(bar.time);
         if (along < alongStart || along > alongEnd) continue;
-        DrawLineEx(point(along, acrossStart), point(along, acrossEnd), 2.0f, Fade(WHITE, 0.12f));
+        DrawLineEx(point(along, acrossStart), point(along, acrossEnd), 2.0f, line);
     }
 
     for (int i = 0; i < laneCount; i++){
         float across = laneAt(i);
-        DrawLineEx(point(alongStart, across), point(alongEnd, across), 1.0f, Fade(WHITE, 0.15f));
-        DrawCircleLinesV(point(hitAlong, across), targetRadius, Fade(LANE_COLORS[i % 6], 0.8f));
+        DrawLineEx(point(alongStart, across), point(alongEnd, across), 1.0f, line);
+        DrawRing(point(hitAlong, across), targetRadius - 2.0f * scale, targetRadius, 0.0f, 360.0f, 48, Fade(STRING_COLORS[i % 6], 0.7f));
         const char* label = TextFormat("%s%d [%d]", pitchClassName(tuning[i]), pitchOctave(tuning[i]), i + 1);
-        if (falls){
-            // Under each column's target, centered on it
-            DrawText(label, (int)(across - MeasureText(label, fontSize) / 2), (int)(hitAlong + targetRadius + 8), fontSize, RAYWHITE);
-        } else {
-            DrawText(label, (int)area.x + 10, (int)(across - fontSize / 2), fontSize, RAYWHITE);
-        }
+        Vector2 at = falls ? Vector2{across, hitAlong + targetRadius + 8 + fontSize / 2} // under each column's target
+                           : Vector2{area.x + 10, across};                             // at the start of each lane
+        drawViewText(label, at.x, at.y, fontSize, themeColor(UiColor::Dim), falls ? 0.5f : 0.0f);
     }
-    DrawLineEx(point(hitAlong, acrossStart), point(hitAlong, acrossEnd), 2.0f, GOLD);
+    DrawLineEx(point(hitAlong, acrossStart), point(hitAlong, acrossEnd), 2.0f, themeColor(UiColor::Accent));
 
     // Falling, a note is gone once it's past the hit line, so it never covers the string names under it
     if (falls){
@@ -75,17 +76,18 @@ void drawHighway(Rectangle area, const std::vector<PlayNote>& notes, const Score
     for (; it != notes.end() && it->time <= latest; ++it){
         const PlayNote& note = *it;
         Vector2 center = point(alongAt(note.time), laneAt(note.stringIndex));
-        Color color = LANE_COLORS[note.stringIndex % 6];
+        Color color = STRING_COLORS[note.stringIndex % 6];
         if (note.hitFlash > 0.0f){
+            // A ring spreads from a hit note as it lights up: good for perfect, brass for near
             float t = note.hitFlash / HIT_FLASH_DURATION;
-            Color ringColor = note.wasPerfect ? WHITE : YELLOW;
-            DrawCircleLinesV(center, targetRadius + (1.0f - t) * 20 * scale, Fade(ringColor, t));
-            color = ringColor;
+            Color lit = themeColor(note.wasPerfect ? UiColor::Good : UiColor::Accent);
+            float radius = targetRadius + (1.0f - t) * 20 * scale;
+            DrawRing(center, radius - 2.0f * scale, radius, 0.0f, 360.0f, 48, Fade(lit, t));
+            color = lit;
         }
+        DrawCircleV(center, noteRadius + 1.5f * scale, themeColor(UiColor::Card)); // a rim that keeps notes apart
         DrawCircleV(center, noteRadius, color);
-        DrawCircleLinesV(center, noteRadius, RAYWHITE);
-        const char* fretText = TextFormat("%d", note.fret);
-        DrawText(fretText, (int)(center.x - MeasureText(fretText, fontSize) / 2), (int)(center.y - fontSize / 2), fontSize, BLACK);
+        drawViewText(TextFormat("%d", note.fret), center.x, center.y, fontSize, WHITE);
     }
     EndScissorMode();
 }

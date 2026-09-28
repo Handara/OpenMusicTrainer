@@ -29,6 +29,7 @@ struct GameplayOptions {
 
 bool startGameplay(const std::string& chartPath, const GameplayOptions& options, std::string& error); // loads chart + audio, starts the song
 bool updateGameplay(); // one frame of input and judging; returns false once the song is over
-void drawGameplay();
+void drawGameplay();    // the note views, with raylib
+void drawGameplayHud(); // the song, the score and the meters over them, with ImGui: between beginUiFrame and endUiFrame
 void stopGameplay();   // stops and releases the song; safe to call more than once
 GameResult gameplayResult();

@@ -2,6 +2,7 @@
 
 #include "core/judge.h" // PlayNote: the notes views draw
 #include "raylib.h"
+#include "ui/theme.h"
 
 // What the play screen's views share. A view only draws: judging lives in core/judge, timing in gameplay.
 
@@ -18,9 +19,5 @@ struct TimeAxis {
     float timeAt(float x) const { return songTime + (x - hitLineX) / noteSpeed; }
 };
 
-// The printed look, shared by the sheet music and the tab so they read as one score when stacked
-const Color PAPER = { 242, 232, 212, 255 };
-const Color INK = { 34, 26, 22, 255 };
-const Color HIT_LINE = { 200, 150, 40, 255 };
-const Color PERFECT_COLOR = { 40, 170, 80, 255 };
-const Color NEAR_COLOR = { 210, 150, 20, 255 };
+// Colors come from the theme by role (ui/theme), so the views work in light and dark: the sheet music and the tab
+// are printed in ink on the card color, the hit line is the brass accent, a hit lights up good (perfect) or brass (near).

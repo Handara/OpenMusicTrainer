@@ -146,6 +146,7 @@ add_executable(lahn
     src/views/noteviews.cpp
     src/views/staff.cpp
     src/views/tab.cpp
+    src/views/viewfont.cpp
     src/video/video.cpp
 )
 target_link_libraries(lahn PRIVATE lahn_core raylib miniaudio imgui pl_mpeg)
