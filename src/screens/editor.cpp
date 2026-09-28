@@ -357,6 +357,7 @@ static void drawSidePanel(){
     ImGui::TextWrapped("Left click: add / select note\nRight click: delete note\nUp / Down: fret of selected note "
                        "(or of new notes)\nDelete: delete selected\nWheel: scroll    Ctrl + wheel: zoom\n"
                        "Space: play / stop    Click the ruler: move the playhead\n"
+                       "F5: test play from the playhead\n"
                        "Ctrl + Z: undo    Ctrl + Y: redo\n"
                        "Ctrl + S: save    Esc: back");
     ImGui::PopStyleColor();
@@ -568,6 +569,16 @@ void closeEditor(){
     editor.active = false;
 }
 
+EditorTestPlay editorTestPlay(){
+    return { editor.chart, (fs::path(editor.songFolder) / editor.chart.audioFile).string(), editor.playheadTick };
+}
+
+void resumeEditor(const std::string& message){
+    if (!message.empty()) editor.status = message;
+    std::string error;
+    editor.songLoaded = loadSong((fs::path(editor.songFolder) / editor.chart.audioFile).string(), error);
+}
+
 EditorChoice editorScreen(){
     EditorChoice choice = EditorChoice::None;
     ImGuiIO& io = ImGui::GetIO();
@@ -577,10 +588,12 @@ EditorChoice editorScreen(){
                                     | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollWithMouse);
 
     // Top bar
-    bool requestBack = false;
+    bool requestBack = false, requestTestPlay = false;
     if (ImGui::Button("Save")) saveEditorChart();
     ImGui::SameLine();
     if (ImGui::Button("Back")) requestBack = true;
+    ImGui::SameLine();
+    if (ImGui::Button("Test play")) requestTestPlay = true;
     ImGui::SameLine();
     ImGui::Text("%s%s", editor.chart.title.c_str(), editor.dirty ? "  *" : "");
     ImGui::SameLine();
@@ -607,7 +620,15 @@ EditorChoice editorScreen(){
     if (!popupOpen){
         handleEditingKeys();
         if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S)) saveEditorChart();
+        if (ImGui::IsKeyPressed(ImGuiKey_F5)) requestTestPlay = true;
         if (ImGui::IsKeyPressed(ImGuiKey_Escape) && !io.WantTextInput) requestBack = true;
+    }
+    if (requestTestPlay){
+        if (editor.chart.audioFile.empty() || !editor.songLoaded) editor.status = "Test play needs the song's audio";
+        else {
+            stopPlayback();
+            choice = EditorChoice::TestPlay;
+        }
     }
     if (requestBack){
         if (editor.dirty) ImGui::OpenPopup(UNSAVED_POPUP);

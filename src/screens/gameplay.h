@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/chart.h"
 #include "core/settings.h"
 
 #include <string>
@@ -28,6 +29,10 @@ struct GameplayOptions {
 // Audio must already be initialized (initAudio).
 
 bool startGameplay(const std::string& chartPath, const GameplayOptions& options, std::string& error); // loads chart + audio, starts the song
+// A chart already in memory (the editor's, maybe unsaved), from a tick on: the notes before it are left out, and the
+// song starts a short lead-in before it
+bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, const GameplayOptions& options, int fromTick,
+                            std::string& error);
 bool updateGameplay(); // one frame of input and judging; returns false once the song is over
 void drawGameplay();    // the note views, with raylib
 void drawGameplayHud(); // the song, the score and the meters over them, with ImGui: between beginUiFrame and endUiFrame

@@ -43,6 +43,7 @@ static struct {
     std::string songSelectError;  // why the last song failed to start
     std::string mainMenuError;    // why the last main menu action failed (e.g. no input device)
     GameResult lastResult;
+    bool testPlaying = false;     // playing the editor's chart: the end or Esc goes back to the editor
     CalibrationMode calibrationMode = CalibrationMode::Tap;
     std::string settingsError;    // why calibration couldn't start (e.g. no input device)
 } app;
@@ -103,8 +104,7 @@ static void editSong(const SongEntry& song){
     }
 }
 
-static void startSong(const std::string& chartPath){
-    std::string error;
+static GameplayOptions gameplayOptions(){
     GameplayOptions options;
     options.noteSpeed = app.settings.noteSpeed;
     options.offsetSeconds = app.settings.globalOffsetMs / 1000.0f;
@@ -113,7 +113,13 @@ static void startSong(const std::string& chartPath){
     options.playWithInstrument = app.settings.playWithInstrument;
     options.inputDevice = app.settings.inputDevice;
     options.inputOffsetSeconds = app.settings.inputOffsetMs / 1000.0f;
-    if (startGameplay(chartPath, options, error)){
+    return options;
+}
+
+static void startSong(const std::string& chartPath){
+    std::string error;
+    app.testPlaying = false;
+    if (startGameplay(chartPath, gameplayOptions(), error)){
         app.currentChartPath = chartPath;
         app.songSelectError.clear();
         app.screen = Screen::Playing;
@@ -121,6 +127,24 @@ static void startSong(const std::string& chartPath){
         app.songSelectError = error;
         app.screen = Screen::SongSelect;
     }
+}
+
+static void startTestPlay(){
+    EditorTestPlay test = editorTestPlay();
+    std::string error;
+    if (startGameplayWithChart(test.chart, test.audioPath, gameplayOptions(), test.fromTick, error)){
+        app.testPlaying = true;
+        app.screen = Screen::Playing;
+    } else {
+        resumeEditor("Test play: " + error);
+    }
+}
+
+static void backToEditor(){
+    stopGameplay();
+    app.testPlaying = false;
+    resumeEditor();
+    app.screen = Screen::Editor;
 }
 
 static void goToTuner(){
@@ -144,7 +168,10 @@ static void handleBackKey(){
     switch (app.screen){
         case Screen::MainMenu: break;
         case Screen::SongSelect: app.screen = Screen::MainMenu; break;
-        case Screen::Playing: stopGameplay(); goToSongSelect(); break;
+        case Screen::Playing:
+            if (app.testPlaying) backToEditor();
+            else { stopGameplay(); goToSongSelect(); }
+            break;
         case Screen::Results: goToSongSelect(); break;
         case Screen::Tuner: leaveTuner(); break;
         case Screen::Settings: leaveSettings(); break;
@@ -194,9 +221,13 @@ static void runMenus(){
             break;
         }
         case Screen::Editor:
-            if (editorScreen() == EditorChoice::Back){
-                closeEditor();
-                goToSongList(Screen::EditorSelect); // rescan: saving a built-in song created a new one
+            switch (editorScreen()){
+                case EditorChoice::Back:
+                    closeEditor();
+                    goToSongList(Screen::EditorSelect); // rescan: saving a built-in song created a new one
+                    break;
+                case EditorChoice::TestPlay: startTestPlay(); break;
+                case EditorChoice::None: break;
             }
             break;
         case Screen::LessonEditor:
@@ -306,7 +337,8 @@ int main(void){
         // Changes of screen from outside the menus come after drawing, so this frame still shows the old screen and
         // the transition starts from it. Esc only counts if the menus didn't already use it to change screens.
         if (app.screen == shown) handleBackKey();
-        if (songOver && app.screen == Screen::Playing){
+        if (songOver && app.screen == Screen::Playing && app.testPlaying) backToEditor();
+        else if (songOver && app.screen == Screen::Playing){
             app.lastResult = gameplayResult();
             stopGameplay();
             app.screen = Screen::Results;

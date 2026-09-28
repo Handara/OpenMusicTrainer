@@ -74,6 +74,8 @@ static struct {
     ReaderSource readerSource; // the song's source when it comes from a function
     bool songFromReader = false;
     bool looping = false;
+    double songStartTime = 0.0;     // playSongFrom: the engine time (audioTime) the song starts playing at...
+    double songStartPosition = 0.0; // ...and the song position it starts from
 
     // Clock smoothing: the audio position only changes when the audio thread processes a chunk,
     // so on its own it moves in steps. smoothTime advances continuously and follows it.
@@ -308,6 +310,7 @@ void unloadSong(){
     if (audio.songFromReader) ma_data_source_uninit(&audio.readerSource.base);
     audio.songReady = false;
     audio.songFromReader = false;
+    audio.songStartTime = 0.0;
 }
 
 void playSong(bool loop){
@@ -316,6 +319,7 @@ void playSong(bool loop){
     ma_sound_set_looping(&audio.song, loop ? MA_TRUE : MA_FALSE);
     ma_sound_seek_to_pcm_frame(&audio.song, 0);
     ma_sound_set_start_time_in_pcm_frames(&audio.song, 0); // at once, even after a playSongFrom
+    audio.songStartTime = 0.0;
     audio.smoothTime = 0.0;
     audio.lastWallTime = wallClockSeconds();
     ma_sound_start(&audio.song);
@@ -332,6 +336,8 @@ double playSongFrom(double seconds){
     double wait = SONG_START_LEAD_S + std::max(0.0, -seconds);
     ma_uint64 start = ma_engine_get_time_in_pcm_frames(&audio.engine) + (ma_uint64)std::llround(wait * engineRate);
     ma_sound_set_start_time_in_pcm_frames(&audio.song, start);
+    audio.songStartTime = (double)start / engineRate;
+    audio.songStartPosition = std::max(0.0, seconds);
     audio.smoothTime = seconds;
     audio.lastWallTime = wallClockSeconds();
     ma_sound_start(&audio.song);
@@ -359,6 +365,16 @@ double songPosition(){
     double now = wallClockSeconds();
     double length = audio.songLengthS;
 
+    // Started for a moment from now (playSongFrom): until then the audio stands still (and miniaudio calls it not
+    // playing), so the position counts up to the start on the engine's clock instead
+    if (audio.songStartTime > 0.0){
+        double untilStart = audio.songStartTime - ::audioTime();
+        if (untilStart > 0.0){
+            audio.smoothTime = audio.songStartPosition - untilStart;
+            audio.lastWallTime = now;
+            return audio.smoothTime;
+        }
+    }
     if (!ma_sound_is_playing(&audio.song)){
         audio.smoothTime = audioTime;
         audio.lastWallTime = now;

@@ -36,6 +36,7 @@ const float RHYTHM_FILL_PER_PERFECT = 0.12f;
 const int laneKeys[MAX_LANES] = { KEY_ONE, KEY_TWO, KEY_THREE, KEY_FOUR, KEY_FIVE, KEY_SIX };
 
 const int MAX_MULTIPLIER = 4;
+const double LEAD_IN_S = 2.0; // starting part-way into a song, it plays this long before the first note
 
 static void scoreMisses(GameState& state, int count){
     if (count == 0) return;
@@ -102,12 +103,29 @@ static struct {
 } game;
 
 bool startGameplay(const std::string& chartPath, const GameplayOptions& options, std::string& error){
-    stopGameplay();
-    if (!loadChart(chartPath, game.chart, error)) return false;
-    if (game.chart.audioFile.empty()){
+    Chart chart;
+    if (!loadChart(chartPath, chart, error)) return false;
+    if (chart.audioFile.empty()){
         error = chartPath + ": chart has no 'audio' line";
         return false;
     }
+    // The audio file is named relative to the chart's own folder
+    std::filesystem::path audioPath = std::filesystem::path(chartPath).parent_path() / chart.audioFile;
+    return startGameplayWithChart(chart, audioPath.string(), options, 0, error);
+}
+
+bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, const GameplayOptions& options, int fromTick,
+                            std::string& error){
+    stopGameplay();
+    game.chart = chart;
+    if (game.chart.frettedTracks.empty()){
+        error = "the chart has no track to play";
+        return false;
+    }
+    // Starting part-way: the notes before are left out, so the score (the sheet music) is built without them too
+    std::vector<FrettedNote>& chartNotes = game.chart.frettedTracks[0].notes;
+    chartNotes.erase(chartNotes.begin(), std::lower_bound(chartNotes.begin(), chartNotes.end(), fromTick,
+                     [](const FrettedNote& note, int tick){ return note.tick < tick; }));
     const FrettedTrack& track = game.chart.frettedTracks[0];
     if ((int)track.tuning.size() > MAX_LANES){
         error = "track '" + track.name + "' has " + std::to_string(track.tuning.size())
@@ -115,9 +133,7 @@ bool startGameplay(const std::string& chartPath, const GameplayOptions& options,
         return false;
     }
 
-    // The audio file is named relative to the chart's own folder
-    std::filesystem::path audioPath = std::filesystem::path(chartPath).parent_path() / game.chart.audioFile;
-    if (!loadSong(audioPath.string(), error)) return false;
+    if (!loadSong(audioPath, error)) return false;
 
     // Gameplay notes: the chart's notes converted to seconds, plus per-run judging state
     game.notes.clear();
@@ -142,7 +158,8 @@ bool startGameplay(const std::string& chartPath, const GameplayOptions& options,
     }
     game.songTime = 0.0f;
     game.active = true;
-    playSong(false);
+    if (fromTick > 0) playSongFrom(tickToSeconds(game.chart, fromTick) - LEAD_IN_S);
+    else playSong(false);
     return true;
 }
 
