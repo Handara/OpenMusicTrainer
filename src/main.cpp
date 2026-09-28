@@ -12,6 +12,7 @@
 #include "screens/menus.h"
 #include "screens/settingsscreen.h"
 #include "screens/tuner.h"
+#include "ui/transition.h"
 #include "ui/ui.h"
 #include "views/staff.h"
 #include "views/tab.h"
@@ -290,12 +291,8 @@ int main(void){
     if (!loadTabFont(app.resourcesDir + "fonts/Figtree-Bold.ttf")) TraceLog(LOG_WARNING, "Text font not found: tab uses the pixel font");
 
     while (!WindowShouldClose() && !app.quit){
-        handleBackKey();
-        if (app.screen == Screen::Playing && !updateGameplay()){
-            app.lastResult = gameplayResult();
-            stopGameplay();
-            app.screen = Screen::Results;
-        }
+        const Screen shown = app.screen; // the screen this frame draws
+        bool songOver = app.screen == Screen::Playing && !updateGameplay();
         if (app.screen == Screen::Tuner) updateTuner();
 
         BeginDrawing();
@@ -305,6 +302,17 @@ int main(void){
         beginUiFrame();
         runMenus();
         endUiFrame();
+
+        // Changes of screen from outside the menus come after drawing, so this frame still shows the old screen and
+        // the transition starts from it. Esc only counts if the menus didn't already use it to change screens.
+        if (app.screen == shown) handleBackKey();
+        if (songOver && app.screen == Screen::Playing){
+            app.lastResult = gameplayResult();
+            stopGameplay();
+            app.screen = Screen::Results;
+        }
+        drawTransition();
+        if (app.screen != shown) startTransition();
         EndDrawing();
     }
 
@@ -314,6 +322,7 @@ int main(void){
     closeLearnScreen(); // before the UI and audio they use shut down
     closeLessonEditor();
     stopCalibration();
+    unloadTransition();
     closeUi();
     unloadStaffFont();
     unloadTabFont();
