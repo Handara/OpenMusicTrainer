@@ -12,8 +12,10 @@
 #include "ui/ui.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <filesystem>
+#include <thread>
 
 namespace fs = std::filesystem;
 
@@ -41,6 +43,7 @@ const ImU32 COLOR_BEAT_LINE = IM_COL32(255, 220, 180, 70);
 const ImU32 COLOR_SUBDIVISION_LINE = IM_COL32(255, 220, 180, 25);
 const ImU32 COLOR_STRING_LINE = IM_COL32(255, 255, 255, 40);
 const ImU32 COLOR_END = IM_COL32(230, 60, 50, 255);
+const ImU32 COLOR_WAVEFORM = IM_COL32(255, 220, 180, 34);
 
 const char* const UNSAVED_POPUP = "Unsaved changes";
 const double LOOKAHEAD_S = 0.2;       // playback schedules clicks and notes this far ahead, on the audio clock
@@ -91,6 +94,36 @@ struct EditorState {
     bool active = false;
 };
 static EditorState editor;
+
+// The song's waveform, worked out on a thread of its own (decoding a long song takes a moment) while the editor is
+// already usable; it's drawn once `ready` says so. Kept apart from EditorState, which is copied whole on open.
+const int PEAKS_PER_SECOND = 200;
+static struct {
+    std::thread thread;
+    std::atomic<bool> ready{false};
+    std::atomic<bool> cancel{false};
+    std::vector<float> peaks;    // written by the thread, read only once `ready` is set
+    bool show = true;
+} waveform;
+
+static void stopWaveform(){
+    waveform.cancel = true;
+    if (waveform.thread.joinable()) waveform.thread.join();
+    waveform.ready = false;
+    waveform.cancel = false;
+    waveform.peaks.clear();
+}
+
+static void startWaveform(const std::string& audioPath){
+    stopWaveform();
+    waveform.thread = std::thread([audioPath](){
+        std::vector<float> peaks;
+        if (songPeaks(audioPath, PEAKS_PER_SECOND, peaks, waveform.cancel)){
+            waveform.peaks = std::move(peaks);
+            waveform.ready = true; // after the peaks are in place: the main thread reads them once it sees this
+        }
+    });
+}
 
 static void markChanged(){
     editor.dirty = true;
@@ -415,6 +448,11 @@ static void drawSidePanel(){
     ImGui::Checkbox("Metronome", &editor.metronome);
     ImGui::SameLine();
     ImGui::Checkbox("Play the notes", &editor.playNotes);
+    ImGui::Checkbox("Waveform", &waveform.show);
+    if (waveform.show && editor.songLoaded && !waveform.ready){
+        ImGui::SameLine();
+        ImGui::TextDisabled("reading the audio...");
+    }
     if (!editor.songLoaded) ImGui::TextDisabled("No audio: plays the clicks and notes alone");
 
     ImGui::SeparatorText("Notes");
@@ -482,13 +520,29 @@ static void drawTimeline(){
         int beatLength = resolution * 4 / timeSignatureAt(editor.chart, tick).beatUnit; // a beat of 1/8 is half a quarter
         bool isBar = tick == barStart;
         ImU32 color = isBar ? COLOR_BAR_LINE : ((tick - barStart) % beatLength == 0 ? COLOR_BEAT_LINE : COLOR_SUBDIVISION_LINE);
-        draw->AddLine(ImVec2(x, rowsTop), ImVec2(x, origin.y + size.y), color, isBar ? 2.0f : 1.0f);
+        verticalLine(draw, x, rowsTop, origin.y + size.y, isBar ? 2.0f : 1.0f, color);
         if (isBar) draw->AddText(ImVec2(x + 4, origin.y + 4), COLOR_TEXT, TextFormat("%d", bar + 1));
+    }
+
+    // The song's waveform behind the strings, placed by the chart's timing: when the offset and tempo are right,
+    // its attacks line up with the beats
+    if (waveform.show && waveform.ready && !waveform.peaks.empty()){
+        const std::vector<float>& peaks = waveform.peaks;
+        float middle = rowsTop + rowHeight * stringCount / 2, halfHeight = rowHeight * stringCount / 2;
+        const float column = 2.0f;
+        for (float x = gridLeft; x < gridRight; x += column){
+            double from = tickToSeconds(editor.chart, (int)xToTick(x)), to = tickToSeconds(editor.chart, (int)xToTick(x + column));
+            int first = (int)(from * PEAKS_PER_SECOND), last = std::max(first, (int)(to * PEAKS_PER_SECOND) - 1);
+            if (last < 0 || first >= (int)peaks.size()) continue;
+            float peak = 0.0f;
+            for (int i = std::max(first, 0); i <= last && i < (int)peaks.size(); i++) peak = std::max(peak, peaks[i]);
+            draw->AddRectFilled(ImVec2(x, middle - peak * halfHeight), ImVec2(x + column - 0.5f, middle + peak * halfHeight), COLOR_WAVEFORM);
+        }
     }
 
     // Strings, labeled with their open-string note
     for (int s = 0; s < stringCount; s++){
-        draw->AddLine(ImVec2(gridLeft, rowY(s)), ImVec2(gridRight, rowY(s)), COLOR_STRING_LINE);
+        horizontalLine(draw, gridLeft, gridRight, rowY(s), 1.0f, COLOR_STRING_LINE);
         draw->AddText(ImVec2(origin.x + 10, rowY(s) - 9), COLOR_TEXT,
                       TextFormat("%s%d", pitchClassName(t.tuning[s]), pitchOctave(t.tuning[s])));
     }
@@ -496,7 +550,7 @@ static void drawTimeline(){
     // End of the chart, with everything after it shaded
     float endX = tickToX(editor.chart.endTick);
     draw->AddRectFilled(ImVec2(std::max(endX, gridLeft), rowsTop), ImVec2(gridRight, origin.y + size.y), IM_COL32(0, 0, 0, 90));
-    draw->AddLine(ImVec2(endX, rowsTop), ImVec2(endX, origin.y + size.y), COLOR_END, 2.0f);
+    verticalLine(draw, endX, rowsTop, origin.y + size.y, 2.0f, COLOR_END);
 
     // The playhead: where playback starts, or where it is while playing. Playing, the view follows it.
     int playhead = editor.playing ? (int)secondsToTick(editor.chart, playbackSeconds()) : editor.playheadTick;
@@ -544,7 +598,7 @@ static void drawTimeline(){
     }
     float playheadX = tickToX(playhead);
     ImU32 accent = uiColor(UiColor::Accent);
-    draw->AddLine(ImVec2(playheadX, origin.y), ImVec2(playheadX, origin.y + size.y), accent, 2.0f);
+    verticalLine(draw, playheadX, origin.y, origin.y + size.y, 2.0f, accent);
     draw->AddTriangleFilled(ImVec2(playheadX - 7, origin.y), ImVec2(playheadX + 7, origin.y), ImVec2(playheadX, origin.y + 10), accent);
     draw->PopClipRect();
 
@@ -631,10 +685,14 @@ bool openEditor(const SongEntry& song, const std::string& userSongsDir, const st
     fresh.committed = fresh.chart;
     editor = fresh;
 
-    // The song's audio, for playback. A chart without it can still be edited and played as clicks and notes.
+    // The song's audio, for playback and its waveform. A chart without it can still be edited and played as clicks
+    // and notes.
     std::string audioError;
+    stopWaveform();
     if (!editor.chart.audioFile.empty()){
-        editor.songLoaded = loadSong((fs::path(song.folder) / editor.chart.audioFile).string(), audioError);
+        std::string audioPath = (fs::path(song.folder) / editor.chart.audioFile).string();
+        editor.songLoaded = loadSong(audioPath, audioError);
+        if (editor.songLoaded) startWaveform(audioPath);
     }
 
     // Arrow keys edit notes here instead of moving between buttons
@@ -646,6 +704,7 @@ void closeEditor(){
     if (!editor.active) return;
     stopPlayback();
     unloadSong();
+    stopWaveform();
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     editor.active = false;
 }

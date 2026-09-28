@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <string>
 #include <vector>
 
@@ -28,6 +29,11 @@ void stopSong(); // pauses where it is; playSong or playSongFrom starts it again
 bool songEnded();      // true once a non-looping song has played to its end
 double songLength();   // seconds
 double songPosition(); // seconds, smoothed between audio updates; call once per frame
+
+// A song file's loudness over time, for drawing its waveform: the peak of every 1/peaksPerSecond of a second, 0 to 1.
+// It decodes the whole file, which takes a second or two for a long song, so it's meant for a background thread:
+// setting `cancel` stops it early (and it returns false). Independent of the playing song.
+bool songPeaks(const std::string& path, int peaksPerSecond, std::vector<float>& out, const std::atomic<bool>& cancel);
 
 // A song whose samples come from a function instead of a file: the sound of a video, decoded as it plays. The
 // function runs on the audio thread, so it must only work from memory, never wait on anything: it fills `out` with

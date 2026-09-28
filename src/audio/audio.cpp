@@ -705,3 +705,31 @@ double audioTime(){
     audio.engineSmoothTime = std::max(audio.engineSmoothTime, previous); // a small correction must not step it back either
     return audio.engineSmoothTime;
 }
+
+bool songPeaks(const std::string& path, int peaksPerSecond, std::vector<float>& out, const std::atomic<bool>& cancel){
+    // Mono floats at the file's own rate: the decoder mixes the channels down
+    ma_decoder_config config = ma_decoder_config_init(ma_format_f32, 1, 0);
+    ma_decoder decoder;
+    if (ma_decoder_init_file(path.c_str(), &config, &decoder) != MA_SUCCESS) return false;
+    const ma_uint64 framesPerPeak = std::max<ma_uint64>(1, decoder.outputSampleRate / (ma_uint32)peaksPerSecond);
+    out.clear();
+    std::vector<float> chunk(4096);
+    float peak = 0.0f;
+    ma_uint64 inPeak = 0;
+    for (;;){
+        if (cancel) break;
+        ma_uint64 read = 0;
+        ma_decoder_read_pcm_frames(&decoder, chunk.data(), chunk.size(), &read);
+        if (read == 0) break;
+        for (ma_uint64 i = 0; i < read; i++){
+            peak = std::max(peak, std::fabs(chunk[i]));
+            if (++inPeak == framesPerPeak){
+                out.push_back(std::min(peak, 1.0f));
+                peak = 0.0f;
+                inPeak = 0;
+            }
+        }
+    }
+    ma_decoder_uninit(&decoder);
+    return !cancel;
+}
