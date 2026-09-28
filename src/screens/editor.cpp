@@ -41,7 +41,8 @@ const ImU32 COLOR_END = IM_COL32(230, 60, 50, 255);
 
 const char* const UNSAVED_POPUP = "Unsaved changes";
 const double LOOKAHEAD_S = 0.2;       // playback schedules clicks and notes this far ahead, on the audio clock
-const float FOLLOW_AT = 0.5f;         // while playing, the view scrolls to keep the playhead this far across
+const float FOLLOW_AT = 0.5f;
+const size_t MAX_UNDO_STEPS = 200;    // a chart is small (a few thousand notes at most): 200 copies is little memory         // while playing, the view scrolls to keep the playhead this far across
 
 struct EditorState {
     Chart chart;
@@ -51,6 +52,12 @@ struct EditorState {
     bool builtIn = false;
     bool lowStringOnTop = true; // string order setting: which row each string is drawn in
     bool dirty = false;       // changed since the last save
+
+    // Undo: whole charts, as they were before each change. A change is committed at the end of a frame when no
+    // widget is held, so a slider drag or a word typed is one step, not one per frame.
+    std::vector<Chart> undoStack, redoStack;
+    Chart committed;          // the chart as of the last committed step
+    bool uncommitted = false; // changed since then
     std::string status;       // last save result or hint, shown in the top bar
 
     // View: which part of the song is on screen
@@ -79,6 +86,33 @@ struct EditorState {
     bool active = false;
 };
 static EditorState editor;
+
+static void markChanged(){
+    editor.dirty = true;
+    editor.uncommitted = true;
+}
+
+// --- Undo ---------------------------------------------------------------------------------------------
+
+static void commitChange(){
+    if (!editor.uncommitted) return;
+    editor.undoStack.push_back(std::move(editor.committed));
+    if (editor.undoStack.size() > MAX_UNDO_STEPS) editor.undoStack.erase(editor.undoStack.begin());
+    editor.redoStack.clear(); // a new change starts a new future
+    editor.committed = editor.chart;
+    editor.uncommitted = false;
+}
+
+// Moves one step from one stack to the other: undo takes from the undo stack, redo from the redo stack
+static void stepHistory(std::vector<Chart>& from, std::vector<Chart>& to){
+    commitChange(); // a change still in progress counts as the latest step
+    if (from.empty()) return;
+    to.push_back(std::move(editor.chart));
+    editor.chart = std::move(from.back());
+    from.pop_back();
+    editor.committed = editor.chart;
+    editor.dirty = true;
+}
 
 // --- Note editing -------------------------------------------------------------------------------------
 // Notes stay sorted by (tick, string), the order the loader produces, so lookups can use binary search.
@@ -123,7 +157,7 @@ static void addNote(int tick, int stringIndex, int fret){
     // The chart must end after its last note: at the end of that note's bar
     if (tick >= editor.chart.endTick) editor.chart.endTick = barStartTick(editor.chart, barNumberAt(editor.chart, tick) + 1);
     select(tick, stringIndex);
-    editor.dirty = true;
+    markChanged();
 }
 
 static void deleteNote(int tick, int stringIndex){
@@ -131,7 +165,7 @@ static void deleteNote(int tick, int stringIndex){
     if (it == track().notes.end()) return;
     track().notes.erase(it);
     if (editor.hasSelection && editor.selectedTick == tick && editor.selectedString == stringIndex) editor.hasSelection = false;
-    editor.dirty = true;
+    markChanged();
 }
 
 // Lets you hear what you're placing: the string's open pitch plus the fret
@@ -235,25 +269,25 @@ static void drawSidePanel(){
     ImGui::PushItemWidth(-170); // leave room for labels on the right
 
     ImGui::SeparatorText("Song");
-    if (ImGui::InputText("Title", &chart.title)) editor.dirty = true;
-    if (ImGui::InputText("Artist", &chart.artist)) editor.dirty = true;
+    if (ImGui::InputText("Title", &chart.title)) markChanged();
+    if (ImGui::InputText("Artist", &chart.artist)) markChanged();
     ImGui::TextDisabled("Audio: %s", chart.audioFile.c_str());
 
     ImGui::SeparatorText("Timing");
     double bpm = chart.tempoMap[0].bpm;
     if (ImGui::InputDouble("BPM", &bpm, 1.0, 10.0, "%.3f") && bpm >= 1.0 && bpm <= 1000.0){
         chart.tempoMap[0].bpm = bpm;
-        editor.dirty = true;
+        markChanged();
     }
     if (chart.tempoMap.size() > 1) ImGui::TextDisabled("+ %d tempo changes", (int)chart.tempoMap.size() - 1);
-    if (ImGui::InputDouble("Offset (s)", &chart.offset, 0.001, 0.01, "%.3f")) editor.dirty = true;
+    if (ImGui::InputDouble("Offset (s)", &chart.offset, 0.001, 0.01, "%.3f")) markChanged();
 
     int bars = barNumberAt(chart, chart.endTick - 1) + 1;
     if (ImGui::InputInt("Length (bars)", &bars)){
         int lastNoteTick = track().notes.empty() ? 0 : track().notes.back().tick;
         int barsNeeded = barNumberAt(chart, lastNoteTick) + 1; // never shorter than the last note's bar
         chart.endTick = barStartTick(chart, std::max(std::max(bars, 1), barsNeeded));
-        editor.dirty = true;
+        markChanged();
     }
 
     // The song's time signature and key. Later changes must stay on bar lines, so with any, these are read-only
@@ -264,14 +298,14 @@ static void drawSidePanel(){
     int beats = time.beats;
     if (ImGui::InputInt("Beats per bar", &beats) && beats >= 1 && beats <= 32){
         time.beats = beats;
-        editor.dirty = true;
+        markChanged();
     }
     if (ImGui::BeginCombo("Beat unit", TextFormat("1/%d", time.beatUnit))){
         for (int unit = 1; unit <= 32; unit *= 2){
             if ((chart.resolution * 4) % unit != 0) continue; // the resolution can't split a beat that small
             if (ImGui::Selectable(TextFormat("1/%d", unit), unit == time.beatUnit)){
                 time.beatUnit = unit;
-                editor.dirty = true;
+                markChanged();
             }
         }
         ImGui::EndCombo();
@@ -288,13 +322,13 @@ static void drawSidePanel(){
             if (fifths != 0) label += TextFormat("   %d %s", std::abs(fifths), fifths > 0 ? "sharps" : "flats");
             if (ImGui::Selectable(label.c_str(), fifths == key.fifths)){
                 key = option;
-                editor.dirty = true;
+                markChanged();
             }
         }
         ImGui::EndCombo();
     }
     // Same signature, the relative key: G major <-> E minor
-    if (ImGui::Checkbox("Minor", &key.minor)) editor.dirty = true;
+    if (ImGui::Checkbox("Minor", &key.minor)) markChanged();
     ImGui::EndDisabled();
     if (chart.keys.size() > 1) ImGui::TextDisabled("+ %d key changes", (int)chart.keys.size() - 1);
 
@@ -323,6 +357,7 @@ static void drawSidePanel(){
     ImGui::TextWrapped("Left click: add / select note\nRight click: delete note\nUp / Down: fret of selected note "
                        "(or of new notes)\nDelete: delete selected\nWheel: scroll    Ctrl + wheel: zoom\n"
                        "Space: play / stop    Click the ruler: move the playhead\n"
+                       "Ctrl + Z: undo    Ctrl + Y: redo\n"
                        "Ctrl + S: save    Esc: back");
     ImGui::PopStyleColor();
 }
@@ -471,6 +506,12 @@ static void drawTimeline(){
 // Keyboard editing, skipped while a text field is being typed in
 static void handleEditingKeys(){
     if (ImGui::GetIO().WantTextInput) return;
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z)){
+        if (io.KeyShift) stepHistory(editor.redoStack, editor.undoStack);
+        else stepHistory(editor.undoStack, editor.redoStack);
+    }
+    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Y)) stepHistory(editor.redoStack, editor.undoStack);
     if (ImGui::IsKeyPressed(ImGuiKey_Space, false)){
         if (editor.playing) stopPlayback();
         else startPlayback();
@@ -481,7 +522,7 @@ static void handleEditingKeys(){
         if (note){
             note->fret = std::clamp(note->fret + fretChange, 0, MAX_FRET);
             editor.newNoteFret = note->fret; // keep placing notes at the fret just set
-            editor.dirty = true;
+            markChanged();
             previewNote(note->stringIndex, note->fret);
         } else {
             editor.newNoteFret = std::clamp(editor.newNoteFret + fretChange, 0, MAX_FRET);
@@ -505,6 +546,7 @@ bool openEditor(const SongEntry& song, const std::string& userSongsDir, bool low
     if (song.builtIn) fresh.status = "Built-in song: saving creates your own copy";
     fresh.lowStringOnTop = lowStringOnTop;
     fresh.active = true;
+    fresh.committed = fresh.chart;
     editor = fresh;
 
     // The song's audio, for playback. A chart without it can still be edited and played as clicks and notes.
@@ -553,6 +595,7 @@ EditorChoice editorScreen(){
     drawTimeline();
     ImGui::EndChild();
 
+    if (!ImGui::IsAnyItemActive()) commitChange(); // nothing held: what changed this frame is one undo step
     if (editor.playing){
         schedulePlayback();
         // Past the end of both the chart and the song, playback stops on its own
