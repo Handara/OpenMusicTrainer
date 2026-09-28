@@ -2,11 +2,14 @@
 
 #include "audio/audio.h"
 #include "core/chart.h"
+#include "core/files.h"
+#include "core/songpackage.h"
 #include "core/music.h"
 #include "imgui.h"
 #include "imgui_stdlib.h"
 #include "raylib.h"
 #include "ui/theme.h"
+#include "ui/ui.h"
 
 #include <algorithm>
 #include <cmath>
@@ -49,6 +52,7 @@ struct EditorState {
     std::string chartPath;
     std::string songFolder;
     std::string userSongsDir;
+    std::string packagesDir;  // where Share writes the song's package
     bool builtIn = false;
     bool lowStringOnTop = true; // string order setting: which row each string is drawn in
     bool dirty = false;       // changed since the last save
@@ -289,6 +293,28 @@ static bool saveEditorChart(){
     editor.dirty = false;
     editor.status = "Saved to your songs: " + fs::path(editor.songFolder).filename().string();
     return true;
+}
+
+// --- Sharing ------------------------------------------------------------------------------------------
+
+// The song as one file anyone can install (core/songpackage), in the packages folder, which then opens. It's made
+// from the saved song, so unsaved changes have to be saved first.
+static void shareSong(){
+    if (editor.dirty){
+        editor.status = "Save first: the package is made from the saved song";
+        return;
+    }
+    std::error_code ec;
+    fs::create_directories(editor.packagesDir, ec);
+    std::string name = safeFolderName(editor.chart.title);
+    fs::path package = fs::path(editor.packagesDir) / ((name.empty() ? "Song" : name) + SONG_PACKAGE_EXTENSION);
+    std::string error;
+    if (!exportSongPackage(editor.songFolder, package.string(), error)){
+        editor.status = "Could not share: " + error;
+        return;
+    }
+    editor.status = "Package ready: " + package.filename().string();
+    openFolder(editor.packagesDir);
 }
 
 // --- Side panel ---------------------------------------------------------------------------------------
@@ -589,13 +615,15 @@ static void handleEditingKeys(){
 
 // --- Screen -------------------------------------------------------------------------------------------
 
-bool openEditor(const SongEntry& song, const std::string& userSongsDir, bool lowStringOnTop, std::string& error){
+bool openEditor(const SongEntry& song, const std::string& userSongsDir, const std::string& packagesDir, bool lowStringOnTop,
+                std::string& error){
     closeEditor();
     EditorState fresh;
     if (!loadChart(song.chartPath, fresh.chart, error)) return false;
     fresh.chartPath = song.chartPath;
     fresh.songFolder = song.folder;
     fresh.userSongsDir = userSongsDir;
+    fresh.packagesDir = packagesDir;
     fresh.builtIn = song.builtIn;
     if (song.builtIn) fresh.status = "Built-in song: saving creates your own copy";
     fresh.lowStringOnTop = lowStringOnTop;
@@ -647,6 +675,8 @@ EditorChoice editorScreen(){
     if (ImGui::Button("Back")) requestBack = true;
     ImGui::SameLine();
     if (ImGui::Button("Test play")) requestTestPlay = true;
+    ImGui::SameLine();
+    if (ImGui::Button("Share")) shareSong();
     ImGui::SameLine();
     ImGui::Text("%s%s", editor.chart.title.c_str(), editor.dirty ? "  *" : "");
     ImGui::SameLine();

@@ -58,7 +58,16 @@ FetchContent_Declare(
     GIT_TAG        c871f2be022ece7ef4f64230b4fb8e1fb9eb6023
 )
 
-FetchContent_MakeAvailable(raylib miniaudio imgui rlimgui doctest pl_mpeg)
+# miniz: zip files, for song packages (core/songpackage). Pure C, MIT licensed. Used as a sub-project it builds
+# only its library (no examples, tests or install).
+FetchContent_Declare(
+    miniz
+    GIT_REPOSITORY https://github.com/richgel999/miniz.git
+    GIT_TAG        3.1.2
+    GIT_SHALLOW    TRUE
+)
+
+FetchContent_MakeAvailable(raylib miniaudio imgui rlimgui doctest pl_mpeg miniz)
 
 # miniaudio is one header too, compiled the same way, with stb_vorbis (in its extras) for .ogg songs. On Linux and
 # macOS it needs threads, dlopen (it loads the system's audio libraries when it starts) and the math library.
@@ -119,10 +128,12 @@ add_library(lahn_core STATIC
     src/core/scales.cpp
     src/core/settings.cpp
     src/core/songlibrary.cpp
+    src/core/songpackage.cpp
     src/core/synth.cpp
     src/core/today.cpp
 )
 target_include_directories(lahn_core PUBLIC src)
+target_link_libraries(lahn_core PRIVATE miniz) # zip files for song packages: plain C, no graphics or audio
 enable_warnings(lahn_core)
 
 # The game: audio, UI and screens on top of core
@@ -198,10 +209,11 @@ if(BUILD_TESTING)
         tests/scales_test.cpp
         tests/settings_test.cpp
         tests/songlibrary_test.cpp
+        tests/songpackage_test.cpp
         tests/synth_test.cpp
         tests/today_test.cpp
     )
-    target_link_libraries(lahn_tests PRIVATE lahn_core doctest::doctest)
+    target_link_libraries(lahn_tests PRIVATE lahn_core doctest::doctest miniz) # miniz: to make broken packages
     target_compile_definitions(lahn_tests PRIVATE LAHN_RESOURCES_DIR="${CMAKE_SOURCE_DIR}/resources/")
     enable_warnings(lahn_tests)
     add_test(NAME core_tests COMMAND lahn_tests)

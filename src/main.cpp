@@ -3,6 +3,7 @@
 #include "core/paths.h"
 #include "core/settings.h"
 #include "core/songlibrary.h"
+#include "core/songpackage.h"
 #include "screens/calibration.h"
 #include "screens/editor.h"
 #include "screens/gameplay.h"
@@ -42,7 +43,9 @@ static struct {
     std::vector<SongEntry> songs;
     std::string currentChartPath; // the song being played, kept for Retry
     int currentPart = 0;          // and which of its parts
-    std::string songSelectError;  // why the last song failed to start
+    std::string songSelectError;  // why the last song failed to start (or a package failed to install)
+    std::string songSelectNotice; // a song package just installed
+    std::string packagesDir;      // song packages the player made, to share
     std::string mainMenuError;    // why the last main menu action failed (e.g. no input device)
     GameResult lastResult;
     bool testPlaying = false;     // playing the editor's chart: the end or Esc goes back to the editor
@@ -54,10 +57,33 @@ static struct {
 
 // Built-in songs first, then the player's own. Rescanned on every visit so new song folders show up.
 static void goToSongList(Screen listScreen){
+    if (app.screen != listScreen) app.songSelectNotice.clear(); // news is for the visit it happened in
     app.songs = scanSongs(app.resourcesDir + "songs", true);
     std::vector<SongEntry> userSongs = scanSongs(app.userSongsDir, false);
     app.songs.insert(app.songs.end(), userSongs.begin(), userSongs.end());
     app.screen = listScreen;
+}
+
+// Song packages (.lahn) dropped on a song list are installed into the player's songs, and the list shows them
+static void installDroppedPackages(){
+    if (!IsFileDropped()) return;
+    FilePathList dropped = LoadDroppedFiles();
+    std::vector<std::string> added;
+    app.songSelectError.clear();
+    for (unsigned i = 0; i < dropped.count; i++){
+        std::string path = dropped.paths[i], folder, error;
+        if (fs::path(path).extension() != SONG_PACKAGE_EXTENSION){
+            app.songSelectError = fs::path(path).filename().string() + " isn't a song package (a .lahn file)";
+        } else if (installSongPackage(path, app.userSongsDir, folder, error)){
+            added.push_back(fs::path(folder).filename().string());
+        } else {
+            app.songSelectError = error;
+        }
+    }
+    UnloadDroppedFiles(dropped);
+    app.songSelectNotice.clear();
+    for (const std::string& name : added) app.songSelectNotice += (app.songSelectNotice.empty() ? "Added: " : ", ") + name;
+    goToSongList(app.screen); // rescan: the new songs show up
 }
 
 static void goToSongSelect(){
@@ -98,7 +124,7 @@ static void leaveSettings(){
 
 static void editSong(const SongEntry& song){
     std::string error;
-    if (openEditor(song, app.userSongsDir, app.settings.lowStringOnTop, error)){
+    if (openEditor(song, app.userSongsDir, app.packagesDir, app.settings.lowStringOnTop, error)){
         app.songSelectError.clear();
         app.screen = Screen::Editor;
     } else {
@@ -215,14 +241,16 @@ static void runMenus(){
             }
             break;
         case Screen::SongSelect: {
-            SongSelectChoice choice = songSelectScreen("Select a song", app.songs, app.songSelectError, false);
+            installDroppedPackages();
+            SongSelectChoice choice = songSelectScreen("Select a song", app.songs, app.songSelectError, app.songSelectNotice, false);
             if (choice.back) app.screen = Screen::MainMenu;
             else if (choice.openDataFolder) openDataFolder();
             else if (choice.songIndex >= 0) startSong(app.songs[choice.songIndex].chartPath, choice.part);
             break;
         }
         case Screen::EditorSelect: {
-            SongSelectChoice choice = songSelectScreen("Edit a song", app.songs, app.songSelectError, true);
+            installDroppedPackages();
+            SongSelectChoice choice = songSelectScreen("Edit a song", app.songs, app.songSelectError, app.songSelectNotice, true);
             if (choice.back) app.screen = Screen::MainMenu;
             else if (choice.openDataFolder) openDataFolder();
             else if (choice.newSong){
@@ -313,6 +341,7 @@ int main(void){
     app.progressDir = (fs::path(app.userDataDir) / "progress").string();
     app.userExercisesDir = (fs::path(app.userDataDir) / "exercises").string();
     app.userLessonsDir = (fs::path(app.userDataDir) / "lessons").string();
+    app.packagesDir = (fs::path(app.userDataDir) / "packages").string();
     for (const std::string& dir : {app.userSongsDir, app.soundsDir, app.progressDir, app.userExercisesDir, app.userLessonsDir}){
         std::error_code ec;
         fs::create_directories(dir, ec);

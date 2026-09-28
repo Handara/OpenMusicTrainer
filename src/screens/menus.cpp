@@ -52,7 +52,7 @@ static void partList(const SongEntry& song, SongSelectChoice& choice){
 }
 
 SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry>& songs, const std::string& error,
-                                  bool forEditing){
+                                  const std::string& notice, bool forEditing){
     static MenuList playList, editList; // each list keeps its selection
     MenuList& list = forEditing ? editList : playList;
     SongSelectChoice choice;
@@ -101,11 +101,13 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
     if (confirmed == openFolder) choice.openDataFolder = true;
     if (confirmed == back) choice.back = true;
 
-    if (!error.empty()){
+    if (!error.empty() || !notice.empty()){
         ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() * 0.07f, ImGui::GetWindowHeight() * 0.17f + 20 * s));
-        ImGui::TextColored(uiColorVec(UiColor::Bad), "%s", error.c_str());
+        if (!error.empty()) ImGui::TextColored(uiColorVec(UiColor::Bad), "%s", error.c_str());
+        else ImGui::TextColored(uiColorVec(UiColor::Good), "%s", notice.c_str());
     }
-    menuScreenHint(forEditing ? "Up/Down  choose    Enter  edit    Esc  back" : "Up/Down  choose    Enter  play    Esc  back", s);
+    menuScreenHint(forEditing ? "Up/Down  choose    Enter  edit    Esc  back    Drop a .lahn file to add a song"
+                              : "Up/Down  choose    Enter  play    Esc  back    Drop a .lahn file to add a song", s);
     ImGui::End();
     return choice;
 }

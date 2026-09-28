@@ -21,8 +21,9 @@ struct SongSelectChoice {
 };
 // forEditing marks built-in songs, since editing one creates a copy
 // Playing a song with several parts (guitar, bass), confirming it lists its parts to choose from first.
+// `notice` is good news to show (a song just added), `error` bad news.
 SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry>& songs, const std::string& error,
-                                  bool forEditing);
+                                  const std::string& notice, bool forEditing);
 // Esc on the song list: closes the list of parts if it's open (true: it was, the screen stays)
 bool songSelectBack();
 
