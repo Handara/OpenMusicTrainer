@@ -137,7 +137,9 @@ static void startSong(const std::string& chartPath, int part){
 static void startTestPlay(){
     EditorTestPlay test = editorTestPlay();
     std::string error;
-    if (startGameplayWithChart(test.chart, test.audioPath, gameplayOptions(), test.fromTick, error)){
+    GameplayOptions options = gameplayOptions();
+    options.part = test.part;
+    if (startGameplayWithChart(test.chart, test.audioPath, options, test.fromTick, error)){
         app.testPlaying = true;
         app.screen = Screen::Playing;
     } else {

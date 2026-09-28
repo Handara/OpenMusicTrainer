@@ -65,6 +65,7 @@ struct EditorState {
     float pixelsPerBeat = 120.0f;
 
     // Editing
+    int part = 0;             // which fretted track is being edited
     int snapIndex = 3;        // 1/16 notes
     int newNoteFret = 0;
     bool previewSounds = true; // play a note's pitch when it's placed, clicked or re-fretted
@@ -110,6 +111,8 @@ static void stepHistory(std::vector<Chart>& from, std::vector<Chart>& to){
     to.push_back(std::move(editor.chart));
     editor.chart = std::move(from.back());
     from.pop_back();
+    // Undoing "add part" takes away the part being edited: stay on one that exists
+    editor.part = std::min(editor.part, (int)editor.chart.frettedTracks.size() - 1);
     editor.committed = editor.chart;
     editor.dirty = true;
 }
@@ -118,7 +121,33 @@ static void stepHistory(std::vector<Chart>& from, std::vector<Chart>& to){
 // Notes stay sorted by (tick, string), the order the loader produces, so lookups can use binary search.
 
 static FrettedTrack& track(){
-    return editor.chart.frettedTracks[0];
+    return editor.chart.frettedTracks[editor.part];
+}
+
+// Standard tunings for a new part, low to high
+const std::vector<int> GUITAR_TUNING = { 40, 45, 50, 55, 59, 64 };
+const std::vector<int> BASS_TUNING = { 28, 33, 38, 43 };
+
+static void choosePart(int part){
+    editor.part = std::clamp(part, 0, (int)editor.chart.frettedTracks.size() - 1);
+    editor.hasSelection = false; // a selection is (tick, string) in one part
+}
+
+static void addPart(InstrumentType type){
+    FrettedTrack part;
+    part.type = type;
+    part.name = type == InstrumentType::Bass ? "Bass" : "Guitar";
+    part.tuning = type == InstrumentType::Bass ? BASS_TUNING : GUITAR_TUNING;
+    editor.chart.frettedTracks.push_back(part);
+    choosePart((int)editor.chart.frettedTracks.size() - 1);
+    markChanged();
+}
+
+static void removePart(){
+    if (editor.chart.frettedTracks.size() < 2) return; // a song keeps at least one part
+    editor.chart.frettedTracks.erase(editor.chart.frettedTracks.begin() + editor.part);
+    choosePart(editor.part);
+    markChanged();
 }
 
 static bool noteBefore(const FrettedNote& note, int tick, int stringIndex){
@@ -273,6 +302,29 @@ static void drawSidePanel(){
     if (ImGui::InputText("Artist", &chart.artist)) markChanged();
     ImGui::TextDisabled("Audio: %s", chart.audioFile.c_str());
 
+    // The song's parts: the one being edited, and adding or removing one
+    ImGui::SeparatorText("Part");
+    auto partLabel = [&](int i){
+        const FrettedTrack& part = chart.frettedTracks[i];
+        return std::string(TextFormat("%s (%s)", part.name.c_str(), part.type == InstrumentType::Bass ? "bass" : "guitar"));
+    };
+    if (ImGui::BeginCombo("Editing", partLabel(editor.part).c_str())){
+        for (int i = 0; i < (int)chart.frettedTracks.size(); i++){
+            if (ImGui::Selectable(partLabel(i).c_str(), i == editor.part)) choosePart(i);
+        }
+        ImGui::EndCombo();
+    }
+    if (ImGui::InputText("Part name", &track().name)) markChanged();
+    std::string tuning;
+    for (int pitch : track().tuning) tuning += TextFormat("%s%s%d", tuning.empty() ? "" : " ", pitchClassName(pitch), pitchOctave(pitch));
+    ImGui::TextDisabled("Tuning: %s", tuning.c_str());
+    if (ImGui::Button("Add guitar part")) addPart(InstrumentType::Guitar);
+    ImGui::SameLine();
+    if (ImGui::Button("Add bass part")) addPart(InstrumentType::Bass);
+    ImGui::BeginDisabled(chart.frettedTracks.size() < 2); // a song keeps at least one part
+    if (ImGui::Button("Remove this part")) removePart();
+    ImGui::EndDisabled();
+
     ImGui::SeparatorText("Timing");
     double bpm = chart.tempoMap[0].bpm;
     if (ImGui::InputDouble("BPM", &bpm, 1.0, 10.0, "%.3f") && bpm >= 1.0 && bpm <= 1000.0){
@@ -284,7 +336,8 @@ static void drawSidePanel(){
 
     int bars = barNumberAt(chart, chart.endTick - 1) + 1;
     if (ImGui::InputInt("Length (bars)", &bars)){
-        int lastNoteTick = track().notes.empty() ? 0 : track().notes.back().tick;
+        int lastNoteTick = 0; // of any part
+        for (const FrettedTrack& part : chart.frettedTracks) if (!part.notes.empty()) lastNoteTick = std::max(lastNoteTick, part.notes.back().tick);
         int barsNeeded = barNumberAt(chart, lastNoteTick) + 1; // never shorter than the last note's bar
         chart.endTick = barStartTick(chart, std::max(std::max(bars, 1), barsNeeded));
         markChanged();
@@ -570,7 +623,7 @@ void closeEditor(){
 }
 
 EditorTestPlay editorTestPlay(){
-    return { editor.chart, (fs::path(editor.songFolder) / editor.chart.audioFile).string(), editor.playheadTick };
+    return { editor.chart, (fs::path(editor.songFolder) / editor.chart.audioFile).string(), editor.playheadTick, editor.part };
 }
 
 void resumeEditor(const std::string& message){

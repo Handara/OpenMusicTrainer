@@ -21,6 +21,7 @@ struct EditorTestPlay {
     Chart chart;
     std::string audioPath;
     int fromTick;
+    int part;       // the part being edited: the one played
 };
 EditorTestPlay editorTestPlay();
 void resumeEditor(const std::string& message = "");
