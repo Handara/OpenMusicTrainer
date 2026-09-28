@@ -117,11 +117,13 @@ bool startGameplay(const std::string& chartPath, const GameplayOptions& options,
 bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, const GameplayOptions& options, int fromTick,
                             std::string& error){
     stopGameplay();
-    game.chart = chart;
-    if (game.chart.frettedTracks.empty()){
-        error = "the chart has no track to play";
+    if (options.part < 0 || options.part >= (int)chart.frettedTracks.size()){
+        error = "the chart has no part " + std::to_string(options.part + 1) + " to play";
         return false;
     }
+    // Only the part being played is kept: everything below works on the chart's first track
+    game.chart = chart;
+    game.chart.frettedTracks = { chart.frettedTracks[options.part] };
     // Starting part-way: the notes before are left out, so the score (the sheet music) is built without them too
     std::vector<FrettedNote>& chartNotes = game.chart.frettedTracks[0].notes;
     chartNotes.erase(chartNotes.begin(), std::lower_bound(chartNotes.begin(), chartNotes.end(), fromTick,

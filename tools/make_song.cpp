@@ -2,8 +2,9 @@
 // The chart and the audio can't disagree, and the song can be changed here and made again:
 //     cmake --build build --target make_song && ./build/make_song resources/songs/first-light
 //
-// 84 bpm in E minor: a bar of electric piano to feel the beat, then eight bars of a plucked guitar melody (the part
-// the player plays) over Em C G D Em C Am B7, with the piano and a soft bass underneath, and a last E held for a bar.
+// 84 bpm in E minor: a bar of electric piano to feel the beat, then eight bars of a plucked guitar melody over
+// Em C G D Em C Am B7, with the piano and a soft bass underneath, and a last E held for a bar. Two parts to play:
+// the melody on guitar, and the bass line (each chord's root on beats 1 and 3) on a 4-string bass.
 
 #include "core/chart.h"
 #include "core/music.h"
@@ -26,6 +27,7 @@ const int BAR = RESOLUTION * 4;
 const int INTRO_BARS = 1;                // piano alone first
 const int BARS = INTRO_BARS + 8 + 1;     // then eight bars of melody and the last bar's held E
 const std::vector<int> TUNING = { 40, 45, 50, 55, 59, 64 }; // standard guitar, low to high
+const std::vector<int> BASS_TUNING = { 28, 33, 38, 43 };    // standard 4-string bass
 
 // A melody note: when (in eighths from its bar's start), how long (in eighths), and the pitch (MIDI)
 struct MelodyNote { int eighth; int length; int pitch; };
@@ -51,9 +53,9 @@ const Chord EM = {{52, 55, 59}, 40}, C = {{48, 52, 55}, 36}, G = {{50, 55, 59}, 
 const std::vector<Chord> CHORDS = { EM, EM, C, G, D, EM, C, AM, B7, EM };
 
 // Where a pitch is played: the highest string that has it in the first four frets (open position)
-static bool place(int pitch, int& stringIndex, int& fret){
-    for (int s = (int)TUNING.size() - 1; s >= 0; s--){
-        int f = pitch - TUNING[s];
+static bool place(const std::vector<int>& tuning, int pitch, int& stringIndex, int& fret){
+    for (int s = (int)tuning.size() - 1; s >= 0; s--){
+        int f = pitch - tuning[s];
         if (f >= 0 && f <= 4){ stringIndex = s; fret = f; return true; }
     }
     return false;
@@ -116,7 +118,7 @@ int main(int argc, char** argv){
         for (const MelodyNote& note : MELODY[bar]){
             FrettedNote chartNote{};
             chartNote.tick = (int)(INTRO_BARS + bar) * BAR + note.eighth * RESOLUTION / 2;
-            if (!place(note.pitch, chartNote.stringIndex, chartNote.fret)){
+            if (!place(TUNING, note.pitch, chartNote.stringIndex, chartNote.fret)){
                 std::printf("pitch %d has no place in open position\n", note.pitch);
                 return 1;
             }
@@ -126,9 +128,26 @@ int main(int argc, char** argv){
     FrettedNote last{};                       // the last E, held for the whole last bar
     last.tick = (BARS - 1) * BAR;
     last.duration = BAR;
-    place(64, last.stringIndex, last.fret);
+    place(TUNING, 64, last.stringIndex, last.fret);
     guitar.notes.push_back(last);
-    chart.frettedTracks = {guitar};
+
+    // The bass part: what the bass plays in the audio below, the chord's root on beats 1 and 3 of every bar
+    FrettedTrack bass;
+    bass.type = InstrumentType::Bass;
+    bass.name = "Bass";
+    bass.tuning = BASS_TUNING;
+    for (int bar = 0; bar < BARS; bar++){
+        for (int beat : {0, 2}){
+            FrettedNote chartNote{};
+            chartNote.tick = bar * BAR + beat * RESOLUTION;
+            if (!place(BASS_TUNING, CHORDS[bar].bass, chartNote.stringIndex, chartNote.fret)){
+                std::printf("bass pitch %d has no place in open position\n", CHORDS[bar].bass);
+                return 1;
+            }
+            bass.notes.push_back(chartNote);
+        }
+    }
+    chart.frettedTracks = {guitar, bass};
 
     // The audio: the same notes plucked, over the piano and the bass
     double length = secondsAt(chart.endTick) + 2.5; // the last notes ring out
@@ -169,6 +188,7 @@ int main(int argc, char** argv){
         std::printf("could not write %s\n", (folder / "audio.wav").string().c_str());
         return 1;
     }
-    std::printf("wrote %s: %d notes, %.1f s\n", folder.string().c_str(), (int)guitar.notes.size(), length);
+    std::printf("wrote %s: %d melody notes, %d bass notes, %.1f s\n", folder.string().c_str(), (int)guitar.notes.size(),
+                (int)bass.notes.size(), length);
     return 0;
 }

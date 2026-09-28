@@ -17,10 +17,14 @@ struct SongSelectChoice {
     bool openDataFolder = false;
     bool newSong = false; // editing only: make a new song from an audio file
     int songIndex = -1; // index into the songs list, -1 if nothing was picked this frame
+    int part = 0;       // which of the song's parts (fretted tracks) to play
 };
 // forEditing marks built-in songs, since editing one creates a copy
+// Playing a song with several parts (guitar, bass), confirming it lists its parts to choose from first.
 SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry>& songs, const std::string& error,
                                   bool forEditing);
+// Esc on the song list: closes the list of parts if it's open (true: it was, the screen stays)
+bool songSelectBack();
 
 enum class ResultsChoice { None, Retry, BackToSongs };
 ResultsChoice resultsScreen(const GameResult& result);

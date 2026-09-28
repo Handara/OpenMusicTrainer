@@ -41,6 +41,7 @@ static struct {
     Settings settings;
     std::vector<SongEntry> songs;
     std::string currentChartPath; // the song being played, kept for Retry
+    int currentPart = 0;          // and which of its parts
     std::string songSelectError;  // why the last song failed to start
     std::string mainMenuError;    // why the last main menu action failed (e.g. no input device)
     GameResult lastResult;
@@ -117,11 +118,14 @@ static GameplayOptions gameplayOptions(){
     return options;
 }
 
-static void startSong(const std::string& chartPath){
+static void startSong(const std::string& chartPath, int part){
     std::string error;
     app.testPlaying = false;
-    if (startGameplay(chartPath, gameplayOptions(), error)){
+    GameplayOptions options = gameplayOptions();
+    options.part = part;
+    if (startGameplay(chartPath, options, error)){
         app.currentChartPath = chartPath;
+        app.currentPart = part;
         app.songSelectError.clear();
         app.screen = Screen::Playing;
     } else {
@@ -168,7 +172,7 @@ static void handleBackKey(){
     if (!IsKeyPressed(KEY_ESCAPE)) return;
     switch (app.screen){
         case Screen::MainMenu: break;
-        case Screen::SongSelect: app.screen = Screen::MainMenu; break;
+        case Screen::SongSelect: if (!songSelectBack()) app.screen = Screen::MainMenu; break;
         case Screen::Playing:
             if (app.testPlaying) backToEditor();
             else { stopGameplay(); goToSongSelect(); }
@@ -212,7 +216,7 @@ static void runMenus(){
             SongSelectChoice choice = songSelectScreen("Select a song", app.songs, app.songSelectError, false);
             if (choice.back) app.screen = Screen::MainMenu;
             else if (choice.openDataFolder) openDataFolder();
-            else if (choice.songIndex >= 0) startSong(app.songs[choice.songIndex].chartPath);
+            else if (choice.songIndex >= 0) startSong(app.songs[choice.songIndex].chartPath, choice.part);
             break;
         }
         case Screen::EditorSelect: {
@@ -256,7 +260,7 @@ static void runMenus(){
             break;
         case Screen::Results:
             switch (resultsScreen(app.lastResult)){
-                case ResultsChoice::Retry: startSong(app.currentChartPath); break;
+                case ResultsChoice::Retry: startSong(app.currentChartPath, app.currentPart); break;
                 case ResultsChoice::BackToSongs: goToSongSelect(); break;
                 case ResultsChoice::None: break;
             }

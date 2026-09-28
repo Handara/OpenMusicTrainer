@@ -14,6 +14,43 @@ static MenuListArea listArea(float widthShare){
     return { ImVec2(width * 0.07f, height * 0.25f), width * widthShare, height * 0.66f - 20 * s, s };
 }
 
+static int choosingPartOf = -1; // the song whose parts are listed, -1 when the songs are
+
+bool songSelectBack(){
+    if (choosingPartOf < 0) return false;
+    choosingPartOf = -1;
+    return true;
+}
+
+static const char* instrumentName(InstrumentType type){
+    return type == InstrumentType::Bass ? "bass" : "guitar";
+}
+
+// The song's parts, one level down from the songs: "Melody  guitar, 6 strings", "Bass  bass, 4 strings", Back
+static void partList(const SongEntry& song, SongSelectChoice& choice){
+    static MenuList list;
+    float s = menuScale();
+    menuScreenTitle(song.title.c_str(), s);
+    if (ImGui::IsWindowAppearing()) list.selected = 0;
+    std::vector<MenuRow> rows;
+    for (const SongPart& part : song.parts){
+        MenuRow row;
+        row.label = part.name.empty() ? instrumentName(part.type) : part.name;
+        row.detail = TextFormat("%s, %d strings", instrumentName(part.type), part.stringCount);
+        rows.push_back(row);
+    }
+    const int back = (int)rows.size();
+    rows.push_back(actionRow("Back", "Esc"));
+    int confirmed = menuList(list, rows, listArea(0.8f));
+    if (confirmed >= 0 && confirmed < back){
+        choice.songIndex = choosingPartOf;
+        choice.part = confirmed;
+        choosingPartOf = -1;
+    }
+    if (confirmed == back) choosingPartOf = -1;
+    menuScreenHint("Up/Down  choose    Enter  play    Esc  back to songs", s);
+}
+
 SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry>& songs, const std::string& error,
                                   bool forEditing){
     static MenuList playList, editList; // each list keeps its selection
@@ -21,6 +58,12 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
     SongSelectChoice choice;
     beginMenu(title);
     float s = menuScale();
+    if (!forEditing && choosingPartOf >= 0 && choosingPartOf < (int)songs.size()){
+        partList(songs[choosingPartOf], choice);
+        ImGui::End();
+        return choice;
+    }
+    choosingPartOf = -1;
     menuScreenTitle(title, s);
 
     // The songs, then the data folder and Back
@@ -49,7 +92,11 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
     rows.push_back(actionRow("Back", "Esc"));
 
     int confirmed = menuList(list, rows, listArea(0.8f));
-    if (confirmed >= 0 && confirmed < (int)songs.size()) choice.songIndex = confirmed;
+    if (confirmed >= 0 && confirmed < (int)songs.size()){
+        // Several parts to play: choose one first
+        if (!forEditing && songs[confirmed].parts.size() > 1) choosingPartOf = confirmed;
+        else choice.songIndex = confirmed;
+    }
     if (confirmed == newSong) choice.newSong = true;
     if (confirmed == openFolder) choice.openDataFolder = true;
     if (confirmed == back) choice.back = true;

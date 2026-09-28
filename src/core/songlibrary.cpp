@@ -28,6 +28,7 @@ std::vector<SongEntry> scanSongs(const std::string& songsDir, bool builtIn){
         if (loadChart(song.chartPath, chart, song.error)){
             if (!chart.title.empty()) song.title = chart.title;
             song.artist = chart.artist;
+            for (const FrettedTrack& track : chart.frettedTracks) song.parts.push_back({track.name, track.type, (int)track.tuning.size()});
         } else if (song.error.rfind(song.chartPath, 0) == 0){
             // Menus show the error: "folder/song.chart" is enough there, the full path would take several lines
             song.error = (entry.path().filename() / "song.chart").generic_string() + song.error.substr(song.chartPath.size());

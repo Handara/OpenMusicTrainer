@@ -16,6 +16,7 @@ struct GameResult {
 };
 
 struct GameplayOptions {
+    int part = 0;              // which of the chart's fretted tracks to play
     float noteSpeed = 300.0f;  // pixels per second
     float offsetSeconds = 0.0f; // latency compensation: positive = notes are judged and drawn later
     bool lowStringOnTop = true;

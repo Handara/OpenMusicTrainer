@@ -29,9 +29,12 @@ TEST_CASE("the sample song shipped with the game loads"){
     CHECK(chart.title == "First Light");
     CHECK(chart.audioFile == "audio.wav");
     CHECK(chart.keys[0].key.fifths == 1);   // E minor
-    REQUIRE(chart.frettedTracks.size() == 1);
+    REQUIRE(chart.frettedTracks.size() == 2); // the melody on guitar, and the bass line
     CHECK(chart.frettedTracks[0].tuning.size() == 6);
     CHECK(chart.frettedTracks[0].notes.size() == 38);
+    CHECK(chart.frettedTracks[1].type == InstrumentType::Bass);
+    CHECK(chart.frettedTracks[1].tuning.size() == 4);
+    CHECK(chart.frettedTracks[1].notes.size() == 20);
 }
 
 TEST_CASE("tick to seconds follows the tempo map"){
