@@ -99,6 +99,7 @@ Score buildScore(const Chart& chart, const FrettedTrack& track){
     Score score;
     const int resolution = chart.resolution;
     score.resolution = resolution;
+    score.clef = track.type == InstrumentType::Bass ? Clef::Bass : Clef::Treble;
 
     // Bars: every one that starts before the end, plus the line that closes the last
     int barCount = 0;

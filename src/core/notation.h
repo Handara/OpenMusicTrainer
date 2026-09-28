@@ -5,15 +5,19 @@
 
 // Where notes go on a staff. Pure math: drawing is the view's job.
 
-// Guitar music is written an octave higher than it sounds (a treble clef with a small 8 below it),
-// so the staff isn't covered in ledger lines: the open low E (E2) is written as E3.
-const int GUITAR_WRITTEN_OCTAVE_SHIFT = 12;
+// Guitar and bass music are written an octave higher than they sound (guitar in a treble clef with a small 8 below
+// it, bass in a bass clef), so the staff isn't covered in ledger lines: the guitar's open low E (E2) is written as E3.
+const int WRITTEN_OCTAVE_SHIFT = 12;
+
+// Treble: guitar, bottom line E4. Bass: bass guitar, bottom line G2.
+enum class Clef { Treble, Bass };
 
 struct StaffNote {
-    int position;   // steps from the bottom line: 0 = bottom line (E4 in treble), 1 = the space above, 8 = top line;
-                    // negative = below the staff, above 8 = above it. Each step is one letter name.
+    int position;   // steps from the bottom line: 0 = bottom line (E4 in treble, G2 in bass), 1 = the space above,
+                    // 8 = top line; negative = below the staff, above 8 = above it. Each step is one letter name.
     int alteration; // how the note is spelled on that letter: +1 sharp, -1 flat, 0 natural. What the note *is*:
                     // whether a symbol is drawn depends on the key and the bar (see accidentalFor)
+    int letter;     // the letter itself: 0 = C ... 6 = B
 };
 
 const int STAFF_TOP_LINE = 8;
@@ -29,15 +33,15 @@ struct KeySignature {
 // "G" + "major", "F#" + "minor", "Bb" + "major"... Each letter has its place on the circle of fifths (F -1, C 0,
 // G 1 ... B 5), a sharp moves 7 places up, a flat 7 down, and a minor key sits 3 below its major.
 // False for keys with more than 7 sharps or flats (G# major: write Ab major).
-// Treble clef position and spelling of a written MIDI pitch, in a key. Notes of the key are spelled the key's way
+// Staff position and spelling of a written MIDI pitch, in a key. Notes of the key are spelled the key's way
 // (Bb in F major, E# in F# major); others as their natural if there is one, else sharp in sharp keys and C,
 // flat in flat keys.
-StaffNote trebleStaffNote(int writtenPitch, const KeySignature& key = {});
+StaffNote staffNote(int writtenPitch, const KeySignature& key = {}, Clef clef = Clef::Treble);
 
 // The key's alteration of a letter (0 = C ... 6 = B): +1 for F in G major, -1 for B in F major, else 0
 int keyAlteration(const KeySignature& key, int letter);
-// Where the key signature's sharps or flats sit on the treble staff, in the order they're written (index 0 first)
-int keySignaturePosition(const KeySignature& key, int index);
+// Where the key signature's sharps or flats sit on the staff, in the order they're written (index 0 first)
+int keySignaturePosition(const KeySignature& key, int index, Clef clef = Clef::Treble);
 
 // The symbol drawn before a note
 enum class Accidental { None, Sharp, Flat, Natural };

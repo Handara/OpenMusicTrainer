@@ -9,8 +9,12 @@ const int FLAT_ORDER[7]  = { 6, 2, 5, 1, 4, 0, 3 };
 const int SHARP_POSITIONS[7] = { 8, 5, 9, 6, 3, 7, 4 };
 const int FLAT_POSITIONS[7]  = { 4, 7, 3, 6, 2, 5, 1 };
 
-// E4, the treble staff's bottom line, as a count of letter steps from C-1 (MIDI octave -1): octave 4, letter E
+// The bottom line as a count of letter steps from C-1 (MIDI octave -1): E4 in treble (octave 4, letter E), G2 in bass
 const int TREBLE_BOTTOM_LINE_STEP = (4 + 1) * 7 + 2;
+const int BASS_BOTTOM_LINE_STEP = (2 + 1) * 7 + 4;
+// A bass clef's key signature is the treble clef's, a third (two steps) lower: F#5 on the top line becomes F#3 on
+// the fourth line
+const int BASS_KEY_SIGNATURE_SHIFT = -2;
 
 int keyAlteration(const KeySignature& key, int letter){
     for (int i = 0; i < key.fifths; i++) if (SHARP_ORDER[i] == letter) return 1;
@@ -18,11 +22,12 @@ int keyAlteration(const KeySignature& key, int letter){
     return 0;
 }
 
-int keySignaturePosition(const KeySignature& key, int index){
-    return key.fifths >= 0 ? SHARP_POSITIONS[index] : FLAT_POSITIONS[index];
+int keySignaturePosition(const KeySignature& key, int index, Clef clef){
+    int position = key.fifths >= 0 ? SHARP_POSITIONS[index] : FLAT_POSITIONS[index];
+    return clef == Clef::Bass ? position + BASS_KEY_SIGNATURE_SHIFT : position;
 }
 
-StaffNote trebleStaffNote(int writtenPitch, const KeySignature& key){
+StaffNote staffNote(int writtenPitch, const KeySignature& key, Clef clef){
     int pitchClass = ((writtenPitch % 12) + 12) % 12;
     // Which letter, with which alteration: the key's own spelling first, then a plain natural, then a sharp or flat
     int letter = -1, alteration = 0;
@@ -39,13 +44,12 @@ StaffNote trebleStaffNote(int writtenPitch, const KeySignature& key){
     int natural = writtenPitch - alteration;
     int octave = (natural - NATURAL_PITCH_CLASS[letter]) / 12; // MIDI octaves counted from C-1 = 0
     int step = octave * 7 + letter;                            // letter steps: 7 per octave
-    return { step - TREBLE_BOTTOM_LINE_STEP, alteration };
+    return { step - (clef == Clef::Bass ? BASS_BOTTOM_LINE_STEP : TREBLE_BOTTOM_LINE_STEP), alteration, letter };
 }
 
 Accidental accidentalFor(const StaffNote& note, const KeySignature& key, BarAccidentals& bar){
     auto written = bar.alterations.find(note.position);
-    int letter = ((note.position + TREBLE_BOTTOM_LINE_STEP) % 7 + 7) % 7;
-    int inForce = written != bar.alterations.end() ? written->second : keyAlteration(key, letter);
+    int inForce = written != bar.alterations.end() ? written->second : keyAlteration(key, note.letter);
     if (note.alteration == inForce) return Accidental::None;
     bar.alterations[note.position] = note.alteration;
     if (note.alteration > 0) return Accidental::Sharp;
