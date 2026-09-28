@@ -49,6 +49,18 @@ TEST_CASE("tick to seconds follows the tempo map"){
     CHECK(tickToSeconds(chart, 0) == doctest::Approx(0.25));
 }
 
+TEST_CASE("seconds to tick undoes tick to seconds"){
+    Chart chart{};
+    chart.resolution = 480;
+    chart.offset = 0.25;
+    chart.tempoMap = {{0, 120.0}, {960, 60.0}, {1920, 180.0}};
+    for (int tick : {0, 1, 480, 959, 960, 961, 1440, 1920, 5000}){
+        CHECK(secondsToTick(chart, tickToSeconds(chart, tick)) == doctest::Approx(tick));
+    }
+    CHECK(secondsToTick(chart, 1.5) == doctest::Approx(1080.0)); // 1 s after the offset is 960, then 0.25 s at 60 bpm = 120 ticks
+    CHECK(secondsToTick(chart, 0.0) == doctest::Approx(-240.0)); // before the offset: back at the first tempo
+}
+
 TEST_CASE("accepted variations"){
     Chart chart;
     std::string error;

@@ -20,6 +20,11 @@ void setMasterVolume(float volume); // 0..1
 bool loadSong(const std::string& path, std::string& error);
 void unloadSong();
 void playSong(bool loop);
+// Plays from a point in the song (seconds; before 0 it waits that long first), starting a moment from now on the
+// engine's clock (audioTime). Returns the engine time at which `seconds` plays, so clicks and notes can be scheduled
+// exactly with it; -1 if it can't (no song, or one from a reader, which only plays from the start).
+double playSongFrom(double seconds);
+void stopSong(); // pauses where it is; playSong or playSongFrom starts it again
 bool songEnded();      // true once a non-looping song has played to its end
 double songLength();   // seconds
 double songPosition(); // seconds, smoothed between audio updates; call once per frame
@@ -40,6 +45,7 @@ const char* previewSoundName();
 bool previewSoundHasPitch();
 void setPreviewVolume(float volume); // 0..1
 void playPreview(float frequency, float delaySeconds = 0.0f); // the delay is timed on the audio clock, to the sample
+void playPreviewAt(float frequency, double time); // at a time on the engine's clock (audioTime), like playClickAt
 
 // The audio engine's own clock in seconds, smoothed between its updates like songPosition: for anything that
 // keeps time without a song (metronome, drills, calibration). Call it every frame.

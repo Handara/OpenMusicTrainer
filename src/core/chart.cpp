@@ -252,6 +252,19 @@ double tickToSeconds(const Chart& chart, int tick){
     return seconds;
 }
 
+// The same walk backwards: through each section while the time lasts, then the rest at the tempo it ends in
+double secondsToTick(const Chart& chart, double seconds){
+    double left = seconds - chart.offset;
+    for (size_t i = 0; i < chart.tempoMap.size(); i++){
+        const TempoChange& tempo = chart.tempoMap[i];
+        double secondsPerTick = 60.0 / tempo.bpm / chart.resolution;
+        bool hasNext = i + 1 < chart.tempoMap.size();
+        if (!hasNext || left < (chart.tempoMap[i+1].tick - tempo.tick) * secondsPerTick) return tempo.tick + left / secondsPerTick;
+        left -= (chart.tempoMap[i+1].tick - tempo.tick) * secondsPerTick;
+    }
+    return 0.0; // unreachable: the tempo map always has an entry at tick 0
+}
+
 int ticksPerBar(const Chart& chart, const TimeSignatureChange& time){
     return time.beats * chart.resolution * 4 / time.beatUnit; // resolution is per quarter note: a beat of 1/8 is half of it
 }

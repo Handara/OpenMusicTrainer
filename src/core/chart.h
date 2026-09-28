@@ -67,6 +67,8 @@ bool loadChart(const std::string& path, Chart& out, std::string& error);
 bool saveChart(const std::string& path, const Chart& chart, std::string& error);
 
 double tickToSeconds(const Chart& chart, int tick);
+// The other way: a time in the audio to a tick, with a fraction. Before tick 0 it goes negative at the first tempo.
+double secondsToTick(const Chart& chart, double seconds);
 
 int ticksPerBar(const Chart& chart, const TimeSignatureChange& time);
 const TimeSignatureChange& timeSignatureAt(const Chart& chart, int tick);

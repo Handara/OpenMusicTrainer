@@ -19,6 +19,9 @@ const double DRIFT_CORRECTION = 0.05;
 // A bigger gap means the audio really jumped. Ahead: snap to it. Behind (the device starting up, a stall):
 // wait for it instead, because a game clock must never run backwards.
 const double SNAP_THRESHOLD_S = 0.1;
+// playSongFrom starts the song this far ahead on the engine's clock: time to schedule the first clicks and notes
+// with it, so none of them is late
+const double SONG_START_LEAD_S = 0.1;
 
 // Captured audio waiting for the main thread. At 48 kHz this is ~0.34 s: room for several slow frames.
 const ma_uint32 CAPTURE_BUFFER_FRAMES = 16384;
@@ -140,6 +143,7 @@ std::vector<std::string> inputDeviceNames(){ return deviceNames(ma_device_type_c
 
 static void releaseVoice(Voice& voice);
 static void startVoice(Voice& voice, const float* data, size_t frames, float pitchRatio, float volume, unsigned long long startFrame);
+static void startPreview(float frequency, ma_uint64 startFrame);
 
 // On some systems (PulseAudio under WSL, at least) the engine's clock doesn't start until the first sound plays,
 // and anything timed on it (the metronome, drills) would wait forever. A moment of silence gets it running for good.
@@ -311,9 +315,31 @@ void playSong(bool loop){
     audio.looping = loop;
     ma_sound_set_looping(&audio.song, loop ? MA_TRUE : MA_FALSE);
     ma_sound_seek_to_pcm_frame(&audio.song, 0);
+    ma_sound_set_start_time_in_pcm_frames(&audio.song, 0); // at once, even after a playSongFrom
     audio.smoothTime = 0.0;
     audio.lastWallTime = wallClockSeconds();
     ma_sound_start(&audio.song);
+}
+
+double playSongFrom(double seconds){
+    if (!audio.songReady || !audio.engineReady || audio.songFromReader) return -1.0;
+    audio.looping = false;
+    ma_sound_set_looping(&audio.song, MA_FALSE);
+    ma_sound_stop(&audio.song);
+    // Before the audio's start (a negative time), the song waits that much longer and plays from its first sample
+    ma_sound_seek_to_pcm_frame(&audio.song, (ma_uint64)std::llround(std::max(0.0, seconds) * audio.songSampleRate));
+    ma_uint32 engineRate = ma_engine_get_sample_rate(&audio.engine);
+    double wait = SONG_START_LEAD_S + std::max(0.0, -seconds);
+    ma_uint64 start = ma_engine_get_time_in_pcm_frames(&audio.engine) + (ma_uint64)std::llround(wait * engineRate);
+    ma_sound_set_start_time_in_pcm_frames(&audio.song, start);
+    audio.smoothTime = seconds;
+    audio.lastWallTime = wallClockSeconds();
+    ma_sound_start(&audio.song);
+    return (double)(start - (ma_uint64)std::llround(std::max(0.0, -seconds) * engineRate)) / engineRate;
+}
+
+void stopSong(){
+    if (audio.songReady) ma_sound_stop(&audio.song);
 }
 
 bool songEnded(){
@@ -588,6 +614,17 @@ static void startVoice(Voice& voice, const float* data, size_t frames, float pit
 
 void playPreview(float frequency, float delaySeconds){
     if (!audio.engineReady) return;
+    ma_uint32 sampleRate = ma_engine_get_sample_rate(&audio.engine);
+    startPreview(frequency, ma_engine_get_time_in_pcm_frames(&audio.engine) + (ma_uint64)(delaySeconds * sampleRate));
+}
+
+void playPreviewAt(float frequency, double time){
+    if (!audio.engineReady) return;
+    startPreview(frequency, (ma_uint64)std::llround(std::max(0.0, time) * ma_engine_get_sample_rate(&audio.engine)));
+}
+
+// A preview note starting at a frame of the engine's clock
+static void startPreview(float frequency, ma_uint64 startFrame){
     Voice& voice = takeVoice();
 
     // Built-in sounds are rendered at the engine's own sample rate and pitch, so nothing is resampled.
@@ -608,7 +645,6 @@ void playPreview(float frequency, float delaySeconds){
         if (audio.customSoundRoot > 0.0f) pitchRatio = frequency / audio.customSoundRoot;
     }
     audio.previewCount++;
-    ma_uint64 startFrame = ma_engine_get_time_in_pcm_frames(&audio.engine) + (ma_uint64)(delaySeconds * sampleRate);
     startVoice(voice, data, frames, pitchRatio, audio.previewVolume, startFrame);
 }
 

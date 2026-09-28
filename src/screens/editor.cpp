@@ -6,6 +6,7 @@
 #include "imgui.h"
 #include "imgui_stdlib.h"
 #include "raylib.h"
+#include "ui/theme.h"
 
 #include <algorithm>
 #include <cmath>
@@ -39,6 +40,8 @@ const ImU32 COLOR_STRING_LINE = IM_COL32(255, 255, 255, 40);
 const ImU32 COLOR_END = IM_COL32(230, 60, 50, 255);
 
 const char* const UNSAVED_POPUP = "Unsaved changes";
+const double LOOKAHEAD_S = 0.2;       // playback schedules clicks and notes this far ahead, on the audio clock
+const float FOLLOW_AT = 0.5f;         // while playing, the view scrolls to keep the playhead this far across
 
 struct EditorState {
     Chart chart;
@@ -61,6 +64,17 @@ struct EditorState {
     bool hasSelection = false;
     int selectedTick = 0;     // a note is identified by (tick, string): indices change as notes are added
     int selectedString = 0;
+
+    // Playback (Space): the song, a metronome and the chart's notes, from the playhead. Everything runs on the
+    // engine's clock: the song is started at a known time on it and every click and note is scheduled against it.
+    bool songLoaded = false;   // the chart's audio; without it, playback is the clicks and notes alone
+    bool playing = false;
+    bool metronome = true;
+    bool playNotes = true;
+    int playheadTick = 0;      // where playback starts, and where it comes back to when stopped
+    double playFrom = 0.0;     // the song time at the playhead when playback started
+    double playStartTime = 0.0;// the engine time (audioTime) at which playFrom plays
+    int scheduledTick = 0;     // clicks and notes before this tick are already scheduled
 
     bool active = false;
 };
@@ -127,6 +141,57 @@ static void previewNote(int stringIndex, int fret){
 
 static int snapStep(){
     return std::max(1, editor.chart.resolution / SNAP_DIVISIONS[editor.snapIndex]);
+}
+
+// --- Playback -----------------------------------------------------------------------------------------
+
+static double playbackSeconds(){
+    return editor.playFrom + (audioTime() - editor.playStartTime);
+}
+
+static void startPlayback(){
+    editor.playFrom = tickToSeconds(editor.chart, editor.playheadTick);
+    double start = editor.songLoaded ? playSongFrom(editor.playFrom) : -1.0;
+    if (start < 0.0) start = audioTime() + 0.1; // no song: the clicks and notes still need a moment to be scheduled
+    editor.playStartTime = start;
+    editor.scheduledTick = editor.playheadTick;
+    editor.playing = true;
+}
+
+static void stopPlayback(){
+    if (!editor.playing) return;
+    stopSong();
+    stopPreviews(); // what was scheduled ahead mustn't play after the stop
+    editor.playing = false;
+}
+
+// Schedules what falls in the next moment: metronome clicks on each beat (the bar's first accented) and each note's
+// pitch, at their exact times on the engine's clock
+static void schedulePlayback(){
+    const Chart& chart = editor.chart;
+    int horizonTick = (int)std::floor(secondsToTick(chart, playbackSeconds() + LOOKAHEAD_S)) + 1;
+    if (horizonTick <= editor.scheduledTick) return;
+    auto engineTime = [&](int tick){ return editor.playStartTime + (tickToSeconds(chart, tick) - editor.playFrom); };
+
+    if (editor.metronome){
+        for (int tick = editor.scheduledTick; tick < horizonTick; ){
+            int barStart = barStartTick(chart, barNumberAt(chart, tick));
+            int beat = chart.resolution * 4 / timeSignatureAt(chart, tick).beatUnit;
+            int next = barStart + (tick - barStart + beat - 1) / beat * beat; // the first beat at or after the tick
+            if (next >= horizonTick) break;
+            playClickAt(engineTime(next), next == barStartTick(chart, barNumberAt(chart, next)));
+            tick = next + 1;
+        }
+    }
+    if (editor.playNotes){
+        const std::vector<FrettedNote>& notes = track().notes;
+        auto it = std::lower_bound(notes.begin(), notes.end(), editor.scheduledTick,
+                                   [](const FrettedNote& note, int tick){ return note.tick < tick; });
+        for (; it != notes.end() && it->tick < horizonTick; ++it){
+            playPreviewAt(midiToFrequency((float)(track().tuning[it->stringIndex] + it->fret)), engineTime(it->tick));
+        }
+    }
+    editor.scheduledTick = horizonTick;
 }
 
 // --- Saving -------------------------------------------------------------------------------------------
@@ -233,6 +298,12 @@ static void drawSidePanel(){
     ImGui::EndDisabled();
     if (chart.keys.size() > 1) ImGui::TextDisabled("+ %d key changes", (int)chart.keys.size() - 1);
 
+    ImGui::SeparatorText("Playback");
+    ImGui::Checkbox("Metronome", &editor.metronome);
+    ImGui::SameLine();
+    ImGui::Checkbox("Play the notes", &editor.playNotes);
+    if (!editor.songLoaded) ImGui::TextDisabled("No audio: plays the clicks and notes alone");
+
     ImGui::SeparatorText("Notes");
     ImGui::Combo("Grid", &editor.snapIndex, SNAP_LABELS, SNAP_CHOICES);
     ImGui::SliderInt("New note fret", &editor.newNoteFret, 0, MAX_FRET);
@@ -251,6 +322,7 @@ static void drawSidePanel(){
     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
     ImGui::TextWrapped("Left click: add / select note\nRight click: delete note\nUp / Down: fret of selected note "
                        "(or of new notes)\nDelete: delete selected\nWheel: scroll    Ctrl + wheel: zoom\n"
+                       "Space: play / stop    Click the ruler: move the playhead\n"
                        "Ctrl + S: save    Esc: back");
     ImGui::PopStyleColor();
 }
@@ -311,6 +383,15 @@ static void drawTimeline(){
     draw->AddRectFilled(ImVec2(std::max(endX, gridLeft), rowsTop), ImVec2(gridRight, origin.y + size.y), IM_COL32(0, 0, 0, 90));
     draw->AddLine(ImVec2(endX, rowsTop), ImVec2(endX, origin.y + size.y), COLOR_END, 2.0f);
 
+    // The playhead: where playback starts, or where it is while playing. Playing, the view follows it.
+    int playhead = editor.playing ? (int)secondsToTick(editor.chart, playbackSeconds()) : editor.playheadTick;
+    if (editor.playing){
+        double visibleTicks = (gridRight - gridLeft) / editor.pixelsPerBeat * resolution;
+        if (playhead > editor.viewStartTick + visibleTicks * FOLLOW_AT || playhead < editor.viewStartTick){
+            editor.viewStartTick = std::max(0.0, playhead - visibleTicks * FOLLOW_AT);
+        }
+    }
+
     // Notes: they're sorted by tick, so binary-search the first visible one and stop after the last
     double margin = NOTE_RADIUS / editor.pixelsPerBeat * resolution;
     auto first = std::lower_bound(t.notes.begin(), t.notes.end(), editor.viewStartTick - margin,
@@ -346,9 +427,21 @@ static void drawTimeline(){
         ImVec2 textSize = ImGui::CalcTextSize(fret);
         draw->AddText(ImVec2(ghost.x - textSize.x / 2, ghost.y - textSize.y / 2), IM_COL32(0, 0, 0, 160), fret);
     }
+    float playheadX = tickToX(playhead);
+    ImU32 accent = uiColor(UiColor::Accent);
+    draw->AddLine(ImVec2(playheadX, origin.y), ImVec2(playheadX, origin.y + size.y), accent, 2.0f);
+    draw->AddTriangleFilled(ImVec2(playheadX - 7, origin.y), ImVec2(playheadX + 7, origin.y), ImVec2(playheadX, origin.y + 10), accent);
     draw->PopClipRect();
 
-    if (ImGui::IsItemClicked(ImGuiMouseButton_Left)){
+    bool overRuler = hovered && mouse.y < rowsTop && mouse.x >= gridLeft;
+    if (ImGui::IsItemClicked(ImGuiMouseButton_Left) && overRuler){
+        // The ruler moves the playhead (to the grid); playing, playback jumps there
+        editor.playheadTick = snappedTick;
+        if (editor.playing){
+            stopPlayback();
+            startPlayback();
+        }
+    } else if (ImGui::IsItemClicked(ImGuiMouseButton_Left)){
         if (hoveredNote){
             select(hoveredNote->tick, hoveredNote->stringIndex);
             previewNote(hoveredNote->stringIndex, hoveredNote->fret);
@@ -378,6 +471,10 @@ static void drawTimeline(){
 // Keyboard editing, skipped while a text field is being typed in
 static void handleEditingKeys(){
     if (ImGui::GetIO().WantTextInput) return;
+    if (ImGui::IsKeyPressed(ImGuiKey_Space, false)){
+        if (editor.playing) stopPlayback();
+        else startPlayback();
+    }
     FrettedNote* note = selectedNote();
     int fretChange = (ImGui::IsKeyPressed(ImGuiKey_UpArrow) ? 1 : 0) - (ImGui::IsKeyPressed(ImGuiKey_DownArrow) ? 1 : 0);
     if (fretChange != 0){
@@ -410,6 +507,12 @@ bool openEditor(const SongEntry& song, const std::string& userSongsDir, bool low
     fresh.active = true;
     editor = fresh;
 
+    // The song's audio, for playback. A chart without it can still be edited and played as clicks and notes.
+    std::string audioError;
+    if (!editor.chart.audioFile.empty()){
+        editor.songLoaded = loadSong((fs::path(song.folder) / editor.chart.audioFile).string(), audioError);
+    }
+
     // Arrow keys edit notes here instead of moving between buttons
     ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard;
     return true;
@@ -417,6 +520,8 @@ bool openEditor(const SongEntry& song, const std::string& userSongsDir, bool low
 
 void closeEditor(){
     if (!editor.active) return;
+    stopPlayback();
+    unloadSong();
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     editor.active = false;
 }
@@ -447,6 +552,13 @@ EditorChoice editorScreen(){
     ImGui::BeginChild("Timeline", ImVec2(0, 0), ImGuiChildFlags_None, ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar);
     drawTimeline();
     ImGui::EndChild();
+
+    if (editor.playing){
+        schedulePlayback();
+        // Past the end of both the chart and the song, playback stops on its own
+        double end = std::max(tickToSeconds(editor.chart, editor.chart.endTick), editor.songLoaded ? songLength() : 0.0);
+        if (playbackSeconds() > end + 0.5) stopPlayback();
+    }
 
     bool popupOpen = ImGui::IsPopupOpen(UNSAVED_POPUP);
     if (!popupOpen){
