@@ -5,3 +5,7 @@
 // Replaces a file's contents safely: writes a temporary file next to it, then swaps it in with one rename.
 // If the program crashes or the disk fills up midway, the old file is still intact.
 bool writeFileAtomically(const std::string& path, const std::string& content, std::string& error);
+
+// A folder name from what someone typed: letters, digits, spaces, - and _ only, so it works on every system.
+// Empty if nothing usable is left.
+std::string safeFolderName(const std::string& name);

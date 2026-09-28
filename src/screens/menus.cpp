@@ -41,12 +41,16 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
         none.disabled = true;
         rows.push_back(none);
     }
+    // Editing, a new song can be made too, from the player's own audio
+    const int newSong = forEditing ? (int)rows.size() : -2;
+    if (forEditing) rows.push_back(actionRow("New song from audio"));
     const int openFolder = (int)rows.size(), back = openFolder + 1;
     rows.push_back(actionRow("Open data folder"));
     rows.push_back(actionRow("Back", "Esc"));
 
     int confirmed = menuList(list, rows, listArea(0.8f));
     if (confirmed >= 0 && confirmed < (int)songs.size()) choice.songIndex = confirmed;
+    if (confirmed == newSong) choice.newSong = true;
     if (confirmed == openFolder) choice.openDataFolder = true;
     if (confirmed == back) choice.back = true;
 

@@ -10,6 +10,7 @@
 #include "screens/lessoneditor.h"
 #include "screens/mainmenu.h"
 #include "screens/menus.h"
+#include "screens/newsong.h"
 #include "screens/settingsscreen.h"
 #include "screens/tuner.h"
 #include "ui/transition.h"
@@ -23,7 +24,7 @@
 
 namespace fs = std::filesystem;
 
-enum class Screen { MainMenu, SongSelect, Playing, Results, Tuner, EditorSelect, Editor, LessonEditor, Settings, Learn, Calibration };
+enum class Screen { MainMenu, SongSelect, Playing, Results, Tuner, EditorSelect, NewSong, Editor, LessonEditor, Settings, Learn, Calibration };
 
 // App-wide state shared between screens
 static struct {
@@ -178,6 +179,7 @@ static void handleBackKey(){
         case Screen::Calibration: leaveCalibration(); break;
         case Screen::Learn: if (learnBack()) app.screen = Screen::MainMenu; break;
         case Screen::EditorSelect: app.screen = Screen::MainMenu; break;
+        case Screen::NewSong: if (!ImGui::GetIO().WantTextInput) goToSongList(Screen::EditorSelect); break;
         case Screen::Editor: break;       // the editors handle Esc themselves, to warn about unsaved changes
         case Screen::LessonEditor: break;
     }
@@ -217,9 +219,25 @@ static void runMenus(){
             SongSelectChoice choice = songSelectScreen("Edit a song", app.songs, app.songSelectError, true);
             if (choice.back) app.screen = Screen::MainMenu;
             else if (choice.openDataFolder) openDataFolder();
+            else if (choice.newSong){
+                openNewSongScreen(app.userSongsDir);
+                app.screen = Screen::NewSong;
+            }
             else if (choice.songIndex >= 0) editSong(app.songs[choice.songIndex]);
             break;
         }
+        case Screen::NewSong:
+            switch (newSongScreen()){
+                case NewSongChoice::Back: goToSongList(Screen::EditorSelect); break;
+                case NewSongChoice::Created: {
+                    // Straight into the editor with it; the list shows it next time
+                    goToSongList(Screen::EditorSelect);
+                    for (const SongEntry& song : app.songs) if (song.chartPath == newSongChartPath()) editSong(song);
+                    break;
+                }
+                case NewSongChoice::None: break;
+            }
+            break;
         case Screen::Editor:
             switch (editorScreen()){
                 case EditorChoice::Back:

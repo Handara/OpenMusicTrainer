@@ -1,8 +1,11 @@
 #include "core/songlibrary.h"
 
 #include "core/chart.h"
+#include "core/files.h"
 
 #include <algorithm>
+#include <cctype>
+#include <cmath>
 #include <filesystem>
 
 namespace fs = std::filesystem;
@@ -33,4 +36,64 @@ std::vector<SongEntry> scanSongs(const std::string& songsDir, bool builtIn){
     }
     std::sort(songs.begin(), songs.end(), [](const SongEntry& a, const SongEntry& b){ return a.title < b.title; });
     return songs;
+}
+
+bool createSong(const std::string& songsDir, const NewSong& song, std::string& chartPath, std::string& error){
+    std::string folderName = safeFolderName(song.title);
+    if (folderName.empty()){
+        error = "Give the song a title (letters, digits, spaces, - and _)";
+        return false;
+    }
+    if (!(song.bpm >= 1.0 && song.bpm <= 1000.0)){
+        error = "The tempo must be between 1 and 1000 BPM";
+        return false;
+    }
+    std::error_code ec;
+    if (!fs::is_regular_file(song.audioPath, ec)){
+        error = "No audio file at '" + song.audioPath + "'";
+        return false;
+    }
+    fs::path folder = fs::path(songsDir) / folderName;
+    if (fs::exists(folder, ec)){
+        error = "There's already a song folder called '" + folderName + "'";
+        return false;
+    }
+
+    // audio.ogg, audio.wav...: a fixed name, so the chart never depends on what the file was called
+    std::string extension = fs::path(song.audioPath).extension().string();
+    for (char& c : extension) c = (char)std::tolower((unsigned char)c);
+    std::string audioFile = "audio" + extension;
+    fs::create_directories(folder, ec);
+    if (!ec) fs::copy_file(song.audioPath, folder / audioFile, ec);
+    if (ec){
+        error = "Could not copy the audio: " + ec.message();
+        fs::remove_all(folder, ec);
+        return false;
+    }
+
+    Chart chart{};
+    chart.version = 2;
+    chart.title = song.title;
+    chart.artist = song.artist;
+    chart.audioFile = audioFile;
+    chart.resolution = 480;
+    chart.offset = 0.0;
+    chart.tempoMap = {{0, song.bpm}};
+    chart.timeSignatures = {{0, 4, 4}};
+    chart.keys = {{0, KeySignature{}}};
+    double barSeconds = 4 * 60.0 / song.bpm;
+    int bars = std::max(1, (int)std::ceil(song.lengthSeconds / barSeconds - 1e-9));
+    chart.endTick = bars * 4 * chart.resolution;
+    FrettedTrack guitar;
+    guitar.type = InstrumentType::Guitar;
+    guitar.name = "Guitar";
+    guitar.tuning = { 40, 45, 50, 55, 59, 64 };
+    chart.frettedTracks = {guitar};
+
+    chartPath = (folder / "song.chart").string();
+    if (!saveChart(chartPath, chart, error)){
+        fs::remove_all(folder, ec);
+        return false;
+    }
+    return true;
 }

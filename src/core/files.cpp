@@ -1,5 +1,6 @@
 #include "core/files.h"
 
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 
@@ -20,4 +21,12 @@ bool writeFileAtomically(const std::string& path, const std::string& content, st
         return false;
     }
     return true;
+}
+
+std::string safeFolderName(const std::string& name){
+    std::string folder;
+    for (char c : name) if (std::isalnum((unsigned char)c) || c == ' ' || c == '-' || c == '_') folder += c;
+    while (!folder.empty() && folder.back() == ' ') folder.pop_back();
+    while (!folder.empty() && folder.front() == ' ') folder.erase(folder.begin());
+    return folder;
 }

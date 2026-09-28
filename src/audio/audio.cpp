@@ -239,6 +239,16 @@ bool loadSong(const std::string& path, std::string& error){
     ma_uint64 lengthFrames = 0;
     ma_sound_get_length_in_pcm_frames(&audio.song, &lengthFrames);
     audio.songLengthS = (double)lengthFrames / audio.songSampleRate;
+    // A streamed Ogg file doesn't know its length; a decoder of its own finds it (stb_vorbis reads the last page)
+    if (lengthFrames == 0){
+        ma_decoder decoder;
+        if (ma_decoder_init_file(path.c_str(), nullptr, &decoder) == MA_SUCCESS){
+            if (ma_decoder_get_length_in_pcm_frames(&decoder, &lengthFrames) == MA_SUCCESS && decoder.outputSampleRate > 0){
+                audio.songLengthS = (double)lengthFrames / decoder.outputSampleRate;
+            }
+            ma_decoder_uninit(&decoder);
+        }
+    }
     audio.songReady = true;
     return true;
 }

@@ -145,6 +145,7 @@ add_executable(lahn
     src/learn/playexercise.cpp
     src/learn/routineexercise.cpp
     src/screens/menus.cpp
+    src/screens/newsong.cpp
     src/screens/settingsscreen.cpp
     src/screens/tuner.cpp
     src/views/highway.cpp
@@ -191,6 +192,7 @@ if(BUILD_TESTING)
         tests/score_test.cpp
         tests/scales_test.cpp
         tests/settings_test.cpp
+    tests/songlibrary_test.cpp
         tests/synth_test.cpp
         tests/today_test.cpp
     )

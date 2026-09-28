@@ -15,6 +15,7 @@ enum class MainMenuChoice { None, Play, Learn, Editor, LessonEditor, Tuner, Sett
 struct SongSelectChoice {
     bool back = false;
     bool openDataFolder = false;
+    bool newSong = false; // editing only: make a new song from an audio file
     int songIndex = -1; // index into the songs list, -1 if nothing was picked this frame
 };
 // forEditing marks built-in songs, since editing one creates a copy

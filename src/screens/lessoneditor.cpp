@@ -1,5 +1,6 @@
 #include "screens/lessoneditor.h"
 
+#include "core/files.h"
 #include "core/lesson.h"
 #include "imgui.h"
 #include "imgui_stdlib.h"
@@ -102,16 +103,8 @@ static void openLesson(const std::string& folder, bool builtIn){
     selectStep(0);
 }
 
-// A folder name from what the author typed: letters, digits, spaces, - and _ only, so it works on every system
-static std::string folderNameFor(const std::string& name){
-    std::string folder;
-    for (char c : name) if (std::isalnum((unsigned char)c) || c == ' ' || c == '-' || c == '_') folder += c;
-    while (!folder.empty() && folder.back() == ' ') folder.pop_back();
-    return folder;
-}
-
 static void createLesson(){
-    std::string folderName = folderNameFor(ed.newLessonName);
+    std::string folderName = safeFolderName(ed.newLessonName);
     if (folderName.empty()){
         ed.listError = "Give the lesson a name (letters, digits, spaces, - and _)";
         return;
