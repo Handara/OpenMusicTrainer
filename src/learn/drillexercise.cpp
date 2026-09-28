@@ -128,9 +128,10 @@ void DrillExercise::update(){
 
 void DrillExercise::draw(){
     const ScaleInfo* scale = findScale(config.scale);
-    // Back sits in the top-left corner, out of the way of the text and the notes
+    // Back sits in the top-right corner, out of the way of the title, the text and the notes
     float textTop = ImGui::GetCursorPosY();
-    ImGui::SetCursorPos(ImVec2(20, 20));
+    float backWidth = ImGui::CalcTextSize("Back").x + 2 * ImGui::GetStyle().FramePadding.x;
+    ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() - backWidth - 20, 20));
     if (ImGui::Button("Back")) leave = true;
     ImGui::SetCursorPosY(textTop);
     menuTitle(title.c_str());
