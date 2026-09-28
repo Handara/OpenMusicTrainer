@@ -22,15 +22,16 @@ static std::string writeTemp(const std::string& name, const std::string& content
 static const std::string HEADER = "version 1\nresolution 480\nend 9600\ntempo 0 120\n";
 static const std::string TRACK = "track guitar Lead\ntuning 40 45 50 55 59 64\n";
 
-TEST_CASE("the test chart shipped with the game loads"){
+TEST_CASE("the sample song shipped with the game loads"){
     Chart chart;
     std::string error;
-    REQUIRE_MESSAGE(loadChart(LAHN_RESOURCES_DIR "songs/test-pattern/song.chart", chart, error), error);
-    CHECK(chart.title == "Test Pattern");
+    REQUIRE_MESSAGE(loadChart(LAHN_RESOURCES_DIR "songs/first-light/song.chart", chart, error), error);
+    CHECK(chart.title == "First Light");
     CHECK(chart.audioFile == "audio.wav");
+    CHECK(chart.keys[0].key.fifths == 1);   // E minor
     REQUIRE(chart.frettedTracks.size() == 1);
     CHECK(chart.frettedTracks[0].tuning.size() == 6);
-    CHECK(chart.frettedTracks[0].notes.size() == 12);
+    CHECK(chart.frettedTracks[0].notes.size() == 38);
 }
 
 TEST_CASE("tick to seconds follows the tempo map"){

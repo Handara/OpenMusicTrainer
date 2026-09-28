@@ -150,6 +150,11 @@ add_executable(lahn
 target_link_libraries(lahn PRIVATE lahn_core raylib miniaudio imgui pl_mpeg)
 enable_warnings(lahn)
 
+# Makes the sample song's chart and audio (tools/make_song.cpp). Not built with the game: build and run it by hand.
+add_executable(make_song EXCLUDE_FROM_ALL tools/make_song.cpp)
+target_link_libraries(make_song PRIVATE lahn_core)
+enable_warnings(make_song)
+
 # Copy game data next to the executable on every build (only files that changed are copied)
 add_custom_target(copy_resources ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
