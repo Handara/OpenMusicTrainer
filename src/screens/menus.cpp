@@ -107,6 +107,7 @@ ResultsChoice resultsScreen(const GameResult& result){
 
 bool tunerScreen(){
     beginMenu("Tuner");
+    menuTitle("Tuner");
     drawTuner();
     ImGui::Dummy(ImVec2(0, 20));
     focusNextWhenMenuAppears();

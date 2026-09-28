@@ -2,11 +2,12 @@
 
 #include "raylib.h"
 #include "rlImGui.h"
+#include "ui/menulist.h"
 #include "ui/theme.h"
 
+#include <algorithm>
 #include <filesystem>
 
-const float TITLE_FONT_SIZE = 56.0f;
 const float MENU_BUTTON_WIDTH = 420.0f;
 const float MENU_BUTTON_HEIGHT = 56.0f;
 
@@ -63,10 +64,9 @@ void centeredColoredText(const char* text, ImU32 color){
 }
 
 void menuTitle(const char* text){
-    ImGui::PushFont(uiFonts().heavy, TITLE_FONT_SIZE);
-    centeredText(text);
-    ImGui::PopFont();
-    ImGui::Dummy(ImVec2(0, 30));
+    // Where every screen has it: at the top left, like the lists' screens (ui/menulist); the content starts below
+    menuScreenTitle(text, menuScale());
+    ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY(), ImGui::GetWindowHeight() * 0.2f));
 }
 
 void focusNextWhenMenuAppears(){
