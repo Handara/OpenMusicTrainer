@@ -1,15 +1,18 @@
 #include "screens/learnscreen.h"
 
 #include "core/exercisefile.h"
-#include "learn/drillexercise.h"
 #include "core/lesson.h"
+#include "learn/drillexercise.h"
 #include "learn/intervalexercise.h"
 #include "learn/lessonplayer.h"
 #include "learn/routineexercise.h"
 #include "raylib.h"
+#include "ui/menulist.h"
+#include "ui/theme.h"
 #include "ui/ui.h"
 
 #include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <memory>
 
@@ -19,6 +22,7 @@ static struct {
     std::vector<std::string> progressText; // one per exercise, e.g. "3/12": read when the menu appears, not every frame
     std::vector<LessonEntry> lessons;
     std::vector<std::string> lessonProgressText;
+    MenuList list;                          // the menu's selection, kept while exercises run
     // The running exercise, whatever kind it is. unique_ptr owns it: resetting it deletes the exercise
     // (running its destructor), so there's no manual delete to forget.
     std::unique_ptr<Exercise> exercise;
@@ -148,64 +152,127 @@ bool learnBack(){
     return true;
 }
 
-static void exerciseMenu(bool& leave){
-    menuTitle("Learn");
-    bool focusGiven = false;
+// What a row of the Learn menu stands for
+struct LearnRow {
+    enum Kind { Heading, Lesson, Exercise, OpenExercises, OpenLessons, Back } kind;
+    int index; // into learn.lessons or learn.exercises
+};
 
-    // Lessons first: they're where a beginner starts
-    if (!learn.lessons.empty()){
-        centeredText("Lessons");
-        for (int i = 0; i < (int)learn.lessons.size(); i++){
-            const LessonEntry& entry = learn.lessons[i];
-            std::string label = entry.lesson.title;
-            if (!learn.lessonProgressText[i].empty()) label += "   " + learn.lessonProgressText[i];
-            if (!entry.builtIn) label += "  (yours)";
-            ImGui::PushID(("lesson" + std::to_string(i)).c_str());
-            if (!focusGiven){ focusNextWhenMenuAppears(); focusGiven = true; }
-            ImGui::BeginDisabled(!entry.error.empty());
-            if (menuButton(label.c_str())) learn.exercise = openLesson(entry);
-            ImGui::EndDisabled();
-            if (!entry.error.empty()) centeredErrorText(entry.error);
-            else if (!entry.lesson.description.empty()) ImGui::SetItemTooltip("%s", entry.lesson.description.c_str());
-            ImGui::PopID();
-        }
-        ImGui::Dummy(ImVec2(0, 10));
+static std::string upper(std::string text){
+    for (char& c : text) c = (char)std::toupper((unsigned char)c);
+    return text;
+}
+
+// The selected lesson or exercise, on a card on the right: its title, what it's about, who made it, how far you are
+static void drawAbout(const LearnRow& row, float s){
+    std::string title, about, author, progress;
+    if (row.kind == LearnRow::Lesson){
+        const LessonEntry& entry = learn.lessons[row.index];
+        title = entry.lesson.title;
+        about = entry.lesson.description;
+        author = entry.lesson.author;
+        progress = TextFormat("%d steps", (int)entry.lesson.steps.size());
+        if (!learn.lessonProgressText[row.index].empty()) progress += "  ·  " + learn.lessonProgressText[row.index];
+    } else if (row.kind == LearnRow::Exercise){
+        const ExerciseEntry& entry = learn.exercises[row.index];
+        title = entry.exercise.title;
+        about = entry.exercise.description;
+        author = entry.exercise.author;
+        progress = learn.progressText[row.index];
+    } else {
+        return;
     }
-    if (learn.exercises.empty()) centeredText("No exercises found");
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    const UiFonts& fonts = uiFonts();
+    float width = ImGui::GetWindowWidth(), height = ImGui::GetWindowHeight();
+    ImVec2 card(width * 0.58f, height * 0.25f);
+    float cardWidth = width * 0.35f, pad = 26 * s, inner = cardWidth - 2 * pad;
+    auto measure = [&](ImFont* font, float size, const std::string& text){
+        return text.empty() || !font ? 0.0f : font->CalcTextSizeA(size, FLT_MAX, inner, text.c_str()).y;
+    };
+    float titleHeight = measure(fonts.bold, 24 * s, title), aboutHeight = measure(fonts.text, 18 * s, about);
+    float cardHeight = pad * 2 + titleHeight + 12 * s + (about.empty() ? 0 : aboutHeight + 14 * s)
+                     + (author.empty() ? 0 : 16 * s + 10 * s) + (progress.empty() ? 0 : 18 * s);
+    draw->AddRectFilled(ImVec2(card.x, card.y + 3 * s), ImVec2(card.x + cardWidth, card.y + cardHeight + 3 * s), uiColor(UiColor::Ink, 0.04f), 10 * s);
+    draw->AddRectFilled(card, ImVec2(card.x + cardWidth, card.y + cardHeight), uiColor(UiColor::Card), 10 * s);
+    float x = card.x + pad, y = card.y + pad;
+    draw->AddText(fonts.bold, 24 * s, ImVec2(x, y), uiColor(UiColor::Ink), title.c_str(), nullptr, inner);
+    y += titleHeight + 12 * s;
+    if (!about.empty()){
+        draw->AddText(fonts.text, 18 * s, ImVec2(x, y), uiColor(UiColor::Ink), about.c_str(), nullptr, inner);
+        y += aboutHeight + 14 * s;
+    }
+    if (!author.empty()){
+        draw->AddText(fonts.text, 16 * s, ImVec2(x, y), uiColor(UiColor::Dim), ("by " + author).c_str());
+        y += 16 * s + 10 * s;
+    }
+    if (!progress.empty()) draw->AddText(fonts.bold, 18 * s, ImVec2(x, y), uiColor(UiColor::Accent), progress.c_str());
+}
 
+static void exerciseMenu(bool& leave){
+    float s = menuScale();
+    menuScreenTitle("Learn", s);
+
+    // The rows: lessons first (where a beginner starts), then each category of exercises, then the folders and Back
+    std::vector<MenuRow> rows;
+    std::vector<LearnRow> targets;
+    auto heading = [&](const std::string& text){
+        MenuRow row;
+        row.label = upper(text);
+        row.heading = true;
+        rows.push_back(row);
+        targets.push_back({LearnRow::Heading, -1});
+    };
+    if (!learn.lessons.empty()) heading("Lessons");
+    for (int i = 0; i < (int)learn.lessons.size(); i++){
+        const LessonEntry& entry = learn.lessons[i];
+        MenuRow row;
+        row.label = entry.lesson.title;
+        row.detail = learn.lessonProgressText[i];
+        if (!entry.builtIn) row.detail += row.detail.empty() ? "yours" : "  ·  yours";
+        row.note = entry.error;
+        row.disabled = !entry.error.empty();
+        rows.push_back(row);
+        targets.push_back({LearnRow::Lesson, i});
+    }
     std::string category;
     for (int i = 0; i < (int)learn.exercises.size(); i++){
         const ExerciseEntry& entry = learn.exercises[i];
         if (i == 0 || entry.exercise.category != category){ // a heading whenever the category changes (the list is sorted)
             category = entry.exercise.category;
-            ImGui::Dummy(ImVec2(0, 4));
-            centeredText(category.c_str());
+            heading(category);
         }
-        std::string label = entry.exercise.title;
-        if (!learn.progressText[i].empty()) label += "   " + learn.progressText[i];
-        if (!entry.builtIn) label += "  (yours)";
-
-        ImGui::PushID(i);
-        if (!focusGiven){ focusNextWhenMenuAppears(); focusGiven = true; }
-        if (!entry.error.empty()){
-            ImGui::BeginDisabled();
-            menuButton(label.c_str());
-            ImGui::EndDisabled();
-            centeredErrorText(entry.error);
-        } else {
-            if (menuButton(label.c_str())) learn.exercise = createExercise(entry);
-            // The description and author, shown when hovering
-            std::string details = entry.exercise.description;
-            if (!entry.exercise.author.empty()) details += (details.empty() ? "" : "\n") + std::string("by ") + entry.exercise.author;
-            if (!details.empty()) ImGui::SetItemTooltip("%s", details.c_str());
-        }
-        ImGui::PopID();
+        MenuRow row;
+        row.label = entry.exercise.title;
+        row.detail = learn.progressText[i];
+        if (!entry.builtIn) row.detail += row.detail.empty() ? "yours" : "  ·  yours";
+        row.note = entry.error;
+        row.disabled = !entry.error.empty();
+        rows.push_back(row);
+        targets.push_back({LearnRow::Exercise, i});
     }
+    heading("Your own");
+    rows.push_back(actionRow("Open exercises folder"));
+    targets.push_back({LearnRow::OpenExercises, -1});
+    rows.push_back(actionRow("Open lessons folder"));
+    targets.push_back({LearnRow::OpenLessons, -1});
+    rows.push_back(actionRow("Back", "Esc"));
+    targets.push_back({LearnRow::Back, -1});
 
-    ImGui::Dummy(ImVec2(0, 20));
-    if (menuButton("Open exercises folder")) openFolder(learn.setup.userExercises);
-    if (menuButton("Open lessons folder")) openFolder(learn.setup.userLessons);
-    if (menuButton("Back")) leave = true;
+    float width = ImGui::GetWindowWidth(), height = ImGui::GetWindowHeight();
+    int confirmed = menuList(learn.list, rows, {ImVec2(width * 0.07f, height * 0.2f), width * 0.48f, height * 0.72f - 20 * s, s});
+    if (learn.list.selected >= 0) drawAbout(targets[learn.list.selected], s);
+    menuScreenHint("Up/Down  choose    Enter  start    Esc  back", s);
+    if (confirmed < 0) return;
+    const LearnRow& target = targets[confirmed];
+    switch (target.kind){
+        case LearnRow::Lesson:        learn.exercise = openLesson(learn.lessons[target.index]); break;
+        case LearnRow::Exercise:      learn.exercise = createExercise(learn.exercises[target.index]); break;
+        case LearnRow::OpenExercises: openFolder(learn.setup.userExercises); break;
+        case LearnRow::OpenLessons:   openFolder(learn.setup.userLessons); break;
+        case LearnRow::Back:          leave = true; break;
+        case LearnRow::Heading:       break;
+    }
 }
 
 bool learnScreen(){
