@@ -103,7 +103,7 @@ MainMenuChoice mainMenuScreen(const MainMenuInfo& info, const std::string& error
     // The staff: five hairlines across the screen, one every two rows, from the top of the list to below its end
     for (int line = 0; line < 5; line++){
         float y = menuTop + line * 2 * ROW_HEIGHT * s;
-        draw->AddLine(ImVec2(0, y), ImVec2(width, y), uiColor(UiColor::StaffLine), 1.0f);
+        horizontalLine(draw, 0, width, y, 1.0f, uiColor(UiColor::StaffLine));
     }
     drawWordmark(draw, ImVec2(left, height * 0.09f), WORDMARK_SIZE * s);
 

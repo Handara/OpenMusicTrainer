@@ -101,13 +101,6 @@ void FretboardExercise::drawFretboard(float left, float top, float width, float 
     };
 
     draw->AddRectFilled(ImVec2(left, top), ImVec2(boardRight, top + height), uiColor(UiColor::Card), 10 * s);
-    // Straight lines as thin rectangles: crisp, where anti-aliased lines come out uneven
-    auto across = [&](float x0, float x1, float y, float thickness, ImU32 color){
-        draw->AddRectFilled(ImVec2(x0, y - thickness / 2), ImVec2(x1, y + thickness / 2), color);
-    };
-    auto down = [&](float x, float y0, float y1, float thickness, ImU32 color){
-        draw->AddRectFilled(ImVec2(x - thickness / 2, y0), ImVec2(x + thickness / 2, y1), color);
-    };
     // Markers between the strings, then the frets, the nut, the strings
     float middle = top + height / 2;
     for (int fret = std::max(firstFret, 1); fret <= lastFret; fret++){
@@ -118,15 +111,15 @@ void FretboardExercise::drawFretboard(float left, float top, float width, float 
             draw->AddCircleFilled(ImVec2(fretX(fret), middle + spacing), 6 * s, uiColor(UiColor::StaffLine));
         }
         float wireX = boardLeft + (fret - std::max(firstFret, 1) + 1) * fretWidth;
-        if (fret < lastFret) down(wireX, top + pad * 0.5f, top + height - pad * 0.5f, 1.5f * s, uiColor(UiColor::Dim, 0.5f));
+        if (fret < lastFret) verticalLine(draw, wireX, top + pad * 0.5f, top + height - pad * 0.5f, 1.5f * s, uiColor(UiColor::Dim, 0.5f));
         const char* number = TextFormat("%d", fret);
         float numberWidth = fonts.mono ? fonts.mono->CalcTextSizeA(13 * s, FLT_MAX, 0.0f, number).x : 0.0f;
         draw->AddText(fonts.mono, 13 * s, ImVec2(fretX(fret) - numberWidth / 2, top + height + 6 * s), uiColor(UiColor::Dim), number);
     }
-    down(boardLeft, top + pad * 0.5f, top + height - pad * 0.5f, (hasOpen ? 4.0f : 1.5f) * s, uiColor(UiColor::Ink));
+    verticalLine(draw, boardLeft, top + pad * 0.5f, top + height - pad * 0.5f, (hasOpen ? 4.0f : 1.5f) * s, uiColor(UiColor::Ink));
     for (int string = 0; string < strings; string++){
         bool asked = string == question.stringIndex;
-        across(left + 6 * s, boardRight - 6 * s, stringY(string), (asked ? 3.0f : 1.0f + 0.25f * (strings - 1 - string)) * s,
+        horizontalLine(draw, left + 6 * s, boardRight - 6 * s, stringY(string), (asked ? 3.0f : 1.0f + 0.25f * (strings - 1 - string)) * s,
                uiColor(asked ? UiColor::Accent : UiColor::Ink, asked ? 1.0f : 0.55f));
         // The string's name, left of the board
         const char* name = TextFormat("%s", pitchClassName(config.tuning[string]));

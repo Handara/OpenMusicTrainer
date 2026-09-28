@@ -168,7 +168,7 @@ float drawWordmark(ImDrawList* draw, ImVec2 topLeft, float height){
     float gap = height * 0.32f;
     float top = topLeft.y + height * 0.18f, bottom = topLeft.y + height * 0.92f;
     x += gap;
-    draw->AddLine(ImVec2(x, top), ImVec2(x, bottom), uiColor(UiColor::Accent), std::max(1.5f, height * 0.035f));
+    verticalLine(draw, x, top, bottom, std::max(1.5f, height * 0.035f), uiColor(UiColor::Accent));
     x += gap;
     // The Arabic name: a white image tinted to the ink, as tall as the Latin letters' ascenders
     if (theme.arabicWordmark.id != 0){
@@ -178,4 +178,12 @@ float drawWordmark(ImDrawList* draw, ImVec2 topLeft, float height){
         x += w;
     }
     return x - topLeft.x;
+}
+
+void horizontalLine(ImDrawList* draw, float x0, float x1, float y, float thickness, ImU32 color){
+    draw->AddRectFilled(ImVec2(x0, y - thickness / 2), ImVec2(x1, y + thickness / 2), color);
+}
+
+void verticalLine(ImDrawList* draw, float x, float y0, float y1, float thickness, ImU32 color){
+    draw->AddRectFilled(ImVec2(x - thickness / 2, y0), ImVec2(x + thickness / 2, y1), color);
 }

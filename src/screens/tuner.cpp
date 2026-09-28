@@ -119,14 +119,13 @@ void drawTuner(){
                         uiColor(UiColor::Good, 0.2f), 4.0f);
     for (int c = -50; c <= 50; c += 10){
         float tickHeight = c == 0 ? SCALE_HEIGHT : (c % 50 == 0 ? SCALE_HEIGHT * 0.6f : SCALE_HEIGHT * 0.35f);
-        draw->AddLine(ImVec2(centsToX((float)c), bottom - tickHeight), ImVec2(centsToX((float)c), bottom),
-                      uiColor(UiColor::Dim, 0.8f), c == 0 ? 3.0f : 1.5f);
+        verticalLine(draw, centsToX((float)c), bottom - tickHeight, bottom, c == 0 ? 3.0f : 1.5f, uiColor(UiColor::Dim, 0.8f));
     }
     draw->AddText(ImVec2(left - 20, bottom + 8), uiColor(UiColor::Dim, 0.8f), "-50");
     draw->AddText(ImVec2(left + SCALE_WIDTH - 20, bottom + 8), uiColor(UiColor::Dim, 0.8f), "+50");
     if (showingNote){
         float needleX = centsToX(cents);
-        draw->AddLine(ImVec2(needleX, top - 12), ImVec2(needleX, bottom + 4), color, 5.0f);
+        verticalLine(draw, needleX, top - 12, bottom + 4, 5.0f, color);
         draw->AddCircleFilled(ImVec2(needleX, top - 12), 8.0f, color);
     }
     ImGui::Dummy(ImVec2(0, SCALE_HEIGHT + 90)); // tell ImGui how much space the drawing used
@@ -137,7 +136,7 @@ void drawTuner(){
     float gateX = left + (SILENCE_THRESHOLD_DB + 60.0f) / 60.0f * SCALE_WIDTH;
     draw->AddRectFilled(ImVec2(left, meterTop), ImVec2(left + SCALE_WIDTH, meterTop + 12), uiColor(UiColor::StaffLine), 3.0f);
     draw->AddRectFilled(ImVec2(left, meterTop), ImVec2(left + fill * SCALE_WIDTH, meterTop + 12), uiColor(UiColor::Good), 3.0f);
-    draw->AddLine(ImVec2(gateX, meterTop - 4), ImVec2(gateX, meterTop + 16), uiColor(UiColor::Dim, 0.8f), 2.0f);
+    verticalLine(draw, gateX, meterTop - 4, meterTop + 16, 2.0f, uiColor(UiColor::Dim, 0.8f));
     ImGui::Dummy(ImVec2(0, 24));
     centeredColoredText(TextFormat("Input: %s    %.0f dB", captureDeviceName(), tuner.levelDb), uiColor(UiColor::Dim, 0.8f));
 }

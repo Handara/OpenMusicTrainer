@@ -41,6 +41,10 @@ struct UiFonts {
 };
 const UiFonts& uiFonts();
 
+// Straight lines as thin rectangles: crisp at any thickness, where ImGui's anti-aliased lines can come out uneven
+void horizontalLine(ImDrawList* draw, float x0, float x1, float y, float thickness, ImU32 color);
+void verticalLine(ImDrawList* draw, float x, float y0, float y1, float thickness, ImU32 color);
+
 // "lahn | لحن": the name in both scripts, split by a string. `height` is the Latin letters' size in pixels.
 // Returns the width drawn.
 float drawWordmark(ImDrawList* draw, ImVec2 topLeft, float height);
