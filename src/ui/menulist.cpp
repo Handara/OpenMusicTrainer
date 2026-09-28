@@ -1,0 +1,201 @@
+#include "ui/menulist.h"
+
+#include "audio/audio.h"
+#include "core/music.h"
+#include "raylib.h"
+#include "ui/theme.h"
+
+#include <algorithm>
+#include <cmath>
+
+// Sizes at a 720-pixel-tall window
+const float REFERENCE_HEIGHT = 720.0f;
+const float ITEM_SIZE = 30.0f;
+const float DETAIL_SIZE = 18.0f;
+const float KEY_SIZE = 15.0f;
+const float NOTE_SIZE = 14.0f;
+const float HEADING_SIZE = 13.0f;
+const float ROW_HEIGHT = 48.0f;
+const float HEADING_HEIGHT = 40.0f;
+const float NOTE_HEIGHT = 20.0f;
+const float KEY_COLUMN = 52.0f;        // the shortcut keys' column, before the names
+const float SELECTED_SHIFT = 12.0f;    // the selected name steps right, toward you
+const float RING_SIZE = 7.0f;          // how far the string swings when plucked
+const float RING_DECAY = 6.0f;         // per second
+const float RING_SPEED = 55.0f;        // radians per second: a visible shimmer, not a real string's pitch
+const float GLIDE_SPEED = 18.0f;       // how fast the string, the names and the scrolling follow
+const float TITLE_SIZE = 40.0f;
+const float HINT_SIZE = 14.0f;
+
+// A major pentatonic, climbing with the list and starting over every seven rows: no half steps, so any path through
+// a list sounds fine
+const int NOTES[] = { 69, 71, 73, 76, 78, 81, 83 };
+
+float menuScale(){
+    return std::clamp(ImGui::GetIO().DisplaySize.y / REFERENCE_HEIGHT, 0.75f, 2.0f);
+}
+
+static bool selectable(const MenuRow& row){
+    return !row.heading;
+}
+
+static float rowHeight(const MenuRow& row, float s){
+    if (row.heading) return HEADING_HEIGHT * s;
+    return (ROW_HEIGHT + (row.note.empty() ? 0.0f : NOTE_HEIGHT)) * s;
+}
+
+// The row's note: its place among the rows that can be selected
+static int noteFor(const std::vector<MenuRow>& rows, int row){
+    int place = 0;
+    for (int i = 0; i < row; i++) if (selectable(rows[i])) place++;
+    return NOTES[place % 7];
+}
+
+void menuListSelect(MenuList& list, const std::vector<MenuRow>& rows, int row, bool confirm){
+    if (row < 0 || row >= (int)rows.size() || !selectable(rows[row])) return;
+    bool moved = row != list.selected;
+    list.selected = row;
+    if (!moved && !confirm) return;
+    list.ringStart = GetTime();
+    list.ringStrength = confirm ? 2.0f : 1.0f;
+    int note = noteFor(rows, row);
+    playPreview(midiToFrequency((float)note));
+    // Confirming answers with the fifth above, a little after: an answer, not a beep
+    if (confirm) playPreview(midiToFrequency((float)(note + 7)), 0.11f);
+}
+
+// The next row that can be selected, going `step` (+1 or -1) from `from`, wrapping around
+static int nextSelectable(const std::vector<MenuRow>& rows, int from, int step){
+    int count = (int)rows.size();
+    for (int k = 1; k <= count; k++){
+        int i = ((from + step * k) % count + count) % count;
+        if (selectable(rows[i])) return i;
+    }
+    return from;
+}
+
+int menuList(MenuList& list, const std::vector<MenuRow>& rows, const MenuListArea& area){
+    if (rows.empty()) return -1;
+    const float s = area.scale;
+    const UiFonts& fonts = uiFonts();
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    ImGuiIO& io = ImGui::GetIO();
+    list.shift.resize(rows.size(), 0.0f);
+    if (list.selected < 0 || list.selected >= (int)rows.size() || !selectable(rows[list.selected])){
+        list.selected = nextSelectable(rows, -1, 1);
+    }
+
+    bool anyKey = false;
+    for (const MenuRow& row : rows) if (!row.key.empty()) anyKey = true;
+    const float keyX = area.topLeft.x, nameX = keyX + (anyKey ? KEY_COLUMN * s : 0.0f);
+
+    // Where each row sits, before scrolling
+    std::vector<float> tops(rows.size());
+    float total = 0.0f;
+    for (size_t i = 0; i < rows.size(); i++){
+        tops[i] = total;
+        total += rowHeight(rows[i], s);
+    }
+    float maxScroll = std::max(0.0f, total - area.height);
+
+    // Input: the keyboard (unless a text field has it), the mouse over the rows, the wheel
+    int confirmed = -1;
+    if (!io.WantTextInput){
+        if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) menuListSelect(list, rows, nextSelectable(rows, list.selected, 1));
+        if (ImGui::IsKeyPressed(ImGuiKey_UpArrow)) menuListSelect(list, rows, nextSelectable(rows, list.selected, -1));
+        if (ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter) || ImGui::IsKeyPressed(ImGuiKey_Space)){
+            if (!rows[list.selected].disabled){
+                menuListSelect(list, rows, list.selected, true);
+                confirmed = list.selected;
+            }
+        }
+    }
+    ImVec2 mouse = ImGui::GetMousePos();
+    bool overArea = mouse.x >= 0 && mouse.x <= area.topLeft.x + area.width && mouse.y >= area.topLeft.y && mouse.y < area.topLeft.y + area.height;
+    bool mouseMoved = io.MouseDelta.x != 0.0f || io.MouseDelta.y != 0.0f;
+    if (overArea){
+        list.scroll = std::clamp(list.scroll - io.MouseWheel * ROW_HEIGHT * s, 0.0f, maxScroll);
+        for (size_t i = 0; i < rows.size(); i++){
+            float top = area.topLeft.y + tops[i] - list.scroll;
+            if (!selectable(rows[i]) || mouse.y < top || mouse.y >= top + rowHeight(rows[i], s) || mouse.x < keyX) continue;
+            if (mouseMoved) menuListSelect(list, rows, (int)i);
+            if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !rows[i].disabled){
+                menuListSelect(list, rows, (int)i, true);
+                confirmed = (int)i;
+            }
+        }
+    }
+
+    // Keep the selected row in view: scroll just enough, smoothly, when the keyboard moves past an edge
+    float dt = std::min(GetFrameTime(), 0.05f);
+    float follow = std::min(1.0f, dt * GLIDE_SPEED);
+    float selTop = tops[list.selected], selBottom = selTop + rowHeight(rows[list.selected], s);
+    float margin = ROW_HEIGHT * s;
+    if (selTop - margin < list.scroll) list.scroll += (std::max(0.0f, selTop - margin) - list.scroll) * follow;
+    if (selBottom + margin > list.scroll + area.height) list.scroll += (std::min(maxScroll, selBottom + margin - area.height) - list.scroll) * follow;
+
+    // The rows, clipped to the area
+    draw->PushClipRect(ImVec2(0, area.topLeft.y), ImVec2(area.topLeft.x + area.width, area.topLeft.y + area.height), true);
+    for (size_t i = 0; i < rows.size(); i++){
+        const MenuRow& row = rows[i];
+        float top = area.topLeft.y + tops[i] - list.scroll;
+        float height = rowHeight(row, s);
+        if (top + height < area.topLeft.y || top > area.topLeft.y + area.height) continue;
+        if (row.heading){
+            // Headings: small capitals, like the labels on the main menu's card, near the bottom of their space
+            draw->AddText(fonts.mono, HEADING_SIZE * s, ImVec2(keyX, top + height - HEADING_SIZE * s - 8 * s), uiColor(UiColor::Dim), row.label.c_str());
+            continue;
+        }
+        bool selected = (int)i == list.selected;
+        list.shift[i] += ((selected ? SELECTED_SHIFT * s : 0.0f) - list.shift[i]) * follow;
+        float nameSize = ITEM_SIZE * s;
+        float nameY = top + (ROW_HEIGHT * s - nameSize) / 2;
+        UiColor nameColor = row.disabled ? UiColor::Dim : (selected ? UiColor::Ink : UiColor::Dim);
+        float nameAlpha = row.disabled ? 0.55f : 1.0f;
+        if (!row.key.empty()){
+            draw->AddText(fonts.mono, KEY_SIZE * s, ImVec2(keyX, nameY + (nameSize - KEY_SIZE * s) * 0.55f),
+                          uiColor(UiColor::Dim, selected ? 1.0f : 0.7f), row.key.c_str());
+        }
+        float x = nameX + list.shift[i];
+        draw->AddText(fonts.bold, nameSize, ImVec2(x, nameY), uiColor(nameColor, nameAlpha), row.label.c_str());
+        if (!row.detail.empty()){
+            float labelWidth = fonts.bold ? fonts.bold->CalcTextSizeA(nameSize, FLT_MAX, 0.0f, row.label.c_str()).x : 0.0f;
+            draw->AddText(fonts.text, DETAIL_SIZE * s, ImVec2(x + labelWidth + 14 * s, nameY + (nameSize - DETAIL_SIZE * s) * 0.6f),
+                          uiColor(UiColor::Dim, selected ? 1.0f : 0.8f), row.detail.c_str());
+        }
+        if (!row.note.empty()){
+            draw->AddText(fonts.text, NOTE_SIZE * s, ImVec2(nameX, top + ROW_HEIGHT * s - 4 * s), uiColor(UiColor::Bad),
+                          row.note.c_str(), nullptr, area.width - (nameX - keyX));
+        }
+    }
+
+    // The string: from the screen's edge to just before the list, level with the selected row. It glides to a new
+    // row and rings each time it's plucked.
+    float targetY = area.topLeft.y + tops[list.selected] - list.scroll + ROW_HEIGHT * s / 2;
+    list.stringY = list.stringY < 0 ? targetY : list.stringY + (targetY - list.stringY) * follow;
+    float age = (float)(GetTime() - list.ringStart);
+    float amplitude = RING_SIZE * s * list.ringStrength * std::exp(-age * RING_DECAY);
+    float end = keyX - 14 * s;
+    const int SEGMENTS = 48;
+    ImVec2 points[SEGMENTS + 1];
+    for (int k = 0; k <= SEGMENTS; k++){
+        float u = (float)k / SEGMENTS;
+        points[k] = ImVec2(end * u, list.stringY + amplitude * std::sin(PI * u) * std::sin(age * RING_SPEED));
+    }
+    draw->AddPolyline(points, SEGMENTS + 1, uiColor(UiColor::Accent), ImDrawFlags_None, std::max(1.5f, 1.6f * s));
+    draw->AddCircleFilled(ImVec2(end, list.stringY), 3.2f * s, uiColor(UiColor::Accent));
+    draw->PopClipRect();
+    return confirmed;
+}
+
+void menuScreenTitle(const char* title, float s){
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    float left = ImGui::GetWindowWidth() * 0.07f;
+    draw->AddText(uiFonts().heavy, TITLE_SIZE * s, ImVec2(left, ImGui::GetWindowHeight() * 0.09f), uiColor(UiColor::Ink), title);
+}
+
+void menuScreenHint(const char* hint, float s){
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    float left = ImGui::GetWindowWidth() * 0.07f;
+    draw->AddText(uiFonts().mono, HINT_SIZE * s, ImVec2(left, ImGui::GetWindowHeight() - 40 * s), uiColor(UiColor::Dim), hint);
+}

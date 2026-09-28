@@ -123,6 +123,7 @@ add_executable(lahn
     src/main.cpp
     src/audio/audio.cpp
     src/input/noteinput.cpp
+    src/ui/menulist.cpp
     src/ui/theme.cpp
     src/ui/ui.cpp
     src/screens/calibration.cpp
