@@ -22,6 +22,14 @@ struct MenuRow {
     bool disabled = false; // shown dim; can be selected (to read its note) but not confirmed
 };
 
+// A plain row: something to do, with an optional shortcut ("Back", "Esc")
+inline MenuRow actionRow(const std::string& label, const std::string& key = ""){
+    MenuRow row;
+    row.label = label;
+    row.key = key;
+    return row;
+}
+
 // What a list remembers between frames. Keep one per screen: it keeps the selection when the screen comes back.
 struct MenuList {
     int selected = -1;          // a row index; -1 = the first row that can be selected
