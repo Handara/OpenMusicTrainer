@@ -32,7 +32,7 @@ const float PREVIEW_LENGTH_S = 1.5f;     // built-in sounds
 const float CLICK_LENGTH_S = 0.08f;
 const float CLICK_VOLUME = 0.8f;
 const float MAX_CUSTOM_SOUND_S = 3.0f;   // longer sound files are cut (and faded) here
-const char* const SOUND_FILE_EXTENSIONS[] = { ".wav", ".mp3", ".flac" }; // what miniaudio decodes out of the box
+const char* const SOUND_FILE_EXTENSIONS[] = { ".wav", ".mp3", ".flac", ".ogg" }; // what miniaudio decodes (.ogg: stb_vorbis)
 const float SILENCE_LEVEL = 0.001f;      // -60 dB: quieter than this at the start of a sound file counts as silence
 
 // One preview sound: its samples, and the miniaudio objects playing them.

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.26)
-project(lahn VERSION 0.1.0 LANGUAGES C CXX) # C: pl_mpeg
+project(lahn VERSION 0.1.0 LANGUAGES C CXX) # C: miniaudio, pl_mpeg
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -22,6 +22,7 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/mackron/miniaudio.git
     GIT_TAG        0.11.25
     GIT_SHALLOW    TRUE
+    SOURCE_SUBDIR  none # only the files: we compile it ourselves, below, to add Ogg Vorbis
 )
 # rlImGui (Dear ImGui's raylib backend) publishes a tested ImGui version per raylib version
 FetchContent_Declare(
@@ -49,11 +50,6 @@ set(CUSTOMIZE_BUILD ON CACHE BOOL "" FORCE)
 set(SUPPORT_MODULE_RAUDIO OFF CACHE BOOL "" FORCE)
 set(SUPPORT_FILEFORMAT_JPG ON CACHE BOOL "" FORCE) # lesson images: photos are usually JPG (PNG is on already)
 
-# Optional decoders and effect nodes we don't use yet
-set(MINIAUDIO_NO_LIBVORBIS ON CACHE BOOL "" FORCE)
-set(MINIAUDIO_NO_LIBOPUS ON CACHE BOOL "" FORCE)
-set(MINIAUDIO_NO_EXTRA_NODES ON CACHE BOOL "" FORCE)
-
 # pl_mpeg: MPEG-1 video and MP2 audio in one public-domain header, for videos in lessons. It has no release tags,
 # so it's pinned to a commit.
 FetchContent_Declare(
@@ -63,6 +59,15 @@ FetchContent_Declare(
 )
 
 FetchContent_MakeAvailable(raylib miniaudio imgui rlimgui doctest pl_mpeg)
+
+# miniaudio is one header too, compiled the same way, with stb_vorbis (in its extras) for .ogg songs. On Linux and
+# macOS it needs threads, dlopen (it loads the system's audio libraries when it starts) and the math library.
+add_library(miniaudio STATIC src/audio/miniaudio.c)
+target_include_directories(miniaudio PUBLIC ${miniaudio_SOURCE_DIR})
+if(UNIX)
+    find_package(Threads REQUIRED)
+    target_link_libraries(miniaudio PUBLIC Threads::Threads ${CMAKE_DL_LIBS} m)
+endif()
 
 # pl_mpeg is one header; its code is compiled once, in C, in a library of its own
 add_library(pl_mpeg STATIC src/video/pl_mpeg.c)
