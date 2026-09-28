@@ -171,7 +171,7 @@ static void drawAbout(const LearnRow& row, float s){
         title = entry.lesson.title;
         about = entry.lesson.description;
         author = entry.lesson.author;
-        progress = TextFormat("%d steps", (int)entry.lesson.steps.size());
+        progress = TextFormat("%d %s", (int)entry.lesson.steps.size(), entry.lesson.steps.size() == 1 ? "step" : "steps");
         if (!learn.lessonProgressText[row.index].empty()) progress += "  ·  " + learn.lessonProgressText[row.index];
     } else if (row.kind == LearnRow::Exercise){
         const ExerciseEntry& entry = learn.exercises[row.index];

@@ -5,6 +5,7 @@
 #include "imgui_stdlib.h"
 #include "learn/lessonview.h"
 #include "raylib.h"
+#include "ui/menulist.h"
 #include "ui/ui.h"
 #include "ui/theme.h"
 
@@ -28,6 +29,7 @@ static struct {
     std::vector<LessonEntry> lessons;      // the list to pick from
     std::vector<ExerciseEntry> exercises;  // for exercise steps
     std::string newLessonName;
+    bool focusName = false;                // put the keyboard in the new lesson's name field next frame
     std::string listError;
 
     // The lesson being edited (editing = true)
@@ -347,40 +349,95 @@ static void previewPanel(){
 
 // --- Screens --------------------------------------------------------------------------------------------------
 
+// The card on the right of the list: the selected lesson, or the new lesson's name field
+static void lessonCard(bool naming, const LessonEntry* entry, float s){
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    const UiFonts& fonts = uiFonts();
+    float width = ImGui::GetWindowWidth(), height = ImGui::GetWindowHeight();
+    ImVec2 card(width * 0.58f, height * 0.25f);
+    float cardWidth = width * 0.35f, pad = 26 * s, inner = cardWidth - 2 * pad;
+    std::string title = naming ? "New lesson" : entry->lesson.title;
+    std::string detail = naming ? "" : TextFormat("%d %s", (int)entry->lesson.steps.size(), entry->lesson.steps.size() == 1 ? "step" : "steps");
+    std::string hint = naming ? "" : (entry->builtIn ? "Built-in: saving makes your own copy" : "Yours");
+    const std::string& error = naming ? ed.listError : entry->error;
+    float titleHeight = fonts.bold ? fonts.bold->CalcTextSizeA(24 * s, FLT_MAX, inner, title.c_str()).y : 24 * s;
+    float errorHeight = error.empty() || !fonts.text ? 0.0f : fonts.text->CalcTextSizeA(15 * s, FLT_MAX, inner, error.c_str()).y + 12 * s;
+    float fieldHeight = naming ? ImGui::GetFrameHeight() + 14 * s : 0.0f;
+    float cardHeight = pad * 2 + titleHeight + 12 * s + fieldHeight + (detail.empty() ? 0 : 18 * s) + (hint.empty() ? 0 : 10 * s + 16 * s) + errorHeight;
+    draw->AddRectFilled(ImVec2(card.x, card.y + 3 * s), ImVec2(card.x + cardWidth, card.y + cardHeight + 3 * s), uiColor(UiColor::Ink, 0.04f), 10 * s);
+    draw->AddRectFilled(card, ImVec2(card.x + cardWidth, card.y + cardHeight), uiColor(UiColor::Card), 10 * s);
+    float x = card.x + pad, y = card.y + pad;
+    draw->AddText(fonts.bold, 24 * s, ImVec2(x, y), uiColor(UiColor::Ink), title.c_str(), nullptr, inner);
+    y += titleHeight + 12 * s;
+    if (naming){
+        // Confirming "New lesson" puts the keyboard in the field; Enter there creates, Esc steps back to the list
+        ImGui::SetCursorScreenPos(ImVec2(x, y));
+        ImGui::SetNextItemWidth(inner);
+        if (ed.focusName) ImGui::SetKeyboardFocusHere();
+        ed.focusName = false;
+        if (ImGui::InputTextWithHint("##name", "Its name", &ed.newLessonName, ImGuiInputTextFlags_EnterReturnsTrue)) createLesson();
+        if (ImGui::IsItemEdited()) ed.listError.clear(); // the complaint was about the old name
+        y += fieldHeight;
+    }
+    if (!detail.empty()){
+        draw->AddText(fonts.bold, 18 * s, ImVec2(x, y), uiColor(UiColor::Accent), detail.c_str());
+        y += 18 * s;
+    }
+    if (!hint.empty()){
+        y += 10 * s;
+        draw->AddText(fonts.text, 16 * s, ImVec2(x, y), uiColor(UiColor::Dim), hint.c_str());
+        y += 16 * s;
+    }
+    if (!error.empty()) draw->AddText(fonts.text, 15 * s, ImVec2(x, y + 12 * s), uiColor(UiColor::Bad), error.c_str(), nullptr, inner);
+}
+
 static LessonEditorChoice lessonList(){
+    static MenuList list;
     LessonEditorChoice choice = LessonEditorChoice::None;
     beginMenu("Lesson editor");
-    menuTitle("Lesson editor");
-    if (ed.lessons.empty()) centeredText("No lessons yet: make one below");
-    for (int i = 0; i < (int)ed.lessons.size(); i++){
-        const LessonEntry& entry = ed.lessons[i];
-        std::string label = entry.lesson.title + (entry.builtIn ? "  (built-in)" : "  (yours)");
-        ImGui::PushID(i);
-        if (i == 0) focusNextWhenMenuAppears();
-        // A lesson naming a missing exercise opens (it's fixed here); one whose file can't be read stays put, and
-        // its error says what to fix
-        if (menuButton(label.c_str())) openLesson(entry.folder, entry.builtIn);
-        if (!entry.error.empty()) centeredErrorText(entry.error);
-        ImGui::PopID();
+    float s = menuScale();
+    menuScreenTitle("Lesson editor", s);
+
+    // The lessons, then a new one, the folder and Back. A lesson naming a missing exercise opens (it's fixed here);
+    // one whose file can't be read stays put, and its error says what to fix.
+    std::vector<MenuRow> rows;
+    for (const LessonEntry& entry : ed.lessons){
+        MenuRow row;
+        row.label = entry.lesson.title;
+        row.detail = entry.builtIn ? "built-in" : "yours";
+        row.note = entry.error;
+        rows.push_back(row);
     }
+    const int newLesson = (int)rows.size(), openLessons = newLesson + 1, back = newLesson + 2;
+    rows.push_back(actionRow("New lesson"));
+    rows.push_back(actionRow("Open lessons folder"));
+    rows.push_back(actionRow("Back", "Esc"));
 
-    ImGui::Dummy(ImVec2(0, 20));
-    centeredText("New lesson");
-    ImGui::SetCursorPosX((ImGui::GetWindowWidth() - 420) / 2);
-    ImGui::SetNextItemWidth(300);
-    bool enter = ImGui::InputTextWithHint("##name", "Its name", &ed.newLessonName, ImGuiInputTextFlags_EnterReturnsTrue);
-    ImGui::SameLine();
-    if (ImGui::Button("Create", ImVec2(110, 0)) || enter) createLesson();
-    if (!ed.listError.empty()) centeredErrorText(ed.listError);
-
-    ImGui::Dummy(ImVec2(0, 20));
-    if (menuButton("Open lessons folder")){
+    float width = ImGui::GetWindowWidth(), height = ImGui::GetWindowHeight();
+    bool typing = ImGui::GetIO().WantTextInput; // before the field is drawn: this frame's keys belong to it
+    int confirmed = menuList(list, rows, {ImVec2(width * 0.07f, height * 0.25f), width * 0.45f, height * 0.66f - 20 * s, s});
+    if (confirmed == newLesson) ed.focusName = true;
+    if (confirmed >= 0 && confirmed < newLesson) openLesson(ed.lessons[confirmed].folder, ed.lessons[confirmed].builtIn);
+    if (confirmed == openLessons){
         std::error_code ec;
         fs::create_directories(ed.setup.userLessons, ec);
         openFolder(ed.setup.userLessons);
     }
-    if (menuButton("Back")) choice = LessonEditorChoice::Back;
-    if (ImGui::IsKeyPressed(ImGuiKey_Escape) && !ImGui::GetIO().WantTextInput) choice = LessonEditorChoice::Back;
+    if (confirmed == back || (ImGui::IsKeyPressed(ImGuiKey_Escape) && !typing)) choice = LessonEditorChoice::Back;
+    if (ed.editing){ // a lesson just opened: the editor draws from the next frame
+        ImGui::End();
+        return choice;
+    }
+
+    if (list.selected == newLesson) lessonCard(true, nullptr, s);
+    else if (list.selected >= 0 && list.selected < newLesson) lessonCard(false, &ed.lessons[list.selected], s);
+    else if (!ed.listError.empty()){
+        ImGui::SetCursorPos(ImVec2(width * 0.07f, height * 0.17f + 20 * s));
+        ImGui::TextColored(uiColorVec(UiColor::Bad), "%s", ed.listError.c_str());
+    }
+    menuScreenHint(typing ? "Enter  create    Esc  cancel"
+                          : list.selected == newLesson ? "Up/Down  choose    Enter  name it    Esc  back"
+                                                       : "Up/Down  choose    Enter  edit    Esc  back", s);
     ImGui::End();
     return choice;
 }
