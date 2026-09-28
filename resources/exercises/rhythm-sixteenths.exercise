@@ -1,0 +1,9 @@
+# lahn exercise
+version 1
+type rhythm
+category Rhythm
+title Sixteenths and gallops
+description Four to a beat, and the gallops that mix sixteenths with eighths.
+cells eighths sixteenths gallop reverse_gallop
+bars 2
+tempo 50 110 4

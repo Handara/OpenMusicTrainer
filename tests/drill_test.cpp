@@ -45,24 +45,24 @@ TEST_CASE("direction, fingering and scale choices"){
 TEST_CASE("the tempo ramp"){
     ScaleDrillConfig config; // start 60, step 4, max 160, pass at 90%
     DrillProgress progress;
-    CHECK(drillTempo(config, progress) == 60);
+    CHECK(drillTempo(config.tempo, progress) == 60);
 
-    DrillPassOutcome clean = finishDrillPass(config, progress, 60, 95.0f);
+    DrillPassOutcome clean = finishDrillPass(config.tempo, progress, 60, 95.0f);
     CHECK(clean.clean);
     CHECK(clean.newBest);
     CHECK(clean.nextTempo == 64);
     CHECK(progress.bestCleanTempo == 60);
 
-    DrillPassOutcome close = finishDrillPass(config, progress, 64, 80.0f); // not clean, not bad: stay
+    DrillPassOutcome close = finishDrillPass(config.tempo, progress, 64, 80.0f); // not clean, not bad: stay
     CHECK_FALSE(close.clean);
     CHECK(close.nextTempo == 64);
 
-    DrillPassOutcome bad = finishDrillPass(config, progress, 64, 30.0f);   // struggling: slow down
+    DrillPassOutcome bad = finishDrillPass(config.tempo, progress, 64, 30.0f);   // struggling: slow down
     CHECK(bad.nextTempo == 60);
     CHECK(progress.bestCleanTempo == 60); // the best is kept
 
     progress.tempo = 158;
-    CHECK(finishDrillPass(config, progress, 158, 100.0f).nextTempo == 160); // never past the max
+    CHECK(finishDrillPass(config.tempo, progress, 158, 100.0f).nextTempo == 160); // never past the max
     CHECK(progress.passes == 4);
     CHECK(progress.cleanPasses == 2);
 }
@@ -85,7 +85,7 @@ TEST_CASE("a drill written as a chart"){
     std::vector<DrillNote> notes;
     std::string error;
     REQUIRE(buildScaleDrill(config, notes, error));
-    Chart chart = drillChart(config, notes);
+    Chart chart = drillChart(notes, config.tuning, scaleDrillKey(config));
     REQUIRE(chart.frettedTracks.size() == 1);
     const std::vector<FrettedNote>& chartNotes = chart.frettedTracks[0].notes;
     REQUIRE(chartNotes.size() == notes.size());
@@ -96,5 +96,5 @@ TEST_CASE("a drill written as a chart"){
 
     config.notesPerBeat = 3;                  // triplets land exactly on the ticks
     REQUIRE(buildScaleDrill(config, notes, error));
-    CHECK(drillChart(config, notes).frettedTracks[0].notes[1].tick == 160);
+    CHECK(drillChart(notes, config.tuning, scaleDrillKey(config)).frettedTracks[0].notes[1].tick == 160);
 }

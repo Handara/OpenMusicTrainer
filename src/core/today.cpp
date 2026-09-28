@@ -34,7 +34,7 @@ TodaySummary summarizeToday(const std::vector<ExerciseEntry>& exercises, const s
             newestDrill = written;
             summary.hasDrill = true;
             summary.drillTitle = entry.exercise.title;
-            summary.drillTempo = drillTempo(entry.exercise.drill, loadDrillProgress(progressPath));
+            summary.drillTempo = drillTempo(entry.exercise.drill.tempo, loadDrillProgress(progressPath));
         }
     }
     return summary;

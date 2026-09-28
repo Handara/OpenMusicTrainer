@@ -12,21 +12,23 @@
 #include <algorithm>
 #include <cmath>
 
-const int COUNT_IN_BEATS = 4;      // one bar of clicks before the notes
 const double LEAD_IN_S = 0.3;      // silence before the count-in
-const double LOOKAHEAD_S = 0.2;    // metronome clicks are handed to the audio engine this far ahead
+const double LOOKAHEAD_S = 0.2;
+const double WAITING_AHEAD_S = 1e5; // before the first pass, its notes wait this far ahead: off the screen    // metronome clicks are handed to the audio engine this far ahead
 const float HIT_LINE_X = 180.0f;
 const int MAX_KEY_LANES = 6;
 
-DrillExercise::DrillExercise(const std::string& title, const ScaleDrillConfig& config, const std::string& progressPath,
+DrillExercise::DrillExercise(const std::string& title, const DrillSetup& setup, const std::string& progressPath,
                              const Settings& settings)
-    : title(title), config(config), progressPath(progressPath), settings(settings){
+    : title(title), setup(setup), progressPath(progressPath), settings(settings){
     progress = loadDrillProgress(progressPath);
-    std::string error;
-    buildScaleDrill(config, drillNotes, error); // the file was checked when it loaded, so this succeeds
-    chart = drillChart(config, drillNotes);
+    // The first pass, placed far ahead until it starts: the staff shows its clef, key and meter, but no notes yet
+    drillNotes = this->setup.nextPass();
+    chart = drillChart(drillNotes, setup.tuning, setup.key, setup.beatsPerBar);
+    tempo = drillTempo(setup.tempo, progress);
+    placePass(audioTime() + WAITING_AHEAD_S);
     if (settings.playWithInstrument){
-        float lowest = midiToFrequency((float)*std::min_element(config.tuning.begin(), config.tuning.end())) * 0.9f;
+        float lowest = midiToFrequency((float)*std::min_element(setup.tuning.begin(), setup.tuning.end())) * 0.9f;
         if (!startNoteInput(settings.inputDevice, lowest, inputError)) inputError = "Instrument: " + inputError + " (using the keyboard)";
     }
     ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard; // Space and the number keys play here
@@ -42,32 +44,43 @@ double DrillExercise::drillTime() const {
     return audioTime() - settings.globalOffsetMs / 1000.0;
 }
 
-// Lays one pass out in audio time: a bar of count-in clicks, then the notes, clicked on every beat
-void DrillExercise::startPass(){
-    tempo = drillTempo(config, progress);
+// Lays one pass out in audio time: a bar of count-in clicks, then the notes, clicked on every beat. The first pass
+// plays the notes already shown; each one after gets its own (a rhythm drill's are new every time).
+void DrillExercise::startPass(bool fresh){
+    if (fresh){
+        drillNotes = setup.nextPass();
+        chart = drillChart(drillNotes, setup.tuning, setup.key, setup.beatsPerBar);
+    }
+    tempo = drillTempo(setup.tempo, progress);
     double beat = 60.0 / tempo;
+    const int countIn = setup.beatsPerBar;
     countInStart = audioTime() + LEAD_IN_S;
-    firstNoteTime = countInStart + COUNT_IN_BEATS * beat;
+    placePass(countInStart + countIn * beat);
     double lastBeat = drillNotes.empty() ? 0.0 : drillNotes.back().beat;
     passEndTime = firstNoteTime + lastBeat * beat + NEAR_WINDOW_S + 0.2;
     nextClick = 0;
-    totalClicks = COUNT_IN_BEATS + (int)std::ceil(lastBeat) + 1;
+    totalClicks = countIn + (int)std::ceil(lastBeat) + 1;
+    hits = perfects = 0;
+}
 
+// The pass's notes and its written score, on the audio clock from `downbeat` (the first bar's first beat) at the
+// current tempo. Always together: the staff finds each note of the score by its place in `notes`.
+void DrillExercise::placePass(double downbeat){
+    firstNoteTime = downbeat;
+    double beat = 60.0 / tempo;
     notes.clear();
     for (const DrillNote& note : drillNotes){
-        notes.push_back({(float)(firstNoteTime + note.beat * beat), note.stringIndex, note.fret, note.pitch});
+        notes.push_back({(float)(downbeat + note.beat * beat), note.stringIndex, note.fret, note.pitch});
     }
-    // Written down on the same clock: the chart's tick 0 is the first note, at this pass's tempo
-    chart.offset = firstNoteTime;
+    chart.offset = downbeat;
     chart.tempoMap = {{0, (double)tempo}};
     score = buildScore(chart, chart.frettedTracks[0]);
-    hits = perfects = 0;
 }
 
 void DrillExercise::finishPass(){
     int total = (int)notes.size();
     float accuracy = total > 0 ? 100.0f * hits / total : 0.0f;
-    DrillPassOutcome outcome = finishDrillPass(config, progress, tempo, accuracy);
+    DrillPassOutcome outcome = finishDrillPass(setup.tempo, progress, tempo, accuracy);
     if (outcome.clean) cleanPassesNow++;
     std::string error;
     saveDrillProgress(progressPath, progress, error);
@@ -76,14 +89,14 @@ void DrillExercise::finishPass(){
     if (outcome.newBest) passText += TextFormat("New best clean tempo! Next: %d bpm", outcome.nextTempo);
     else if (outcome.clean) passText += TextFormat("Clean. Next: %d bpm", outcome.nextTempo);
     else if (outcome.nextTempo < tempo) passText += TextFormat("Slowing down to %d bpm", outcome.nextTempo);
-    else passText += TextFormat("Again at %d bpm (%d%% to speed up)", outcome.nextTempo, config.passPercent);
-    startPass(); // straight into the next pass: practice keeps flowing
+    else passText += TextFormat("Again at %d bpm (%d%% to speed up)", outcome.nextTempo, setup.tempo.passPercent);
+    startPass(true); // straight into the next pass: practice keeps flowing
 }
 
 void DrillExercise::update(){
     if (ImGui::IsKeyPressed(ImGuiKey_Space)){
         running = !running;
-        if (running) startPass();
+        if (running) startPass(false);
         else stopPreviews();
     }
     if (noteInputActive() && !running) updateNoteInput(); // keep the input drained while paused
@@ -92,7 +105,7 @@ void DrillExercise::update(){
     double now = audioTime();
     double beat = 60.0 / tempo;
     while (nextClick < totalClicks && countInStart + nextClick * beat < now + LOOKAHEAD_S){
-        playClickAt(countInStart + nextClick * beat, nextClick % 4 == 0);
+        playClickAt(countInStart + nextClick * beat, nextClick % setup.beatsPerBar == 0);
         nextClick++;
     }
     for (PlayNote& note : notes) if (note.hitFlash > 0.0f) note.hitFlash -= GetFrameTime();
@@ -105,19 +118,22 @@ void DrillExercise::update(){
         hits += result.notesHit;
         if (result.judgement == Judgement::Perfect) perfects += result.notesHit;
     };
-    int lanes = std::min((int)config.tuning.size(), MAX_KEY_LANES);
+    // Timing only (rhythm): every key and every note is "the" note, on the one string it's written on
+    auto timingString = [&](){ return drillNotes.empty() ? 0 : drillNotes[0].stringIndex; };
+    int lanes = std::min((int)setup.tuning.size(), MAX_KEY_LANES);
     for (int lane = 0; lane < lanes; lane++){
         if (!IsKeyPressed(KEY_ONE + lane)) continue;
         PlayerInput press;
         press.time = t;
-        press.stringIndex = lane;
+        press.stringIndex = setup.timingOnly ? timingString() : lane;
         judge(press);
     }
     if (noteInputActive()){
         for (const PlayedNote& played : updateNoteInput()){
             PlayerInput input;
             input.time = t - played.age - settings.inputOffsetMs / 1000.0;
-            input.pitch = played.pitch;
+            if (setup.timingOnly) input.stringIndex = timingString();
+            else input.pitch = played.pitch;
             judge(input);
             lastPlayedPitch = played.pitch;
         }
@@ -127,7 +143,6 @@ void DrillExercise::update(){
 }
 
 void DrillExercise::draw(){
-    const ScaleInfo* scale = findScale(config.scale);
     // Back sits in the top-right corner, out of the way of the title, the text and the notes
     float textTop = ImGui::GetCursorPosY();
     float backWidth = ImGui::CalcTextSize("Back").x + 2 * ImGui::GetStyle().FramePadding.x;
@@ -135,9 +150,9 @@ void DrillExercise::draw(){
     if (ImGui::Button("Back")) leave = true;
     ImGui::SetCursorPosY(textTop);
     menuTitle(title.c_str());
-    int shownTempo = running ? tempo : drillTempo(config, progress);
-    centeredColoredText(TextFormat("%s in %s    %d bpm    best clean %d bpm    goal %d bpm", scale ? scale->displayName : "",
-                                   pitchClassName(config.rootPitchClass), shownTempo, progress.bestCleanTempo, config.maxTempo), uiColor(UiColor::Dim));
+    int shownTempo = running ? tempo : drillTempo(setup.tempo, progress);
+    centeredColoredText(TextFormat("%s    %d bpm    best clean %d bpm    goal %d bpm", setup.about.c_str(), shownTempo,
+                                   progress.bestCleanTempo, setup.tempo.maxTempo), uiColor(UiColor::Dim));
     if (!running){
         centeredText("Press Space to start. The metronome counts one bar in, then play along.");
     } else {
@@ -151,11 +166,12 @@ void DrillExercise::draw(){
         centeredColoredText(lastPlayedPitch >= 0 ? TextFormat("Listening: you played %s%d", pitchClassName(lastPlayedPitch), pitchOctave(lastPlayedPitch))
                                                  : "Listening to your instrument", uiColor(UiColor::Dim));
     } else {
-        centeredColoredText("Keys 1 to 6 play the strings, lowest first", uiColor(UiColor::Dim));
+        centeredColoredText(setup.timingOnly ? "Any number key plays the note: it's the timing that counts"
+                                             : "Keys 1 to 6 play the strings, lowest first", uiColor(UiColor::Dim));
     }
 
     // The notes, in whichever views the settings choose, below the text
     float width = (float)GetScreenWidth(), height = (float)GetScreenHeight();
     TimeAxis axis = { (float)drillTime(), HIT_LINE_X, settings.noteSpeed };
-    drawNoteViews({0, height * 0.48f, width, height * 0.51f}, settings.noteViews, notes, score, config.tuning, settings.lowStringOnTop, axis);
+    drawNoteViews({0, height * 0.48f, width, height * 0.51f}, settings.noteViews, notes, score, setup.tuning, settings.lowStringOnTop, axis);
 }

@@ -1,0 +1,9 @@
+# lahn exercise
+version 1
+type rhythm
+category Rhythm
+title Quarters and eighths
+description Read and play quarter notes, pairs of eighths and quarter rests: a new rhythm every pass.
+cells quarter eighths rest
+bars 2
+tempo 60 140 4

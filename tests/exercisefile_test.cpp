@@ -128,9 +128,9 @@ TEST_CASE("scale drill exercise files"){
     CHECK(file.drill.position == 5);
     CHECK(file.drill.direction == DrillDirection::Up);
     CHECK(file.drill.notesPerBeat == 3);
-    CHECK(file.drill.startTempo == 70);
-    CHECK(file.drill.maxTempo == 150);
-    CHECK(file.drill.passPercent == 85);
+    CHECK(file.drill.tempo.startTempo == 70);
+    CHECK(file.drill.tempo.maxTempo == 150);
+    CHECK(file.drill.tempo.passPercent == 85);
 
     // Everything optional: G major, the defaults
     REQUIRE(loadExerciseFile(writeExercise("drill2.exercise", "version 1\ntype scale\ntitle Defaults\n"), file, error));

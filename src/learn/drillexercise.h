@@ -6,15 +6,27 @@
 #include "core/settings.h"
 #include "learn/exercise.h"
 
+#include <functional>
 #include <string>
 #include <vector>
 
-// A scale drill: the scale scrolls by in time with a metronome, pass after pass, faster each time it's played
-// cleanly. Judged from the number keys or the player's instrument; the best clean tempo is saved.
+// What a drill plays, and how
+struct DrillSetup {
+    std::string about;          // under the title: "Natural minor in E", "Quarters, eighths and rests"
+    DrillTempo tempo;
+    std::vector<int> tuning;
+    KeySignature key;
+    int beatsPerBar = 4;        // x/4
+    bool timingOnly = false;    // any number key or played note counts: only when it's played is judged (rhythm)
+    std::function<std::vector<DrillNote>()> nextPass; // the notes of each pass: a scale's are the same every time,
+                                                      // a rhythm's new
+};
+
+// A drill: notes scroll by in time with a metronome, pass after pass, faster each time they're played cleanly.
+// Judged from the number keys or the player's instrument; the best clean tempo is saved.
 class DrillExercise : public Exercise {
 public:
-    DrillExercise(const std::string& title, const ScaleDrillConfig& config, const std::string& progressPath,
-                  const Settings& settings);
+    DrillExercise(const std::string& title, const DrillSetup& setup, const std::string& progressPath, const Settings& settings);
     ~DrillExercise() override;
 
     void update() override;
@@ -23,22 +35,23 @@ public:
     int lessonScore() const override { return cleanPassesNow; }
 
 private:
-    void startPass();
+    void startPass(bool fresh); // fresh: new notes from the setup (not for the first pass: it plays what's shown)
+    void placePass(double downbeat);
     void finishPass();
     double drillTime() const; // the audio clock, minus the output offset: what the notes are timed against
 
     std::string title;
-    ScaleDrillConfig config;
+    DrillSetup setup;
     std::string progressPath;
     Settings settings;
     DrillProgress progress;
-    std::vector<DrillNote> drillNotes; // one pass, in beats
-    Chart chart;                       // the same pass as a chart: its tempo and offset are set for each pass
+    std::vector<DrillNote> drillNotes; // this pass, in beats
+    Chart chart;                       // the same pass as a chart, timed for this pass
 
     bool running = false;          // Space starts and stops
     int tempo = 0;                 // of the current pass
     double countInStart = 0.0;     // audio time of the first count-in click
-    double firstNoteTime = 0.0;    // audio time of the pass's first note
+    double firstNoteTime = 0.0;    // audio time of the pass's first bar's first beat
     double passEndTime = 0.0;      // when the pass is over and judged
     int nextClick = 0;             // the next metronome click to schedule, counted from countInStart
     int totalClicks = 0;

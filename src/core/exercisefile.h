@@ -2,6 +2,7 @@
 
 #include "core/drill.h"
 #include "core/fretboard.h"
+#include "core/rhythm.h"
 #include "core/intervals.h"
 #include "core/routine.h"
 
@@ -45,12 +46,21 @@
 //   notes naturals               (naturals: C D E F G A B; all: the sharps and flats too)
 //   tuning 40 45 50 55 59 64     (MIDI pitch per string, lowest first)
 //
+// A rhythm drill (`type rhythm`) reads a new rhythm each pass, all optional:
+//   cells quarter eighths rest   (the beat-long figures it's built from: quarter, rest, eighths, offbeat, triplets,
+//                                 sixteenths, gallop, reverse_gallop, dotted)
+//   bars 2                       (1 to 8)
+//   time 4                       (beats per bar, 2 to 7: x/4)
+//   tempo 60 140 4               (start, goal, step, in bpm)
+//   pass 90                      (percent right for a pass to count as clean and speed up)
+//   tuning 40 45 50 55 59 64     (it's played on the open string written nearest the staff's middle line)
+//
 // A routine (`type routine`) is a playlist of other exercises, a few minutes each, done one after the other:
 //   step e-minor-open 3          (an exercise's file name without .exercise, then minutes: at least one step)
 //   step intervals-up 5
 // A built-in routine uses built-in exercises; the player's own routines look in their own exercises first.
 
-enum class ExerciseType { Intervals, Scale, Routine, Fretboard };
+enum class ExerciseType { Intervals, Scale, Routine, Fretboard, Rhythm };
 
 struct ExerciseFile {
     ExerciseType type = ExerciseType::Intervals;
@@ -61,6 +71,7 @@ struct ExerciseFile {
     IntervalConfig intervals; // the rules, for type Intervals
     ScaleDrillConfig drill;   // the rules, for type Scale
     FretboardConfig fretboard; // the rules, for type Fretboard
+    RhythmConfig rhythm;       // the rules, for type Rhythm
     std::vector<RoutineStep> routine; // the steps, for type Routine
 };
 

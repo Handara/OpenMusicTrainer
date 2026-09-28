@@ -1,0 +1,9 @@
+# lahn exercise
+version 1
+type rhythm
+category Rhythm
+title Offbeats
+description Eighths that start after the beat: count it, feel the gap, then play.
+cells quarter eighths offbeat rest
+bars 2
+tempo 60 130 4

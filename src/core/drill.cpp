@@ -44,19 +44,23 @@ bool buildScaleDrill(const ScaleDrillConfig& config, std::vector<DrillNote>& out
     return true;
 }
 
-Chart drillChart(const ScaleDrillConfig& config, const std::vector<DrillNote>& notes){
+KeySignature scaleDrillKey(const ScaleDrillConfig& config){
+    const ScaleInfo* scale = findScale(config.scale);
+    return scale ? scaleKeySignature(config.rootPitchClass, *scale) : KeySignature{};
+}
+
+Chart drillChart(const std::vector<DrillNote>& notes, const std::vector<int>& tuning, const KeySignature& key, int beatsPerBar){
     Chart chart{};
     chart.version = 2;
-    chart.title = config.scale;
+    chart.title = "Drill";
     chart.resolution = 480; // divides evenly into 2, 3 and 4 notes a beat
     chart.tempoMap = {{0, 60.0}};
-    chart.timeSignatures = {{0, 4, 4}};
-    const ScaleInfo* scale = findScale(config.scale);
-    chart.keys = {{0, scale ? scaleKeySignature(config.rootPitchClass, *scale) : KeySignature{}}};
+    chart.timeSignatures = {{0, beatsPerBar, 4}};
+    chart.keys = {{0, key}};
     FrettedTrack track;
     track.type = InstrumentType::Guitar;
     track.name = "Drill";
-    track.tuning = config.tuning;
+    track.tuning = tuning;
     for (const DrillNote& note : notes){
         track.notes.push_back({(int)std::lround(note.beat * chart.resolution), note.stringIndex, note.fret, 0});
     }
@@ -66,21 +70,21 @@ Chart drillChart(const ScaleDrillConfig& config, const std::vector<DrillNote>& n
     return chart;
 }
 
-int drillTempo(const ScaleDrillConfig& config, const DrillProgress& progress){
-    return progress.tempo > 0 ? progress.tempo : config.startTempo;
+int drillTempo(const DrillTempo& rules, const DrillProgress& progress){
+    return progress.tempo > 0 ? progress.tempo : rules.startTempo;
 }
 
-DrillPassOutcome finishDrillPass(const ScaleDrillConfig& config, DrillProgress& progress, int tempo, float accuracyPercent){
+DrillPassOutcome finishDrillPass(const DrillTempo& rules, DrillProgress& progress, int tempo, float accuracyPercent){
     DrillPassOutcome outcome;
-    outcome.clean = accuracyPercent >= config.passPercent;
+    outcome.clean = accuracyPercent >= rules.passPercent;
     outcome.newBest = outcome.clean && tempo > progress.bestCleanTempo;
     progress.passes++;
     if (outcome.clean){
         progress.cleanPasses++;
         progress.bestCleanTempo = std::max(progress.bestCleanTempo, tempo);
-        progress.tempo = std::min(config.maxTempo, tempo + config.tempoStep);
+        progress.tempo = std::min(rules.maxTempo, tempo + rules.tempoStep);
     } else if (accuracyPercent < 50.0f){
-        progress.tempo = std::max(config.startTempo, tempo - config.tempoStep);
+        progress.tempo = std::max(rules.startTempo, tempo - rules.tempoStep);
     } else {
         progress.tempo = tempo;
     }

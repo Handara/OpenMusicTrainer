@@ -2,6 +2,7 @@
 
 #include "core/exercisefile.h"
 #include "core/lesson.h"
+#include "core/music.h"
 #include "learn/drillexercise.h"
 #include "learn/fretboardexercise.h"
 #include "learn/intervalexercise.h"
@@ -16,6 +17,7 @@
 #include <cctype>
 #include <filesystem>
 #include <memory>
+#include <random>
 
 static struct {
     LearnSetup setup;
@@ -43,8 +45,34 @@ static std::unique_ptr<Exercise> createExercise(const ExerciseEntry& entry){
         case ExerciseType::Intervals:
             return std::make_unique<IntervalExercise>(entry.exercise.title, entry.exercise.intervals, progressPath(entry),
                                                       learn.setup.settings.inputDevice);
-        case ExerciseType::Scale:
-            return std::make_unique<DrillExercise>(entry.exercise.title, entry.exercise.drill, progressPath(entry), learn.setup.settings);
+        case ExerciseType::Scale: {
+            const ScaleDrillConfig& config = entry.exercise.drill;
+            std::vector<DrillNote> notes;
+            std::string error;
+            buildScaleDrill(config, notes, error); // the file was checked when it loaded, so this succeeds
+            const ScaleInfo* scale = findScale(config.scale);
+            DrillSetup setup;
+            setup.about = std::string(scale ? scale->displayName : "") + " in " + pitchClassName(config.rootPitchClass);
+            setup.tempo = config.tempo;
+            setup.tuning = config.tuning;
+            setup.key = scaleDrillKey(config);
+            setup.nextPass = [notes](){ return notes; }; // the same scale every pass
+            return std::make_unique<DrillExercise>(entry.exercise.title, setup, progressPath(entry), learn.setup.settings);
+        }
+        case ExerciseType::Rhythm: {
+            const RhythmConfig& config = entry.exercise.rhythm;
+            DrillSetup setup;
+            for (const std::string& cell : config.cells) setup.about += (setup.about.empty() ? "" : ", ") + cell;
+            for (char& c : setup.about) if (c == '_') c = ' ';
+            setup.about = TextFormat("Rhythm in %d/4: %s", config.beatsPerBar, setup.about.c_str());
+            setup.tempo = config.tempo;
+            setup.tuning = config.tuning;
+            setup.beatsPerBar = config.beatsPerBar;
+            setup.timingOnly = true;
+            // A new rhythm every pass: the generator keeps its own random numbers
+            setup.nextPass = [config, rng = std::mt19937(std::random_device{}())]() mutable { return buildRhythm(config, rng); };
+            return std::make_unique<DrillExercise>(entry.exercise.title, setup, progressPath(entry), learn.setup.settings);
+        }
         case ExerciseType::Fretboard:
             return std::make_unique<FretboardExercise>(entry.exercise.title, entry.exercise.fretboard, progressPath(entry),
                                                        learn.setup.settings.inputDevice);
@@ -69,7 +97,8 @@ static std::string progressSummary(const ExerciseEntry& entry){
             size_t unlocked = unlockedIntervals(config, loadIntervalProgress(progressPath(entry))).size();
             return TextFormat("%d/%d", (int)unlocked, (int)config.pool.size());
         }
-        case ExerciseType::Scale: {
+        case ExerciseType::Scale:
+        case ExerciseType::Rhythm: {
             int best = loadDrillProgress(progressPath(entry)).bestCleanTempo;
             return best > 0 ? TextFormat("best %d bpm", best) : "";
         }

@@ -1,0 +1,10 @@
+# lahn exercise
+version 1
+type rhythm
+category Rhythm
+title Triplets in three
+description A waltz meter, with triplets and dotted rhythms against it.
+cells quarter eighths triplets dotted
+bars 2
+time 3
+tempo 60 130 4

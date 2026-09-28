@@ -113,6 +113,7 @@ add_library(lahn_core STATIC
     src/core/notedetector.cpp
     src/core/paths.cpp
     src/core/pitch.cpp
+    src/core/rhythm.cpp
     src/core/routine.cpp
     src/core/score.cpp
     src/core/scales.cpp
@@ -183,7 +184,7 @@ if(BUILD_TESTING)
         tests/chart_test.cpp
         tests/drill_test.cpp
         tests/exercisefile_test.cpp
-    tests/fretboard_test.cpp
+        tests/fretboard_test.cpp
         tests/intervals_test.cpp
         tests/judge_test.cpp
         tests/lesson_test.cpp
@@ -191,11 +192,12 @@ if(BUILD_TESTING)
         tests/notation_test.cpp
         tests/notedetector_test.cpp
         tests/pitch_test.cpp
+        tests/rhythm_test.cpp
         tests/routine_test.cpp
         tests/score_test.cpp
         tests/scales_test.cpp
         tests/settings_test.cpp
-    tests/songlibrary_test.cpp
+        tests/songlibrary_test.cpp
         tests/synth_test.cpp
         tests/today_test.cpp
     )
