@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/drill.h"
+#include "core/fretboard.h"
 #include "core/intervals.h"
 #include "core/routine.h"
 
@@ -38,12 +39,18 @@
 //   pass 90                      (percent right for a pass to count as clean and speed up)
 //   tuning 40 45 50 55 59 64     (MIDI pitch per string, lowest first)
 //
+// Fretboard note finding (`type fretboard`) sets, all optional:
+//   strings 1 2                  (which strings are asked, 1 = the lowest; default: all)
+//   frets 0 12                   (the lowest and highest fret an answer can be on)
+//   notes naturals               (naturals: C D E F G A B; all: the sharps and flats too)
+//   tuning 40 45 50 55 59 64     (MIDI pitch per string, lowest first)
+//
 // A routine (`type routine`) is a playlist of other exercises, a few minutes each, done one after the other:
 //   step e-minor-open 3          (an exercise's file name without .exercise, then minutes: at least one step)
 //   step intervals-up 5
 // A built-in routine uses built-in exercises; the player's own routines look in their own exercises first.
 
-enum class ExerciseType { Intervals, Scale, Routine };
+enum class ExerciseType { Intervals, Scale, Routine, Fretboard };
 
 struct ExerciseFile {
     ExerciseType type = ExerciseType::Intervals;
@@ -53,6 +60,7 @@ struct ExerciseFile {
     std::string description;
     IntervalConfig intervals; // the rules, for type Intervals
     ScaleDrillConfig drill;   // the rules, for type Scale
+    FretboardConfig fretboard; // the rules, for type Fretboard
     std::vector<RoutineStep> routine; // the steps, for type Routine
 };
 

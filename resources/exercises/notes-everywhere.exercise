@@ -1,0 +1,8 @@
+# lahn exercise
+version 1
+type fretboard
+title Every note, every string
+category Fretboard
+description Any note, sharps and flats too, on any string up to the 12th fret.
+frets 0 12
+notes all

@@ -1,0 +1,9 @@
+# lahn exercise
+version 1
+type fretboard
+title Notes on the bass
+category Fretboard
+description Find each natural note on a 4-string bass, up to the 12th fret.
+tuning 28 33 38 43
+frets 0 12
+notes naturals

@@ -3,6 +3,7 @@
 #include "core/exercisefile.h"
 #include "core/lesson.h"
 #include "learn/drillexercise.h"
+#include "learn/fretboardexercise.h"
 #include "learn/intervalexercise.h"
 #include "learn/lessonplayer.h"
 #include "learn/routineexercise.h"
@@ -44,6 +45,9 @@ static std::unique_ptr<Exercise> createExercise(const ExerciseEntry& entry){
                                                       learn.setup.settings.inputDevice);
         case ExerciseType::Scale:
             return std::make_unique<DrillExercise>(entry.exercise.title, entry.exercise.drill, progressPath(entry), learn.setup.settings);
+        case ExerciseType::Fretboard:
+            return std::make_unique<FretboardExercise>(entry.exercise.title, entry.exercise.fretboard, progressPath(entry),
+                                                       learn.setup.settings.inputDevice);
         case ExerciseType::Routine: {
             std::vector<RoutineExercise::Step> steps;
             for (const RoutineStep& step : entry.exercise.routine){
@@ -68,6 +72,10 @@ static std::string progressSummary(const ExerciseEntry& entry){
         case ExerciseType::Scale: {
             int best = loadDrillProgress(progressPath(entry)).bestCleanTempo;
             return best > 0 ? TextFormat("best %d bpm", best) : "";
+        }
+        case ExerciseType::Fretboard: {
+            int best = loadFretboardProgress(progressPath(entry)).bestStreak;
+            return best > 0 ? TextFormat("best streak %d", best) : "";
         }
         case ExerciseType::Routine: {
             RoutineProgress progress = loadRoutineProgress(progressPath(entry));

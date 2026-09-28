@@ -1,5 +1,7 @@
 #include "core/exercisefile.h"
 
+#include "core/chart.h"
+
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
@@ -108,7 +110,8 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
             if (line.rest == "intervals") out.type = ExerciseType::Intervals;
             else if (line.rest == "scale") out.type = ExerciseType::Scale;
             else if (line.rest == "routine") out.type = ExerciseType::Routine;
-            else return lineError("unknown exercise type '" + line.rest + "' (known: intervals, scale, routine)");
+            else if (line.rest == "fretboard") out.type = ExerciseType::Fretboard;
+            else return lineError("unknown exercise type '" + line.rest + "' (known: intervals, scale, routine, fretboard)");
             hasType = true;
         }
     }
@@ -121,6 +124,8 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
 
     IntervalConfig& config = out.intervals;
     bool poolSet = false, startSet = false;
+    std::vector<int> fretboardStrings; // as written (1 = lowest): checked against the tuning once it's all read
+    int fretboardStringsLine = 0;
     for (const Line& line : lines){
         lineNumber = line.number;
         std::istringstream ss(line.rest);
@@ -170,6 +175,33 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
             if (!(ss >> step.exercise >> step.minutes)) return lineError("expected: step <exercise file name> <minutes>");
             if (!(step.minutes > 0.0f && step.minutes <= 60.0f)) return lineError("a step lasts more than 0 and at most 60 minutes");
             out.routine.push_back(step);
+        } else if (out.type == ExerciseType::Fretboard && key == "strings"){
+            fretboardStrings.clear();
+            int string;
+            while (ss >> string) fretboardStrings.push_back(string);
+            if (fretboardStrings.empty()) return lineError("expected: strings <string numbers, 1 = the lowest>");
+            fretboardStringsLine = lineNumber;
+        } else if (out.type == ExerciseType::Fretboard && key == "frets"){
+            FretboardConfig& fretboard = out.fretboard;
+            if (!(ss >> fretboard.lowestFret >> fretboard.highestFret)) return lineError("expected: frets <lowest> <highest>");
+            if (fretboard.lowestFret < 0 || fretboard.highestFret > MAX_FRET || fretboard.lowestFret > fretboard.highestFret){
+                return lineError("frets must be 0 to " + std::to_string(MAX_FRET) + ", lowest first");
+            }
+        } else if (out.type == ExerciseType::Fretboard && key == "notes"){
+            std::string notes;
+            ss >> notes;
+            if (notes == "naturals") out.fretboard.naturalsOnly = true;
+            else if (notes == "all") out.fretboard.naturalsOnly = false;
+            else return lineError("notes must be naturals or all");
+        } else if (out.type == ExerciseType::Fretboard && key == "tuning"){
+            std::vector<int> tuning;
+            int pitch;
+            while (ss >> pitch){
+                if (pitch < 0 || pitch > 127) return lineError("tuning notes are MIDI numbers 0-127");
+                tuning.push_back(pitch);
+            }
+            if (tuning.empty() || tuning.size() > 12) return lineError("expected: tuning <1 to 12 MIDI notes, lowest string first>");
+            out.fretboard.tuning = tuning;
         } else if (out.type == ExerciseType::Scale && readDrillSetting(key, ss, out.drill, lineError)){
             if (!error.empty()) return false; // the setting was recognized but its value was wrong
         } else {
@@ -181,6 +213,17 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
     if (out.title.empty()) return fileError("missing 'title'");
     if (out.type == ExerciseType::Routine){
         if (out.routine.empty()) return fileError("a routine needs at least one 'step'");
+        return true;
+    }
+    if (out.type == ExerciseType::Fretboard){
+        for (int string : fretboardStrings){
+            if (string < 1 || string > (int)out.fretboard.tuning.size()){
+                lineNumber = fretboardStringsLine;
+                return lineError("string " + std::to_string(string) + " doesn't exist: this tuning has "
+                                 + std::to_string(out.fretboard.tuning.size()) + " strings");
+            }
+            out.fretboard.strings.push_back(string - 1);
+        }
         return true;
     }
     if (out.type == ExerciseType::Scale){

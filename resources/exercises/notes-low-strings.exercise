@@ -1,0 +1,9 @@
+# lahn exercise
+version 1
+type fretboard
+title Notes on the low strings
+category Fretboard
+description Find each natural note on the low E and A strings, up to the 12th fret: where most chords have their root.
+strings 1 2
+frets 0 12
+notes naturals
