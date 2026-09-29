@@ -1,6 +1,7 @@
 #include "views/noteviews.h"
 
 #include "views/highway.h"
+#include "views/neckview.h"
 #include "views/pianohighway.h"
 #include "views/staff.h"
 #include "views/tab.h"
@@ -11,11 +12,12 @@ const float VIEW_GAP = 10.0f;
 
 // Each view's share of the area when several are shown, and the most it ever needs: past that it would only
 // get bigger, not clearer (the highway's lanes stop spreading at 70 px, the staff is plenty readable at this size)
-enum class View { Staff, Tab, Highway };
+enum class View { Staff, Tab, Highway, Neck };
 struct ViewSize { float weight; float maxHeight; };
 const ViewSize STAFF_SIZE = { 1.0f, 400.0f };
 const ViewSize TAB_SIZE = { 0.7f, 200.0f };
 const ViewSize HIGHWAY_SIZE = { 1.0f, 460.0f };
+const ViewSize NECK_SIZE = { 1.0f, 420.0f };
 const float FALLING_LANE_WIDTH = 70.0f;   // the falling highway's columns stop spreading here, like the lanes across
 const float FALLING_MAX_SHARE = 0.4f;     // of the width, when it shares the screen with other views
 
@@ -23,8 +25,13 @@ float drawNoteViews(Rectangle area, const NoteViews& views, const std::vector<Pl
                    const std::vector<int>& tuning, bool lowStringOnTop, TimeAxis axis){
     // A falling highway runs top to bottom, so it can't stack with views whose time runs left to right: it gets a
     // column of its own, on the right beside the others, or centered alone. The others stack in what's left.
+    // The neck alone: it has no time axis, so it takes the whole area, and judgements go over its middle
+    if (views.neck && !views.staff && !views.tab && !views.highway){
+        drawNeckView(area, notes, tuning, lowStringOnTop, axis);
+        return area.x + area.width / 2;
+    }
     if (views.highway && views.highwayFalls){
-        bool alone = !views.staff && !views.tab;
+        bool alone = !views.staff && !views.tab && !views.neck;
         float width = std::min(tuning.size() * FALLING_LANE_WIDTH + 2 * FALLING_LANE_WIDTH, area.width * (alone ? 1.0f : FALLING_MAX_SHARE));
         Rectangle column = { alone ? area.x + (area.width - width) / 2 : area.x + area.width - width, area.y, width, area.height };
         drawHighway(column, notes, score, tuning, lowStringOnTop, true, axis);
@@ -32,12 +39,13 @@ float drawNoteViews(Rectangle area, const NoteViews& views, const std::vector<Pl
         area.width -= width + VIEW_GAP;
     }
 
-    // Top to bottom: sheet music over tab, like a printed guitar score, then the highway
+    // Top to bottom: sheet music over tab, like a printed guitar score, then the highway, then the neck
     struct Shown { View view; ViewSize size; float height; };
     std::vector<Shown> shown;
     if (views.staff) shown.push_back({View::Staff, STAFF_SIZE, 0.0f});
     if (views.tab) shown.push_back({View::Tab, TAB_SIZE, 0.0f});
     if (views.highway && !views.highwayFalls) shown.push_back({View::Highway, HIGHWAY_SIZE, 0.0f});
+    if (views.neck) shown.push_back({View::Neck, NECK_SIZE, 0.0f});
     if (shown.empty()) return axis.hitLineX;
 
     float totalWeight = 0.0f;
@@ -65,6 +73,7 @@ float drawNoteViews(Rectangle area, const NoteViews& views, const std::vector<Pl
             case View::Staff:   drawStaff(viewArea, notes, score, axis); break;
             case View::Tab:     drawTab(viewArea, notes, score, (int)tuning.size(), axis); break;
             case View::Highway: drawHighway(viewArea, notes, score, tuning, lowStringOnTop, false, axis); break;
+            case View::Neck:    drawNeckView(viewArea, notes, tuning, lowStringOnTop, axis); break;
         }
         y += shownView.height + VIEW_GAP;
     }

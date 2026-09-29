@@ -104,6 +104,22 @@ TEST_CASE("note views: any mix, and the older one-word form"){
     }
 }
 
+TEST_CASE("the neck view is kept, alone or with the others"){
+    for (const char* line : { "note_view neck", "note_view highway neck" }){
+        CAPTURE(line);
+        std::string path = settingsPath("neck.txt");
+        std::ofstream(path, std::ios::binary) << "version 1\n" << line << "\n";
+        std::vector<std::string> warnings;
+        Settings settings = loadSettings(path, warnings);
+        CHECK(warnings.empty());
+        CHECK(settings.noteViews.neck);
+        std::string error;
+        REQUIRE(saveSettings(path, settings, error));
+        CHECK(loadSettings(path, warnings).noteViews.neck); // written back and read again
+    }
+    CHECK_FALSE(Settings{}.noteViews.neck);
+}
+
 TEST_CASE("the highway's direction is kept whatever order the lines come in"){
     std::string path = settingsPath("direction.txt");
     std::ofstream(path, std::ios::binary) << "version 1\nhighway_direction falling\nnote_view tab highway\n";

@@ -8,7 +8,7 @@
 
 const int SUPPORTED_SETTINGS_VERSION = 1;
 
-// The note views are stored as a list of words, "note_view staff tab highway", so the file stays readable.
+// The note views are stored as a list of words, "note_view staff tab highway neck", so the file stays readable.
 // "both" is how version 1 files first wrote sheet music plus the highway. Only the three switches are read: the
 // highway's direction is a line of its own.
 static bool readNoteViews(const std::string& value, NoteViews& views){
@@ -20,6 +20,7 @@ static bool readNoteViews(const std::string& value, NoteViews& views){
         if (word == "staff") read.staff = true;
         else if (word == "tab") read.tab = true;
         else if (word == "highway") read.highway = true;
+        else if (word == "neck") read.neck = true;
         else if (word == "both") read.staff = read.highway = true;
         else return false;
     }
@@ -27,6 +28,7 @@ static bool readNoteViews(const std::string& value, NoteViews& views){
     views.staff = read.staff;
     views.tab = read.tab;
     views.highway = read.highway;
+    views.neck = read.neck;
     return true;
 }
 
@@ -123,6 +125,7 @@ bool saveSettings(const std::string& path, const Settings& settings, std::string
     if (settings.noteViews.staff) out << " staff";
     if (settings.noteViews.tab) out << " tab";
     if (settings.noteViews.highway) out << " highway";
+    if (settings.noteViews.neck) out << " neck";
     out << "\n";
     out << "highway_direction " << (settings.noteViews.highwayFalls ? "falling" : "across") << "\n";
     out << "low_string_on_top " << (settings.lowStringOnTop ? 1 : 0) << "\n";

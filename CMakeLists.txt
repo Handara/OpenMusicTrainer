@@ -205,6 +205,7 @@ add_executable(lahn
     src/screens/settingsscreen.cpp
     src/screens/tuner.cpp
     src/views/highway.cpp
+    src/views/neckview.cpp
     src/views/noteviews.cpp
     src/views/pianohighway.cpp
     src/views/rhythmlane.cpp

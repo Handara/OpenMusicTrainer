@@ -11,6 +11,8 @@ const float MAX_LANE_SPACING = 70.0f;
 const Color STRING_COLORS[] = { {200, 70, 62, 255}, {214, 120, 40, 255}, {190, 145, 30, 255},
                                 {52, 140, 90, 255}, {50, 120, 190, 255}, {128, 90, 190, 255} };
 
+Color stringColor(int stringIndex){ return STRING_COLORS[stringIndex % 6]; }
+
 // Both directions draw the same things; only which screen axis is time and which is the strings differs. Positions
 // are worked out as "along" (time) and "across" (the strings), then turned into x and y at the last moment.
 void drawHighway(Rectangle area, const std::vector<PlayNote>& notes, const Score& score, const std::vector<int>& tuning,

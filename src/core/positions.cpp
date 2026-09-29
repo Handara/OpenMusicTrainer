@@ -1,5 +1,6 @@
 #include "core/positions.h"
 
+#include <algorithm>
 #include <cstdlib>
 
 std::vector<StringFret> positionsOf(int pitch, const std::vector<int>& tuning, int maxFret){
@@ -22,4 +23,14 @@ StringFret likeliestPosition(const std::vector<StringFret>& places, StringFret l
     };
     for (const StringFret& place : places) if (distance(place) < distance(best)) best = place;
     return best;
+}
+
+FretSpan fretSpanFor(const std::vector<int>& frets, int minFrets, int maxFret){
+    if (frets.empty()) return {0, std::min(minFrets, maxFret)};
+    int lowest = *std::min_element(frets.begin(), frets.end()), highest = *std::max_element(frets.begin(), frets.end());
+    FretSpan span;
+    span.first = lowest <= 3 ? 0 : lowest - 1;
+    span.last = std::min(maxFret, std::max(highest + 1, span.first + minFrets));
+    span.first = std::max(0, std::min(span.first, span.last - minFrets)); // near the top of the neck: widened down
+    return span;
 }

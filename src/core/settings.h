@@ -18,7 +18,8 @@ struct NoteViews {
     bool tab = false;
     bool highway = true;
     bool highwayFalls = false; // the highway's notes fall down columns (strings side by side) instead of scrolling across
-    bool any() const { return staff || tab || highway; }
+    bool neck = false;    // osu!-style: rings closing onto the notes' places on a drawn fretboard (views/neckview)
+    bool any() const { return staff || tab || highway || neck; }
 };
 
 struct Settings {

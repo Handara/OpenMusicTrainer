@@ -21,3 +21,7 @@ struct TimeAxis {
 
 // Colors come from the theme by role (ui/theme), so the views work in light and dark: the sheet music and the tab
 // are printed in ink on the card color, the hit line is the brass accent, a hit lights up good (perfect) or brass (near).
+
+// One color per string, low to high, the same in every view that colors strings (the highway, the neck), so a string
+// is told at a glance: deep enough for white fret numbers, and the same in light and dark
+Color stringColor(int stringIndex);

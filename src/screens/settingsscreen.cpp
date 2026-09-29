@@ -211,6 +211,8 @@ static void displayTab(Settings& settings){
     if (ImGui::Checkbox("Tab", &views.tab) && !views.any()) views.tab = true;
     ImGui::SameLine();
     if (ImGui::Checkbox("Highway", &views.highway) && !views.any()) views.highway = true;
+    ImGui::SameLine();
+    if (ImGui::Checkbox("Neck (rings closing in)", &views.neck) && !views.any()) views.neck = true;
 
     ImGui::BeginDisabled(!views.highway);
     ImGui::TextUnformatted("The highway");

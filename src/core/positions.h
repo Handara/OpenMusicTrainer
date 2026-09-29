@@ -19,3 +19,11 @@ std::vector<StringFret> positionsOf(int pitch, const std::vector<int>& tuning, i
 // The likeliest of those places: the nearest to where the hand last was (by fret, then by string), or with no last
 // place (string -1), the lowest fret. Nothing to choose from gives {-1, -1}.
 StringFret likeliestPosition(const std::vector<StringFret>& places, StringFret last);
+
+// The part of the neck a song needs, for showing it whole: from the nut when the notes stay low (players find their
+// way from it), else from a fret below the lowest; to a fret past the highest, and at least `minFrets` wide
+struct FretSpan {
+    int first; // 0: the open strings and the nut are shown
+    int last;
+};
+FretSpan fretSpanFor(const std::vector<int>& frets, int minFrets, int maxFret);
