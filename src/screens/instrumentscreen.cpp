@@ -1,6 +1,7 @@
 #include "screens/instrumentscreen.h"
 
 #include "audio/audio.h"
+#include "core/chords.h"
 #include "core/music.h"
 #include "core/positions.h"
 #include "imgui.h"
@@ -49,7 +50,7 @@ static struct {
     double pressedAt[128] = {};
     double releasedAt[128] = {};
     bool wasDown[128] = {};
-    int lastPitch = -1;
+    std::string shownName, shownNotes; // the chord or notes held; kept after letting go, until the next press
 } screen;
 
 static const std::vector<int>& tuning(){ return screen.instrument == Instrument::Bass ? BASS_TUNING : GUITAR_TUNING; }
@@ -67,7 +68,8 @@ static void startListening(){
     screen.error.clear();
     screen.played.clear();
     screen.hand = {-1, -1};
-    screen.lastPitch = -1;
+    screen.shownName.clear();
+    screen.shownNotes.clear();
     std::fill(std::begin(screen.wasDown), std::end(screen.wasDown), false);
     std::fill(std::begin(screen.releasedAt), std::end(screen.releasedAt), -100.0);
     std::fill(std::begin(screen.pressedAt), std::end(screen.pressedAt), -100.0);
@@ -250,7 +252,6 @@ static void pianoScreen(float width, float height, float s){
         for (const PlayedNote& note : notes){
             playKeysNote(midiToFrequency((float)note.pitch));
             screen.pressedAt[note.pitch] = now;
-            screen.lastPitch = note.pitch;
         }
     };
     if (midiInputActive()) pressed(updateMidiInput());
@@ -258,18 +259,27 @@ static void pianoScreen(float width, float height, float s){
     const bool* midi = midiInputActive() ? midiKeysDown() : nullptr;
     const bool* keys = pianoKeysActive() ? pianoKeysDown() : nullptr;
     bool down[128];
-    std::string held;
+    bool anyPressed = false;
+    std::vector<int> held;
     for (int pitch = 0; pitch < 128; pitch++){
         down[pitch] = (midi && midi[pitch]) || (keys && keys[pitch]);
         if (screen.wasDown[pitch] && !down[pitch]) screen.releasedAt[pitch] = now;
+        if (down[pitch] && !screen.wasDown[pitch]) anyPressed = true;
         screen.wasDown[pitch] = down[pitch];
-        if (down[pitch]) held += (held.empty() ? "" : " ") + noteName(pitch);
+        if (down[pitch]) held.push_back(pitch);
+    }
+    // Named when a key goes down, not when one comes up: a chord let go of a note at a time stays named
+    if (anyPressed){
+        std::string notes;
+        for (int pitch : held) notes += (notes.empty() ? "" : " ") + noteName(pitch);
+        std::string chord = nameChord(held);
+        screen.shownName = chord.empty() ? notes : chord;
+        screen.shownNotes = chord.empty() ? "" : notes;
     }
 
     const float left = width * 0.1f;
-    if (!held.empty()) drawHeading(ImVec2(left, height * 0.2f), s, held, true, "", "", UiColor::Dim);
-    else if (screen.lastPitch >= 0) drawHeading(ImVec2(left, height * 0.2f), s, noteName(screen.lastPitch), false, "", "", UiColor::Dim);
-    else drawHeading(ImVec2(left, height * 0.2f), s, "Play a note", false, "", "", UiColor::Dim);
+    if (screen.shownName.empty()) drawHeading(ImVec2(left, height * 0.2f), s, "Play a note", false, "", "", UiColor::Dim);
+    else drawHeading(ImVec2(left, height * 0.2f), s, screen.shownName, !held.empty(), screen.shownNotes, "", UiColor::Dim);
 
     // The keyboard, centered
     ImDrawList* draw = ImGui::GetWindowDrawList();

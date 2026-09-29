@@ -109,3 +109,26 @@ TEST_CASE("chord change exercise files"){
     CHECK_FALSE(loadExerciseFile(path.string(), file, error));
     CHECK(error.find("Hm") != std::string::npos);
 }
+
+TEST_CASE("chords are named from the notes held"){
+    CHECK(nameChord({60, 64, 67}) == "C");
+    CHECK(nameChord({57, 60, 64}) == "Am");
+    CHECK(nameChord({55, 59, 62, 65}) == "G7");
+    CHECK(nameChord({48, 55, 64, 71}) == "Cmaj7");     // spread out, doubled or not, it's the same chord
+    CHECK(nameChord({40, 47, 52, 55, 59, 64}) == "Em"); // the open E minor on a guitar
+    CHECK(nameChord({40, 47}) == "E5");
+    CHECK(nameChord({59, 62, 65}) == "Bdim");
+}
+
+TEST_CASE("an inversion is named over its bass, and the bass wins a tie"){
+    CHECK(nameChord({52, 55, 60}) == "C/E");
+    CHECK(nameChord({48, 52, 55, 57}) == "C6");  // C E G A over C
+    CHECK(nameChord({45, 48, 52, 55}) == "Am7"); // the same notes over A
+}
+
+TEST_CASE("what isn't a chord has no name"){
+    CHECK(nameChord({}) == "");
+    CHECK(nameChord({60}) == "");
+    CHECK(nameChord({60, 61, 62}) == "");
+    CHECK(nameChord({60, 72}) == ""); // octaves: one note
+}

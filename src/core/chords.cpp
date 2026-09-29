@@ -44,6 +44,40 @@ const ChordInfo* findChord(const std::string& name){
     return nullptr;
 }
 
+// The chords nameChord knows: the notes above the root (in any octave), and the symbol's ending
+struct ChordKind {
+    std::vector<int> intervals;
+    const char* suffix;
+};
+static const ChordKind CHORD_KINDS[] = {
+    {{0, 4, 7}, ""},        {{0, 3, 7}, "m"},       {{0, 3, 6}, "dim"},     {{0, 4, 8}, "aug"},
+    {{0, 2, 7}, "sus2"},    {{0, 5, 7}, "sus4"},    {{0, 7}, "5"},
+    {{0, 4, 7, 10}, "7"},   {{0, 4, 7, 11}, "maj7"}, {{0, 3, 7, 10}, "m7"}, {{0, 3, 7, 11}, "mMaj7"},
+    {{0, 3, 6, 10}, "m7b5"}, {{0, 3, 6, 9}, "dim7"}, {{0, 4, 7, 9}, "6"},   {{0, 3, 7, 9}, "m6"},
+    {{0, 4, 7, 2}, "add9"}, {{0, 4, 7, 10, 2}, "9"}, {{0, 4, 7, 11, 2}, "maj9"}, {{0, 3, 7, 10, 2}, "m9"},
+};
+
+std::string nameChord(const std::vector<int>& pitches){
+    if (pitches.empty()) return "";
+    int bass = *std::min_element(pitches.begin(), pitches.end());
+    unsigned held = 0; // the pitch classes held, one bit each
+    for (int pitch : pitches) held |= 1u << (pitch % 12);
+    // Every root the notes could be built on, the bass first: its reading wins a tie
+    for (int step = 0; step < 12; step++){
+        int root = (bass + step) % 12;
+        if (!(held & (1u << root))) continue;
+        for (const ChordKind& kind : CHORD_KINDS){
+            unsigned wanted = 0;
+            for (int interval : kind.intervals) wanted |= 1u << ((root + interval) % 12);
+            if (wanted != held) continue;
+            std::string name = std::string(pitchClassName(root)) + kind.suffix;
+            if (root != bass % 12) name += std::string("/") + pitchClassName(bass);
+            return name;
+        }
+    }
+    return "";
+}
+
 std::array<float, 12> chroma(const float* samples, int count, int sampleRate){
     std::array<float, 12> notes{};
     if (count <= 0) return notes;

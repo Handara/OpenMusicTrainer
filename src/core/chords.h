@@ -23,6 +23,11 @@ struct ChordInfo {
 const std::vector<ChordInfo>& commonChords();
 const ChordInfo* findChord(const std::string& name);
 
+// The chord some notes make (MIDI pitches, any order), by its usual symbol: "C", "Am7", "Bdim", "E5". Over a bass
+// that isn't its root, the bass after a slash: "C/E". Where the notes read two ways (C E G A is C6 and Am7), the one
+// built on the bass wins. "" for notes that aren't a chord it knows.
+std::string nameChord(const std::vector<int>& pitches);
+
 // The 12 notes' share of a sound, C first, adding up to 1 (all zero for silence). From the energy at every
 // semitone from E2 to E6 (a Goertzel filter each, over a Hann window), folded into the 12 note names.
 std::array<float, 12> chroma(const float* samples, int count, int sampleRate);
