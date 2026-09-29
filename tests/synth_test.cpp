@@ -89,3 +89,22 @@ TEST_CASE("the metronome click is short, sensibly loud, and ends silent"){
         CHECK(samples.back() == 0.0f);
     }
 }
+
+TEST_CASE("the drums: a deep don that rings a little, a ka that's gone at once"){
+    const int sampleRate = 48000;
+    std::vector<float> samples(sampleRate / 2);
+    for (bool high : {false, true}){
+        renderDrum(samples.data(), (int)samples.size(), sampleRate, high);
+        float early = 0.0f, later = 0.0f;
+        for (int i = 0; i < (int)samples.size(); i++){
+            float a = std::fabs(samples[i]);
+            CHECK(a <= 0.5f);
+            if (i < sampleRate / 50) early = std::max(early, a);                                   // first 20 ms
+            if (i > sampleRate / 10 && i < sampleRate / 5) later = std::max(later, a);             // 100 to 200 ms
+        }
+        CHECK(early > 0.2f);
+        if (high) CHECK(later < early * 0.02f);   // the rim: over by 100 ms
+        else CHECK(later > early * 0.1f);         // the skin: still sounding
+        CHECK(samples.back() == 0.0f);
+    }
+}

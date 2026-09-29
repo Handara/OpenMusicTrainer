@@ -679,6 +679,15 @@ void playKeysNote(float frequency){
     startPreview(frequency, ma_engine_get_time_in_pcm_frames(&audio.engine), "keys");
 }
 
+void playDrum(bool high){
+    if (!audio.engineReady) return;
+    Voice& voice = takeVoice();
+    ma_uint32 sampleRate = ma_engine_get_sample_rate(&audio.engine);
+    voice.samples.resize((size_t)(0.5 * sampleRate));
+    renderDrum(voice.samples.data(), (int)voice.samples.size(), (int)sampleRate, high);
+    startVoice(voice, voice.samples.data(), voice.samples.size(), 1.0f, audio.previewVolume, ma_engine_get_time_in_pcm_frames(&audio.engine));
+}
+
 void playClickAt(double time, bool accent){
     if (!audio.engineReady) return;
     Voice& voice = takeVoice();

@@ -129,6 +129,7 @@ add_library(lahn_core STATIC
     src/core/ranking.cpp
     src/core/reading.cpp
     src/core/rhythm.cpp
+    src/core/rhythmmode.cpp
     src/core/routine.cpp
     src/core/score.cpp
     src/core/scales.cpp
@@ -225,6 +226,7 @@ if(BUILD_TESTING)
         tests/ranking_test.cpp
         tests/reading_test.cpp
         tests/rhythm_test.cpp
+        tests/rhythmmode_test.cpp
         tests/routine_test.cpp
         tests/score_test.cpp
         tests/scales_test.cpp

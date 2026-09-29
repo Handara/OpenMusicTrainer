@@ -55,6 +55,8 @@ void playPreviewAt(float frequency, double time); // at a time on the engine's c
 // A note played on the game's piano (the built-in electric piano), whatever the preview sound: keys parts sound
 // it for every key the player presses, since most MIDI controllers and every computer keyboard make no sound
 void playKeysNote(float frequency);
+// A rhythm mode drum hit, now: the deep don or the rim's ka (core/synth renderDrum)
+void playDrum(bool high);
 
 // The audio engine's own clock in seconds, smoothed between its updates like songPosition: for anything that
 // keeps time without a song (metronome, drills, calibration). Call it every frame.

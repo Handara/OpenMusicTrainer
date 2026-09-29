@@ -126,6 +126,35 @@ void renderClick(float* out, int count, int sampleRate, bool accent){
     fadeEnd(out, count, sampleRate);
 }
 
+void renderDrum(float* out, int count, int sampleRate, bool high){
+    std::minstd_rand rng(high ? 11 : 13);
+    std::uniform_real_distribution<float> noise(-1.0f, 1.0f);
+    if (high){
+        const float toneDecay = decayPerSample(0.025f, sampleRate), noiseDecay = decayPerSample(0.008f, sampleRate);
+        float toneEnvelope = 1.0f, noiseEnvelope = 1.0f;
+        for (int i = 0; i < count; i++){
+            float tone = (float)std::sin(TWO_PI * 2100.0 * i / sampleRate);
+            out[i] = PEAK_LEVEL * (0.45f * tone * toneEnvelope + 0.55f * noise(rng) * noiseEnvelope);
+            toneEnvelope *= toneDecay;
+            noiseEnvelope *= noiseDecay;
+        }
+    } else {
+        const float bodyDecay = decayPerSample(0.45f, sampleRate), thumpDecay = decayPerSample(0.012f, sampleRate);
+        float bodyEnvelope = 1.0f, thumpEnvelope = 1.0f;
+        double phase = 0.0;
+        for (int i = 0; i < count; i++){
+            // The skin's pitch drops fast after the hit, then settles
+            float t = (float)i / sampleRate;
+            float frequency = 60.0f + 110.0f * std::exp(-t / 0.035f);
+            phase += TWO_PI * frequency / sampleRate;
+            out[i] = PEAK_LEVEL * (0.85f * (float)std::sin(phase) * bodyEnvelope + 0.25f * noise(rng) * thumpEnvelope);
+            bodyEnvelope *= bodyDecay;
+            thumpEnvelope *= thumpDecay;
+        }
+    }
+    fadeEnd(out, count, sampleRate);
+}
+
 bool renderBuiltInSound(const char* name, float* out, int count, float frequency, int sampleRate, unsigned seed){
     if (std::strcmp(name, "pluck") == 0) renderPluck(out, count, frequency, sampleRate, seed);
     else if (std::strcmp(name, "soft") == 0) renderSoftTone(out, count, frequency, sampleRate);

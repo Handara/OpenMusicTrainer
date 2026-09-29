@@ -20,5 +20,9 @@ void renderDrop(float* out, int count, float frequency, int sampleRate);
 // "tick". The accented click (the first beat of a bar) is higher.
 void renderClick(float* out, int count, int sampleRate, bool accent);
 
+// A taiko-style drum hit for rhythm mode. Low (don): a tone sweeping down from 170 Hz to 60 Hz like a drum skin,
+// over a short thump of noise. High (ka): the rim, a bright tick of noise and tone that's gone in about 40 ms.
+void renderDrum(float* out, int count, int sampleRate, bool high);
+
 // Renders one of BUILT_IN_PREVIEW_SOUNDS by name (see core/settings.h); false if the name isn't one of them
 bool renderBuiltInSound(const char* name, float* out, int count, float frequency, int sampleRate, unsigned seed);
