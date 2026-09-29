@@ -20,17 +20,15 @@ const float RING_START = 3.2f;          // a ring starts this many times its not
 const float FADE_IN_SHARE = 0.25f;      // a note fades in over the first quarter of its ring's time
 const float MISS_FADE_S = 0.5f;
 const int SINGLE_DOTS[] = { 3, 5, 7, 9, 15, 17, 19, 21 }; // fret markers; 12 and 24 get two
-const int MAX_BEAT_RINGS = 4;           // a whole bar of 4/4: longer notes show four full rings
+const float WHOLE_NOTE_BEATS = 4.0f;    // one loop of a slider: a whole note (a bar of 4/4); a quarter is a quarter loop
+const float MIN_SLIDER_BEATS = 0.75f;   // shorter than a dotted eighth: a plain hit, no slider
+const float SLIDER_WIDTH = 3.5f;        // at a 720-pixel-tall window
+const float TRACK_ALPHA = 0.35f;        // a slider's track before it's played
 
-// A note's length around it, one ring a beat (a quarter note: one full ring; an eighth: half of one), the last one
-// partial, clockwise from the top: like an osu! slider, it drains as the note is held
-static void drawBeatRings(Vector2 at, float radius, float beats, Color color, float s){
-    beats = std::min(beats, (float)MAX_BEAT_RINGS);
-    for (int ring = 0; ring < MAX_BEAT_RINGS && beats > ring; ring++){
-        float share = std::min(1.0f, beats - ring);
-        float inner = radius + (3.0f + ring * 4.5f) * s;
-        DrawRing(at, inner, inner + 2.5f * s, -90.0f, -90.0f + 360.0f * share, 48, color);
-    }
+// An arc on a note's rim, clockwise from the top, `from` to `to` in loops (0 to 1)
+static void drawRimArc(Vector2 at, float rim, float from, float to, float width, Color color){
+    if (to <= from) return;
+    DrawRing(at, rim - width / 2, rim + width / 2, -90.0f + 360.0f * from, -90.0f + 360.0f * to, 64, color);
 }
 
 // What the song needs, worked out once per song rather than every frame: the part of the neck, and how long its
@@ -163,13 +161,17 @@ void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std:
         const PlayNote& note = *--it;
         Vector2 at = centerOf(note);
         Color color = stringColor(note.stringIndex);
-        if (note.hit && note.writtenLength > 0.0f && now < note.time + note.writtenLength){
-            // Held: it stays lit, its rings draining until the note is over
+        const float rim = radius + 4.5f * s, share = std::min(1.0f, note.beats / WHOLE_NOTE_BEATS);
+        const bool slider = note.beats >= MIN_SLIDER_BEATS && note.writtenLength > 0.0f;
+        if (note.hit && slider && now < note.time + note.writtenLength){
+            // Held: the ring has become a slider, its track lit and eaten clockwise by the ball as the note rings
             Color lit = themeColor(note.wasPerfect ? UiColor::Good : UiColor::Accent);
-            float left = note.beats * (1.0f - std::max(0.0f, now - note.time) / note.writtenLength);
+            float played = share * std::clamp((now - note.time) / note.writtenLength, 0.0f, 1.0f);
             DrawCircleV(at, radius + 1.5f * s, card);
             DrawCircleV(at, radius, lit);
-            drawBeatRings(at, radius, left, lit, s);
+            drawRimArc(at, rim, played, share, SLIDER_WIDTH * s, lit);
+            float angle = (-90.0f + 360.0f * played) * DEG2RAD;
+            DrawCircleV({ at.x + rim * std::cos(angle), at.y + rim * std::sin(angle) }, SLIDER_WIDTH * 1.4f * s, lit); // the ball
             drawViewText(TextFormat("%d", note.fret), at.x, at.y, radius * 1.1f, WHITE);
             continue;
         }
@@ -192,13 +194,13 @@ void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std:
         }
         float until = note.time - now, alpha = alphaOf(note);
         if (until > 0.0f){
-            // The ring closes onto the note: when they meet, play it
-            float ring = radius * (1.0f + (RING_START - 1.0f) * until / approach);
-            DrawRing(at, ring - 2.5f * s, ring, 0.0f, 360.0f, 64, Fade(color, 0.85f * alpha));
+            // The ring closes onto the note's rim: when it lands, play it (and a long note's slider begins)
+            float ring = rim + (radius * RING_START - rim) * until / approach;
+            DrawRing(at, ring - 1.25f * s, ring + 1.25f * s, 0.0f, 360.0f, 64, Fade(color, 0.85f * alpha));
         }
         DrawCircleV(at, radius + 1.5f * s, Fade(card, alpha)); // a rim that keeps notes apart
         DrawCircleV(at, radius, Fade(color, alpha));
-        if (note.beats > 0.0f) drawBeatRings(at, radius, note.beats, Fade(color, 0.6f * alpha), s);
+        if (slider) drawRimArc(at, rim, 0.0f, share, SLIDER_WIDTH * s, Fade(color, TRACK_ALPHA * alpha)); // how long it rings
         drawViewText(TextFormat("%d", note.fret), at.x, at.y, radius * 1.1f, Fade(WHITE, alpha));
     }
     EndScissorMode();
