@@ -6,6 +6,7 @@
 #include "core/music.h"
 #include "core/score.h"
 #include "imgui.h"
+#include "input/midi.h"
 #include "input/noteinput.h"
 #include "raylib.h"
 #include "ui/hitfeedback.h"
@@ -111,6 +112,7 @@ static struct {
     int lastPlayedPitch = -1; // the latest note heard from the instrument, shown so the player can trust the input
     float hitLineX = 180.0f;  // where the views put the hit line, for the judgements drawn at it
     bool paused = false;
+    bool keys = false;            // playing a keys part, on a MIDI keyboard
     Rectangle distribution = {}; // where the HUD's timing distribution is: the results screen grows it from there
     float resumeAt = -1.0f;   // after a resume: the song time it was paused at (GET READY shows until then)
     std::string fingerprint;  // of the part being played
@@ -132,20 +134,34 @@ bool startGameplay(const std::string& chartPath, const GameplayOptions& options,
 bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, const GameplayOptions& options, int fromTick,
                             std::string& error){
     stopGameplay();
-    if (options.part < 0 || options.part >= (int)chart.frettedTracks.size()){
+    if (options.part < 0 || options.part >= partCount(chart)){
         error = "the chart has no part " + std::to_string(options.part + 1) + " to play";
         return false;
     }
-    // Only the part being played is kept: everything below works on the chart's first track
+    // Only the part being played is kept: everything below works on the chart's first track. A keys part becomes a
+    // one-string instrument whose frets are its pitches: judging, scoring and the sheet music then work as for
+    // any part.
     game.fingerprint = partFingerprint(chart, options.part); // of the whole part, before anything is left out
+    game.keys = isKeysPart(chart, options.part);
     game.chart = chart;
-    game.chart.frettedTracks = { chart.frettedTracks[options.part] };
+    if (game.keys){
+        const KeysTrack& keys = chart.keysTracks[options.part - chart.frettedTracks.size()];
+        FrettedTrack asOneString;
+        asOneString.type = InstrumentType::Keys;
+        asOneString.name = keys.name;
+        asOneString.tuning = {0};
+        for (const KeysNote& note : keys.notes) asOneString.notes.push_back({note.tick, 0, note.pitch, note.duration});
+        game.chart.frettedTracks = { asOneString };
+    } else {
+        game.chart.frettedTracks = { chart.frettedTracks[options.part] };
+    }
+    game.chart.keysTracks.clear();
     // Starting part-way: the notes before are left out, so the score (the sheet music) is built without them too
     std::vector<FrettedNote>& chartNotes = game.chart.frettedTracks[0].notes;
     chartNotes.erase(chartNotes.begin(), std::lower_bound(chartNotes.begin(), chartNotes.end(), fromTick,
                      [](const FrettedNote& note, int tick){ return note.tick < tick; }));
     const FrettedTrack& track = game.chart.frettedTracks[0];
-    if ((int)track.tuning.size() > MAX_LANES){
+    if (!game.keys && (int)track.tuning.size() > MAX_LANES){
         error = "track '" + track.name + "' has " + std::to_string(track.tuning.size())
                 + " strings, the prototype supports up to " + std::to_string(MAX_LANES);
         return false;
@@ -158,7 +174,10 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
     game.notes.reserve(track.notes.size());
     for (const FrettedNote& chartNote : track.notes){
         int pitch = track.tuning[chartNote.stringIndex] + chartNote.fret;
-        game.notes.push_back({(float)tickToSeconds(game.chart, chartNote.tick), chartNote.stringIndex, chartNote.fret, pitch});
+        float time = (float)tickToSeconds(game.chart, chartNote.tick);
+        PlayNote note{time, chartNote.stringIndex, chartNote.fret, pitch};
+        note.length = chartNote.duration > 0 ? (float)tickToSeconds(game.chart, chartNote.tick + chartNote.duration) - time : 0.0f;
+        game.notes.push_back(note);
     }
     game.score = buildScore(game.chart, track); // its events point into track.notes, in the same order as game.notes
     game.state = {};
@@ -168,7 +187,13 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
     game.state.multiplier = 1;
     game.options = options;
     game.lastPlayedPitch = -1;
-    if (options.playWithInstrument){
+    // A keys part is played on a MIDI keyboard, and only there: the part waits for one to be connected
+    if (game.keys && !startMidiInput(options.midiDevice, error)){
+        error = "This part is played on a MIDI keyboard: " + error + " (Settings > Audio)";
+        unloadSong();
+        return false;
+    }
+    if (options.playWithInstrument && !game.keys){
         // Listen down to just below the track's lowest string: a bass or a drop tuning gets its own range
         float lowest = midiToFrequency((float)*std::min_element(track.tuning.begin(), track.tuning.end())) * 0.9f;
         if (!startNoteInput(options.inputDevice, lowest, error)){
@@ -208,6 +233,7 @@ bool updateGameplay(){
     if (!IsWindowFocused()) pauseGameplay();
     if (game.paused){
         if (noteInputActive()) updateNoteInput(); // what's played while paused is thrown away, not judged later
+        if (midiInputActive()) updateMidiInput();
         return true;
     }
 
@@ -222,6 +248,18 @@ bool updateGameplay(){
     const FrettedTrack& track = game.chart.frettedTracks[0];
     handleKeyboard(game.notes, game.state, game.songTime, (int)track.tuning.size(), game.options.hitSounds);
     if (noteInputActive()) handleInstrument(game.notes, game.state, game.songTime, game.options.inputOffsetSeconds, game.lastPlayedPitch);
+    if (midiInputActive()){
+        // Each key on its own: pressing one note of a chord doesn't play the rest
+        for (const PlayedNote& played : updateMidiInput()){
+            PlayerInput input;
+            input.time = game.songTime - played.age;
+            input.pitch = played.pitch;
+            input.completesChord = false;
+            JudgeResult result = judgeInput(game.notes, input);
+            if (result.judgement != Judgement::Ignored) scoreHit(game.state, result.judgement, result.notesHit, result.error);
+            game.lastPlayedPitch = played.pitch;
+        }
+    }
     scoreMisses(game.state, markMisses(game.notes, game.songTime));
 
     if (songEnded()){
@@ -238,6 +276,10 @@ void drawGameplay(){
     TimeAxis axis = { game.songTime, (float)HIT_LINE_X, game.options.noteSpeed };
     float width = (float)GetScreenWidth(), height = (float)GetScreenHeight();
     Rectangle viewsArea = { 0, height * 0.14f, width, height * 0.72f }; // below the HUD, above the combo and timing bar
+    if (game.keys){
+        game.hitLineX = drawKeysViews(viewsArea, game.options.noteViews, game.notes, game.score, axis, midiInputActive() ? midiKeysDown() : nullptr);
+        return;
+    }
     game.hitLineX = drawNoteViews(viewsArea, game.options.noteViews, game.notes, game.score, game.chart.frettedTracks[0].tuning,
                   game.options.lowStringOnTop, axis);
 }
@@ -292,6 +334,7 @@ void drawGameplayHud(){
 
 void stopGameplay(){
     stopNoteInput();
+    stopMidiInput();
     unloadSong();
     game.active = false;
 }

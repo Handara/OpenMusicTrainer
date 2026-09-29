@@ -100,6 +100,14 @@ Score buildScore(const Chart& chart, const FrettedTrack& track){
     const int resolution = chart.resolution;
     score.resolution = resolution;
     score.clef = track.type == InstrumentType::Bass ? Clef::Bass : Clef::Treble;
+    if (track.type == InstrumentType::Keys) score.writtenShift = 0; // piano music is written where it sounds
+    if (track.type == InstrumentType::Keys && !track.notes.empty()){
+        // Keys: the clef that suits the part, by its middle note (a full piano score, on two staves, is for later)
+        std::vector<int> pitches;
+        for (const FrettedNote& note : track.notes) pitches.push_back(track.tuning[note.stringIndex] + note.fret);
+        std::nth_element(pitches.begin(), pitches.begin() + pitches.size() / 2, pitches.end());
+        score.clef = pitches[pitches.size() / 2] < 60 ? Clef::Bass : Clef::Treble;
+    }
 
     // Bars: every one that starts before the end, plus the line that closes the last
     int barCount = 0;

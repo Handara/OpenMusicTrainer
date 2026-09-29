@@ -65,7 +65,12 @@ std::string partFingerprint(const Chart& chart, int part){
         hashInto(hash, tempo.tick);
         hashInto(hash, (long long)std::llround(tempo.bpm * 1000.0));
     }
-    if (part >= 0 && part < (int)chart.frettedTracks.size()){
+    if (isKeysPart(chart, part) && part < partCount(chart)){
+        for (const KeysNote& note : chart.keysTracks[part - chart.frettedTracks.size()].notes){
+            hashInto(hash, note.tick);
+            hashInto(hash, note.pitch);
+        }
+    } else if (part >= 0 && part < (int)chart.frettedTracks.size()){
         const FrettedTrack& track = chart.frettedTracks[part];
         for (int pitch : track.tuning) hashInto(hash, pitch);
         for (const FrettedNote& note : track.notes){

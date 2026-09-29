@@ -37,6 +37,7 @@ struct GameplayOptions {
     bool playWithInstrument = false;  // judge notes played on the input device (the number keys work either way)
     bool hitSounds = true;            // a key that hits plays its note (with an instrument, it's heard already)
     std::string inputDevice;
+    std::string midiDevice;           // for keys parts: a MIDI keyboard (empty = the first connected)
     float inputOffsetSeconds = 0.0f;  // the input device's own delay (see calibration)
 };
 

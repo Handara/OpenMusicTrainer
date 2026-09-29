@@ -26,6 +26,7 @@ bool loadChart(const std::string& path, Chart& out, std::string& error){
 
     out = Chart{};
     FrettedTrack* track = nullptr; // track that tuning/n lines belong to; re-taken after each push_back
+    KeysTrack* keysTrack = nullptr; // or the keys track they belong to: one of the two is set
     std::string line;
     int lineNumber = 0;
 
@@ -83,12 +84,21 @@ bool loadChart(const std::string& path, Chart& out, std::string& error){
             std::string typeName;
             FrettedTrack newTrack;
             ss >> typeName;
+            if (typeName == "keys"){
+                KeysTrack keys;
+                std::getline(ss >> std::ws, keys.name);
+                out.keysTracks.push_back(keys);
+                keysTrack = &out.keysTracks.back();
+                track = nullptr;
+                continue;
+            }
             if (typeName == "guitar") newTrack.type = InstrumentType::Guitar;
             else if (typeName == "bass") newTrack.type = InstrumentType::Bass;
             else return lineError("unknown track type '" + typeName + "'");
             std::getline(ss >> std::ws, newTrack.name);
             out.frettedTracks.push_back(newTrack);
             track = &out.frettedTracks.back();
+            keysTrack = nullptr;
         } else if (keyword == "tuning"){
             if (track == nullptr) return lineError("tuning before any track");
             if (!track->tuning.empty()) return lineError("track already has a tuning");
@@ -98,6 +108,14 @@ bool loadChart(const std::string& path, Chart& out, std::string& error){
                 track->tuning.push_back(pitch);
             }
             if (track->tuning.empty()) return lineError("expected: tuning <midi pitch per string, low to high>");
+        } else if (keyword == "n" && keysTrack != nullptr){
+            KeysNote note{};
+            if (!(ss >> note.tick >> note.pitch)) return lineError("expected: n <tick> <pitch> [duration]");
+            if (!(ss >> note.duration)) note.duration = 0; // optional field
+            if (note.tick < 0) return lineError("note tick must be >= 0");
+            if (note.pitch < 0 || note.pitch > 127) return lineError("pitch must be a MIDI note 0-127");
+            if (note.duration < 0) return lineError("duration must be >= 0");
+            keysTrack->notes.push_back(note);
         } else if (keyword == "n"){
             if (track == nullptr || track->tuning.empty()) return lineError("note before its track's tuning");
             FrettedNote note{};
@@ -126,7 +144,7 @@ bool loadChart(const std::string& path, Chart& out, std::string& error){
     }
     if (out.resolution <= 0) return chartError("missing or invalid 'resolution'");
     if (out.endTick <= 0) return chartError("missing or invalid 'end'");
-    if (out.frettedTracks.empty()) return chartError("chart has no tracks");
+    if (out.frettedTracks.empty() && out.keysTracks.empty()) return chartError("chart has no tracks");
 
     std::sort(out.tempoMap.begin(), out.tempoMap.end(),
               [](const TempoChange& a, const TempoChange& b){ return a.tick < b.tick; });
@@ -185,7 +203,34 @@ bool loadChart(const std::string& path, Chart& out, std::string& error){
                               + " is after 'end'");
         }
     }
+    for (KeysTrack& t : out.keysTracks){
+        std::sort(t.notes.begin(), t.notes.end(), [](const KeysNote& a, const KeysNote& b){
+            if (a.tick != b.tick) return a.tick < b.tick;
+            return a.pitch < b.pitch;
+        });
+        for (size_t i = 1; i < t.notes.size(); i++){
+            if (t.notes[i].tick == t.notes[i-1].tick && t.notes[i].pitch == t.notes[i-1].pitch){
+                return chartError("track '" + t.name + "': the same note twice at tick " + std::to_string(t.notes[i].tick));
+            }
+        }
+        if (!t.notes.empty() && t.notes.back().tick > out.endTick){
+            return chartError("track '" + t.name + "': note at tick " + std::to_string(t.notes.back().tick) + " is after 'end'");
+        }
+    }
     return true;
+}
+
+int partCount(const Chart& chart){
+    return (int)(chart.frettedTracks.size() + chart.keysTracks.size());
+}
+
+bool isKeysPart(const Chart& chart, int part){
+    return part >= (int)chart.frettedTracks.size();
+}
+
+std::string partName(const Chart& chart, int part){
+    if (part < 0 || part >= partCount(chart)) return "";
+    return isKeysPart(chart, part) ? chart.keysTracks[part - chart.frettedTracks.size()].name : chart.frettedTracks[part].name;
 }
 
 // Shortest text that reads back as exactly the same double: 0.1 -> "0.1", 120.0 -> "120"
@@ -199,6 +244,7 @@ static const char* trackTypeName(InstrumentType type){
     switch (type){
         case InstrumentType::Guitar: return "guitar";
         case InstrumentType::Bass: return "bass";
+        case InstrumentType::Keys: return "keys";
     }
     return "guitar";
 }
@@ -227,6 +273,16 @@ bool saveChart(const std::string& path, const Chart& chart, std::string& error){
         out << "\n# n <tick> <string> <fret> [duration]\n";
         for (const FrettedNote& note : track.notes){
             out << "n " << note.tick << " " << note.stringIndex << " " << note.fret;
+            if (note.duration > 0) out << " " << note.duration;
+            out << "\n";
+        }
+    }
+
+    for (const KeysTrack& track : chart.keysTracks){
+        out << "\ntrack keys " << track.name << "\n";
+        out << "# n <tick> <pitch> [duration]\n";
+        for (const KeysNote& note : track.notes){
+            out << "n " << note.tick << " " << note.pitch;
             if (note.duration > 0) out << " " << note.duration;
             out << "\n";
         }

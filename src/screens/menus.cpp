@@ -48,9 +48,9 @@ static void drawSongCard(const SongEntry& song, float s){
     }
     y += 16 * s;
     for (const SongPart& part : song.parts){
-        const char* instrument = part.type == InstrumentType::Bass ? "BASS" : "GUITAR";
-        draw->AddText(fonts.mono, 13 * s, ImVec2(x, y), uiColor(UiColor::Dim),
-                      TextFormat("%s  ·  %s, %d STRINGS", part.name.c_str(), instrument, part.stringCount));
+        std::string instrument = part.type == InstrumentType::Keys ? "KEYS, MIDI"
+                               : TextFormat("%s, %d STRINGS", part.type == InstrumentType::Bass ? "BASS" : "GUITAR", part.stringCount);
+        draw->AddText(fonts.mono, 13 * s, ImVec2(x, y), uiColor(UiColor::Dim), TextFormat("%s  ·  %s", part.name.c_str(), instrument.c_str()));
         float rowY = y + 20 * s;
         if (!part.played){
             draw->AddText(fonts.text, 18 * s, ImVec2(x, rowY + 4 * s), uiColor(UiColor::Dim), "Not played yet");
@@ -76,7 +76,11 @@ bool songSelectBack(){
 }
 
 static const char* instrumentName(InstrumentType type){
-    return type == InstrumentType::Bass ? "bass" : "guitar";
+    switch (type){
+        case InstrumentType::Bass: return "bass";
+        case InstrumentType::Keys: return "keys";
+        default: return "guitar";
+    }
 }
 
 // The song's parts, one level down from the songs: "Melody  guitar, 6 strings", "Bass  bass, 4 strings", Back
@@ -89,7 +93,8 @@ static void partList(const SongEntry& song, SongSelectChoice& choice){
     for (const SongPart& part : song.parts){
         MenuRow row;
         row.label = part.name.empty() ? instrumentName(part.type) : part.name;
-        row.detail = TextFormat("%s, %d strings", instrumentName(part.type), part.stringCount);
+        row.detail = part.type == InstrumentType::Keys ? "keys, on a MIDI keyboard"
+                                                       : TextFormat("%s, %d strings", instrumentName(part.type), part.stringCount);
         rows.push_back(row);
     }
     const int back = (int)rows.size();

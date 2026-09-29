@@ -174,6 +174,7 @@ static GameplayOptions gameplayOptions(){
     options.noteViews = app.settings.noteViews;
     options.playWithInstrument = app.settings.playWithInstrument;
     options.inputDevice = app.settings.inputDevice;
+    options.midiDevice = app.settings.midiDevice;
     options.inputOffsetSeconds = app.settings.inputOffsetMs / 1000.0f;
     options.hitSounds = !app.settings.playWithInstrument;
     return options;

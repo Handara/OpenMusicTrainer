@@ -35,7 +35,7 @@ struct FrettedNote {
     int duration;    // sustain length in ticks, 0 = no sustain
 };
 
-enum class InstrumentType { Guitar, Bass };
+enum class InstrumentType { Guitar, Bass, Keys }; // a fretted track is Guitar or Bass; Keys is a KeysTrack's
 
 // Guitar and bass share this shape; they differ only by tuning and how they're presented
 struct FrettedTrack {
@@ -43,6 +43,18 @@ struct FrettedTrack {
     std::string name;
     std::vector<int> tuning;        // MIDI pitch per string, lowest first; its size is the string count
     std::vector<FrettedNote> notes; // sorted by tick
+};
+
+// A piano or keyboard part, played on a MIDI keyboard: its notes are pitches, not strings and frets
+struct KeysNote {
+    int tick;
+    int pitch;       // MIDI note: 60 = middle C
+    int duration;    // how long it's held, in ticks; 0 = not held
+};
+
+struct KeysTrack {
+    std::string name;
+    std::vector<KeysNote> notes; // sorted by tick, then pitch
 };
 
 struct Chart {
@@ -57,7 +69,13 @@ struct Chart {
     std::vector<TimeSignatureChange> timeSignatures; // sorted, first at tick 0, each on a bar line; 4/4 if the file has none
     std::vector<KeyChange> keys;                     // sorted, first at tick 0, each on a bar line; C major if none
     std::vector<FrettedTrack> frettedTracks;
+    std::vector<KeysTrack> keysTracks;
 };
+
+// A song's parts are its fretted tracks, then its keys tracks: part numbers count through both in that order
+int partCount(const Chart& chart);
+bool isKeysPart(const Chart& chart, int part);
+std::string partName(const Chart& chart, int part);
 
 // Reads and validates a .chart file. On failure returns false and sets `error` to "path:line: message".
 bool loadChart(const std::string& path, Chart& out, std::string& error);

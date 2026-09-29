@@ -37,6 +37,14 @@ std::vector<SongEntry> scanSongs(const std::string& songsDir, bool builtIn){
                 info.fingerprint = partFingerprint(chart, part);
                 song.parts.push_back(info);
             }
+            for (int keys = 0; keys < (int)chart.keysTracks.size(); keys++){
+                SongPart info;
+                info.name = chart.keysTracks[keys].name;
+                info.type = InstrumentType::Keys;
+                info.stringCount = 0;
+                info.fingerprint = partFingerprint(chart, (int)chart.frettedTracks.size() + keys);
+                song.parts.push_back(info);
+            }
         } else if (song.error.rfind(song.chartPath, 0) == 0){
             // Menus show the error: "folder/song.chart" is enough there, the full path would take several lines
             song.error = (entry.path().filename() / "song.chart").generic_string() + song.error.substr(song.chartPath.size());

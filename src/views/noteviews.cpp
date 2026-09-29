@@ -1,6 +1,7 @@
 #include "views/noteviews.h"
 
 #include "views/highway.h"
+#include "views/pianohighway.h"
 #include "views/staff.h"
 #include "views/tab.h"
 
@@ -68,4 +69,19 @@ float drawNoteViews(Rectangle area, const NoteViews& views, const std::vector<Pl
         y += shownView.height + VIEW_GAP;
     }
     return axis.hitLineX;
+}
+
+float drawKeysViews(Rectangle area, const NoteViews& views, const std::vector<PlayNote>& notes, const Score& score,
+                    TimeAxis axis, const bool* keysDown){
+    Rectangle piano = area;
+    if (views.staff){
+        float staffHeight = std::min(STAFF_SIZE.maxHeight, area.height * 0.4f);
+        Rectangle staff = { area.x, area.y, area.width, staffHeight };
+        axis.hitLineX = std::max(axis.hitLineX, area.x + staffLeadWidth(staffHeight, score));
+        axis.barLineGap = std::max(axis.barLineGap, staffBarLineGap(staffHeight));
+        drawStaff(staff, notes, score, axis);
+        piano = { area.x, area.y + staffHeight + VIEW_GAP, area.width, area.height - staffHeight - VIEW_GAP };
+    }
+    drawPianoHighway(piano, notes, axis, keysDown);
+    return area.x + area.width / 2;
 }

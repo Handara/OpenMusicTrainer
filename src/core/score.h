@@ -51,6 +51,8 @@ struct ScoreBar {
 struct Score {
     int resolution = 480;           // the chart's ticks per quarter note
     Clef clef = Clef::Treble;       // the track's: bass clef for a bass
+    int writtenShift = WRITTEN_OCTAVE_SHIFT; // written this far above how it sounds: an octave for guitar and bass,
+                                             // none for keys
     std::vector<ScoreEvent> events; // in time order
     std::vector<ScoreBar> bars;     // every bar line up to the chart's end: the last may only close the music
 };

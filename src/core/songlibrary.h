@@ -10,7 +10,7 @@
 struct SongPart {
     std::string name;
     InstrumentType type;
-    int stringCount;
+    int stringCount;           // 0 for keys
     std::string fingerprint;   // its records are kept under it (core/ranking)
     bool played = false;       // filled in by whoever reads the records: the part's best run, if there's one
     RunRecord best;

@@ -674,6 +674,10 @@ bool openEditor(const SongEntry& song, const std::string& userSongsDir, const st
     closeEditor();
     EditorState fresh;
     if (!loadChart(song.chartPath, fresh.chart, error)) return false;
+    if (fresh.chart.frettedTracks.empty()){
+        error = "The editor can't edit keys parts yet, and this song has only those";
+        return false;
+    }
     fresh.chartPath = song.chartPath;
     fresh.songFolder = song.folder;
     fresh.userSongsDir = userSongsDir;

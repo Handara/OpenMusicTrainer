@@ -35,7 +35,7 @@ JudgeResult judgeInput(std::vector<PlayNote>& notes, const PlayerInput& input){
         result.notesHit++;
     };
     markHit(*nearest);
-    if (input.pitch >= 0){
+    if (input.pitch >= 0 && input.completesChord){
         // The rest of a chord: unjudged notes at the same moment
         for (auto it = first; it != notes.end() && it->time <= input.time + NEAR_WINDOW_S; ++it){
             if (!it->judged && std::fabs(it->time - nearest->time) < 0.001) markHit(*it);

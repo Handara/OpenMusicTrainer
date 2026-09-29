@@ -8,6 +8,7 @@
 
 // SMuFL code points: the music font standard puts every symbol at the same code in every font
 const int GLYPH_TREBLE_CLEF_8VB = 0xE052; // treble clef with a small 8 below: "sounds an octave lower", i.e. guitar
+const int GLYPH_TREBLE_CLEF = 0xE050;     // plain: piano, written where it sounds
 const int GLYPH_BASS_CLEF = 0xE062;       // bass guitar is written in a plain bass clef, though it too sounds lower
 const int GLYPH_NOTEHEAD_WHOLE = 0xE0A2;
 const int GLYPH_NOTEHEAD_HALF = 0xE0A3;
@@ -49,7 +50,7 @@ static struct {
 } music;
 
 bool loadStaffFont(const std::string& path){
-    std::vector<int> codepoints = { GLYPH_TREBLE_CLEF_8VB, GLYPH_BASS_CLEF, GLYPH_NOTEHEAD_WHOLE, GLYPH_NOTEHEAD_HALF, GLYPH_NOTEHEAD_BLACK,
+    std::vector<int> codepoints = { GLYPH_TREBLE_CLEF_8VB, GLYPH_TREBLE_CLEF, GLYPH_BASS_CLEF, GLYPH_NOTEHEAD_WHOLE, GLYPH_NOTEHEAD_HALF, GLYPH_NOTEHEAD_BLACK,
                                     GLYPH_FLAT, GLYPH_NATURAL, GLYPH_SHARP, GLYPH_AUGMENTATION_DOT, GLYPH_TUPLET_3 };
     for (int i = 0; i < 6; i++) codepoints.push_back(GLYPH_REST_WHOLE + i);
     for (int i = 0; i < 6; i++) codepoints.push_back(GLYPH_FLAG_8TH_UP + i);
@@ -112,7 +113,7 @@ static void drawGlyph(int glyph, float x, float y, float space, Color color){
         else if (glyph == GLYPH_SHARP) DrawText("#", (int)x, (int)(y - space), (int)(2 * space), color);
         else if (glyph == GLYPH_FLAT) DrawText("b", (int)x, (int)(y - space), (int)(2 * space), color);
         else if (glyph == GLYPH_NATURAL) DrawText("n", (int)x, (int)(y - space), (int)(2 * space), color);
-        else if (glyph == GLYPH_TREBLE_CLEF_8VB) DrawText("G", (int)x, (int)(y - 2 * space), (int)(3 * space), color);
+        else if (glyph == GLYPH_TREBLE_CLEF_8VB || glyph == GLYPH_TREBLE_CLEF) DrawText("G", (int)x, (int)(y - 2 * space), (int)(3 * space), color);
         else if (glyph == GLYPH_BASS_CLEF) DrawText("F", (int)x, (int)(y - space), (int)(3 * space), color);
         else if (glyph == GLYPH_TUPLET_3) DrawText("3", (int)x, (int)(y - space), (int)(1.5f * space), color);
         return; // flags: the stem alone
@@ -173,20 +174,21 @@ struct Column {
 
 } // namespace
 
-static int clefGlyph(Clef clef){
-    return clef == Clef::Bass ? GLYPH_BASS_CLEF : GLYPH_TREBLE_CLEF_8VB;
+static int clefGlyph(const Score& score){
+    if (score.clef == Clef::Bass) return GLYPH_BASS_CLEF;
+    return score.writtenShift != 0 ? GLYPH_TREBLE_CLEF_8VB : GLYPH_TREBLE_CLEF;
 }
 
 // The clef and the room around it, in spaces: the clefs differ in width (the bass clef's dots stick out)
-static float clefWidth(Clef clef, float space){
-    return CLEF_MARGIN + glyphWidth(clefGlyph(clef), space) / space + CLEF_MARGIN;
+static float clefWidth(const Score& score, float space){
+    return CLEF_MARGIN + glyphWidth(clefGlyph(score), space) / space + CLEF_MARGIN;
 }
 
 float staffLeadWidth(float areaHeight, const Score& score){
     float space = areaHeight / STAFF_SPACES_TALL;
     int widestKey = 0;
     for (const ScoreBar& bar : score.bars) widestKey = std::max(widestKey, std::abs(bar.key.fifths));
-    return (clefWidth(score.clef, space) + widestKey * KEY_ACCIDENTAL_WIDTH + 0.3f + TIME_SIGNATURE_WIDTH + LEAD_MARGIN) * space;
+    return (clefWidth(score, space) + widestKey * KEY_ACCIDENTAL_WIDTH + 0.3f + TIME_SIGNATURE_WIDTH + LEAD_MARGIN) * space;
 }
 
 float staffBarLineGap(float areaHeight){
@@ -233,7 +235,7 @@ static float drawGroup(const Staff& staff, const Score& score, size_t first, siz
         bool tiedOver = e > 0 && score.events[e - 1].tiedToNext && score.events[e - 1].firstNote == event.firstNote;
         for (int n = event.firstNote; n < event.firstNote + event.noteCount; n++){
             const PlayNote& note = notes[n];
-            StaffNote written = staffNote(note.pitch + WRITTEN_OCTAVE_SHIFT, key, score.clef);
+            StaffNote written = staffNote(note.pitch + score.writtenShift, key, score.clef);
             Head head{};
             head.position = written.position;
             head.accidental = tiedOver ? Accidental::None : accidentalFor(written, key, bar);
@@ -457,11 +459,11 @@ void drawStaff(Rectangle area, const std::vector<PlayNote>& notes, const Score& 
     DrawRectangleRec({area.x, area.y, leadRight - area.x, area.height}, themeColor(UiColor::Card));
     drawStaffLines(area.x, leadRight);
     // A G clef curls around the G line; an F clef's dots sit either side of the F line
-    drawGlyph(clefGlyph(score.clef), area.x + CLEF_MARGIN * space, staff.yAt(score.clef == Clef::Bass ? 6 : 2), space,
+    drawGlyph(clefGlyph(score), area.x + CLEF_MARGIN * space, staff.yAt(score.clef == Clef::Bass ? 6 : 2), space,
               themeColor(UiColor::Ink));
     if (!score.bars.empty()){
         const ScoreBar& bar = score.bars[barNow];
-        float keyX = area.x + clefWidth(score.clef, space) * space;
+        float keyX = area.x + clefWidth(score, space) * space;
         drawKeySignature(staff, bar.key, score.clef, keyX);
         drawTimeSignature(staff, bar.timeSignature, leadRight - TIME_SIGNATURE_WIDTH * space / 2);
     }

@@ -174,6 +174,7 @@ add_executable(lahn
     src/screens/tuner.cpp
     src/views/highway.cpp
     src/views/noteviews.cpp
+    src/views/pianohighway.cpp
     src/views/staff.cpp
     src/views/tab.cpp
     src/views/viewfont.cpp

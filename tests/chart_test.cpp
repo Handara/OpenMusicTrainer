@@ -35,6 +35,9 @@ TEST_CASE("the sample song shipped with the game loads"){
     CHECK(chart.frettedTracks[1].type == InstrumentType::Bass);
     CHECK(chart.frettedTracks[1].tuning.size() == 4);
     CHECK(chart.frettedTracks[1].notes.size() == 20);
+    REQUIRE(chart.keysTracks.size() == 1);            // and the piano's chords
+    CHECK(chart.keysTracks[0].name == "Piano");
+    CHECK(chart.keysTracks[0].notes.size() == 62);    // 2 chords a bar: 9 bars of three-note chords, the B7 bar of four
 }
 
 TEST_CASE("tick to seconds follows the tempo map"){
@@ -212,4 +215,38 @@ TEST_CASE("bars follow the time signatures"){
     CHECK(barStartTick(chart, 11) == 6720 + 7 * 1440);
     CHECK(ticksPerBar(chart, {0, 2, 2}) == 1920); // cut time: two half notes
     CHECK(chart.keys[0].key.fifths == 2);
+}
+
+TEST_CASE("keys parts: notes as pitches, saved and read back"){
+    std::filesystem::path path = std::filesystem::temp_directory_path() / "lahn_tests" / "keys.chart";
+    std::filesystem::create_directories(path.parent_path());
+    std::ofstream(path, std::ios::binary) << "version 2\ntitle Keys\nresolution 480\nend 1920\ntempo 0 100\n"
+                                             "track keys Piano\nn 480 64 240\nn 0 60\nn 0 67 480\n";
+    Chart chart;
+    std::string error;
+    REQUIRE_MESSAGE(loadChart(path.string(), chart, error), error);
+    CHECK(chart.frettedTracks.empty());   // a piano-only song is a song
+    REQUIRE(chart.keysTracks.size() == 1);
+    CHECK(chart.keysTracks[0].name == "Piano");
+    const std::vector<KeysNote>& notes = chart.keysTracks[0].notes;
+    REQUIRE(notes.size() == 3);
+    CHECK(notes[0].pitch == 60);          // sorted by tick, then pitch
+    CHECK(notes[1].pitch == 67);
+    CHECK(notes[1].duration == 480);
+    CHECK(notes[2].tick == 480);
+    CHECK(partCount(chart) == 1);
+    CHECK(isKeysPart(chart, 0));
+    CHECK(partName(chart, 0) == "Piano");
+
+    REQUIRE_MESSAGE(saveChart(path.string(), chart, error), error);
+    Chart again;
+    REQUIRE_MESSAGE(loadChart(path.string(), again, error), error);
+    REQUIRE(again.keysTracks.size() == 1);
+    CHECK(again.keysTracks[0].notes.size() == 3);
+    CHECK(again.keysTracks[0].notes[1].duration == 480);
+
+    std::ofstream(path, std::ios::binary) << "version 2\nresolution 480\nend 1920\ntempo 0 100\ntrack keys P\nn 0 60\nn 0 60\n";
+    CHECK_FALSE(loadChart(path.string(), again, error)); // the same note twice
+    std::ofstream(path, std::ios::binary) << "version 2\nresolution 480\nend 1920\ntempo 0 100\ntrack keys P\nn 0 200\n";
+    CHECK_FALSE(loadChart(path.string(), again, error)); // no such pitch
 }

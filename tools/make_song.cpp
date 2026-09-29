@@ -4,7 +4,8 @@
 //
 // 84 bpm in E minor: a bar of electric piano to feel the beat, then eight bars of a plucked guitar melody over
 // Em C G D Em C Am B7, with the piano and a soft bass underneath, and a last E held for a bar. Two parts to play:
-// the melody on guitar, and the bass line (each chord's root on beats 1 and 3) on a 4-string bass.
+// the melody on guitar, the bass line (each chord's root on beats 1 and 3) on a 4-string bass, and the piano's
+// chords on a MIDI keyboard.
 
 #include "core/chart.h"
 #include "core/music.h"
@@ -149,6 +150,16 @@ int main(int argc, char** argv){
     }
     chart.frettedTracks = {guitar, bass};
 
+    // The piano part: the chords the electric piano plays in the audio, on beats 1 and 3, each held for two beats
+    KeysTrack piano;
+    piano.name = "Piano";
+    for (int bar = 0; bar < BARS; bar++){
+        for (int beat : {0, 2}){
+            for (int pitch : CHORDS[bar].piano) piano.notes.push_back({bar * BAR + beat * RESOLUTION, pitch, 2 * RESOLUTION});
+        }
+    }
+    chart.keysTracks = {piano};
+
     // The audio: the same notes plucked, over the piano and the bass
     double length = secondsAt(chart.endTick) + 2.5; // the last notes ring out
     std::vector<float> song((size_t)(length * SAMPLE_RATE), 0.0f);
@@ -188,7 +199,7 @@ int main(int argc, char** argv){
         std::printf("could not write %s\n", (folder / "audio.wav").string().c_str());
         return 1;
     }
-    std::printf("wrote %s: %d melody notes, %d bass notes, %.1f s\n", folder.string().c_str(), (int)guitar.notes.size(),
-                (int)bass.notes.size(), length);
+    std::printf("wrote %s: %d melody notes, %d bass notes, %d piano notes, %.1f s\n", folder.string().c_str(),
+                (int)guitar.notes.size(), (int)bass.notes.size(), (int)piano.notes.size(), length);
     return 0;
 }

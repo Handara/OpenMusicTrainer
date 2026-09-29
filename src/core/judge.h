@@ -15,6 +15,7 @@ struct PlayNote {
     int stringIndex;         // 0 = lowest string
     int fret;
     int pitch;               // sounding MIDI pitch: the string's tuning + fret
+    float length = 0.0f;     // seconds it's held (0 for a note that isn't): views draw it that long
     float hitFlash = 0.0f;   // seconds left of the "hit" animation, 0 = none
     bool judged = false;     // hit or missed already
     bool hit = false;        // judged and hit (judged without hit = missed)
@@ -27,6 +28,9 @@ struct PlayerInput {
     double time;          // song time of the input
     int stringIndex = -1;
     int pitch = -1;
+    // A single-note detector hears one note of a chord, so by pitch a chord counts whole once one of its notes
+    // is heard. A MIDI keyboard sends every key, so there each note of a chord has to be played: false.
+    bool completesChord = true;
 };
 
 enum class Judgement { Ignored, Perfect, Near };
