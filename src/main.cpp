@@ -1,6 +1,7 @@
 #include "raylib.h"
 #include "audio/audio.h"
 #include "core/paths.h"
+#include "core/routine.h"
 #include "core/settings.h"
 #include "core/songlibrary.h"
 #include "core/songpackage.h"
@@ -130,6 +131,37 @@ static void editSong(const SongEntry& song){
     } else {
         app.songSelectError = error;
     }
+}
+
+// A finished run goes into its part's records (not a test-play from the editor: that isn't a real run). The
+// result then knows where it placed, and shows the part's best runs.
+static void recordRun(GameResult& result){
+    // The song's own id: built-in or the player's, and its folder's name
+    fs::path chart = app.currentChartPath;
+    bool builtIn = chart.string().rfind(app.resourcesDir, 0) == 0;
+    std::string songId = (builtIn ? "builtin-" : "user-") + chart.parent_path().filename().string();
+    fs::path recordsDir = fs::path(app.progressDir) / "records";
+    std::error_code ec;
+    fs::create_directories(recordsDir, ec);
+    std::string path = recordsPath(recordsDir.string(), songId, app.currentPart, result.fingerprint);
+
+    RunRecord run;
+    run.score = result.score;
+    run.accuracy = result.accuracy;
+    run.maxCombo = result.maxCombo;
+    run.perfect = result.perfectCount;
+    run.good = result.nearCount;
+    run.miss = result.missCount;
+    run.unstableRate = result.timing.unstableRate;
+    run.withInstrument = result.withInstrument;
+    int year, month, day;
+    dateFromDays(today(), year, month, day);
+    run.date = TextFormat("%04d-%02d-%02d", year, month, day);
+    std::vector<RunRecord> records = loadRuns(path);
+    result.place = addRun(records, run);
+    std::string error;
+    if (result.place >= 0 && !saveRuns(path, records, error)) TraceLog(LOG_WARNING, "Records: %s", error.c_str());
+    result.records = records;
 }
 
 static GameplayOptions gameplayOptions(){
@@ -395,6 +427,7 @@ int main(void){
         else if (songOver && app.screen == Screen::Playing){
             app.lastResult = gameplayResult();
             stopGameplay();
+            recordRun(app.lastResult);
             app.screen = Screen::Results;
         }
         drawTransition();

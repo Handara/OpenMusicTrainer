@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 
@@ -76,6 +77,10 @@ std::string partFingerprint(const Chart& chart, int part){
     char text[17];
     std::snprintf(text, sizeof(text), "%016llx", (unsigned long long)hash);
     return text;
+}
+
+std::string recordsPath(const std::string& recordsDir, const std::string& songId, int part, const std::string& fingerprint){
+    return (std::filesystem::path(recordsDir) / (songId + "-part" + std::to_string(part + 1) + "-" + fingerprint + ".txt")).string();
 }
 
 int addRun(std::vector<RunRecord>& records, const RunRecord& run){

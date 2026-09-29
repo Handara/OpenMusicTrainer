@@ -46,6 +46,9 @@ const int KEPT_RUNS = 20;
 // 0 for a new best, -1 if it didn't make the list.
 int addRun(std::vector<RunRecord>& records, const RunRecord& run);
 
+// Where a part's records are kept: <recordsDir>/<song id>-part<n>-<fingerprint>.txt
+std::string recordsPath(const std::string& recordsDir, const std::string& songId, int part, const std::string& fingerprint);
+
 // Records files load leniently, like the progress files: they're the player's own
 std::vector<RunRecord> loadRuns(const std::string& path);
 bool saveRuns(const std::string& path, const std::vector<RunRecord>& records, std::string& error);

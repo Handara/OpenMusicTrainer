@@ -1,18 +1,28 @@
 #pragma once
 
 #include "core/chart.h"
+#include "core/ranking.h"
 #include "core/settings.h"
 
 #include <string>
 
 struct GameResult {
     std::string title;
+    std::string partName;
     int score;
     int maxCombo;
     int perfectCount;
     int nearCount;
     int missCount;
     int totalNotes;
+    float accuracy;          // osu!'s way (core/ranking)
+    TimingStats timing;      // the average error and the unstable rate
+    bool withInstrument;
+    std::string fingerprint; // of the part played: its records are kept under it
+    // Filled in once the run is recorded: where it placed among the part's runs (0 = a new best, -1 = not kept),
+    // and the part's best runs to show beside it
+    int place = -1;
+    std::vector<RunRecord> records;
 };
 
 struct GameplayOptions {

@@ -109,6 +109,7 @@ static struct {
     float songTime = 0.0f;
     int lastPlayedPitch = -1; // the latest note heard from the instrument, shown so the player can trust the input
     float hitLineX = 180.0f;  // where the views put the hit line, for the judgements drawn at it
+    std::string fingerprint;  // of the part being played
     bool active = false;
 } game;
 
@@ -132,6 +133,7 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
         return false;
     }
     // Only the part being played is kept: everything below works on the chart's first track
+    game.fingerprint = partFingerprint(chart, options.part); // of the whole part, before anything is left out
     game.chart = chart;
     game.chart.frettedTracks = { chart.frettedTracks[options.part] };
     // Starting part-way: the notes before are left out, so the score (the sheet music) is built without them too
@@ -256,12 +258,18 @@ void stopGameplay(){
 
 GameResult gameplayResult(){
     GameResult result;
+    const GameState& state = game.state;
     result.title = game.chart.title;
-    result.score = game.state.score;
-    result.maxCombo = game.state.maxCombo;
-    result.perfectCount = game.state.perfectCount;
-    result.nearCount = game.state.nearCount;
-    result.missCount = game.state.missCount;
+    result.partName = game.chart.frettedTracks.empty() ? "" : game.chart.frettedTracks[0].name;
+    result.score = state.score;
+    result.maxCombo = state.maxCombo;
+    result.perfectCount = state.perfectCount;
+    result.nearCount = state.nearCount;
+    result.missCount = state.missCount;
     result.totalNotes = (int)game.notes.size();
+    result.accuracy = runAccuracy(state.perfectCount, state.nearCount, state.missCount);
+    result.timing = timingStats(state.errorsMs);
+    result.withInstrument = game.options.playWithInstrument;
+    result.fingerprint = game.fingerprint;
     return result;
 }

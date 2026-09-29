@@ -6,6 +6,8 @@
 #include "ui/theme.h"
 #include "ui/ui.h"
 
+#include <cmath>
+
 // Immediate mode: these functions run every frame, drawing the widgets and reacting to clicks in the same call.
 
 // The list screens' area: under the title, down to the hints, and the width of the left part of the screen
@@ -112,47 +114,89 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
     return choice;
 }
 
+static UiColor gradeColor(Grade grade){
+    switch (grade){
+        case Grade::SS: case Grade::S: return UiColor::Accent; // brass: the best there is
+        case Grade::A:                 return UiColor::Good;
+        case Grade::D:                 return UiColor::Bad;
+        default:                       return UiColor::Ink;
+    }
+}
+
 ResultsChoice resultsScreen(const GameResult& result){
     static MenuList list;
     static const std::vector<MenuRow> rows = { actionRow("Retry"), actionRow("Back to songs", "Esc") };
     ResultsChoice choice = ResultsChoice::None;
-    int hits = result.perfectCount + result.nearCount;
-    float accuracy = result.totalNotes > 0 ? 100.0f * hits / result.totalNotes : 0.0f;
+    Grade grade = gradeFor(result.accuracy, result.missCount);
 
     beginMenu("Results");
     float s = menuScale(), width = ImGui::GetWindowWidth(), height = ImGui::GetWindowHeight();
-    menuScreenTitle(result.title.c_str(), s);
+    std::string title = result.title + (result.partName.empty() ? "" : "  ·  " + result.partName);
+    menuScreenTitle(title.c_str(), s);
     if (ImGui::IsWindowAppearing()) list.selected = 0; // Retry first, every time
 
-    // The numbers, on a card like the main menu's
     ImDrawList* draw = ImGui::GetWindowDrawList();
     const UiFonts& fonts = uiFonts();
-    ImVec2 card(width * 0.58f, height * 0.25f);
-    float cardWidth = width * 0.35f, pad = 26 * s;
-    float cardHeight = pad * 2 + 3 * (13 * s + 8 * s) + 2 * 46 * s + 26 * s + 2 * 18 * s;
+    auto textWidth = [](ImFont* font, float size, const char* text){ return font ? font->CalcTextSizeA(size, FLT_MAX, 0.0f, text).x : size * 3; };
+
+    // The run, on a card: the grade big, the accuracy by it, then the score, the combo and the timing
+    ImVec2 card(width * 0.55f, height * 0.25f);
+    float cardWidth = width * 0.38f, pad = 26 * s, inner = cardWidth - 2 * pad;
+    float cardHeight = pad * 2 + 110 * s + 3 * (13 * s + 8 * s + 30 * s + 14 * s) + 22 * s;
     draw->AddRectFilled(ImVec2(card.x, card.y + 3 * s), ImVec2(card.x + cardWidth, card.y + cardHeight + 3 * s), uiColor(UiColor::Ink, 0.04f), 10 * s);
     draw->AddRectFilled(card, ImVec2(card.x + cardWidth, card.y + cardHeight), uiColor(UiColor::Card), 10 * s);
     float x = card.x + pad, y = card.y + pad;
-    auto label = [&](const char* text){
-        draw->AddText(fonts.mono, 13 * s, ImVec2(x, y), uiColor(UiColor::Dim), text);
+    const char* gradeText = gradeName(grade);
+    draw->AddText(fonts.heavy, 100 * s, ImVec2(x - 4 * s, y - 14 * s), uiColor(gradeColor(grade)), gradeText);
+    float right = x + textWidth(fonts.heavy, 100 * s, gradeText) + 24 * s;
+    draw->AddText(fonts.heavy, 46 * s, ImVec2(right, y + 4 * s), uiColor(UiColor::Ink), TextFormat("%.2f%%", result.accuracy));
+    const char* standing = result.place == 0 ? "NEW BEST" : (result.place > 0 ? TextFormat("YOUR #%d RUN", result.place + 1) : "");
+    draw->AddText(fonts.mono, 14 * s, ImVec2(right, y + 60 * s), uiColor(result.place == 0 ? UiColor::Accent : UiColor::Dim), standing);
+    y += 110 * s;
+    auto row = [&](const char* label, const std::string& value, UiColor color, const std::string& detail){
+        draw->AddText(fonts.mono, 13 * s, ImVec2(x, y), uiColor(UiColor::Dim), label);
         y += 13 * s + 8 * s;
+        draw->AddText(fonts.heavy, 30 * s, ImVec2(x, y), uiColor(color), value.c_str());
+        if (!detail.empty()){
+            float valueWidth = textWidth(fonts.heavy, 30 * s, value.c_str());
+            draw->AddText(fonts.text, 17 * s, ImVec2(x + valueWidth + 12 * s, y + 9 * s), uiColor(UiColor::Dim), detail.c_str(), nullptr, inner);
+        }
+        y += 30 * s + 14 * s;
     };
-    label("ACCURACY");
-    draw->AddText(fonts.heavy, 46 * s, ImVec2(x, y), uiColor(UiColor::Ink), TextFormat("%.1f%%", accuracy));
-    y += 46 * s + 13 * s;
-    label("SCORE");
-    draw->AddText(fonts.heavy, 46 * s, ImVec2(x, y), uiColor(UiColor::Ink), TextFormat("%d", result.score));
-    y += 46 * s + 13 * s;
-    label("NOTES");
-    draw->AddText(fonts.text, 18 * s, ImVec2(x, y), uiColor(UiColor::Ink),
-                  TextFormat("%d of %d hit  ·  best combo %d", hits, result.totalNotes, result.maxCombo));
-    y += 18 * s + 6 * s;
-    draw->AddText(fonts.text, 18 * s, ImVec2(x, y), uiColor(UiColor::Dim),
-                  TextFormat("Perfect %d  ·  Good %d  ·  Miss %d", result.perfectCount, result.nearCount, result.missCount));
+    row("SCORE", TextFormat("%d", result.score), UiColor::Ink, "");
+    bool fullCombo = result.missCount == 0 && result.totalNotes > 0;
+    row("BEST COMBO", TextFormat("%d", result.maxCombo), fullCombo ? UiColor::Accent : UiColor::Ink,
+        fullCombo ? "FULL COMBO" : TextFormat("of %d notes", result.totalNotes));
+    const TimingStats& timing = result.timing;
+    std::string lean = std::fabs(timing.meanMs) < 1.0f ? "right on average"
+                     : TextFormat("%.0f ms %s on average", std::fabs(timing.meanMs), timing.meanMs > 0 ? "early" : "late");
+    row("TIMING", TextFormat("%.0f UR", timing.unstableRate), UiColor::Ink, lean);
+    draw->AddText(fonts.text, 17 * s, ImVec2(x, y), uiColor(UiColor::Dim),
+                  TextFormat("Perfect %d  ·  Good %d  ·  Miss %d%s", result.perfectCount, result.nearCount, result.missCount,
+                             result.withInstrument ? "" : "  ·  keyboard"));
 
-    int confirmed = menuList(list, rows, listArea(0.45f));
+    // Retry and Back, and under them the part's best runs, this one highlighted
+    float left = width * 0.07f, listTop = height * 0.25f;
+    int confirmed = menuList(list, rows, {ImVec2(left, listTop), width * 0.4f, 2 * 48 * s, s});
     if (confirmed == 0) choice = ResultsChoice::Retry;
     if (confirmed == 1) choice = ResultsChoice::BackToSongs;
+    if (!result.records.empty()){
+        float boardY = listTop + 2 * 48 * s + 36 * s;
+        draw->AddText(fonts.mono, 13 * s, ImVec2(left, boardY), uiColor(UiColor::Dim), "YOUR BEST RUNS");
+        boardY += 13 * s + 12 * s;
+        for (int i = 0; i < (int)result.records.size() && i < 6; i++){
+            const RunRecord& run = result.records[i];
+            bool thisRun = i == result.place;
+            ImU32 ink = uiColor(thisRun ? UiColor::Accent : UiColor::Ink), dim = uiColor(thisRun ? UiColor::Accent : UiColor::Dim);
+            draw->AddText(fonts.mono, 15 * s, ImVec2(left, boardY + 3 * s), dim, TextFormat("%d", i + 1));
+            draw->AddText(fonts.heavy, 20 * s, ImVec2(left + 30 * s, boardY), uiColor(thisRun ? UiColor::Accent : gradeColor(run.grade())), gradeName(run.grade()));
+            draw->AddText(fonts.bold, 20 * s, ImVec2(left + 72 * s, boardY), ink, TextFormat("%d", run.score));
+            draw->AddText(fonts.text, 17 * s, ImVec2(left + 180 * s, boardY + 2 * s), dim,
+                          TextFormat("%.2f%%  ·  %s%s  ·  %s", run.accuracy, run.fullCombo() ? "FC" : TextFormat("%dx", run.maxCombo),
+                                     run.withInstrument ? "" : "  ·  keys", run.date.c_str()));
+            boardY += 30 * s;
+        }
+    }
     menuScreenHint("Enter  choose    Esc  back to songs", s);
     ImGui::End();
     return choice;
