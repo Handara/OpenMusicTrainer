@@ -126,10 +126,14 @@ static void leaveCalibration(){
     app.screen = Screen::Settings;
 }
 
-static void leaveSettings(){
-    closeSettingsScreen();
+static void saveAppSettings(){
     std::string error;
     if (!saveSettings(app.settingsPath, app.settings, error)) TraceLog(LOG_WARNING, "Settings: %s", error.c_str());
+}
+
+static void leaveSettings(){
+    closeSettingsScreen();
+    saveAppSettings();
     app.screen = Screen::MainMenu;
 }
 
@@ -297,7 +301,9 @@ static void runMenus(){
             break;
         case Screen::SongSelect: {
             installDroppedPackages();
-            SongSelectChoice choice = songSelectScreen("Select a song", app.songs, app.songSelectError, app.songSelectNotice, false);
+            SongSelectChoice choice = songSelectScreen("Select a song", app.songs, app.songSelectError, app.songSelectNotice, false,
+                                                       &app.settings.playWithInstrument);
+            if (choice.withInstrumentChanged) saveAppSettings();
             if (choice.back) app.screen = Screen::MainMenu;
             else if (choice.openDataFolder) openDataFolder();
             else if (choice.songIndex >= 0) startSong(app.songs[choice.songIndex], choice.part, choice.rhythmMode);
