@@ -126,6 +126,7 @@ add_library(lahn_core STATIC
     src/core/paths.cpp
     src/core/pianokeys.cpp
     src/core/pitch.cpp
+    src/core/positions.cpp
     src/core/quiz.cpp
     src/core/ranking.cpp
     src/core/reading.cpp
@@ -226,6 +227,7 @@ if(BUILD_TESTING)
         tests/notedetector_test.cpp
         tests/pianokeys_test.cpp
         tests/pitch_test.cpp
+        tests/positions_test.cpp
         tests/ranking_test.cpp
         tests/reading_test.cpp
         tests/rhythm_test.cpp

@@ -1,0 +1,21 @@
+#pragma once
+
+#include <vector>
+
+// Where a note is played on a fretted instrument. The same pitch usually lives in several places (the E above
+// middle C: the open high E, the B string's 5th fret, the G's 9th, the D's 14th), and the pitch alone can't say
+// which was used. Where the hand is can: players rarely leap across the neck, so the likeliest place is the one
+// nearest the last note's.
+
+struct StringFret {
+    int string; // 0 = lowest
+    int fret;
+    bool operator==(const StringFret& other) const { return string == other.string && fret == other.fret; }
+};
+
+// Every place the pitch is found, frets 0 to maxFret, lowest string first
+std::vector<StringFret> positionsOf(int pitch, const std::vector<int>& tuning, int maxFret);
+
+// The likeliest of those places: the nearest to where the hand last was (by fret, then by string), or with no last
+// place (string -1), the lowest fret. Nothing to choose from gives {-1, -1}.
+StringFret likeliestPosition(const std::vector<StringFret>& places, StringFret last);
