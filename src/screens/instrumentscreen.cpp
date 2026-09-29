@@ -37,6 +37,8 @@ struct PlayedPlace {
     double at; // GetTime seconds
 };
 
+// Its name is used by no other file: Visual Studio names an unnamed struct after its variable, and two files'
+// structs named alike would share one constructor (the Settings screen's crashed on Windows when this was `screen`)
 static struct {
     Settings settings;
     Instrument instrument = Instrument::Guitar; // kept between visits
@@ -51,42 +53,42 @@ static struct {
     double releasedAt[128] = {};
     bool wasDown[128] = {};
     std::string shownName, shownNotes; // the chord or notes held; kept after letting go, until the next press
-} screen;
+} instrumentView;
 
-static const std::vector<int>& tuning(){ return screen.instrument == Instrument::Bass ? BASS_TUNING : GUITAR_TUNING; }
-static int frets(){ return screen.instrument == Instrument::Bass ? BASS_FRETS : GUITAR_FRETS; }
+static const std::vector<int>& tuning(){ return instrumentView.instrument == Instrument::Bass ? BASS_TUNING : GUITAR_TUNING; }
+static int frets(){ return instrumentView.instrument == Instrument::Bass ? BASS_FRETS : GUITAR_FRETS; }
 
 static void stopListening(){
     stopNoteInput();
     stopMidiInput();
     stopPianoKeys();
-    screen.listening = false;
+    instrumentView.listening = false;
 }
 
 static void startListening(){
     stopListening();
-    screen.error.clear();
-    screen.played.clear();
-    screen.hand = {-1, -1};
-    screen.shownName.clear();
-    screen.shownNotes.clear();
-    std::fill(std::begin(screen.wasDown), std::end(screen.wasDown), false);
-    std::fill(std::begin(screen.releasedAt), std::end(screen.releasedAt), -100.0);
-    std::fill(std::begin(screen.pressedAt), std::end(screen.pressedAt), -100.0);
-    if (screen.instrument == Instrument::Piano){
+    instrumentView.error.clear();
+    instrumentView.played.clear();
+    instrumentView.hand = {-1, -1};
+    instrumentView.shownName.clear();
+    instrumentView.shownNotes.clear();
+    std::fill(std::begin(instrumentView.wasDown), std::end(instrumentView.wasDown), false);
+    std::fill(std::begin(instrumentView.releasedAt), std::end(instrumentView.releasedAt), -100.0);
+    std::fill(std::begin(instrumentView.pressedAt), std::end(instrumentView.pressedAt), -100.0);
+    if (instrumentView.instrument == Instrument::Piano){
         std::string midiError;
-        startMidiInput(screen.settings.midiDevice, midiError); // without a MIDI keyboard, the computer keys still play
-        startPianoKeys(screen.settings.pianoKeys, 48);
-        screen.listening = true;
+        startMidiInput(instrumentView.settings.midiDevice, midiError); // without a MIDI keyboard, the computer keys still play
+        startPianoKeys(instrumentView.settings.pianoKeys, 48);
+        instrumentView.listening = true;
         return;
     }
-    InputRole role = screen.instrument == Instrument::Bass ? InputRole::Bass : InputRole::Guitar;
+    InputRole role = instrumentView.instrument == Instrument::Bass ? InputRole::Bass : InputRole::Guitar;
     float lowest = midiToFrequency((float)tuning().front()) * 0.9f;
-    screen.listening = startNoteInput(screen.settings.inputDevice, lowest, screen.error, channelFor(screen.settings, role));
+    instrumentView.listening = startNoteInput(instrumentView.settings.inputDevice, lowest, instrumentView.error, channelFor(instrumentView.settings, role));
 }
 
 void openInstrumentScreen(const Settings& settings){
-    screen.settings = settings;
+    instrumentView.settings = settings;
     startListening();
 }
 
@@ -112,10 +114,10 @@ static void drawInstrumentSwitch(float s){
     ImDrawList* draw = ImGui::GetWindowDrawList();
     const UiFonts& fonts = uiFonts();
     float x = ImGui::GetWindowWidth() * 0.55f, y = ImGui::GetWindowHeight() * 0.09f + 14 * s;
-    Instrument chosen = screen.instrument;
+    Instrument chosen = instrumentView.instrument;
     for (int i = 0; i < 3; i++){
         const char* name = INSTRUMENT_NAMES[i];
-        bool on = (int)screen.instrument == i;
+        bool on = (int)instrumentView.instrument == i;
         ImVec2 size = fonts.bold ? fonts.bold->CalcTextSizeA(20 * s, FLT_MAX, 0.0f, name) : ImVec2(60 * s, 20 * s);
         draw->AddText(fonts.bold, 20 * s, ImVec2(x, y), uiColor(on ? UiColor::Ink : UiColor::Dim), name);
         if (on) draw->AddRectFilled(ImVec2(x, y + size.y + 3 * s), ImVec2(x + size.x, y + size.y + 5 * s), uiColor(UiColor::Accent));
@@ -125,9 +127,9 @@ static void drawInstrumentSwitch(float s){
         }
         x += size.x + 22 * s;
     }
-    if (ImGui::IsKeyPressed(ImGuiKey_Tab)) chosen = (Instrument)(((int)screen.instrument + 1) % 3);
-    if (chosen != screen.instrument){
-        screen.instrument = chosen;
+    if (ImGui::IsKeyPressed(ImGuiKey_Tab)) chosen = (Instrument)(((int)instrumentView.instrument + 1) % 3);
+    if (chosen != instrumentView.instrument){
+        instrumentView.instrument = chosen;
         startListening();
     }
 }
@@ -151,9 +153,9 @@ static void drawListening(float right, float y, float s, const std::string& what
     auto widthOf = [&](ImFont* font, float size, const std::string& text){
         return font ? font->CalcTextSizeA(size, FLT_MAX, 0.0f, text.c_str()).x : text.size() * size * 0.6f;
     };
-    if (!screen.error.empty()){
+    if (!instrumentView.error.empty()){
         std::string hint = "Choose the input in Settings, Instruments";
-        draw->AddText(fonts.text, 16 * s, ImVec2(right - widthOf(fonts.text, 16 * s, screen.error), y - 24 * s), uiColor(UiColor::Bad), screen.error.c_str());
+        draw->AddText(fonts.text, 16 * s, ImVec2(right - widthOf(fonts.text, 16 * s, instrumentView.error), y - 24 * s), uiColor(UiColor::Bad), instrumentView.error.c_str());
         draw->AddText(fonts.mono, 14 * s, ImVec2(right - widthOf(fonts.mono, 14 * s, hint), y), uiColor(UiColor::Dim), hint.c_str());
         return;
     }
@@ -171,21 +173,21 @@ static void drawListening(float right, float y, float s, const std::string& what
 
 static void frettedScreen(float width, float height, float s){
     for (const PlayedNote& note : updateNoteInput()){
-        StringFret place = likeliestPosition(positionsOf(note.pitch, tuning(), frets()), screen.hand);
+        StringFret place = likeliestPosition(positionsOf(note.pitch, tuning(), frets()), instrumentView.hand);
         if (place.string < 0) continue; // off this neck: lower than its lowest string, or past its last fret
-        screen.hand = place;
-        screen.cents = note.cents;
-        screen.played.push_front({note.pitch, place, GetTime()});
-        if ((int)screen.played.size() > TRAIL + 1) screen.played.pop_back();
+        instrumentView.hand = place;
+        instrumentView.cents = note.cents;
+        instrumentView.played.push_front({note.pitch, place, GetTime()});
+        if ((int)instrumentView.played.size() > TRAIL + 1) instrumentView.played.pop_back();
     }
     ImDrawList* draw = ImGui::GetWindowDrawList();
     const double now = GetTime();
     const float left = width * 0.1f;
-    const PlayedPlace* newest = screen.played.empty() ? nullptr : &screen.played.front();
+    const PlayedPlace* newest = instrumentView.played.empty() ? nullptr : &instrumentView.played.front();
 
     if (newest){
         std::string where = stringName(newest->place.string) + " string, " + (newest->place.fret == 0 ? std::string("open") : "fret " + std::to_string(newest->place.fret));
-        int cents = (int)std::lround(screen.cents);
+        int cents = (int)std::lround(instrumentView.cents);
         bool inTune = std::abs(cents) <= 5;
         std::string tune = inTune ? "IN TUNE" : TextFormat("%d CENTS %s", std::abs(cents), cents > 0 ? "SHARP" : "FLAT");
         drawHeading(ImVec2(left, height * 0.2f), s, noteName(newest->pitch), true, where, tune, inTune ? UiColor::Good : UiColor::Dim);
@@ -196,8 +198,8 @@ static void frettedScreen(float width, float height, float s){
     FretboardLayout board = fretboardLayout(left, height * 0.43f, width * 0.82f, s, (int)tuning().size(), 0, frets());
     drawFretboard(board, tuning());
     // The notes before, oldest first so newer ones sit on top: a scale shows its shape
-    for (int i = (int)screen.played.size() - 1; i >= 1; i--){
-        const PlayedPlace& note = screen.played[i];
+    for (int i = (int)instrumentView.played.size() - 1; i >= 1; i--){
+        const PlayedPlace& note = instrumentView.played[i];
         float fade = 1.0f - (float)i / (TRAIL + 1);
         drawFretDot(board, note.place.string, note.place.fret, 9 * s, uiColor(UiColor::Accent, 0.12f + 0.4f * fade), 0, nullptr);
     }
@@ -235,10 +237,10 @@ static void frettedScreen(float width, float height, float s){
     const char* explain = "The bright one: where it was most likely played, near your last note. Rings: the same note elsewhere.";
     draw->AddText(fonts.text, 15 * s, ImVec2(left, board.top + board.height + 34 * s), uiColor(UiColor::Dim), explain);
 
-    InputRole role = screen.instrument == Instrument::Bass ? InputRole::Bass : InputRole::Guitar;
-    int channel = channelFor(screen.settings, role);
-    std::string device = screen.settings.inputDevice.empty() ? "default input" : screen.settings.inputDevice;
-    drawListening(width * 0.93f, height - 40 * s, s, device + (channel < 0 ? "  ·  all inputs" : "  ·  input " + std::to_string(channel + 1)), screen.listening);
+    InputRole role = instrumentView.instrument == Instrument::Bass ? InputRole::Bass : InputRole::Guitar;
+    int channel = channelFor(instrumentView.settings, role);
+    std::string device = instrumentView.settings.inputDevice.empty() ? "default input" : instrumentView.settings.inputDevice;
+    drawListening(width * 0.93f, height - 40 * s, s, device + (channel < 0 ? "  ·  all inputs" : "  ·  input " + std::to_string(channel + 1)), instrumentView.listening);
 }
 
 static ImU32 mix(ImU32 from, ImU32 to, float t){
@@ -251,7 +253,7 @@ static void pianoScreen(float width, float height, float s){
     auto pressed = [&](const std::vector<PlayedNote>& notes){
         for (const PlayedNote& note : notes){
             playKeysNote(midiToFrequency((float)note.pitch));
-            screen.pressedAt[note.pitch] = now;
+            instrumentView.pressedAt[note.pitch] = now;
         }
     };
     if (midiInputActive()) pressed(updateMidiInput());
@@ -263,9 +265,9 @@ static void pianoScreen(float width, float height, float s){
     std::vector<int> held;
     for (int pitch = 0; pitch < 128; pitch++){
         down[pitch] = (midi && midi[pitch]) || (keys && keys[pitch]);
-        if (screen.wasDown[pitch] && !down[pitch]) screen.releasedAt[pitch] = now;
-        if (down[pitch] && !screen.wasDown[pitch]) anyPressed = true;
-        screen.wasDown[pitch] = down[pitch];
+        if (instrumentView.wasDown[pitch] && !down[pitch]) instrumentView.releasedAt[pitch] = now;
+        if (down[pitch] && !instrumentView.wasDown[pitch]) anyPressed = true;
+        instrumentView.wasDown[pitch] = down[pitch];
         if (down[pitch]) held.push_back(pitch);
     }
     // Named when a key goes down, not when one comes up: a chord let go of a note at a time stays named
@@ -273,13 +275,13 @@ static void pianoScreen(float width, float height, float s){
         std::string notes;
         for (int pitch : held) notes += (notes.empty() ? "" : " ") + noteName(pitch);
         std::string chord = nameChord(held);
-        screen.shownName = chord.empty() ? notes : chord;
-        screen.shownNotes = chord.empty() ? "" : notes;
+        instrumentView.shownName = chord.empty() ? notes : chord;
+        instrumentView.shownNotes = chord.empty() ? "" : notes;
     }
 
     const float left = width * 0.1f;
-    if (screen.shownName.empty()) drawHeading(ImVec2(left, height * 0.2f), s, "Play a note", false, "", "", UiColor::Dim);
-    else drawHeading(ImVec2(left, height * 0.2f), s, screen.shownName, !held.empty(), screen.shownNotes, "", UiColor::Dim);
+    if (instrumentView.shownName.empty()) drawHeading(ImVec2(left, height * 0.2f), s, "Play a note", false, "", "", UiColor::Dim);
+    else drawHeading(ImVec2(left, height * 0.2f), s, instrumentView.shownName, !held.empty(), instrumentView.shownNotes, "", UiColor::Dim);
 
     // The keyboard, centered
     ImDrawList* draw = ImGui::GetWindowDrawList();
@@ -289,7 +291,7 @@ static void pianoScreen(float width, float height, float s){
     const ImVec2 origin(std::round((width - whiteWidth * whites) / 2), std::round(height * 0.45f));
     // A key just pressed sends a glow up, fading as it rises
     for (int key = 0; key < PIANO_KEYS; key++){
-        float t = (float)(now - screen.pressedAt[PIANO_LOW + key]);
+        float t = (float)(now - instrumentView.pressedAt[PIANO_LOW + key]);
         if (t >= GLOW_S) continue;
         float u = t / GLOW_S;
         ImVec4 r = pianoKeyRect(origin, whiteWidth, keyHeight, key);
@@ -300,7 +302,7 @@ static void pianoScreen(float width, float height, float s){
     drawPianoKeys(origin, whiteWidth, keyHeight, PIANO_KEYS, [&](int key, bool){
         int pitch = PIANO_LOW + key;
         PianoKeyStyle look;
-        float light = down[pitch] ? 1.0f : std::max(0.0f, 1.0f - (float)(now - screen.releasedAt[pitch]) / KEY_FADE_S);
+        float light = down[pitch] ? 1.0f : std::max(0.0f, 1.0f - (float)(now - instrumentView.releasedAt[pitch]) / KEY_FADE_S);
         if (light > 0.0f) look.fill = mix(pianoKeyColor(key), uiColor(UiColor::Accent), light);
         if (keys) look.label = pianoKeyFor(pitch);
         if (!pianoKeyIsBlack(key) && light < 0.5f) look.ink = uiColor(UiColor::Ink); // what reads on white
@@ -323,7 +325,7 @@ void instrumentScreen(){
     const float s = menuScale(), width = ImGui::GetWindowWidth(), height = ImGui::GetWindowHeight();
     menuScreenTitle("Instrument", s);
     drawInstrumentSwitch(s);
-    if (screen.instrument == Instrument::Piano){
+    if (instrumentView.instrument == Instrument::Piano){
         pianoScreen(width, height, s);
         menuScreenHint("Tab  instrument    Up Down  octave of the computer keys    Esc  back", s);
     } else {
