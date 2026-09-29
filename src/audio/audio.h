@@ -15,6 +15,7 @@ std::vector<std::string> outputDeviceNames(); // asks the system: too slow to ca
 std::vector<std::string> inputDeviceNames(); // Windows' own inputs, then the ASIO drivers, as "ASIO: <driver>"
 bool setOutputDevice(const std::string& outputDevice, std::string& error); // restarts output: stops any song
 const char* outputDeviceName(); // the device actually in use
+double outputLatencySeconds();  // the output's buffering: how late sound leaves, at the least (the global offset covers it)
 void setMasterVolume(float volume); // 0..1
 
 // One song at a time, streamed from disk. The song's playback position is the game's master clock.

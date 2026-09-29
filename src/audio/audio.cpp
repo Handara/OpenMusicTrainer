@@ -230,6 +230,12 @@ const char* outputDeviceName(){
     return audio.engineReady ? ma_engine_get_device(&audio.engine)->playback.name : "none";
 }
 
+double outputLatencySeconds(){
+    if (!audio.engineReady) return 0.0;
+    const ma_device* device = ma_engine_get_device(&audio.engine);
+    return (double)device->playback.internalPeriodSizeInFrames * device->playback.internalPeriods / std::max<ma_uint32>(1, device->playback.internalSampleRate);
+}
+
 void setMasterVolume(float volume){
     if (audio.engineReady) ma_engine_set_volume(&audio.engine, volume);
 }

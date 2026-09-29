@@ -13,6 +13,7 @@
 #include "ui/theme.h"
 
 #include <algorithm>
+#include <cstdarg>
 #include <cctype>
 #include <cmath>
 #include <cstring>
@@ -59,6 +60,18 @@ static struct {
 void applyDisplaySettings(const Settings& settings){
     if (settings.fullscreen != IsWindowState(FLAG_BORDERLESS_WINDOWED_MODE)) ToggleBorderlessWindowed();
     SetTargetFPS(settings.frameRateLimit);
+}
+
+// A dim line of explanation that wraps inside the panel instead of running off its edge
+static void hint(const char* format, ...){
+    va_list args;
+    va_start(args, format);
+    ImGui::PushTextWrapPos(0.0f);
+    ImGui::PushStyleColor(ImGuiCol_Text, uiColorVec(UiColor::Dim));
+    ImGui::TextWrappedV(format, args);
+    ImGui::PopStyleColor();
+    ImGui::PopTextWrapPos();
+    va_end(args);
 }
 
 void openSettingsScreen(const std::string& soundsDir){
@@ -336,7 +349,7 @@ static void instrumentsTab(Settings& settings){
 #ifdef _WIN32
     if (screen.listening && captureIsAsio()){
         // ASIO: straight to the interface. Its buffer size is the latency to play with, in the driver's own window.
-        ImGui::TextDisabled("ASIO, straight to the interface: %.1f ms of input latency.", captureLatencySeconds() * 1000.0);
+        hint("ASIO, straight to the interface: %.1f ms of input latency.", captureLatencySeconds() * 1000.0);
         if (ImGui::Button("Driver settings")) openInputDriverSettings();
         ImGui::SameLine();
         ImGui::TextDisabled("A smaller buffer is faster; too small and the sound crackles.");
@@ -350,15 +363,21 @@ static void instrumentsTab(Settings& settings){
             const char* how = captureIsExclusive() ? "Windows' effects are skipped; other programs can't use this input meanwhile."
                             : settings.exclusiveInput ? "Another program has this input, so it's shared: Windows' effects may cut your instrument."
                             : "Shared: Windows' effects (noise suppression) may cut your instrument.";
-            ImGui::PushTextWrapPos(0.0f);
-            ImGui::TextDisabled("%s %.0f ms of input latency.", how, captureLatencySeconds() * 1000.0);
-            ImGui::PopTextWrapPos();
+            hint("%s %.0f ms of input latency.", how, captureLatencySeconds() * 1000.0);
         }
     }
 #endif
     if (!screen.listening){
         ImGui::TextColored(uiColorVec(UiColor::Bad), "Can't listen: %s", screen.listenError.c_str());
         return;
+    }
+    // From a pluck to the screen: the input's buffering, the attack found (one 2.7 ms step), one frame. A note's
+    // name takes longer: two periods of the lowest note that can come (core/notedetector), less in a song.
+    {
+        double inputMs = captureLatencySeconds() * 1000.0, frameMs = GetFrameTime() * 1000.0;
+        hint("From your pluck to the screen: about %.0f ms (input %.0f, finding the attack 3, one frame %.0f). Naming the note "
+             "takes 10 to 60 ms more, the lowest notes longest. Timing is judged from the pluck itself.",
+             inputMs + 3.0 + frameMs, inputMs, frameMs);
     }
     ImDrawList* draw = ImGui::GetWindowDrawList();
     for (int c = 0; c < (int)screen.inputs.size(); c++){
@@ -455,6 +474,8 @@ static void gameplayTab(Settings& settings, SettingsChoice& choice){
     ImGui::TextDisabled("Faster notes are spread further apart. Timing is judged the same at any speed.");
 
     ImGui::SeparatorText("Latency");
+    hint("Sound leaves lahn %.0f ms after it's made, on %s; the global offset covers that and the rest.",
+         outputLatencySeconds() * 1000.0, outputDeviceName());
     ImGui::SliderInt("Global offset", &settings.globalOffsetMs, -500, 500, "%d ms");
     if (ImGui::Button("Calibrate by tapping")) choice = SettingsChoice::CalibrateTapping;
     ImGui::SameLine();
