@@ -115,6 +115,7 @@ add_library(lahn_core STATIC
     src/core/exercisefile.cpp
     src/core/files.cpp
     src/core/fretboard.cpp
+    src/core/inputs.cpp
     src/core/intervals.cpp
     src/core/judge.cpp
     src/core/lesson.cpp
@@ -215,6 +216,7 @@ if(BUILD_TESTING)
         tests/drill_test.cpp
         tests/exercisefile_test.cpp
         tests/fretboard_test.cpp
+        tests/inputs_test.cpp
         tests/intervals_test.cpp
         tests/judge_test.cpp
         tests/lesson_test.cpp

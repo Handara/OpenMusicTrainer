@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/inputs.h"
 #include "core/pianokeys.h"
 
 #include <string>
@@ -24,6 +25,11 @@ struct Settings {
     // Audio
     std::string outputDevice;          // device name as the system reports it; empty = system default
     std::string inputDevice;
+    // Which of the input device's inputs each instrument is plugged into (from 0); -1 = all of them mixed, for a
+    // device with one input
+    int guitarChannel = -1;
+    int bassChannel = -1;
+    int voiceChannel = -1;
     std::string midiDevice;            // a MIDI keyboard or controller, by name; empty = the first one connected
     float masterVolume = 1.0f;         // 0..1
     float previewVolume = 0.6f;        // sounds the game makes itself (editor note previews, later ear training)
@@ -48,5 +54,8 @@ struct Settings {
 // Unlike charts, settings load leniently: they're the player's own file, and a typo or a line from a newer
 // version must not throw away everything else. Problems are listed in `warnings`, and the rest still loads.
 // A missing file isn't a problem at all: it just means default settings.
+// The channel an instrument listens to
+int channelFor(const Settings& settings, InputRole role);
+
 Settings loadSettings(const std::string& path, std::vector<std::string>& warnings);
 bool saveSettings(const std::string& path, const Settings& settings, std::string& error);

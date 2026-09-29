@@ -58,6 +58,16 @@ Settings loadSettings(const std::string& path, std::vector<std::string>& warning
         else if (key == "output_device") settings.outputDevice = value;
         else if (key == "input_device") settings.inputDevice = value;
         else if (key == "midi_device") settings.midiDevice = value;
+        else if (key == "guitar_input" || key == "bass_input" || key == "voice_input"){
+            // "all", or an input's number from 1, as the interface prints it
+            int& channel = key == "guitar_input" ? settings.guitarChannel : key == "bass_input" ? settings.bassChannel : settings.voiceChannel;
+            int input = channel + 1;
+            if (value == "all") channel = -1;
+            else {
+                number(input, 1, 64);
+                channel = input - 1; // unchanged if it didn't read as a number
+            }
+        }
         else if (key == "piano_keys"){
             std::istringstream names(value);
             std::vector<std::string> keys;
@@ -100,6 +110,10 @@ bool saveSettings(const std::string& path, const Settings& settings, std::string
     out << "output_device " << settings.outputDevice << "\n";
     out << "input_device " << settings.inputDevice << "\n";
     out << "midi_device " << settings.midiDevice << "\n";
+    auto input = [](int channel){ return channel < 0 ? std::string("all") : std::to_string(channel + 1); };
+    out << "guitar_input " << input(settings.guitarChannel) << "\n";
+    out << "bass_input " << input(settings.bassChannel) << "\n";
+    out << "voice_input " << input(settings.voiceChannel) << "\n";
     out << "master_volume " << settings.masterVolume << "\n";
     out << "preview_volume " << settings.previewVolume << "\n";
     out << "preview_sound " << settings.previewSound << "\n\n";
@@ -121,4 +135,13 @@ bool saveSettings(const std::string& path, const Settings& settings, std::string
     out << "\n";
     out << "input_offset_ms " << settings.inputOffsetMs << "\n";
     return writeFileAtomically(path, out.str(), error);
+}
+
+int channelFor(const Settings& settings, InputRole role){
+    switch (role){
+        case InputRole::Guitar: return settings.guitarChannel;
+        case InputRole::Bass:   return settings.bassChannel;
+        case InputRole::Voice:  return settings.voiceChannel;
+    }
+    return -1;
 }

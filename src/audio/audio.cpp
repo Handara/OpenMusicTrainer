@@ -1,5 +1,6 @@
 #include "audio/audio.h"
 
+#include "core/inputs.h"
 #include "core/pitch.h"
 #include "core/settings.h"
 #include "core/synth.h"
@@ -71,6 +72,7 @@ static struct {
 
     ma_uint32 songSampleRate = 0;
     double songLengthS = 0.0;
+    ma_uint32 captureChannels = 1; // the input device's inputs, kept apart in the capture buffer
     ReaderSource readerSource; // the song's source when it comes from a function
     bool songFromReader = false;
     bool looping = false;
@@ -420,13 +422,14 @@ static void captureCallback(ma_device* device, void* output, const void* input, 
     (void)device;
     (void)output;
     const float* samples = (const float*)input;
+    const ma_uint32 channels = audio.captureChannels;
     ma_uint32 written = 0;
     while (written < frameCount){
         // The free space may wrap around the end of the ring, so it can come in two pieces: loop
         ma_uint32 chunk = frameCount - written;
         void* destination;
         if (ma_pcm_rb_acquire_write(&audio.captureBuffer, &chunk, &destination) != MA_SUCCESS || chunk == 0) break;
-        memcpy(destination, samples + written, chunk * sizeof(float));
+        memcpy(destination, samples + (size_t)written * channels, (size_t)chunk * channels * sizeof(float));
         ma_pcm_rb_commit_write(&audio.captureBuffer, chunk);
         written += chunk;
     }
@@ -440,24 +443,26 @@ bool startCapture(const std::string& inputDevice, std::string& error){
         return false;
     }
 
-    // miniaudio's ring buffer is lock-free for exactly one writer thread and one reader thread
-    ma_result result = ma_pcm_rb_init(ma_format_f32, 1, CAPTURE_BUFFER_FRAMES, nullptr, nullptr, &audio.captureBuffer);
-    if (result != MA_SUCCESS){
-        error = std::string("could not create capture buffer: ") + ma_result_description(result);
-        return false;
-    }
-
+    // Every input the device has, as its own channel: an audio interface's guitar and microphone stay apart
     ma_device_config config = ma_device_config_init(ma_device_type_capture);
     config.capture.format = ma_format_f32;
-    config.capture.channels = 1; // pitch detection needs one channel; miniaudio mixes stereo inputs down
+    config.capture.channels = 0; // the device's own channel count
     config.sampleRate = 0;       // the device's native rate, so nothing gets resampled
     config.dataCallback = captureCallback;
     ma_device_id id;
     if (findDevice(ma_device_type_capture, inputDevice, id)) config.capture.pDeviceID = &id; // not found: system default
-    result = ma_device_init(&audio.context, &config, &audio.captureDevice);
+    ma_result result = ma_device_init(&audio.context, &config, &audio.captureDevice);
     if (result != MA_SUCCESS){
-        ma_pcm_rb_uninit(&audio.captureBuffer);
         error = std::string("could not open input device: ") + ma_result_description(result);
+        return false;
+    }
+    audio.captureChannels = std::max<ma_uint32>(1, audio.captureDevice.capture.channels);
+    // miniaudio's ring buffer is lock-free for exactly one writer thread and one reader thread; it's made once the
+    // channel count is known, before the device starts writing to it
+    result = ma_pcm_rb_init(ma_format_f32, audio.captureChannels, CAPTURE_BUFFER_FRAMES, nullptr, nullptr, &audio.captureBuffer);
+    if (result != MA_SUCCESS){
+        ma_device_uninit(&audio.captureDevice);
+        error = std::string("could not create capture buffer: ") + ma_result_description(result);
         return false;
     }
     result = ma_device_start(&audio.captureDevice);
@@ -486,14 +491,34 @@ const char* captureDeviceName(){
     return audio.captureReady ? audio.captureDevice.capture.name : "none";
 }
 
-int readCapture(float* out, int maxFrames){
+int captureChannels(){
+    return audio.captureReady ? (int)audio.captureChannels : 0;
+}
+
+int readCapture(float* out, int maxFrames, int channel){
     if (!audio.captureReady) return 0;
+    const int channels = (int)audio.captureChannels;
     int total = 0;
     while (total < maxFrames){
         ma_uint32 chunk = (ma_uint32)(maxFrames - total);
         void* source;
         if (ma_pcm_rb_acquire_read(&audio.captureBuffer, &chunk, &source) != MA_SUCCESS || chunk == 0) break;
-        memcpy(out + total, source, chunk * sizeof(float));
+        takeChannel((const float*)source, (int)chunk, channels, channel, out + total); // the one input asked for
+        ma_pcm_rb_commit_read(&audio.captureBuffer, chunk);
+        total += (int)chunk;
+    }
+    return total;
+}
+
+int readCaptureAll(float* out, int maxFrames){
+    if (!audio.captureReady) return 0;
+    const int channels = (int)audio.captureChannels;
+    int total = 0;
+    while (total < maxFrames){
+        ma_uint32 chunk = (ma_uint32)(maxFrames - total);
+        void* source;
+        if (ma_pcm_rb_acquire_read(&audio.captureBuffer, &chunk, &source) != MA_SUCCESS || chunk == 0) break;
+        memcpy(out + (size_t)total * channels, source, (size_t)chunk * channels * sizeof(float));
         ma_pcm_rb_commit_read(&audio.captureBuffer, chunk);
         total += (int)chunk;
     }

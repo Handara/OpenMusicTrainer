@@ -65,9 +65,16 @@ double audioTime();
 void playClickAt(double time, bool accent);
 void stopPreviews();
 
-// Input from the default microphone / instrument, mono. Only runs between startCapture and stopCapture.
+// Input from a microphone, an instrument or an audio interface, every input the device has kept apart. Only runs
+// between startCapture and stopCapture.
 bool startCapture(const std::string& inputDevice, std::string& error);
 void stopCapture();
 int captureSampleRate();
 const char* captureDeviceName();
-int readCapture(float* out, int maxFrames); // moves captured samples out, oldest first; returns how many
+// The device's inputs (an audio interface has several: a guitar on one, a microphone on another)
+int captureChannels();
+// Moves captured samples out, oldest first; returns how many frames. `channel` picks one input (from 0), -1 mixes
+// them all into one.
+int readCapture(float* out, int maxFrames, int channel = -1);
+// Every input at once, interleaved (frame by frame, captureChannels() samples each): for looking at them side by side
+int readCaptureAll(float* out, int maxFrames);

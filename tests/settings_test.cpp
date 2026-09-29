@@ -114,3 +114,21 @@ TEST_CASE("the highway's direction is kept whatever order the lines come in"){
     CHECK(settings.noteViews.tab);
     CHECK_FALSE(Settings{}.noteViews.highwayFalls);  // across by default
 }
+
+TEST_CASE("each instrument's input, as the interface numbers them"){
+    Settings settings;
+    CHECK(settings.guitarChannel == -1);            // all inputs mixed until told otherwise
+    settings.guitarChannel = 0;                     // input 1
+    settings.bassChannel = 1;                       // input 2
+    std::filesystem::path path = std::filesystem::temp_directory_path() / "lahn_tests" / "inputs_settings.txt";
+    std::filesystem::create_directories(path.parent_path());
+    std::string error;
+    REQUIRE_MESSAGE(saveSettings(path.string(), settings, error), error);
+    std::vector<std::string> warnings;
+    Settings loaded = loadSettings(path.string(), warnings);
+    CHECK(warnings.empty());
+    CHECK(loaded.guitarChannel == 0);
+    CHECK(loaded.bassChannel == 1);
+    CHECK(loaded.voiceChannel == -1);
+    CHECK(channelFor(loaded, InputRole::Bass) == 1);
+}
