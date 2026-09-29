@@ -118,6 +118,7 @@ add_library(lahn_core STATIC
     src/core/intervals.cpp
     src/core/judge.cpp
     src/core/lesson.cpp
+    src/core/midi.cpp
     src/core/music.cpp
     src/core/notation.cpp
     src/core/notedetector.cpp
@@ -208,6 +209,7 @@ if(BUILD_TESTING)
         tests/intervals_test.cpp
         tests/judge_test.cpp
         tests/lesson_test.cpp
+        tests/midi_test.cpp
         tests/music_test.cpp
         tests/notation_test.cpp
         tests/notedetector_test.cpp
