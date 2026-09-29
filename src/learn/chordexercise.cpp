@@ -25,7 +25,7 @@ ChordExercise::ChordExercise(const std::string& title, const ChordDrillConfig& c
     : title(title), config(config), progressPath(progressPath), settings(settings){
     progress = loadDrillProgress(progressPath);
     if (settings.playWithInstrument){
-        if (startNoteInput(settings.inputDevice, midiToFrequency(38.0f), inputError)) initStrumDetector(strums, noteInputSampleRate());
+        if (startNoteInput(settings.inputDevice, midiToFrequency(38.0f), inputError, settings.guitarChannel)) initStrumDetector(strums, noteInputSampleRate());
         else inputError = "Instrument: " + inputError + " (using the keyboard: only the timing is checked)";
     }
     ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard; // Space and the number keys play here

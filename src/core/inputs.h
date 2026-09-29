@@ -14,6 +14,9 @@ void takeChannel(const float* interleaved, int frames, int channels, int channel
 enum class InputRole { Guitar, Bass, Voice };
 const char* inputRoleName(InputRole role); // "Guitar"
 
+// The instrument a tuning is for: a lowest string below C2 is a bass's, anything higher a guitar's
+InputRole roleForTuning(int lowestPitch);
+
 // Telling an instrument by its lowest open string: a bass's E1 is 41 Hz, a guitar's E2 82 Hz. Below 65 Hz it's a
 // bass (or a baritone or seven-string, tuned that low); up to about 100 Hz a guitar; higher, a voice or another
 // instrument that the note alone can't tell. What it sounds like, as the player would say it.

@@ -1,6 +1,8 @@
 #include "screens/settingsscreen.h"
 
 #include "audio/audio.h"
+#include "core/inputs.h"
+#include "core/pitch.h"
 #include "core/music.h"
 #include "input/midi.h"
 #include "input/pianokeys.h"
@@ -11,6 +13,8 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
+#include <cstring>
 #include <vector>
 
 const float PANEL_WIDTH = 760.0f;
@@ -28,6 +32,24 @@ static struct {
     int choosingKeyFor = -1;       // the piano note waiting for a key to be pressed, -1 for none
     bool usedEscape = false;
     std::vector<std::string> previewSounds;
+
+    // The Instruments tab listens to every input of the input device while it's shown
+    bool listening = false;
+    std::string listeningTo;
+    std::string listenError;
+    int shownFrame = -10;          // the last frame the tab was drawn: leaving it stops the listening
+    PitchDetector detector;
+    std::vector<float> incoming;   // interleaved, from readCaptureAll
+    struct Input {
+        std::vector<float> window; // its latest samples, for its pitch
+        float levelDb = -100.0f;
+        float heardMidi = -1.0f;   // the note it hears now, -1 for none
+        float lowestHz = 0.0f;     // the lowest clear note since listening started: what the instrument is
+    };
+    std::vector<Input> inputs;
+    int detecting = -1;            // the role waiting for its instrument to be played (InputRole), -1 for none
+    double detectStarted = 0.0;
+    std::vector<double> loudSince; // per input: since when it's been clearly sounding, while detecting
     std::string status;   // result of the last change, e.g. a device that failed to open
     bool statusIsError = false;
 } screen;
@@ -46,8 +68,16 @@ void openSettingsScreen(const std::string& soundsDir){
     screen.status.clear();
 }
 
+static void stopListening(){
+    if (screen.listening) stopCapture();
+    screen.listening = false;
+    screen.inputs.clear();
+    screen.detecting = -1;
+}
+
 void closeSettingsScreen(){
     stopMidiInput();
+    stopListening();
     screen.choosingKeyFor = -1;
 }
 
@@ -276,6 +306,130 @@ static void pianoKeysSection(Settings& settings){
     }
 }
 
+// Reads what every input is hearing: its level, its note now, and the lowest note it's heard
+static void listenToInputs(const Settings& settings){
+    if (!screen.listening || screen.listeningTo != settings.inputDevice){
+        stopListening();
+        screen.listeningTo = settings.inputDevice;
+        screen.listenError.clear();
+        if (!startCapture(settings.inputDevice, screen.listenError)) return;
+        screen.listening = true;
+        initPitchDetector(screen.detector, captureSampleRate(), 30.0f, 1400.0f);
+        int window = pitchWindowSize(screen.detector), channels = captureChannels();
+        screen.inputs.assign(channels, {});
+        for (auto& input : screen.inputs) input.window.assign(window, 0.0f);
+        screen.incoming.assign((size_t)window * channels, 0.0f);
+    }
+    const int channels = (int)screen.inputs.size(), window = (int)screen.inputs[0].window.size();
+    int got;
+    bool fresh = false;
+    while ((got = readCaptureAll(screen.incoming.data(), window)) > 0){
+        fresh = true;
+        for (int c = 0; c < channels; c++){
+            std::vector<float>& samples = screen.inputs[c].window;
+            std::memmove(samples.data(), samples.data() + got, (window - got) * sizeof(float));
+            for (int i = 0; i < got; i++) samples[window - got + i] = screen.incoming[(size_t)i * channels + c];
+        }
+    }
+    if (!fresh) return;
+    for (auto& input : screen.inputs){
+        float sum = 0.0f;
+        for (float sample : input.window) sum += sample * sample;
+        input.levelDb = 20.0f * std::log10(std::max(std::sqrt(sum / window), 1e-6f));
+        input.heardMidi = -1.0f;
+        if (input.levelDb < -45.0f) continue;
+        PitchResult pitch = detectPitch(screen.detector, input.window.data(), window);
+        if (pitch.frequency <= 0.0f) continue;
+        input.heardMidi = frequencyToMidi(pitch.frequency);
+        if (input.lowestHz <= 0.0f || pitch.frequency < input.lowestHz) input.lowestHz = pitch.frequency;
+    }
+}
+
+static int& roleChannel(Settings& settings, InputRole role){
+    return role == InputRole::Guitar ? settings.guitarChannel : role == InputRole::Bass ? settings.bassChannel : settings.voiceChannel;
+}
+
+// The inputs, and which instrument is on which: a meter and what each one hears, then each instrument's input,
+// found by playing it (Detect) or chosen by hand
+static void instrumentsTab(Settings& settings){
+    screen.shownFrame = (int)ImGui::GetFrameCount();
+    listenToInputs(settings);
+    ImGui::SeparatorText("Inputs");
+    ImGui::TextDisabled("%s", settings.inputDevice.empty() ? "The system's default input device (Audio tab to change it)"
+                                                           : ("On " + settings.inputDevice + " (Audio tab to change it)").c_str());
+    if (!screen.listening){
+        ImGui::TextColored(uiColorVec(UiColor::Bad), "Can't listen: %s", screen.listenError.c_str());
+        return;
+    }
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    for (int c = 0; c < (int)screen.inputs.size(); c++){
+        const auto& input = screen.inputs[c];
+        ImGui::Text("Input %d", c + 1);
+        ImGui::SameLine(90);
+        ImVec2 at = ImGui::GetCursorScreenPos();
+        float meterWidth = 200.0f, fill = std::clamp((input.levelDb + 60.0f) / 60.0f, 0.0f, 1.0f);
+        draw->AddRectFilled(ImVec2(at.x, at.y + 6), ImVec2(at.x + meterWidth, at.y + 14), uiColor(UiColor::StaffLine), 3.0f);
+        if (fill > 0.02f) draw->AddRectFilled(ImVec2(at.x, at.y + 6), ImVec2(at.x + meterWidth * fill, at.y + 14), uiColor(UiColor::Good), 3.0f);
+        ImGui::Dummy(ImVec2(meterWidth + 12, 18));
+        ImGui::SameLine();
+        std::string now = input.heardMidi >= 0.0f ? TextFormat("%s%d", pitchClassName((int)std::lround(input.heardMidi)), pitchOctave((int)std::lround(input.heardMidi))) : "-";
+        std::string lowest = input.lowestHz > 0.0f
+            ? TextFormat("lowest %s%d: %s", pitchClassName((int)std::lround(frequencyToMidi(input.lowestHz))),
+                         pitchOctave((int)std::lround(frequencyToMidi(input.lowestHz))), guessInstrument(input.lowestHz).c_str())
+            : "play its lowest string";
+        ImGui::TextDisabled("%-4s  %s", now.c_str(), lowest.c_str());
+    }
+    if (ImGui::Button("Listen again")) for (auto& input : screen.inputs) input.lowestHz = 0.0f;
+
+    // Detecting: the input that's clearly sounding, for half a second, while the player plays the instrument
+    if (screen.detecting >= 0){
+        double now = GetTime();
+        screen.loudSince.resize(screen.inputs.size(), -1.0);
+        int loudest = -1;
+        for (int c = 0; c < (int)screen.inputs.size(); c++){
+            bool loud = screen.inputs[c].levelDb > -35.0f;
+            if (!loud) screen.loudSince[c] = -1.0;
+            else if (screen.loudSince[c] < 0.0) screen.loudSince[c] = now;
+            if (loud && (loudest < 0 || screen.inputs[c].levelDb > screen.inputs[loudest].levelDb)) loudest = c;
+        }
+        if (loudest >= 0 && now - screen.loudSince[loudest] > 0.5){
+            roleChannel(settings, (InputRole)screen.detecting) = screen.inputs.size() > 1 ? loudest : -1;
+            screen.detecting = -1;
+        } else if (now - screen.detectStarted > 10.0){
+            screen.detecting = -1; // nothing played: give up quietly
+        }
+    }
+
+    ImGui::SeparatorText("Instruments");
+    for (InputRole role : { InputRole::Guitar, InputRole::Bass, InputRole::Voice }){
+        ImGui::PushID((int)role);
+        int& channel = roleChannel(settings, role);
+        std::string current = channel < 0 ? "All inputs mixed" : TextFormat("Input %d", channel + 1);
+        ImGui::SetNextItemWidth(220);
+        if (ImGui::BeginCombo(inputRoleName(role), current.c_str())){
+            if (ImGui::Selectable("All inputs mixed", channel < 0)) channel = -1;
+            for (int c = 0; c < (int)screen.inputs.size(); c++){
+                if (ImGui::Selectable(TextFormat("Input %d", c + 1), channel == c)) channel = c;
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::SameLine();
+        if (screen.detecting == (int)role) ImGui::TextColored(uiColorVec(UiColor::Accent), "Play your %s...", inputRoleName(role));
+        else if (ImGui::Button("Detect")){
+            screen.detecting = (int)role;
+            screen.detectStarted = GetTime();
+            screen.loudSince.assign(screen.inputs.size(), -1.0);
+        }
+        // What that input has heard, against what it's meant to be
+        if (channel >= 0 && channel < (int)screen.inputs.size() && !fitsRole(role, screen.inputs[channel].lowestHz)){
+            ImGui::SameLine();
+            ImGui::TextColored(uiColorVec(UiColor::Bad), "sounds like %s", guessInstrument(screen.inputs[channel].lowestHz).c_str());
+        }
+        ImGui::PopID();
+    }
+    ImGui::TextDisabled("Each instrument is judged from its own input, so they're never mixed together.");
+}
+
 static void gameplayTab(Settings& settings, SettingsChoice& choice){
     ImGui::SeparatorText("Playing");
     int input = settings.playWithInstrument ? 1 : 0;
@@ -310,7 +464,9 @@ SettingsChoice settingsScreen(Settings& settings, const std::string& soundsDir, 
         if (ImGui::BeginTabItem("Display")){ displayTab(settings); ImGui::EndTabItem(); }
         if (ImGui::BeginTabItem("Gameplay")){ gameplayTab(settings, choice); ImGui::EndTabItem(); }
         if (ImGui::BeginTabItem("Piano keys")){ pianoKeysSection(settings); ImGui::EndTabItem(); }
+        if (ImGui::BeginTabItem("Instruments")){ instrumentsTab(settings); ImGui::EndTabItem(); }
         ImGui::EndTabBar();
+        if (screen.listening && screen.shownFrame != (int)ImGui::GetFrameCount()) stopListening(); // left the Instruments tab
     }
     ImGui::PopItemWidth();
     if (!screen.status.empty()){

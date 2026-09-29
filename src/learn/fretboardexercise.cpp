@@ -19,8 +19,8 @@ const float OPEN_COLUMN = 44.0f;       // room left of the nut for open strings
 const int SINGLE_DOTS[] = { 3, 5, 7, 9, 15, 17, 19, 21 }; // the fret markers on a guitar's neck; 12 and 24 get two
 
 FretboardExercise::FretboardExercise(const std::string& title, const FretboardConfig& config, const std::string& progressPath,
-                                     const std::string& inputDevice)
-    : title(title), progressPath(progressPath), inputDevice(inputDevice){
+                                     const std::string& inputDevice, int channel)
+    : title(title), progressPath(progressPath), inputDevice(inputDevice), channel(channel){
     trainer.config = config;
     trainer.progress = loadQuizProgress(progressPath);
     trainer.rng.seed(std::random_device{}());
@@ -62,7 +62,7 @@ void FretboardExercise::answer(bool right, int fret){
 void FretboardExercise::setAnswerByPlaying(bool on){
     inputError.clear();
     float lowest = midiToFrequency((float)*std::min_element(trainer.config.tuning.begin(), trainer.config.tuning.end())) * 0.9f;
-    if (on && !startNoteInput(inputDevice, lowest, inputError)) on = false;
+    if (on && !startNoteInput(inputDevice, lowest, inputError, channel)) on = false;
     if (!on) stopNoteInput();
     byPlaying = on;
 }

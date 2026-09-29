@@ -34,4 +34,9 @@ TEST_CASE("an instrument told by its lowest open string"){
     CHECK_FALSE(fitsRole(InputRole::Guitar, 41.2f));  // a bass on the guitar's
     CHECK(fitsRole(InputRole::Voice, 196.0f));
     CHECK(fitsRole(InputRole::Guitar, 0.0f));         // nothing heard yet: no complaint
+
+    CHECK(roleForTuning(28) == InputRole::Bass);      // a 4-string bass's E1
+    CHECK(roleForTuning(23) == InputRole::Bass);      // a 5-string's B0
+    CHECK(roleForTuning(40) == InputRole::Guitar);    // E2
+    CHECK(roleForTuning(35) == InputRole::Bass);      // a 7-string's B1 is bass territory too
 }

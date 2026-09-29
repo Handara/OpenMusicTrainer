@@ -13,10 +13,11 @@ static struct {
     std::vector<PlayedNote> played;
     std::vector<float> latest;             // everything read by the last update
     float levelDb = -100.0f;
+    int channel = -1;                      // the device's input listened to, -1 for all mixed
     bool active = false;
 } input;
 
-bool startNoteInput(const std::string& inputDevice, float minFrequency, std::string& error){
+bool startNoteInput(const std::string& inputDevice, float minFrequency, std::string& error, int channel){
     stopNoteInput();
     if (!startCapture(inputDevice, error)) return false;
     NoteDetectorConfig config;
@@ -24,6 +25,7 @@ bool startNoteInput(const std::string& inputDevice, float minFrequency, std::str
     initNoteDetector(input.detector, captureSampleRate(), config);
     input.buffer.assign(4096, 0.0f);
     input.levelDb = -100.0f;
+    input.channel = channel;
     input.active = true;
     return true;
 }
@@ -47,7 +49,7 @@ const std::vector<PlayedNote>& updateNoteInput(){
     float sumSquares = 0.0f;
     int total = 0;
     int got;
-    while ((got = readCapture(input.buffer.data(), (int)input.buffer.size())) > 0){
+    while ((got = readCapture(input.buffer.data(), (int)input.buffer.size(), input.channel)) > 0){
         feedNoteDetector(input.detector, input.buffer.data(), got, input.detected);
         input.latest.insert(input.latest.end(), input.buffer.begin(), input.buffer.begin() + got);
         for (int i = 0; i < got; i++) sumSquares += input.buffer[i] * input.buffer[i];

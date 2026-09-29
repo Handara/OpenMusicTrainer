@@ -236,7 +236,8 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
     if (options.playWithInstrument && !game.keys){
         // Listen down to just below the track's lowest string: a bass or a drop tuning gets its own range
         float lowest = midiToFrequency((float)*std::min_element(track.tuning.begin(), track.tuning.end())) * 0.9f;
-        if (!startNoteInput(options.inputDevice, lowest, error)){
+        int channel = track.type == InstrumentType::Bass ? options.bassChannel : options.guitarChannel; // its own input
+        if (!startNoteInput(options.inputDevice, lowest, error, channel)){
             error = "Playing with your instrument: " + error + " (Settings > Gameplay switches to the keyboard)";
             unloadSong();
             return false;

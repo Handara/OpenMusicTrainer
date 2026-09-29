@@ -29,7 +29,9 @@ DrillExercise::DrillExercise(const std::string& title, const DrillSetup& setup, 
     placePass(audioTime() + WAITING_AHEAD_S);
     if (settings.playWithInstrument){
         float lowest = midiToFrequency((float)*std::min_element(setup.tuning.begin(), setup.tuning.end())) * 0.9f;
-        if (!startNoteInput(settings.inputDevice, lowest, inputError)) inputError = "Instrument: " + inputError + " (using the keyboard)";
+        int lowestPitch = *std::min_element(setup.tuning.begin(), setup.tuning.end());
+        int channel = channelFor(settings, roleForTuning(lowestPitch)); // the bass's input for a bass drill
+        if (!startNoteInput(settings.inputDevice, lowest, inputError, channel)) inputError = "Instrument: " + inputError + " (using the keyboard)";
     }
     ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard; // Space and the number keys play here
 }

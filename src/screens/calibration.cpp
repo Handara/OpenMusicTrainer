@@ -38,7 +38,7 @@ static void restart(){
 
 bool startCalibration(CalibrationMode mode, const Settings& settings, std::string& error){
     stopCalibration();
-    if (mode == CalibrationMode::Instrument && !startNoteInput(settings.inputDevice, LOWEST_EXPECTED_NOTE_HZ, error)) return false;
+    if (mode == CalibrationMode::Instrument && !startNoteInput(settings.inputDevice, LOWEST_EXPECTED_NOTE_HZ, error, settings.guitarChannel)) return false;
     calibration.mode = mode;
     calibration.globalOffsetMs = settings.globalOffsetMs;
     ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard; // Space taps here, it mustn't press buttons

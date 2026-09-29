@@ -11,7 +11,7 @@
 class FretboardExercise : public Exercise {
 public:
     FretboardExercise(const std::string& title, const FretboardConfig& config, const std::string& progressPath,
-                      const std::string& inputDevice);
+                      const std::string& inputDevice, int channel);
     ~FretboardExercise() override;
 
     void update() override;
@@ -38,6 +38,7 @@ private:
     double answeredAt = 0.0;
 
     std::string inputDevice;
+    int channel = -1;          // the input the instrument is plugged into
     bool byPlaying = false;
     std::string inputError;
     double listenFrom = 0.0;    // ignore notes before this (GetTime seconds): the last answer's sound may still ring

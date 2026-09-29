@@ -13,7 +13,8 @@ struct PlayedNote {
 };
 
 // minFrequency: the lowest note expected (guitar about 70 Hz, bass about 30 Hz); lower costs a little detection time
-bool startNoteInput(const std::string& inputDevice, float minFrequency, std::string& error);
+// channel: which of the device's inputs to listen to (from 0), -1 for all of them mixed
+bool startNoteInput(const std::string& inputDevice, float minFrequency, std::string& error, int channel = -1);
 void stopNoteInput(); // safe to call more than once
 bool noteInputActive();
 

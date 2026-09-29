@@ -29,6 +29,10 @@ const char* inputRoleName(InputRole role){
     return "Guitar";
 }
 
+InputRole roleForTuning(int lowestPitch){
+    return lowestPitch < 36 ? InputRole::Bass : InputRole::Guitar;
+}
+
 std::string guessInstrument(float lowestFrequency){
     if (lowestFrequency <= 0.0f) return "nothing yet";
     if (lowestFrequency < BASS_BELOW_HZ) return "a bass";

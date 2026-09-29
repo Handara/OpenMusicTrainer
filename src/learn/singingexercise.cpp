@@ -19,8 +19,8 @@ const double NOTE_SOUNDS_FOR_S = 1.5;       // the played note rings this long: 
 const double AUTO_NEXT_AFTER_S = 1.2;
 
 SingingExercise::SingingExercise(const std::string& title, const SingingConfig& config, const std::string& progressPath,
-                                 const std::string& inputDevice)
-    : title(title), config(config), progressPath(progressPath){
+                                 const std::string& inputDevice, int channel)
+    : title(title), config(config), progressPath(progressPath), channel(channel){
     progress = loadQuizProgress(progressPath);
     rng.seed(std::random_device{}());
     if (startCapture(inputDevice, inputError)){
@@ -69,7 +69,7 @@ void SingingExercise::update(){
     if (inputError.empty() && !window.empty()){
         const int size = (int)window.size();
         int got, fresh = 0;
-        while ((got = readCapture(incoming.data(), size)) > 0){
+        while ((got = readCapture(incoming.data(), size, channel)) > 0){
             std::memmove(window.data(), window.data() + got, (size - got) * sizeof(float));
             std::memcpy(window.data() + size - got, incoming.data(), got * sizeof(float));
             fresh += got;

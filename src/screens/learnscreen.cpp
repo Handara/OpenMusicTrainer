@@ -99,12 +99,14 @@ static std::unique_ptr<Exercise> createExercise(const ExerciseEntry& entry){
         }
         case ExerciseType::Singing:
             return std::make_unique<SingingExercise>(entry.exercise.title, entry.exercise.singing, progressPath(entry),
-                                                     learn.setup.settings.inputDevice);
+                                                     learn.setup.settings.inputDevice, learn.setup.settings.voiceChannel);
         case ExerciseType::Chords:
             return std::make_unique<ChordExercise>(entry.exercise.title, entry.exercise.chords, progressPath(entry), learn.setup.settings);
         case ExerciseType::Fretboard:
             return std::make_unique<FretboardExercise>(entry.exercise.title, entry.exercise.fretboard, progressPath(entry),
-                                                       learn.setup.settings.inputDevice);
+                                                       learn.setup.settings.inputDevice,
+                                                       channelFor(learn.setup.settings, roleForTuning(
+                                                           *std::min_element(entry.exercise.fretboard.tuning.begin(), entry.exercise.fretboard.tuning.end()))));
         case ExerciseType::Routine: {
             std::vector<RoutineExercise::Step> steps;
             for (const RoutineStep& step : entry.exercise.routine){

@@ -14,7 +14,7 @@
 class SingingExercise : public Exercise {
 public:
     SingingExercise(const std::string& title, const SingingConfig& config, const std::string& progressPath,
-                    const std::string& inputDevice);
+                    const std::string& inputDevice, int channel);
     ~SingingExercise() override;
 
     void update() override;
@@ -46,6 +46,7 @@ private:
     std::vector<float> window, incoming;
     float levelDb = -100.0f;
     float sungMidi = -1.0f;      // the pitch sung now, -1 for none
+    int channel = -1;            // the input the voice comes in on
     std::string inputError;
     std::string saveError;
     int sessionAsked = 0, sessionCorrect = 0;
