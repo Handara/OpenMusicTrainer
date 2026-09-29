@@ -38,7 +38,7 @@ InputRole roleForTuning(int lowestPitch){
 std::string guessInstrument(float lowestFrequency){
     if (lowestFrequency <= 0.0f) return "nothing yet";
     if (lowestFrequency < BASS_BELOW_HZ) return "a bass";
-    if (lowestFrequency < GUITAR_BELOW_HZ) return "a guitar";
+    if (lowestFrequency < GUITAR_BELOW_HZ) return "a guitar, or a low voice"; // a man's voice reaches G2
     return "a voice, or a higher instrument";
 }
 
@@ -77,4 +77,20 @@ float riseAboveFloor(const NoiseFloor& floor, float levelDb){
 
 bool isSounding(const NoiseFloor& floor, float levelDb){
     return riseAboveFloor(floor, levelDb) >= SOUNDING_RISE_DB;
+}
+
+const float TAKEN_PENALTY_DB = 12.0f;
+
+int playedInput(const std::vector<float>& rises, const std::vector<bool>& taken){
+    int played = -1;
+    float best = 0.0f;
+    for (int c = 0; c < (int)rises.size(); c++){
+        if (rises[c] <= 0.0f) continue;
+        float score = rises[c] - (c < (int)taken.size() && taken[c] ? TAKEN_PENALTY_DB : 0.0f);
+        if (played < 0 || score > best){
+            played = c;
+            best = score;
+        }
+    }
+    return played;
 }

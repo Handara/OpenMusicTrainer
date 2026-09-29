@@ -23,8 +23,9 @@ TEST_CASE("one channel out of an interface's interleaved inputs, or all of them 
 
 TEST_CASE("an instrument told by its lowest open string"){
     CHECK(guessInstrument(41.2f) == "a bass");        // E1
-    CHECK(guessInstrument(82.4f) == "a guitar");      // E2
-    CHECK(guessInstrument(73.4f) == "a guitar");      // drop D
+    CHECK(guessInstrument(82.4f) == "a guitar, or a low voice"); // E2
+    CHECK(guessInstrument(73.4f) == "a guitar, or a low voice"); // drop D
+    CHECK(guessInstrument(98.0f) == "a guitar, or a low voice"); // G2: a man singing low
     CHECK(guessInstrument(220.0f) == "a voice, or a higher instrument");
     CHECK(guessInstrument(0.0f) == "nothing yet");
 
@@ -85,4 +86,17 @@ TEST_CASE("exact digital silence doesn't drag the floor down"){
     trackNoiseFloor(floor, -120.0f, 0.1f); // exact zeros, between notes
     CHECK(floor.db == doctest::Approx(-100.0f));
     CHECK_FALSE(isSounding(floor, -95.0f)); // hiss coming back isn't playing
+}
+
+TEST_CASE("the input played is the one that rose most, bleed and all"){
+    // As measured on a Scarlett Solo: singing, the mic rose 47 dB above its floor, and the bass's input 37 dB (its
+    // strings ringing along). Playing the bass, only its input rose.
+    CHECK(playedInput({47.0f, 37.0f}, {}) == 0);
+    CHECK(playedInput({0.0f, 45.0f}, {}) == 1);
+    CHECK(playedInput({0.0f, 0.0f}, {}) == -1);
+    // The bass already on input 2: finding the voice, a slightly louder bleed there doesn't win
+    CHECK(playedInput({30.0f, 40.0f}, {false, true}) == 0);
+    // But roles set wrong (the voice on the bass's input) can still be put right: the bass rises far more
+    CHECK(playedInput({10.0f, 90.0f}, {false, true}) == 1);
+    CHECK(playedInput({0.0f, 40.0f}, {false, true}) == 1); // the only one sounding
 }

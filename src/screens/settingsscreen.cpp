@@ -358,26 +358,33 @@ static void instrumentsTab(Settings& settings){
     if (ImGui::Button("Listen again")) for (auto& input : screen.inputs) input.lowestHz = 0.0f;
 
     // Detecting: the input that's clearly sounding, for half a second, while the player plays the instrument. Each
-    // against its own floor, and the one risen most wins: a bass on the instrument input is much quieter than a voice
-    // on the mic, but rises as far above its near-silence.
+    // against its own floor, and the one risen most wins (core/inputs: playedInput), the inputs other instruments are
+    // on counting less: sound bleeds, and a voice makes the bass's strings ring on its input too. An instrument that
+    // was on the input found goes back to all inputs mixed: two never share one by mistake.
     if (screen.detecting >= 0){
         double now = GetTime();
-        screen.loudSince.resize(screen.inputs.size(), -1.0);
-        int loudest = -1;
-        float loudestRise = 0.0f;
-        for (int c = 0; c < (int)screen.inputs.size(); c++){
+        const int count = (int)screen.inputs.size();
+        screen.loudSince.resize(count, -1.0);
+        std::vector<float> rises(count, 0.0f);
+        std::vector<bool> taken(count, false);
+        for (int c = 0; c < count; c++){
             const auto& input = screen.inputs[c];
             bool loud = isSounding(input.floor, input.levelDb);
             if (!loud) screen.loudSince[c] = -1.0;
             else if (screen.loudSince[c] < 0.0) screen.loudSince[c] = now;
-            float rise = riseAboveFloor(input.floor, input.levelDb);
-            if (loud && (loudest < 0 || rise > loudestRise)){
-                loudest = c;
-                loudestRise = rise;
-            }
+            if (loud) rises[c] = riseAboveFloor(input.floor, input.levelDb);
         }
-        if (loudest >= 0 && now - screen.loudSince[loudest] > 0.5){
-            roleChannel(settings, (InputRole)screen.detecting) = screen.inputs.size() > 1 ? loudest : -1;
+        for (InputRole other : { InputRole::Guitar, InputRole::Bass, InputRole::Voice }){
+            int channel = roleChannel(settings, other);
+            if ((int)other != screen.detecting && channel >= 0 && channel < count) taken[channel] = true;
+        }
+        int played = playedInput(rises, taken);
+        if (played >= 0 && now - screen.loudSince[played] > 0.5){
+            int found = screen.inputs.size() > 1 ? played : -1;
+            for (InputRole other : { InputRole::Guitar, InputRole::Bass, InputRole::Voice }){
+                if ((int)other != screen.detecting && found >= 0 && roleChannel(settings, other) == found) roleChannel(settings, other) = -1;
+            }
+            roleChannel(settings, (InputRole)screen.detecting) = found;
             screen.detecting = -1;
         } else if (now - screen.detectStarted > 10.0){
             screen.detecting = -1; // nothing played: give up quietly

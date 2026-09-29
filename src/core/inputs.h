@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 // Instruments on audio inputs. An audio interface (a Focusrite Scarlett, say) is one device with several inputs,
 // its channels: a guitar on one, a bass or a microphone on another. Each instrument listens to its own channel, so
@@ -39,3 +40,10 @@ void trackNoiseFloor(NoiseFloor& floor, float levelDb, float seconds);
 float riseAboveFloor(const NoiseFloor& floor, float levelDb);
 // Clearly played: well above its floor
 bool isSounding(const NoiseFloor& floor, float levelDb);
+
+// Finding the input an instrument is on, while the player plays it: from how far each input has risen above its
+// floor (0 for one not sounding). Sound bleeds between inputs (singing makes a bass's open strings ring, and its
+// pickups hear them), so the input that rose most is the one played. Inputs already given to another instrument
+// (`taken`) count 12 dB less: enough to beat bleed, not so much that roles set wrong can't be found again.
+// -1 while none is sounding.
+int playedInput(const std::vector<float>& rises, const std::vector<bool>& taken);
