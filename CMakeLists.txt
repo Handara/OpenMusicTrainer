@@ -163,6 +163,7 @@ add_executable(lahn
     src/screens/calibration.cpp
     src/screens/editor.cpp
     src/screens/gameplay.cpp
+    src/screens/instrumentscreen.cpp
     src/screens/learnscreen.cpp
     src/screens/lessoneditor.cpp
     src/screens/mainmenu.cpp

@@ -25,7 +25,8 @@ const Item ITEMS[] = {
     {"Song editor", "3", MainMenuChoice::Editor},
     {"Lesson editor", "4", MainMenuChoice::LessonEditor},
     {"Tuner", "5", MainMenuChoice::Tuner},
-    {"Settings", "6", MainMenuChoice::Settings},
+    {"Instrument", "6", MainMenuChoice::Instrument},
+    {"Settings", "7", MainMenuChoice::Settings},
     {"Quit", "Esc", MainMenuChoice::Quit},
 };
 const int ITEM_COUNT = sizeof(ITEMS) / sizeof(ITEMS[0]);
@@ -107,7 +108,7 @@ MainMenuChoice mainMenuScreen(const MainMenuInfo& info, const std::string& error
     }
     drawWordmark(draw, ImVec2(left, height * 0.09f), WORDMARK_SIZE * s);
 
-    // The list, and its shortcuts: 1 to 6 go straight to an item; Esc moves to Quit, and quitting still takes Enter
+    // The list, and its shortcuts: 1 to 7 go straight to an item; Esc moves to Quit, and quitting still takes Enter
     if (menu.rows.empty()){
         for (const Item& item : ITEMS){
             MenuRow row;

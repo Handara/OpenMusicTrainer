@@ -16,6 +16,9 @@ struct PianoKeyStyle {
 
 int pianoWhiteKeys(int count); // how many of the first `count` keys are white
 bool pianoKeyIsBlack(int key);
+ImU32 pianoKeyColor(int key); // its own white or black
+// Where a key is drawn, as x, y, width, height
+ImVec4 pianoKeyRect(ImVec2 origin, float whiteWidth, float height, int key);
 
 // Draws `count` keys from `origin`, each white key `whiteWidth` wide; `style` says how each key looks (hovered: the
 // mouse is on it). Returns the key under the mouse, -1 for none.

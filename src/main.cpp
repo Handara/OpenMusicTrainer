@@ -8,6 +8,7 @@
 #include "screens/calibration.h"
 #include "screens/editor.h"
 #include "screens/gameplay.h"
+#include "screens/instrumentscreen.h"
 #include "screens/learnscreen.h"
 #include "screens/lessoneditor.h"
 #include "screens/mainmenu.h"
@@ -26,7 +27,7 @@
 
 namespace fs = std::filesystem;
 
-enum class Screen { MainMenu, SongSelect, Playing, Results, Tuner, EditorSelect, NewSong, Editor, LessonEditor, Settings, Learn, Calibration };
+enum class Screen { MainMenu, SongSelect, Playing, Results, Tuner, Instrument, EditorSelect, NewSong, Editor, LessonEditor, Settings, Learn, Calibration };
 
 // App-wide state shared between screens
 static struct {
@@ -237,6 +238,11 @@ static void leaveTuner(){
     app.screen = Screen::MainMenu;
 }
 
+static void leaveInstrument(){
+    closeInstrumentScreen();
+    app.screen = Screen::MainMenu;
+}
+
 // Esc always means "back". Handled in one place so a single press can't trigger two transitions in one frame.
 static void handleBackKey(){
     if (!IsKeyPressed(KEY_ESCAPE)) return;
@@ -250,6 +256,7 @@ static void handleBackKey(){
             break;
         case Screen::Results: goToSongSelect(); break;
         case Screen::Tuner: leaveTuner(); break;
+        case Screen::Instrument: leaveInstrument(); break;
         case Screen::Settings: if (!settingsUsedEscape()) leaveSettings(); break;
         case Screen::Calibration: leaveCalibration(); break;
         case Screen::Learn: if (learnBack()) app.screen = Screen::MainMenu; break;
@@ -278,6 +285,10 @@ static void runMenus(){
                     app.screen = Screen::LessonEditor;
                     break;
                 case MainMenuChoice::Tuner: goToTuner(); break;
+                case MainMenuChoice::Instrument:
+                    openInstrumentScreen(app.settings);
+                    app.screen = Screen::Instrument;
+                    break;
                 case MainMenuChoice::Settings: goToSettings(); break;
                 case MainMenuChoice::Quit: app.quit = true; break;
                 case MainMenuChoice::None: break;
@@ -341,6 +352,7 @@ static void runMenus(){
         case Screen::Tuner:
             if (tunerScreen()) leaveTuner();
             break;
+        case Screen::Instrument: instrumentScreen(); break;
         case Screen::Settings:
             switch (settingsScreen(app.settings, app.soundsDir, app.settingsError)){
                 case SettingsChoice::Back: leaveSettings(); break;
@@ -469,6 +481,7 @@ int main(void){
 
     stopGameplay();
     stopTuner();
+    closeInstrumentScreen();
     closeEditor();
     closeLearnScreen(); // before the UI and audio they use shut down
     closeLessonEditor();

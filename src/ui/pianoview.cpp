@@ -11,6 +11,14 @@ const ImU32 BLACK_KEY = IM_COL32(30, 30, 34, 255);
 
 bool pianoKeyIsBlack(int key){ return IS_BLACK_KEY[key % 12]; }
 
+ImU32 pianoKeyColor(int key){ return pianoKeyIsBlack(key) ? BLACK_KEY : WHITE_KEY; }
+
+ImVec4 pianoKeyRect(ImVec2 origin, float whiteWidth, float height, int key){
+    float whiteX = origin.x + ((key / 12) * 7 + WHITE_BEFORE[key % 12]) * whiteWidth;
+    if (!pianoKeyIsBlack(key)) return ImVec4(whiteX, origin.y, whiteWidth, height);
+    return ImVec4(whiteX + whiteWidth * 0.7f, origin.y, whiteWidth * 0.6f, height * 0.6f);
+}
+
 int pianoWhiteKeys(int count){
     int whites = 0;
     for (int key = 0; key < count; key++) if (!pianoKeyIsBlack(key)) whites++;
@@ -21,11 +29,7 @@ int drawPianoKeys(ImVec2 origin, float whiteWidth, float height, int count,
                   const std::function<PianoKeyStyle(int key, bool hovered)>& style){
     ImDrawList* draw = ImGui::GetWindowDrawList();
     const UiFonts& fonts = uiFonts();
-    auto rectFor = [&](int key){
-        float whiteX = origin.x + ((key / 12) * 7 + WHITE_BEFORE[key % 12]) * whiteWidth;
-        if (!pianoKeyIsBlack(key)) return ImVec4(whiteX, origin.y, whiteWidth, height);
-        return ImVec4(whiteX + whiteWidth * 0.7f, origin.y, whiteWidth * 0.6f, height * 0.6f);
-    };
+    auto rectFor = [&](int key){ return pianoKeyRect(origin, whiteWidth, height, key); };
     // Which key the mouse is on: black keys first, they sit over the white ones
     int hovered = -1;
     ImVec2 mouse = ImGui::GetMousePos();
@@ -44,7 +48,7 @@ int drawPianoKeys(ImVec2 origin, float whiteWidth, float height, int count,
             if (black != (pass == 1)) continue;
             ImVec4 r = rectFor(key);
             PianoKeyStyle look = style(key, key == hovered);
-            ImU32 fill = look.fill ? look.fill : black ? BLACK_KEY : WHITE_KEY;
+            ImU32 fill = look.fill ? look.fill : pianoKeyColor(key);
             draw->AddRectFilled(ImVec2(r.x + 0.5f, r.y), ImVec2(r.x + r.z - 0.5f, r.y + r.w), fill, 3.0f);
             if (!black) draw->AddRect(ImVec2(r.x + 0.5f, r.y), ImVec2(r.x + r.z - 0.5f, r.y + r.w), uiColor(UiColor::StaffLine), 3.0f);
             if (look.label.empty()) continue;
