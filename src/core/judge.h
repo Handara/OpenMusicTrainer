@@ -16,6 +16,8 @@ struct PlayNote {
     int fret;
     int pitch;               // sounding MIDI pitch: the string's tuning + fret
     float length = 0.0f;     // seconds it's held (0 for a note that isn't): views draw it that long
+    float beats = 0.0f;      // its written length in beats (quarter notes), as the sheet music has it, ties added up
+    float writtenLength = 0.0f; // the same in seconds: how long it should ring
     float hitFlash = 0.0f;   // seconds left of the "hit" animation, 0 = none
     bool judged = false;     // hit or missed already
     bool hit = false;        // judged and hit (judged without hit = missed)

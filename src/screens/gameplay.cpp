@@ -228,6 +228,25 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
         game.notes.push_back(note);
     }
     game.score = buildScore(game.chart, track); // its events point into track.notes, in the same order as game.notes
+    // Each note's written length, as the sheet music shows it (a note tied on adds the next value): how many beats it
+    // should ring, which the neck's rings count
+    bool continuing = false; // the event carries on a tie from the one before: its notes were counted there
+    for (size_t e = 0; e < game.score.events.size(); e++){
+        const ScoreEvent& event = game.score.events[e];
+        bool tied = event.tiedToNext;
+        if (!event.rest && event.firstNote >= 0 && !continuing){
+            int ticks = event.length;
+            for (size_t next = e; game.score.events[next].tiedToNext && next + 1 < game.score.events.size(); next++){
+                ticks += game.score.events[next + 1].length;
+            }
+            for (int i = 0; i < event.noteCount && event.firstNote + i < (int)game.notes.size(); i++){
+                PlayNote& note = game.notes[event.firstNote + i];
+                note.beats = (float)ticks / game.chart.resolution;
+                note.writtenLength = (float)tickToSeconds(game.chart, event.tick + ticks) - note.time;
+            }
+        }
+        continuing = tied;
+    }
     if (options.rhythmMode){
         // Rhythm mode: the part's hits instead of its notes, a note's string its kind (0 don, 1 ka), its fret 1 if
         // it's big. The score stays for its bar lines.

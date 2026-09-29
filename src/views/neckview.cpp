@@ -20,26 +20,48 @@ const float RING_START = 3.2f;          // a ring starts this many times its not
 const float FADE_IN_SHARE = 0.25f;      // a note fades in over the first quarter of its ring's time
 const float MISS_FADE_S = 0.5f;
 const int SINGLE_DOTS[] = { 3, 5, 7, 9, 15, 17, 19, 21 }; // fret markers; 12 and 24 get two
+const int MAX_BEAT_RINGS = 4;           // a whole bar of 4/4: longer notes show four full rings
 
-// The part of the neck the song needs, worked out once per song rather than every frame
-static FretSpan spanFor(const std::vector<PlayNote>& notes){
+// A note's length around it, one ring a beat (a quarter note: one full ring; an eighth: half of one), the last one
+// partial, clockwise from the top: like an osu! slider, it drains as the note is held
+static void drawBeatRings(Vector2 at, float radius, float beats, Color color, float s){
+    beats = std::min(beats, (float)MAX_BEAT_RINGS);
+    for (int ring = 0; ring < MAX_BEAT_RINGS && beats > ring; ring++){
+        float share = std::min(1.0f, beats - ring);
+        float inner = radius + (3.0f + ring * 4.5f) * s;
+        DrawRing(at, inner, inner + 2.5f * s, -90.0f, -90.0f + 360.0f * share, 48, color);
+    }
+}
+
+// What the song needs, worked out once per song rather than every frame: the part of the neck, and how long its
+// longest note is held (a held note stays drawn until it's over, so the notes drawn reach back that far)
+struct SongShape {
+    FretSpan span = { 0, MIN_FRETS };
+    float longest = 0.0f;
+};
+
+static const SongShape& shapeOf(const std::vector<PlayNote>& notes){
     static const PlayNote* data = nullptr;
     static size_t size = 0;
     static float first = 0.0f, last = 0.0f;
-    static FretSpan span = { 0, MIN_FRETS };
+    static SongShape shape;
     bool same = notes.data() == data && notes.size() == size &&
                 (notes.empty() || (notes.front().time == first && notes.back().time == last));
     if (!same){
         std::vector<int> frets;
         frets.reserve(notes.size());
-        for (const PlayNote& note : notes) frets.push_back(note.fret);
-        span = fretSpanFor(frets, MIN_FRETS, LAST_FRET);
+        shape.longest = 0.0f;
+        for (const PlayNote& note : notes){
+            frets.push_back(note.fret);
+            shape.longest = std::max(shape.longest, note.writtenLength);
+        }
+        shape.span = fretSpanFor(frets, MIN_FRETS, LAST_FRET);
         data = notes.data();
         size = notes.size();
         first = notes.empty() ? 0.0f : notes.front().time;
         last = notes.empty() ? 0.0f : notes.back().time;
     }
-    return span;
+    return shape;
 }
 
 void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std::vector<int>& tuning, bool lowStringOnTop,
@@ -47,7 +69,8 @@ void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std:
     const int strings = (int)tuning.size();
     if (strings == 0) return;
     const float s = GetScreenHeight() / 720.0f;
-    const FretSpan span = spanFor(notes);
+    const SongShape& shape = shapeOf(notes);
+    const FretSpan span = shape.span;
     const bool open = span.first == 0;
     const int firstFretted = std::max(span.first, 1);
     const int fretted = span.last - firstFretted + 1;
@@ -93,7 +116,7 @@ void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std:
     // The notes that show now: from those fading after a miss to those whose rings are just appearing
     const float now = axis.songTime;
     const float approach = std::clamp(APPROACH_DISTANCE / std::max(1.0f, axis.noteSpeed), MIN_APPROACH_S, MAX_APPROACH_S);
-    auto from = std::lower_bound(notes.begin(), notes.end(), now - MISS_FADE_S - 0.2f,
+    auto from = std::lower_bound(notes.begin(), notes.end(), now - std::max(MISS_FADE_S + 0.2f, shape.longest),
                                  [](const PlayNote& note, float time){ return note.time < time; });
     auto to = std::upper_bound(from, notes.end(), now + approach,
                                [](float time, const PlayNote& note){ return time < note.time; });
@@ -122,6 +145,16 @@ void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std:
         const PlayNote& note = *--it;
         Vector2 at = centerOf(note);
         Color color = stringColor(note.stringIndex);
+        if (note.hit && note.writtenLength > 0.0f && now < note.time + note.writtenLength){
+            // Held: it stays lit, its rings draining until the note is over
+            Color lit = themeColor(note.wasPerfect ? UiColor::Good : UiColor::Accent);
+            float left = note.beats * (1.0f - std::max(0.0f, now - note.time) / note.writtenLength);
+            DrawCircleV(at, radius + 1.5f * s, card);
+            DrawCircleV(at, radius, lit);
+            drawBeatRings(at, radius, left, lit, s);
+            drawViewText(TextFormat("%d", note.fret), at.x, at.y, radius * 1.1f, WHITE);
+            continue;
+        }
         if (note.hit){
             // It bursts where it was played, green for perfect, brass for good, and is gone
             if (note.hitFlash <= 0.0f) continue;
@@ -147,6 +180,7 @@ void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std:
         }
         DrawCircleV(at, radius + 1.5f * s, Fade(card, alpha)); // a rim that keeps notes apart
         DrawCircleV(at, radius, Fade(color, alpha));
+        if (note.beats > 0.0f) drawBeatRings(at, radius, note.beats, Fade(color, 0.6f * alpha), s);
         drawViewText(TextFormat("%d", note.fret), at.x, at.y, radius * 1.1f, Fade(WHITE, alpha));
     }
     EndScissorMode();
