@@ -23,3 +23,17 @@ InputRole roleForTuning(int lowestPitch);
 std::string guessInstrument(float lowestFrequency);
 // Whether that fits the role a channel was given (a guitar-range note on the bass's channel doesn't)
 bool fitsRole(InputRole role, float lowestFrequency);
+
+// An input's noise floor: how loud it is with nothing played. Inputs differ a lot: a microphone hears the room, an
+// instrument input is near silent, and a bass through it with modest gain is far quieter than a voice on the mic. So
+// whether an input is being played is judged against its own floor, not a fixed level. The floor follows the
+// quietest level heard, and rises slowly (a few dB a second) so a room getting noisier is followed too.
+struct NoiseFloor {
+    float db = 0.0f;
+    bool started = false;
+};
+void trackNoiseFloor(NoiseFloor& floor, float levelDb, float seconds);
+// How far above its floor an input is now, in dB; 0 for an input quieter than any playing could be
+float riseAboveFloor(const NoiseFloor& floor, float levelDb);
+// Clearly played: well above its floor
+bool isSounding(const NoiseFloor& floor, float levelDb);

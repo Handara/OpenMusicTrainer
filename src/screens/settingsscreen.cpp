@@ -44,6 +44,7 @@ static struct {
     struct Input {
         std::vector<float> window; // its latest samples, for its pitch
         float levelDb = -100.0f;
+        NoiseFloor floor;          // its level with nothing played: playing is judged against it
         float heardMidi = -1.0f;   // the note it hears now, -1 for none
         float lowestHz = 0.0f;     // the lowest clear note since listening started: what the instrument is
     };
@@ -310,8 +311,9 @@ static void listenToInputs(const Settings& settings){
         float sum = 0.0f;
         for (float sample : input.window) sum += sample * sample;
         input.levelDb = 20.0f * std::log10(std::max(std::sqrt(sum / window), 1e-6f));
+        trackNoiseFloor(input.floor, input.levelDb, GetFrameTime());
         input.heardMidi = -1.0f;
-        if (input.levelDb < -45.0f) continue;
+        if (!isSounding(input.floor, input.levelDb)) continue; // a quiet instrument input counts as much as a loud mic
         PitchResult pitch = detectPitch(screen.detector, input.window.data(), window);
         if (pitch.frequency <= 0.0f) continue;
         input.heardMidi = frequencyToMidi(pitch.frequency);
@@ -355,16 +357,24 @@ static void instrumentsTab(Settings& settings){
     }
     if (ImGui::Button("Listen again")) for (auto& input : screen.inputs) input.lowestHz = 0.0f;
 
-    // Detecting: the input that's clearly sounding, for half a second, while the player plays the instrument
+    // Detecting: the input that's clearly sounding, for half a second, while the player plays the instrument. Each
+    // against its own floor, and the one risen most wins: a bass on the instrument input is much quieter than a voice
+    // on the mic, but rises as far above its near-silence.
     if (screen.detecting >= 0){
         double now = GetTime();
         screen.loudSince.resize(screen.inputs.size(), -1.0);
         int loudest = -1;
+        float loudestRise = 0.0f;
         for (int c = 0; c < (int)screen.inputs.size(); c++){
-            bool loud = screen.inputs[c].levelDb > -35.0f;
+            const auto& input = screen.inputs[c];
+            bool loud = isSounding(input.floor, input.levelDb);
             if (!loud) screen.loudSince[c] = -1.0;
             else if (screen.loudSince[c] < 0.0) screen.loudSince[c] = now;
-            if (loud && (loudest < 0 || screen.inputs[c].levelDb > screen.inputs[loudest].levelDb)) loudest = c;
+            float rise = riseAboveFloor(input.floor, input.levelDb);
+            if (loud && (loudest < 0 || rise > loudestRise)){
+                loudest = c;
+                loudestRise = rise;
+            }
         }
         if (loudest >= 0 && now - screen.loudSince[loudest] > 0.5){
             roleChannel(settings, (InputRole)screen.detecting) = screen.inputs.size() > 1 ? loudest : -1;

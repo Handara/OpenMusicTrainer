@@ -40,3 +40,30 @@ TEST_CASE("an instrument told by its lowest open string"){
     CHECK(roleForTuning(40) == InputRole::Guitar);    // E2
     CHECK(roleForTuning(35) == InputRole::Bass);      // a 7-string's B1 is bass territory too
 }
+
+TEST_CASE("an input is played when it rises well above its own floor, however quiet it is"){
+    NoiseFloor mic, bass;
+    // The mic hears the room at -50 dB; the instrument input is near silent at -85 dB
+    for (int i = 0; i < 60; i++){
+        trackNoiseFloor(mic, -50.0f, 1.0f / 60);
+        trackNoiseFloor(bass, -85.0f, 1.0f / 60);
+    }
+    // A bass note at -45 dB: quieter than a loud voice, but 40 dB above its input's floor
+    CHECK(isSounding(bass, -45.0f));
+    // The same -45 dB on the mic is just the room getting a little louder
+    CHECK_FALSE(isSounding(mic, -45.0f));
+    CHECK(isSounding(mic, -25.0f));
+    CHECK(riseAboveFloor(bass, -45.0f) == doctest::Approx(40.0f));
+    // Below any level playing could reach, nothing counts
+    CHECK_FALSE(isSounding(bass, -80.0f));
+}
+
+TEST_CASE("the noise floor follows the quietest level, and rises slowly"){
+    NoiseFloor floor;
+    trackNoiseFloor(floor, -40.0f, 0.1f);
+    CHECK(floor.db == doctest::Approx(-40.0f));
+    trackNoiseFloor(floor, -60.0f, 0.1f);                   // quieter: at once
+    CHECK(floor.db == doctest::Approx(-60.0f));
+    for (int i = 0; i < 10; i++) trackNoiseFloor(floor, -20.0f, 0.1f); // a second of playing
+    CHECK(floor.db == doctest::Approx(-57.0f));             // 3 dB a second: the note stays well above it
+}
