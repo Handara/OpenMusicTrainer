@@ -394,7 +394,11 @@ void drawGameplay(){
         game.hitLineX = drawNoteViews(viewsArea, game.options.noteViews, game.notes, game.score, game.chart.frettedTracks[0].tuning,
                                       game.options.lowStringOnTop, axis);
     }
-    if (noteInputActive()) drawAttackFlash(viewsArea, game.hitLineX);
+    // Only where there's an upright hit line to light: the rhythm lane, the sheet music, the tab, a highway scrolling
+    // across. The neck, a falling highway and the piano have none (their "hit line" x is only their middle).
+    const NoteViews& views = game.options.noteViews;
+    bool uprightHitLine = game.options.rhythmMode || (!game.keys && (views.staff || views.tab || (views.highway && !views.highwayFalls)));
+    if (noteInputActive() && uprightHitLine) drawAttackFlash(viewsArea, game.hitLineX);
 }
 
 void drawGameplayHud(){
