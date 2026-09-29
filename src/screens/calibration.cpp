@@ -40,7 +40,10 @@ static void restart(){
 
 bool startCalibration(CalibrationMode mode, const Settings& settings, std::string& error){
     stopCalibration();
-    if (mode == CalibrationMode::Instrument && !startNoteInput(settings.inputDevice, LOWEST_EXPECTED_NOTE_HZ, error, settings.guitarChannel)) return false;
+    // The instrument's own input (the guitar's, else the bass's): never a microphone, which would hear the clicks
+    // coming out of the speakers and measure those instead of the player
+    int channel = settings.guitarChannel >= 0 ? settings.guitarChannel : settings.bassChannel;
+    if (mode == CalibrationMode::Instrument && !startNoteInput(settings.inputDevice, LOWEST_EXPECTED_NOTE_HZ, error, channel)) return false;
     calibration.mode = mode;
     calibration.globalOffsetMs = settings.globalOffsetMs;
     ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard; // Space taps here, it mustn't press buttons
@@ -75,7 +78,10 @@ static void update(){
     if (calibration.mode == CalibrationMode::Tap){
         if (IsKeyPressed(KEY_SPACE)) record(now);
     } else {
-        for (const PlayedNote& note : updateNoteInput()) record(now - note.age);
+        // Each pluck's attack, not its note: a muted string has no pitch but lands on the beat all the same, and the
+        // attack is placed to the millisecond
+        updateNoteInput();
+        for (double age : noteInputAttacks()) record(now - age);
     }
     if (now > calibration.start + BEATS * BEAT_S + 0.4){
         calibration.done = true;

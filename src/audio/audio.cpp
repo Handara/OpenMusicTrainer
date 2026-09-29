@@ -553,13 +553,15 @@ void stopCapture(){
     audio.captureReady = false;
 }
 
-// An ASIO driver whose settings changed (its buffer size, in its control panel) asks to be started again. The same
-// inputs come back; a new sample rate would reach the readers through captureSampleRate.
+// An ASIO driver whose settings changed (its buffer size, in its control panel) asks to be started again. Readers
+// sized their buffers for its inputs, so if the number of inputs came back different it stays stopped rather than
+// overrun them: they see no input, and whoever opens it again sizes for the new count.
 static void restartAsioIfAsked(){
     if (audio.asioDevice.empty() || !asioRestartRequested()) return;
     std::string device = audio.asioDevice, error;
+    ma_uint32 channels = audio.captureChannels;
     stopCapture();
-    startCapture(device, error);
+    if (startCapture(device, error) && audio.captureChannels != channels) stopCapture();
 }
 
 int captureSampleRate(){

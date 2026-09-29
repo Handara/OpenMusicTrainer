@@ -102,10 +102,10 @@ const float HINT_AHEAD_S = 0.6f;
 static void handleInstrument(std::vector<PlayNote>& notes, GameState& state, float songTime, float inputOffset,
                              int& lastPlayedPitch, bool rhythmMode, double& lastAttackAt){
     int lowestDue = -1;
-    for (const PlayNote& note : notes){
-        if (note.time > songTime + HINT_AHEAD_S) break; // sorted by time
-        if (note.judged || note.time < songTime - HINT_BEHIND_S) continue;
-        if (lowestDue < 0 || note.pitch < lowestDue) lowestDue = note.pitch;
+    auto due = std::lower_bound(notes.begin(), notes.end(), songTime - HINT_BEHIND_S,
+                                [](const PlayNote& note, float time){ return note.time < time; }); // sorted by time
+    for (; due != notes.end() && due->time <= songTime + HINT_AHEAD_S; ++due){
+        if (!due->judged && (lowestDue < 0 || due->pitch < lowestDue)) lowestDue = due->pitch;
     }
     expectLowestNote(lowestDue >= 0 ? midiToFrequency((float)lowestDue) : 0.0f);
 
