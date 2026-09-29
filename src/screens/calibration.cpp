@@ -24,6 +24,7 @@ static struct {
     double start = 0.0;          // audio time of the first click
     int nextClick = 0;           // the next click to schedule
     std::vector<double> differences;
+    long long lastBeat = -1;     // the click the last tap or note was counted for: one each
     bool done = false;
     OffsetEstimate estimate;
     bool active = false;
@@ -33,6 +34,7 @@ static void restart(){
     calibration.start = audioTime() + LEAD_IN_S;
     calibration.nextClick = 0;
     calibration.differences.clear();
+    calibration.lastBeat = -1;
     calibration.done = false;
 }
 
@@ -54,10 +56,13 @@ void stopCalibration(){
     calibration.active = false;
 }
 
-// A tap or note at audio time t: compared with the click it's nearest to
+// A tap or note at audio time t: compared with the click it's nearest to. Only the first for each click counts: a
+// pluck can be heard as two notes (its attack bumping twice, a bass note's pitch misread as it rings), and the
+// second, always late, would drag the measured delay later.
 static void record(double t){
     long long beat = std::llround((t - calibration.start) / BEAT_S);
-    if (beat < WARMUP_BEATS || beat >= BEATS) return;
+    if (beat < WARMUP_BEATS || beat >= BEATS || beat == calibration.lastBeat) return;
+    calibration.lastBeat = beat;
     calibration.differences.push_back(t - (calibration.start + beat * BEAT_S));
 }
 
