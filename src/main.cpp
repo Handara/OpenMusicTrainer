@@ -141,6 +141,7 @@ static GameplayOptions gameplayOptions(){
     options.playWithInstrument = app.settings.playWithInstrument;
     options.inputDevice = app.settings.inputDevice;
     options.inputOffsetSeconds = app.settings.inputOffsetMs / 1000.0f;
+    options.hitSounds = !app.settings.playWithInstrument;
     return options;
 }
 

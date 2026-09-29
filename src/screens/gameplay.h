@@ -22,6 +22,7 @@ struct GameplayOptions {
     bool lowStringOnTop = true;
     NoteViews noteViews;
     bool playWithInstrument = false;  // judge notes played on the input device (the number keys work either way)
+    bool hitSounds = true;            // a key that hits plays its note (with an instrument, it's heard already)
     std::string inputDevice;
     float inputOffsetSeconds = 0.0f;  // the input device's own delay (see calibration)
 };

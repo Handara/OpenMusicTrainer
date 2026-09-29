@@ -145,6 +145,7 @@ add_executable(lahn
     src/main.cpp
     src/audio/audio.cpp
     src/input/noteinput.cpp
+    src/ui/hitfeedback.cpp
     src/ui/menulist.cpp
     src/ui/theme.cpp
     src/ui/transition.cpp

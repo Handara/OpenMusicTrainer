@@ -76,18 +76,22 @@ void drawHighway(Rectangle area, const std::vector<PlayNote>& notes, const Score
     for (; it != notes.end() && it->time <= latest; ++it){
         const PlayNote& note = *it;
         Vector2 center = point(alongAt(note.time), laneAt(note.stringIndex));
-        Color color = STRING_COLORS[note.stringIndex % 6];
-        if (note.hitFlash > 0.0f){
-            // A ring spreads from a hit note as it lights up: good for perfect, brass for near
-            float t = note.hitFlash / HIT_FLASH_DURATION;
+        if (note.hit){
+            // A hit note is gone: it bursts at its target, in green for perfect or brass for good, and fades
+            if (note.hitFlash <= 0.0f) continue;
+            float t = note.hitFlash / HIT_FLASH_DURATION; // 1 at the hit, 0 when it's over
             Color lit = themeColor(note.wasPerfect ? UiColor::Good : UiColor::Accent);
-            float radius = targetRadius + (1.0f - t) * 20 * scale;
-            DrawRing(center, radius - 2.0f * scale, radius, 0.0f, 360.0f, 48, Fade(lit, t));
-            color = lit;
+            Vector2 target = point(hitAlong, laneAt(note.stringIndex));
+            float radius = targetRadius + (1.0f - t) * 22 * scale;
+            DrawCircleV(target, noteRadius * (0.6f + 0.6f * t), Fade(lit, t));
+            DrawRing(target, radius - 2.5f * scale, radius, 0.0f, 360.0f, 48, Fade(lit, t));
+            continue;
         }
-        DrawCircleV(center, noteRadius + 1.5f * scale, themeColor(UiColor::Card)); // a rim that keeps notes apart
-        DrawCircleV(center, noteRadius, color);
-        drawViewText(TextFormat("%d", note.fret), center.x, center.y, fontSize, WHITE);
+        // A missed note goes on past the line, faded: what was missed stays visible for a moment, out of the way
+        float alpha = note.judged ? 0.3f : 1.0f;
+        DrawCircleV(center, noteRadius + 1.5f * scale, Fade(themeColor(UiColor::Card), alpha)); // a rim that keeps notes apart
+        DrawCircleV(center, noteRadius, Fade(STRING_COLORS[note.stringIndex % 6], alpha));
+        drawViewText(TextFormat("%d", note.fret), center.x, center.y, fontSize, Fade(WHITE, alpha));
     }
     EndScissorMode();
 }

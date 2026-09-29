@@ -148,7 +148,7 @@ ResultsChoice resultsScreen(const GameResult& result){
                   TextFormat("%d of %d hit  ·  best combo %d", hits, result.totalNotes, result.maxCombo));
     y += 18 * s + 6 * s;
     draw->AddText(fonts.text, 18 * s, ImVec2(x, y), uiColor(UiColor::Dim),
-                  TextFormat("Perfect %d  ·  Near %d  ·  Miss %d", result.perfectCount, result.nearCount, result.missCount));
+                  TextFormat("Perfect %d  ·  Good %d  ·  Miss %d", result.perfectCount, result.nearCount, result.missCount));
 
     int confirmed = menuList(list, rows, listArea(0.45f));
     if (confirmed == 0) choice = ResultsChoice::Retry;

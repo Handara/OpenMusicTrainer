@@ -8,6 +8,7 @@
 #include "imgui.h"
 #include "input/noteinput.h"
 #include "raylib.h"
+#include "ui/hitfeedback.h"
 #include "ui/menulist.h"
 #include "ui/theme.h"
 #include "views/noteviews.h"
@@ -27,6 +28,7 @@ struct GameState {
     int perfectCount;
     int nearCount;
     int missCount;
+    std::vector<float> errorsMs; // every hit's timing (+ early, - late): for the run's stats
 };
 
 const int MAX_LANES = 6; // limited by the number keys and the vertical layout for now
@@ -38,8 +40,11 @@ const int laneKeys[MAX_LANES] = { KEY_ONE, KEY_TWO, KEY_THREE, KEY_FOUR, KEY_FIV
 const int MAX_MULTIPLIER = 4;
 const double LEAD_IN_S = 2.0; // starting part-way into a song, it plays this long before the first note
 
+static HitFeedback feedback; // the judgements, timing bar and combo shown over the play screen
+
 static void scoreMisses(GameState& state, int count){
     if (count == 0) return;
+    feedbackMiss(feedback, state.combo);
     state.combo = 0;
     state.multiplier = 1;
     state.missCount += count;
@@ -47,7 +52,8 @@ static void scoreMisses(GameState& state, int count){
 }
 
 // Scoring is the game's own rule on top of judging: perfect hits build the multiplier, near hits don't
-static void scoreHit(GameState& state, Judgement judgement, int notesHit){
+static void scoreHit(GameState& state, Judgement judgement, int notesHit, double error){
+    state.errorsMs.push_back((float)(error * 1000.0));
     for (int i = 0; i < notesHit; i++){
         state.combo++;
         if (judgement == Judgement::Perfect){
@@ -62,17 +68,20 @@ static void scoreHit(GameState& state, Judgement judgement, int notesHit){
         }
     }
     state.maxCombo = std::max(state.maxCombo, state.combo);
+    feedbackHit(feedback, judgement, error, state.combo);
 }
 
 // Number keys 1 to 6 stand for the strings, lowest first
-static void handleKeyboard(std::vector<PlayNote>& notes, GameState& state, float songTime, int laneCount){
+static void handleKeyboard(std::vector<PlayNote>& notes, GameState& state, float songTime, int laneCount, bool hitSounds){
     for (int lane = 0; lane < laneCount; lane++){
         if (!IsKeyPressed(laneKeys[lane])) continue;
         PlayerInput press;
         press.time = songTime;
         press.stringIndex = lane;
         JudgeResult result = judgeInput(notes, press);
-        if (result.judgement != Judgement::Ignored) scoreHit(state, result.judgement, result.notesHit);
+        if (result.judgement == Judgement::Ignored) continue;
+        scoreHit(state, result.judgement, result.notesHit, result.error);
+        if (hitSounds) playPreview(midiToFrequency((float)result.pitch)); // the key plays the note it hit
     }
 }
 
@@ -85,7 +94,7 @@ static void handleInstrument(std::vector<PlayNote>& notes, GameState& state, flo
         input.time = songTime - played.age - inputOffset;
         input.pitch = played.pitch;
         JudgeResult result = judgeInput(notes, input);
-        if (result.judgement != Judgement::Ignored) scoreHit(state, result.judgement, result.notesHit);
+        if (result.judgement != Judgement::Ignored) scoreHit(state, result.judgement, result.notesHit, result.error);
         lastPlayedPitch = played.pitch;
     }
 }
@@ -99,6 +108,7 @@ static struct {
     GameplayOptions options;
     float songTime = 0.0f;
     int lastPlayedPitch = -1; // the latest note heard from the instrument, shown so the player can trust the input
+    float hitLineX = 180.0f;  // where the views put the hit line, for the judgements drawn at it
     bool active = false;
 } game;
 
@@ -146,6 +156,7 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
     }
     game.score = buildScore(game.chart, track); // its events point into track.notes, in the same order as game.notes
     game.state = {};
+    feedback = {};
     game.state.multiplier = 1;
     game.options = options;
     game.lastPlayedPitch = -1;
@@ -177,7 +188,7 @@ bool updateGameplay(){
         if (note.hitFlash > 0.0f) note.hitFlash -= GetFrameTime();
     }
     const FrettedTrack& track = game.chart.frettedTracks[0];
-    handleKeyboard(game.notes, game.state, game.songTime, (int)track.tuning.size());
+    handleKeyboard(game.notes, game.state, game.songTime, (int)track.tuning.size(), game.options.hitSounds);
     if (noteInputActive()) handleInstrument(game.notes, game.state, game.songTime, game.options.inputOffsetSeconds, game.lastPlayedPitch);
     scoreMisses(game.state, markMisses(game.notes, game.songTime));
 
@@ -194,8 +205,8 @@ void drawGameplay(){
     ClearBackground(themeColor(UiColor::Background));
     TimeAxis axis = { game.songTime, (float)HIT_LINE_X, game.options.noteSpeed };
     float width = (float)GetScreenWidth(), height = (float)GetScreenHeight();
-    Rectangle viewsArea = { 0, height * 0.14f, width, height * 0.84f }; // below the HUD
-    drawNoteViews(viewsArea, game.options.noteViews, game.notes, game.score, game.chart.frettedTracks[0].tuning,
+    Rectangle viewsArea = { 0, height * 0.14f, width, height * 0.72f }; // below the HUD, above the combo and timing bar
+    game.hitLineX = drawNoteViews(viewsArea, game.options.noteViews, game.notes, game.score, game.chart.frettedTracks[0].tuning,
                   game.options.lowStringOnTop, axis);
 }
 
@@ -229,12 +240,12 @@ void drawGameplayHud(){
     draw->AddText(fonts.heavy, 34 * s, ImVec2(width - margin - textWidth(fonts.heavy, 34 * s, score), top - 4 * s), uiColor(UiColor::Ink), score);
     const char* multiplier = TextFormat("x%d", state.multiplier);
     float multiplierWidth = textWidth(fonts.mono, 15 * s, multiplier);
-    float lineY = top + 38 * s;
-    draw->AddText(fonts.mono, 15 * s, ImVec2(width - margin - multiplierWidth, lineY),
+    draw->AddText(fonts.mono, 15 * s, ImVec2(width - margin - multiplierWidth, top + 38 * s),
                   uiColor(state.multiplier > 1 ? UiColor::Accent : UiColor::Dim), multiplier);
-    const char* combo = TextFormat("COMBO %d  ·  ", state.combo);
-    draw->AddText(fonts.mono, 15 * s, ImVec2(width - margin - multiplierWidth - textWidth(fonts.mono, 15 * s, combo), lineY),
-                  uiColor(UiColor::Dim), combo);
+
+    // The judgements at the hit line, just above the notes; the combo and the timing bar under them, centered
+    const float height = ImGui::GetIO().DisplaySize.y;
+    drawHitFeedback(feedback, draw, state.combo, { game.hitLineX, height * 0.14f - 4 * s, width / 2, height - 34 * s, s });
 }
 
 void stopGameplay(){

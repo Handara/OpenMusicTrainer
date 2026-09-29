@@ -35,6 +35,7 @@ struct JudgeResult {
     Judgement judgement = Judgement::Ignored;
     int notesHit = 0;    // more than 1 when a detected pitch completes a chord (see judgeInput)
     double error = 0.0;  // note time - input time: positive = early, negative = late
+    int pitch = -1;      // the note hit, as it sounds (to play it back to someone playing on the keyboard)
 };
 
 // Judges one input against the nearest unjudged note it matches, within the near window. An input with

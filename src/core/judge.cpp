@@ -23,6 +23,7 @@ JudgeResult judgeInput(std::vector<PlayNote>& notes, const PlayerInput& input){
     if (!nearest) return result;
 
     result.error = nearest->time - input.time;
+    result.pitch = nearest->pitch;
     bool perfect = std::fabs(result.error) <= PERFECT_WINDOW_S;
     result.judgement = perfect ? Judgement::Perfect : Judgement::Near;
 
