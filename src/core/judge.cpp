@@ -4,6 +4,7 @@
 #include <cmath>
 
 static bool matches(const PlayNote& note, const PlayerInput& input){
+    if (input.anyNote) return true;
     if (input.pitch >= 0) return note.pitch == input.pitch;
     if (input.stringIndex >= 0) return note.stringIndex == input.stringIndex;
     return false;

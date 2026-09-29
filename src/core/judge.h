@@ -31,6 +31,7 @@ struct PlayerInput {
     // A single-note detector hears one note of a chord, so by pitch a chord counts whole once one of its notes
     // is heard. A MIDI keyboard sends every key, so there each note of a chord has to be played: false.
     bool completesChord = true;
+    bool anyNote = false; // rhythm mode, played on an instrument: whatever note is played counts for the next hit
 };
 
 enum class Judgement { Ignored, Perfect, Near };

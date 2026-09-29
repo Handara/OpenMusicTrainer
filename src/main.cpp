@@ -44,6 +44,7 @@ static struct {
     std::vector<SongEntry> songs;
     SongEntry currentSong;        // the song being played, kept for Retry and its records
     int currentPart = 0;          // and which of its parts
+    bool currentRhythm = false;   // and in which mode
     std::string songSelectError;  // why the last song failed to start (or a package failed to install)
     std::string songSelectNotice; // a song package just installed
     std::string packagesDir;      // song packages the player made, to share
@@ -145,7 +146,7 @@ static void editSong(const SongEntry& song){
 static void recordRun(GameResult& result){
     std::error_code ec;
     fs::create_directories(recordsDir(), ec);
-    std::string path = recordsPath(recordsDir(), songId(app.currentSong), app.currentPart, result.fingerprint);
+    std::string path = recordsPath(recordsDir(), songId(app.currentSong), app.currentPart, result.fingerprint); // "-rhythm" in rhythm mode
 
     RunRecord run;
     run.score = result.score;
@@ -181,12 +182,14 @@ static GameplayOptions gameplayOptions(){
     return options;
 }
 
-static void startSong(const SongEntry& song, int part){
+static void startSong(const SongEntry& song, int part, bool rhythmMode){
     std::string error;
     app.testPlaying = false;
     GameplayOptions options = gameplayOptions();
     options.part = part;
+    options.rhythmMode = rhythmMode;
     if (startGameplay(song.chartPath, options, error)){
+        app.currentRhythm = rhythmMode;
         app.currentSong = song;
         app.currentPart = part;
         app.songSelectError.clear();
@@ -283,7 +286,7 @@ static void runMenus(){
             SongSelectChoice choice = songSelectScreen("Select a song", app.songs, app.songSelectError, app.songSelectNotice, false);
             if (choice.back) app.screen = Screen::MainMenu;
             else if (choice.openDataFolder) openDataFolder();
-            else if (choice.songIndex >= 0) startSong(app.songs[choice.songIndex], choice.part);
+            else if (choice.songIndex >= 0) startSong(app.songs[choice.songIndex], choice.part, choice.rhythmMode);
             break;
         }
         case Screen::EditorSelect: {
@@ -328,7 +331,7 @@ static void runMenus(){
             break;
         case Screen::Results:
             switch (resultsScreen(app.lastResult)){
-                case ResultsChoice::Retry: startSong(app.currentSong, app.currentPart); break;
+                case ResultsChoice::Retry: startSong(app.currentSong, app.currentPart, app.currentRhythm); break;
                 case ResultsChoice::BackToSongs: goToSongSelect(); break;
                 case ResultsChoice::None: break;
             }
@@ -367,7 +370,7 @@ static void runMenus(){
                     case PauseChoice::Resume: resumeGameplay(); break;
                     case PauseChoice::Retry:
                         if (app.testPlaying){ stopGameplay(); startTestPlay(); }
-                        else startSong(app.currentSong, app.currentPart);
+                        else startSong(app.currentSong, app.currentPart, app.currentRhythm);
                         break;
                     case PauseChoice::Quit:
                         if (app.testPlaying) backToEditor();

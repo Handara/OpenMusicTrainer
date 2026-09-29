@@ -17,7 +17,8 @@ struct SongSelectChoice {
     bool openDataFolder = false;
     bool newSong = false; // editing only: make a new song from an audio file
     int songIndex = -1; // index into the songs list, -1 if nothing was picked this frame
-    int part = 0;       // which of the song's parts (fretted tracks) to play
+    int part = 0;       // which of the song's parts to play
+    bool rhythmMode = false; // taiko-style, only the rhythm (Tab switches it on the song list)
 };
 // forEditing marks built-in songs, since editing one creates a copy
 // Playing a song with several parts (guitar, bass), confirming it lists its parts to choose from first.

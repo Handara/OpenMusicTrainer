@@ -5,6 +5,7 @@
 #include "core/judge.h"
 #include "core/music.h"
 #include "core/pianokeys.h"
+#include "core/rhythmmode.h"
 #include "core/score.h"
 #include "imgui.h"
 #include "input/midi.h"
@@ -15,6 +16,7 @@
 #include "ui/menulist.h"
 #include "ui/theme.h"
 #include "views/noteviews.h"
+#include "views/rhythmlane.h"
 
 #include <algorithm>
 #include <cmath>
@@ -92,11 +94,12 @@ static void handleKeyboard(std::vector<PlayNote>& notes, GameState& state, float
 // With an instrument: each played note is placed in song time (now, minus how long ago it started, minus the
 // input device's delay) and judged by its pitch
 static void handleInstrument(std::vector<PlayNote>& notes, GameState& state, float songTime, float inputOffset,
-                             int& lastPlayedPitch){
+                             int& lastPlayedPitch, bool anyNote){
     for (const PlayedNote& played : updateNoteInput()){
         PlayerInput input;
         input.time = songTime - played.age - inputOffset;
         input.pitch = played.pitch;
+        input.anyNote = anyNote;
         JudgeResult result = judgeInput(notes, input);
         if (result.judgement != Judgement::Ignored) scoreHit(state, result.judgement, result.notesHit, result.error);
         lastPlayedPitch = played.pitch;
@@ -115,11 +118,27 @@ static struct {
     float hitLineX = 180.0f;  // where the views put the hit line, for the judgements drawn at it
     bool paused = false;
     bool keys = false;            // playing a keys part, on a MIDI keyboard
+    std::string partName;
     Rectangle distribution = {}; // where the HUD's timing distribution is: the results screen grows it from there
     float resumeAt = -1.0f;   // after a resume: the song time it was paused at (GET READY shows until then)
     std::string fingerprint;  // of the part being played
     bool active = false;
 } game;
+
+// Rhythm mode on the keyboard, as in taiko: F and J hit dons, D and K hit kas, and each sounds its drum
+static void handleDrumKeys(){
+    static const int KEYS[4] = { KEY_F, KEY_J, KEY_D, KEY_K };
+    for (int k = 0; k < 4; k++){
+        if (!IsKeyPressed(KEYS[k])) continue;
+        bool ka = k >= 2;
+        playDrum(ka);
+        PlayerInput press;
+        press.time = game.songTime;
+        press.stringIndex = ka ? 1 : 0;
+        JudgeResult result = judgeInput(game.notes, press);
+        if (result.judgement != Judgement::Ignored) scoreHit(game.state, result.judgement, result.notesHit, result.error);
+    }
+}
 
 bool startGameplay(const std::string& chartPath, const GameplayOptions& options, std::string& error){
     Chart chart;
@@ -144,6 +163,8 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
     // one-string instrument whose frets are its pitches: judging, scoring and the sheet music then work as for
     // any part.
     game.fingerprint = partFingerprint(chart, options.part); // of the whole part, before anything is left out
+    if (options.rhythmMode) game.fingerprint += "-rhythm";   // rhythm runs have records of their own
+    game.partName = partName(chart, options.part);
     game.keys = isKeysPart(chart, options.part);
     game.chart = chart;
     if (game.keys){
@@ -182,6 +203,15 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
         game.notes.push_back(note);
     }
     game.score = buildScore(game.chart, track); // its events point into track.notes, in the same order as game.notes
+    if (options.rhythmMode){
+        // Rhythm mode: the part's hits instead of its notes, a note's string its kind (0 don, 1 ka), its fret 1 if
+        // it's big. The score stays for its bar lines.
+        game.notes.clear();
+        for (const RhythmHit& hit : rhythmHits(chart, options.part)){
+            if (hit.tick < fromTick) continue;
+            game.notes.push_back({(float)tickToSeconds(game.chart, hit.tick), hit.kind == RhythmHitKind::Ka ? 1 : 0, hit.big ? 1 : 0, -1});
+        }
+    }
     game.state = {};
     feedback = {};
     game.paused = false;
@@ -191,13 +221,17 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
     game.lastPlayedPitch = -1;
     // A keys part is played on a MIDI keyboard if one is connected, else on the computer keyboard, laid out from
     // the C at or below the part's lowest note
-    if (game.keys){
+    if (game.keys && !options.rhythmMode){
         std::string midiError;
         if (!startMidiInput(options.midiDevice, midiError)){
             int lowest = 127;
             for (const PlayNote& note : game.notes) lowest = std::min(lowest, note.pitch);
             startPianoKeys(options.pianoKeys, pianoBaseFor(game.notes.empty() ? 60 : lowest));
         }
+    }
+    if (options.rhythmMode && game.keys){
+        std::string midiError;
+        startMidiInput(options.midiDevice, midiError); // any key on it counts; without one, the drum keys do
     }
     if (options.playWithInstrument && !game.keys){
         // Listen down to just below the track's lowest string: a bass or a drop tuning gets its own range
@@ -253,8 +287,10 @@ bool updateGameplay(){
         if (note.hitFlash > 0.0f) note.hitFlash -= GetFrameTime();
     }
     const FrettedTrack& track = game.chart.frettedTracks[0];
-    handleKeyboard(game.notes, game.state, game.songTime, (int)track.tuning.size(), game.options.hitSounds);
-    if (noteInputActive()) handleInstrument(game.notes, game.state, game.songTime, game.options.inputOffsetSeconds, game.lastPlayedPitch);
+    if (game.options.rhythmMode) handleDrumKeys();
+    else handleKeyboard(game.notes, game.state, game.songTime, (int)track.tuning.size(), game.options.hitSounds);
+    if (noteInputActive()) handleInstrument(game.notes, game.state, game.songTime, game.options.inputOffsetSeconds, game.lastPlayedPitch,
+                                            game.options.rhythmMode);
     if (midiInputActive() || pianoKeysActive()){
         // Each key on its own: pressing one note of a chord doesn't play the rest. Every key sounds, hit or not:
         // it's an instrument being played.
@@ -264,6 +300,7 @@ bool updateGameplay(){
             input.time = game.songTime - played.age;
             input.pitch = played.pitch;
             input.completesChord = false;
+            input.anyNote = game.options.rhythmMode;
             JudgeResult result = judgeInput(game.notes, input);
             if (result.judgement != Judgement::Ignored) scoreHit(game.state, result.judgement, result.notesHit, result.error);
             game.lastPlayedPitch = played.pitch;
@@ -285,6 +322,11 @@ void drawGameplay(){
     TimeAxis axis = { game.songTime, (float)HIT_LINE_X, game.options.noteSpeed };
     float width = (float)GetScreenWidth(), height = (float)GetScreenHeight();
     Rectangle viewsArea = { 0, height * 0.14f, width, height * 0.72f }; // below the HUD, above the combo and timing bar
+    if (game.options.rhythmMode){
+        drawRhythmLane(viewsArea, game.notes, game.score, axis);
+        game.hitLineX = axis.hitLineX;
+        return;
+    }
     if (game.keys){
         const bool* down = midiInputActive() ? midiKeysDown() : pianoKeysActive() ? pianoKeysDown() : nullptr;
         game.hitLineX = drawKeysViews(viewsArea, game.options.noteViews, game.notes, game.score, axis, down,
@@ -330,6 +372,14 @@ void drawGameplayHud(){
 
     // The judgements at the hit line, just above the notes; the combo and the timing bar under them, centered
     const float height = ImGui::GetIO().DisplaySize.y;
+    // Rhythm mode: which keys hit what, under the lane (or, on an instrument, that any note does)
+    if (game.options.rhythmMode){
+        bool instrument = noteInputActive() || midiInputActive();
+        const char* keys = instrument ? "PLAY ANY NOTE ON THE BEAT" : "F  J   DON        D  K   KA";
+        float keysWidth = textWidth(fonts.mono, 14 * s, keys);
+        draw->AddText(fonts.mono, 14 * s, ImVec2(width / 2 - keysWidth / 2, ImGui::GetIO().DisplaySize.y * 0.5f + 100 * s),
+                      uiColor(UiColor::Dim), keys);
+    }
     // Back from a pause, the song plays its run-up: nothing counts against the player until it's back where it was
     if (game.resumeAt >= 0.0f && game.songTime < game.resumeAt){
         const char* ready = "GET READY";
@@ -355,7 +405,7 @@ GameResult gameplayResult(){
     GameResult result;
     const GameState& state = game.state;
     result.title = game.chart.title;
-    result.partName = game.chart.frettedTracks.empty() ? "" : game.chart.frettedTracks[0].name;
+    result.partName = game.partName + (game.options.rhythmMode ? " (rhythm)" : "");
     result.score = state.score;
     result.maxCombo = state.maxCombo;
     result.perfectCount = state.perfectCount;

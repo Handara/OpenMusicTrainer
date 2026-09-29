@@ -29,7 +29,8 @@ struct GameResult {
 };
 
 struct GameplayOptions {
-    int part = 0;              // which of the chart's fretted tracks to play
+    int part = 0;              // which of the chart's parts to play
+    bool rhythmMode = false;   // taiko-style: only the rhythm counts (core/rhythmmode)
     float noteSpeed = 300.0f;  // pixels per second
     float offsetSeconds = 0.0f; // latency compensation: positive = notes are judged and drawn later
     bool lowStringOnTop = true;
