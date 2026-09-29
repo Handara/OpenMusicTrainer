@@ -2,6 +2,7 @@
 
 #include "core/drill.h"
 #include "core/fretboard.h"
+#include "core/reading.h"
 #include "core/rhythm.h"
 #include "core/intervals.h"
 #include "core/routine.h"
@@ -55,12 +56,20 @@
 //   pass 90                      (percent right for a pass to count as clean and speed up)
 //   tuning 40 45 50 55 59 64     (it's played on the open string written nearest the staff's middle line)
 //
+// A sight reading drill (`type reading`) reads a new melody each pass, all optional:
+//   key C                        (the root: C, F#, Bb...)
+//   scale major                  (see core/scales.cpp for every name)
+//   frets 0 3                    (the position: the notes are found in these frets...)
+//   strings 1 2 3                (...on these strings, 1 = the lowest; default: all)
+//   leap 2                       (the widest move, in notes of the scale: 1 = by step only)
+//   and a rhythm drill's cells, bars, time, tempo, pass and tuning
+//
 // A routine (`type routine`) is a playlist of other exercises, a few minutes each, done one after the other:
 //   step e-minor-open 3          (an exercise's file name without .exercise, then minutes: at least one step)
 //   step intervals-up 5
 // A built-in routine uses built-in exercises; the player's own routines look in their own exercises first.
 
-enum class ExerciseType { Intervals, Scale, Routine, Fretboard, Rhythm };
+enum class ExerciseType { Intervals, Scale, Routine, Fretboard, Rhythm, Reading };
 
 struct ExerciseFile {
     ExerciseType type = ExerciseType::Intervals;
@@ -72,6 +81,7 @@ struct ExerciseFile {
     ScaleDrillConfig drill;   // the rules, for type Scale
     FretboardConfig fretboard; // the rules, for type Fretboard
     RhythmConfig rhythm;       // the rules, for type Rhythm
+    ReadingConfig reading;     // the rules, for type Reading
     std::vector<RoutineStep> routine; // the steps, for type Routine
 };
 

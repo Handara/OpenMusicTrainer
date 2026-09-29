@@ -122,6 +122,7 @@ add_library(lahn_core STATIC
     src/core/notedetector.cpp
     src/core/paths.cpp
     src/core/pitch.cpp
+    src/core/reading.cpp
     src/core/rhythm.cpp
     src/core/routine.cpp
     src/core/score.cpp
@@ -203,6 +204,7 @@ if(BUILD_TESTING)
         tests/notation_test.cpp
         tests/notedetector_test.cpp
         tests/pitch_test.cpp
+        tests/reading_test.cpp
         tests/rhythm_test.cpp
         tests/routine_test.cpp
         tests/score_test.cpp

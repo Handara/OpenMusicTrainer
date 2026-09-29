@@ -18,7 +18,8 @@ std::string lessonGoalText(const LessonStep& step, const ExerciseEntry* exercise
     if (step.type == LessonStepType::Play) return "Goal: hit " + std::to_string(lessonGoal(step)) + "% of the notes";
     if (step.type != LessonStepType::Exercise || !exercise) return "";
     int goal = lessonGoal(step, exercise->exercise.type);
-    if (exercise->exercise.type == ExerciseType::Scale || exercise->exercise.type == ExerciseType::Rhythm) return "Goal: " + std::to_string(goal) + (goal == 1 ? " clean pass" : " clean passes");
+    ExerciseType type = exercise->exercise.type;
+    if (type == ExerciseType::Scale || type == ExerciseType::Rhythm || type == ExerciseType::Reading) return "Goal: " + std::to_string(goal) + (goal == 1 ? " clean pass" : " clean passes");
     return "Goal: " + std::to_string(goal) + (goal == 1 ? " right answer" : " right answers in a row");
 }
 

@@ -1,0 +1,12 @@
+# lahn exercise
+version 1
+type reading
+category Reading
+title C major, open position
+description Read a new melody each pass in C major, frets 0 to 3: the first notes most guitarists learn to read.
+key C
+scale major
+frets 0 3
+leap 2
+cells quarter eighths rest
+tempo 50 110 4

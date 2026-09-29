@@ -1,0 +1,13 @@
+# lahn exercise
+version 1
+type reading
+category Reading
+title Low notes, ledger lines
+description Melodies on the low E, A and D strings: reading below the staff.
+key C
+scale major
+frets 0 3
+strings 1 2 3
+leap 2
+cells quarter eighths rest
+tempo 50 100 4

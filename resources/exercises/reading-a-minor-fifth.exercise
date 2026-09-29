@@ -1,0 +1,12 @@
+# lahn exercise
+version 1
+type reading
+category Reading
+title A minor, fifth position
+description Up the neck: frets 5 to 8, wider leaps, dotted rhythms.
+key A
+scale minor
+frets 5 8
+leap 3
+cells quarter eighths dotted rest
+tempo 50 110 4

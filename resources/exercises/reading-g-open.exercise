@@ -1,0 +1,12 @@
+# lahn exercise
+version 1
+type reading
+category Reading
+title G major, open position
+description The same, in G major: every F is sharp, as the key signature says.
+key G
+scale major
+frets 0 4
+leap 2
+cells quarter eighths rest
+tempo 50 110 4

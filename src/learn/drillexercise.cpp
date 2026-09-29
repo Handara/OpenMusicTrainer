@@ -173,5 +173,7 @@ void DrillExercise::draw(){
     // The notes, in whichever views the settings choose, below the text
     float width = (float)GetScreenWidth(), height = (float)GetScreenHeight();
     TimeAxis axis = { (float)drillTime(), HIT_LINE_X, settings.noteSpeed };
-    drawNoteViews({0, height * 0.48f, width, height * 0.51f}, settings.noteViews, notes, score, setup.tuning, settings.lowStringOnTop, axis);
+    NoteViews views = settings.noteViews;
+    if (setup.staffOnly) views = NoteViews{true, false, false, false};
+    drawNoteViews({0, height * 0.48f, width, height * 0.51f}, views, notes, score, setup.tuning, settings.lowStringOnTop, axis);
 }

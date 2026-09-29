@@ -36,6 +36,41 @@ static bool readTempoSetting(const std::string& key, std::istringstream& ss, Dri
     return false;
 }
 
+// Reads a setting that rhythm and reading drills share: cells, bars, time, tuning, tempo, pass. Returns false if
+// `key` isn't one; a wrong value is reported through lineError while still returning true.
+template <typename Config, typename LineError>
+static bool readRhythmSetting(const std::string& key, std::istringstream& ss, Config& config, LineError& lineError){
+    if (key == "cells"){
+        config.cells.clear();
+        std::string name;
+        while (ss >> name){
+            if (!findRhythmCell(name)){
+                lineError("unknown cell '" + name + "' (known: quarter, rest, eighths, offbeat, triplets, sixteenths, gallop, "
+                          "reverse_gallop, dotted)");
+                return true;
+            }
+            config.cells.push_back(name);
+        }
+        if (config.cells.empty()) lineError("expected: cells <names>");
+    } else if (key == "bars"){
+        if (!(ss >> config.bars) || config.bars < 1 || config.bars > 8) lineError("bars must be 1 to 8");
+    } else if (key == "time"){
+        if (!(ss >> config.beatsPerBar) || config.beatsPerBar < 2 || config.beatsPerBar > 7) lineError("time must be 2 to 7 beats a bar");
+    } else if (key == "tuning"){
+        std::vector<int> tuning;
+        int pitch;
+        while (ss >> pitch){
+            if (pitch < 0 || pitch > 127){ lineError("tuning notes are MIDI numbers 0-127"); return true; }
+            tuning.push_back(pitch);
+        }
+        if (tuning.empty()) lineError("expected: tuning <MIDI notes, lowest string first>");
+        else config.tuning = tuning;
+    } else {
+        return readTempoSetting(key, ss, config.tempo, lineError);
+    }
+    return true;
+}
+
 // Reads one setting of a scale drill. Returns false if `key` isn't a drill setting; a wrong value is reported
 // through lineError (which sets the error) while still returning true.
 template <typename LineError>
@@ -125,7 +160,8 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
             else if (line.rest == "routine") out.type = ExerciseType::Routine;
             else if (line.rest == "fretboard") out.type = ExerciseType::Fretboard;
             else if (line.rest == "rhythm") out.type = ExerciseType::Rhythm;
-            else return lineError("unknown exercise type '" + line.rest + "' (known: intervals, scale, routine, fretboard, rhythm)");
+            else if (line.rest == "reading") out.type = ExerciseType::Reading;
+            else return lineError("unknown exercise type '" + line.rest + "' (known: intervals, scale, routine, fretboard, rhythm, reading)");
             hasType = true;
         }
     }
@@ -140,6 +176,8 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
     bool poolSet = false, startSet = false;
     std::vector<int> fretboardStrings; // as written (1 = lowest): checked against the tuning once it's all read
     int fretboardStringsLine = 0;
+    std::vector<int> readingStrings;   // the same, for reading drills
+    int readingStringsLine = 0;
     for (const Line& line : lines){
         lineNumber = line.number;
         std::istringstream ss(line.rest);
@@ -216,29 +254,29 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
             }
             if (tuning.empty() || tuning.size() > 12) return lineError("expected: tuning <1 to 12 MIDI notes, lowest string first>");
             out.fretboard.tuning = tuning;
-        } else if (out.type == ExerciseType::Rhythm && key == "cells"){
-            out.rhythm.cells.clear();
-            std::string name;
-            while (ss >> name){
-                if (!findRhythmCell(name)) return lineError("unknown cell '" + name + "' (known: quarter, rest, eighths, offbeat, "
-                                                            "triplets, sixteenths, gallop, reverse_gallop, dotted)");
-                out.rhythm.cells.push_back(name);
+        } else if (out.type == ExerciseType::Rhythm && readRhythmSetting(key, ss, out.rhythm, lineError)){
+            if (!error.empty()) return false;
+        } else if (out.type == ExerciseType::Reading && key == "key"){
+            std::string word;
+            if (!(ss >> word) || !parsePitchClass(word, out.reading.rootPitchClass)) return lineError("key must be a note name like G, F# or Bb");
+        } else if (out.type == ExerciseType::Reading && key == "scale"){
+            std::string word;
+            if (!(ss >> word) || !findScale(word)) return lineError("unknown scale '" + word + "'");
+            out.reading.scale = word;
+        } else if (out.type == ExerciseType::Reading && key == "frets"){
+            if (!(ss >> out.reading.lowestFret >> out.reading.highestFret)) return lineError("expected: frets <lowest> <highest>");
+            if (out.reading.lowestFret < 0 || out.reading.highestFret > MAX_FRET || out.reading.lowestFret > out.reading.highestFret){
+                return lineError("frets must be 0 to " + std::to_string(MAX_FRET) + ", lowest first");
             }
-            if (out.rhythm.cells.empty()) return lineError("expected: cells <names>");
-        } else if (out.type == ExerciseType::Rhythm && key == "bars"){
-            if (!(ss >> out.rhythm.bars) || out.rhythm.bars < 1 || out.rhythm.bars > 8) return lineError("bars must be 1 to 8");
-        } else if (out.type == ExerciseType::Rhythm && key == "time"){
-            if (!(ss >> out.rhythm.beatsPerBar) || out.rhythm.beatsPerBar < 2 || out.rhythm.beatsPerBar > 7) return lineError("time must be 2 to 7 beats a bar");
-        } else if (out.type == ExerciseType::Rhythm && key == "tuning"){
-            std::vector<int> tuning;
-            int pitch;
-            while (ss >> pitch){
-                if (pitch < 0 || pitch > 127) return lineError("tuning notes are MIDI numbers 0-127");
-                tuning.push_back(pitch);
-            }
-            if (tuning.empty()) return lineError("expected: tuning <MIDI notes, lowest string first>");
-            out.rhythm.tuning = tuning;
-        } else if (out.type == ExerciseType::Rhythm && readTempoSetting(key, ss, out.rhythm.tempo, lineError)){
+        } else if (out.type == ExerciseType::Reading && key == "strings"){
+            readingStrings.clear();
+            int string;
+            while (ss >> string) readingStrings.push_back(string);
+            if (readingStrings.empty()) return lineError("expected: strings <string numbers, 1 = the lowest>");
+            readingStringsLine = lineNumber;
+        } else if (out.type == ExerciseType::Reading && key == "leap"){
+            if (!(ss >> out.reading.maxLeap) || out.reading.maxLeap < 1 || out.reading.maxLeap > 7) return lineError("leap must be 1 (by step) to 7");
+        } else if (out.type == ExerciseType::Reading && readRhythmSetting(key, ss, out.reading, lineError)){
             if (!error.empty()) return false;
         } else if (out.type == ExerciseType::Scale && readDrillSetting(key, ss, out.drill, lineError)){
             if (!error.empty()) return false; // the setting was recognized but its value was wrong
@@ -254,6 +292,22 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
         return true;
     }
     if (out.type == ExerciseType::Rhythm) return true;
+    if (out.type == ExerciseType::Reading){
+        for (int string : readingStrings){
+            if (string < 1 || string > (int)out.reading.tuning.size()){
+                lineNumber = readingStringsLine;
+                return lineError("string " + std::to_string(string) + " doesn't exist: this tuning has "
+                                 + std::to_string(out.reading.tuning.size()) + " strings");
+            }
+            out.reading.strings.push_back(string - 1);
+        }
+        // Built once now, so a position that can't be read from is reported here, where the author sees it
+        std::mt19937 rng(0);
+        std::vector<DrillNote> notes;
+        std::string readingError;
+        if (!buildReading(out.reading, rng, notes, readingError)) return fileError(readingError);
+        return true;
+    }
     if (out.type == ExerciseType::Fretboard){
         for (int string : fretboardStrings){
             if (string < 1 || string > (int)out.fretboard.tuning.size()){

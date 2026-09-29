@@ -18,6 +18,7 @@ struct DrillSetup {
     KeySignature key;
     int beatsPerBar = 4;        // x/4
     bool timingOnly = false;    // any number key or played note counts: only when it's played is judged (rhythm)
+    bool staffOnly = false;     // sheet music only, whatever the settings show (sight reading: no tab to read instead)
     std::function<std::vector<DrillNote>()> nextPass; // the notes of each pass: a scale's are the same every time,
                                                       // a rhythm's new
 };

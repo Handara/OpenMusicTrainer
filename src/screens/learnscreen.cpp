@@ -59,6 +59,28 @@ static std::unique_ptr<Exercise> createExercise(const ExerciseEntry& entry){
             setup.nextPass = [notes](){ return notes; }; // the same scale every pass
             return std::make_unique<DrillExercise>(entry.exercise.title, setup, progressPath(entry), learn.setup.settings);
         }
+        case ExerciseType::Reading: {
+            const ReadingConfig& config = entry.exercise.reading;
+            const ScaleInfo* scale = findScale(config.scale);
+            DrillSetup setup;
+            std::string scaleName = scale ? scale->displayName : "";
+            if (!scaleName.empty()) scaleName[0] = (char)std::tolower((unsigned char)scaleName[0]); // "G major", as it's said
+            setup.about = TextFormat("Reading in %s %s, frets %d to %d", pitchClassName(config.rootPitchClass),
+                                     scaleName.c_str(), config.lowestFret, config.highestFret);
+            setup.tempo = config.tempo;
+            setup.tuning = config.tuning;
+            setup.key = scale ? scaleKeySignature(config.rootPitchClass, *scale) : KeySignature{};
+            setup.beatsPerBar = config.beatsPerBar;
+            setup.staffOnly = true;
+            // A new melody every pass (the file was checked when it loaded, so there's always one)
+            setup.nextPass = [config, rng = std::mt19937(std::random_device{}())]() mutable {
+                std::vector<DrillNote> notes;
+                std::string error;
+                buildReading(config, rng, notes, error);
+                return notes;
+            };
+            return std::make_unique<DrillExercise>(entry.exercise.title, setup, progressPath(entry), learn.setup.settings);
+        }
         case ExerciseType::Rhythm: {
             const RhythmConfig& config = entry.exercise.rhythm;
             DrillSetup setup;
@@ -98,7 +120,8 @@ static std::string progressSummary(const ExerciseEntry& entry){
             return TextFormat("%d/%d", (int)unlocked, (int)config.pool.size());
         }
         case ExerciseType::Scale:
-        case ExerciseType::Rhythm: {
+        case ExerciseType::Rhythm:
+        case ExerciseType::Reading: {
             int best = loadDrillProgress(progressPath(entry)).bestCleanTempo;
             return best > 0 ? TextFormat("best %d bpm", best) : "";
         }
