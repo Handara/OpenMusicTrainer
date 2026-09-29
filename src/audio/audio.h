@@ -12,7 +12,7 @@ bool initAudio(const std::string& outputDevice, std::string& error);
 void closeAudio();
 const char* audioBackendName(); // e.g. "PulseAudio", "WASAPI", "Null" (no real device)
 std::vector<std::string> outputDeviceNames(); // asks the system: too slow to call every frame
-std::vector<std::string> inputDeviceNames();
+std::vector<std::string> inputDeviceNames(); // Windows' own inputs, then the ASIO drivers, as "ASIO: <driver>"
 bool setOutputDevice(const std::string& outputDevice, std::string& error); // restarts output: stops any song
 const char* outputDeviceName(); // the device actually in use
 void setMasterVolume(float volume); // 0..1
@@ -76,6 +76,9 @@ void stopCapture();
 // Takes effect at the next startCapture. Elsewhere it changes nothing.
 void setExclusiveCapture(bool on);
 bool captureIsExclusive(); // the device listened to now is lahn's alone
+bool captureIsAsio();       // listening through an ASIO driver (an input device named "ASIO: ...")
+double captureLatencySeconds(); // the input's buffering: how late samples reach lahn, at the least
+void openInputDriverSettings(); // an ASIO driver's own settings window (its buffer size), while it's listening
 int captureSampleRate();
 const char* captureDeviceName();
 // The device's inputs (an audio interface has several: a guitar on one, a microphone on another)

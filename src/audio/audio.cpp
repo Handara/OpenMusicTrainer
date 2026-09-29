@@ -1,5 +1,6 @@
 #include "audio/audio.h"
 
+#include "audio/asioinput.h"
 #include "core/inputs.h"
 #include "core/pitch.h"
 #include "core/settings.h"
@@ -26,6 +27,8 @@ const double SONG_START_LEAD_S = 0.1;
 
 // Captured audio waiting for the main thread. At 48 kHz this is ~0.34 s: room for several slow frames.
 const ma_uint32 CAPTURE_BUFFER_FRAMES = 16384;
+// How an ASIO driver is named among the input devices: "ASIO: Focusrite USB ASIO"
+const char* const ASIO_PREFIX = "ASIO: ";
 
 // Preview sounds (e.g. the editor playing a note you place). Several can ring at once, like real strings.
 const int VOICE_COUNT = 8;
@@ -96,6 +99,8 @@ static struct {
     bool captureReady = false;
     bool exclusiveWanted = true;  // see setExclusiveCapture
     bool captureExclusive = false;
+    std::string asioDevice;        // the capture runs on this ASIO driver ("ASIO: ..."), "" when on Windows' own
+    std::atomic<bool> asioGate{false}; // ASIO calls as soon as it starts: its samples go in once the buffer exists
 
     Voice voices[VOICE_COUNT];
     Voice wake; // plays a moment of silence when an engine starts (see wakeEngineClock): not part of the pool,
@@ -145,7 +150,11 @@ static std::vector<std::string> deviceNames(ma_device_type type){
 }
 
 std::vector<std::string> outputDeviceNames(){ return deviceNames(ma_device_type_playback); }
-std::vector<std::string> inputDeviceNames(){ return deviceNames(ma_device_type_capture); }
+std::vector<std::string> inputDeviceNames(){
+    std::vector<std::string> names = deviceNames(ma_device_type_capture);
+    for (const std::string& driver : asioDriverNames()) names.push_back(ASIO_PREFIX + driver);
+    return names;
+}
 
 static void releaseVoice(Voice& voice);
 static void startVoice(Voice& voice, const float* data, size_t frames, float pitchRatio, float volume, unsigned long long startFrame);
@@ -417,13 +426,10 @@ double songPosition(){
     return audio.looping ? std::fmod(audio.smoothTime, length) : audio.smoothTime;
 }
 
-// Runs on the audio thread, every few milliseconds, with fresh input samples.
-// Rules for this function: no allocation, no locks, no file or console I/O. Anything slow here makes
-// the audio device miss its deadline and drop samples. So: copy into the ring buffer and return.
-static void captureCallback(ma_device* device, void* output, const void* input, ma_uint32 frameCount){
-    (void)device;
-    (void)output;
-    const float* samples = (const float*)input;
+// Fresh input samples into the capture buffer, for the main thread. Runs on the audio thread (miniaudio's or the
+// ASIO driver's), every millisecond or few. Rules for this function: no allocation, no locks, no file or console
+// I/O. Anything slow here makes the device miss its deadline and drop samples. So: copy into the ring and return.
+static void writeCapture(const float* samples, ma_uint32 frameCount){
     const ma_uint32 channels = audio.captureChannels;
     ma_uint32 written = 0;
     while (written < frameCount){
@@ -438,12 +444,43 @@ static void captureCallback(ma_device* device, void* output, const void* input, 
     // If the buffer was full, the rest is dropped: the main thread stopped reading, old audio is useless anyway
 }
 
+static void captureCallback(ma_device* device, void* output, const void* input, ma_uint32 frameCount){
+    (void)device;
+    (void)output;
+    writeCapture((const float*)input, frameCount);
+}
+
+static void asioCallback(const float* frames, int frameCount){
+    if (audio.asioGate) writeCapture(frames, (ma_uint32)frameCount);
+}
+
+// ASIO: the interface's own driver, straight to the hardware (audio/asioinput). It fills the same buffer, so
+// everything reading the input works the same on it.
+static bool startAsioCapture(const std::string& device, std::string& error){
+    std::string driver = device.substr(std::strlen(ASIO_PREFIX));
+    // At the output's rate: one interface asked for two rates at once would glitch or refuse
+    double rate = audio.engineReady ? (double)ma_engine_get_sample_rate(&audio.engine) : 48000.0;
+    if (!startAsioInput(driver, rate, asioCallback, error)) return false;
+    audio.captureChannels = (ma_uint32)std::max(1, asioInputChannels());
+    if (ma_pcm_rb_init(ma_format_f32, audio.captureChannels, CAPTURE_BUFFER_FRAMES, nullptr, nullptr, &audio.captureBuffer) != MA_SUCCESS){
+        stopAsioInput();
+        error = "could not create capture buffer";
+        return false;
+    }
+    audio.asioDevice = device;
+    audio.captureExclusive = true; // nothing stands between the driver and lahn
+    audio.captureReady = true;
+    audio.asioGate = true;
+    return true;
+}
+
 bool startCapture(const std::string& inputDevice, std::string& error){
     stopCapture();
     if (!audio.contextReady){
         error = "audio is not running";
         return false;
     }
+    if (inputDevice.rfind(ASIO_PREFIX, 0) == 0) return startAsioCapture(inputDevice, error);
 
     // Every input the device has, as its own channel: an audio interface's guitar and microphone stay apart
     ma_device_config config = ma_device_config_init(ma_device_type_capture);
@@ -498,17 +535,50 @@ bool captureIsExclusive(){
 
 void stopCapture(){
     if (!audio.captureReady) return;
-    ma_device_uninit(&audio.captureDevice); // stops the audio thread before the buffer it writes to goes away
+    // The thread writing to the buffer is stopped before the buffer goes away
+    if (!audio.asioDevice.empty()){
+        audio.asioGate = false;
+        stopAsioInput();
+        audio.asioDevice.clear();
+    } else {
+        ma_device_uninit(&audio.captureDevice);
+    }
     ma_pcm_rb_uninit(&audio.captureBuffer);
     audio.captureReady = false;
 }
 
+// An ASIO driver whose settings changed (its buffer size, in its control panel) asks to be started again. The same
+// inputs come back; a new sample rate would reach the readers through captureSampleRate.
+static void restartAsioIfAsked(){
+    if (audio.asioDevice.empty() || !asioRestartRequested()) return;
+    std::string device = audio.asioDevice, error;
+    stopCapture();
+    startCapture(device, error);
+}
+
 int captureSampleRate(){
-    return audio.captureReady ? (int)audio.captureDevice.sampleRate : 0;
+    if (!audio.captureReady) return 0;
+    return audio.asioDevice.empty() ? (int)audio.captureDevice.sampleRate : (int)asioInputSampleRate();
 }
 
 const char* captureDeviceName(){
-    return audio.captureReady ? audio.captureDevice.capture.name : "none";
+    if (!audio.captureReady) return "none";
+    return audio.asioDevice.empty() ? audio.captureDevice.capture.name : audio.asioDevice.c_str();
+}
+
+bool captureIsAsio(){
+    return audio.captureReady && !audio.asioDevice.empty();
+}
+
+double captureLatencySeconds(){
+    if (!audio.captureReady) return 0.0;
+    if (!audio.asioDevice.empty()) return asioInputLatencyFrames() / std::max(1.0, asioInputSampleRate());
+    const ma_device& device = audio.captureDevice;
+    return (double)device.capture.internalPeriodSizeInFrames * device.capture.internalPeriods / std::max<ma_uint32>(1, device.capture.internalSampleRate);
+}
+
+void openInputDriverSettings(){
+    if (captureIsAsio()) openAsioControlPanel();
 }
 
 int captureChannels(){
@@ -516,6 +586,7 @@ int captureChannels(){
 }
 
 int readCapture(float* out, int maxFrames, int channel){
+    restartAsioIfAsked();
     if (!audio.captureReady) return 0;
     const int channels = (int)audio.captureChannels;
     int total = 0;
@@ -531,6 +602,7 @@ int readCapture(float* out, int maxFrames, int channel){
 }
 
 int readCaptureAll(float* out, int maxFrames){
+    restartAsioIfAsked();
     if (!audio.captureReady) return 0;
     const int channels = (int)audio.captureChannels;
     int total = 0;

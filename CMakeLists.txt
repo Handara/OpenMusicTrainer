@@ -69,6 +69,25 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(raylib miniaudio imgui rlimgui doctest pl_mpeg miniz)
 
+# Windows: Steinberg's ASIO SDK, for the audio interfaces' own low-latency drivers (audio/asioinput.cpp). lahn takes
+# it under its GPLv3 option. Pinned by checksum to Steinberg's own package; its host helpers are compiled here.
+if(WIN32)
+    FetchContent_Declare(
+        asiosdk
+        URL      https://download.steinberg.net/sdk_downloads/ASIO-SDK_2.3.4_2025-10-15.zip
+        URL_HASH SHA256=d5ebf0c20dd2c5f43771fd0c1418f4b361bf52434ee670097cfa6b3a335e2eca
+        SOURCE_SUBDIR none
+    )
+    FetchContent_MakeAvailable(asiosdk)
+    add_library(asiosdk STATIC
+        ${asiosdk_SOURCE_DIR}/common/asio.cpp
+        ${asiosdk_SOURCE_DIR}/host/asiodrivers.cpp
+        ${asiosdk_SOURCE_DIR}/host/pc/asiolist.cpp
+    )
+    target_include_directories(asiosdk PUBLIC ${asiosdk_SOURCE_DIR}/common ${asiosdk_SOURCE_DIR}/host ${asiosdk_SOURCE_DIR}/host/pc)
+    target_link_libraries(asiosdk PUBLIC ole32 advapi32 user32)
+endif()
+
 # miniaudio is one header too, compiled the same way, with stb_vorbis (in its extras) for .ogg songs. On Linux and
 # macOS it needs threads, dlopen (it loads the system's audio libraries when it starts) and the math library.
 add_library(miniaudio STATIC src/audio/miniaudio.c)
@@ -99,6 +118,8 @@ target_link_libraries(imgui PUBLIC raylib)
 function(enable_warnings target)
     if(MSVC)
         target_compile_options(${target} PRIVATE /W4)
+        # getenv, fopen, strncpy: standard C, which Visual Studio flags in favour of its own versions
+        target_compile_definitions(${target} PRIVATE _CRT_SECURE_NO_WARNINGS)
     else()
         target_compile_options(${target} PRIVATE -Wall -Wextra)
     endif()
@@ -133,6 +154,7 @@ add_library(lahn_core STATIC
     src/core/rhythm.cpp
     src/core/rhythmmode.cpp
     src/core/routine.cpp
+    src/core/sampleformat.cpp
     src/core/score.cpp
     src/core/scales.cpp
     src/core/settings.cpp
@@ -151,6 +173,7 @@ add_executable(lahn
     src/main.cpp
     src/app/crashreport.cpp
     src/audio/audio.cpp
+    src/audio/asioinput.cpp
     src/input/midi.cpp
     src/input/noteinput.cpp
     src/input/pianokeys.cpp
@@ -192,7 +215,7 @@ add_executable(lahn
 )
 target_link_libraries(lahn PRIVATE lahn_core raylib miniaudio imgui pl_mpeg)
 if(WIN32)
-    target_link_libraries(lahn PRIVATE winmm dbghelp) # MIDI input (input/midi.cpp); crash reports (app/crashreport.cpp)
+    target_link_libraries(lahn PRIVATE winmm dbghelp asiosdk) # MIDI input (input/midi.cpp); crash reports (app/crashreport.cpp); ASIO
 endif()
 enable_warnings(lahn)
 
@@ -242,6 +265,7 @@ if(BUILD_TESTING)
         tests/settings_test.cpp
         tests/singing_test.cpp
         tests/songlibrary_test.cpp
+        tests/sampleformat_test.cpp
         tests/songpackage_test.cpp
         tests/synth_test.cpp
         tests/today_test.cpp

@@ -334,16 +334,26 @@ static void instrumentsTab(Settings& settings){
     ImGui::TextDisabled("%s", settings.inputDevice.empty() ? "The system's default input device (Audio tab to change it)"
                                                            : ("On " + settings.inputDevice + " (Audio tab to change it)").c_str());
 #ifdef _WIN32
-    // Windows' own effects on microphones (noise suppression) let an instrument through only while someone speaks
-    if (ImGui::Checkbox("Keep the input to lahn alone", &settings.exclusiveInput)){
-        setExclusiveCapture(settings.exclusiveInput);
-        stopListening(); // opened again, the new way, next frame
-    }
-    if (screen.listening){
-        const char* how = captureIsExclusive() ? "Windows' audio effects are skipped. Other programs can't use this input while lahn listens."
-                        : settings.exclusiveInput ? "Another program has this input to itself, so it's shared: Windows' effects may cut your instrument."
-                        : "Shared with other programs: Windows' effects (noise suppression) may cut your instrument.";
-        ImGui::TextDisabled("%s", how);
+    if (screen.listening && captureIsAsio()){
+        // ASIO: straight to the interface. Its buffer size is the latency to play with, in the driver's own window.
+        ImGui::TextDisabled("ASIO, straight to the interface: %.1f ms of input latency.", captureLatencySeconds() * 1000.0);
+        if (ImGui::Button("Driver settings")) openInputDriverSettings();
+        ImGui::SameLine();
+        ImGui::TextDisabled("A smaller buffer is faster; too small and the sound crackles.");
+    } else {
+        // Windows' own effects on microphones (noise suppression) let an instrument through only while someone speaks
+        if (ImGui::Checkbox("Keep the input to lahn alone", &settings.exclusiveInput)){
+            setExclusiveCapture(settings.exclusiveInput);
+            stopListening(); // opened again, the new way, next frame
+        }
+        if (screen.listening){
+            const char* how = captureIsExclusive() ? "Windows' effects are skipped; other programs can't use this input meanwhile."
+                            : settings.exclusiveInput ? "Another program has this input, so it's shared: Windows' effects may cut your instrument."
+                            : "Shared: Windows' effects (noise suppression) may cut your instrument.";
+            ImGui::PushTextWrapPos(0.0f);
+            ImGui::TextDisabled("%s %.0f ms of input latency.", how, captureLatencySeconds() * 1000.0);
+            ImGui::PopTextWrapPos();
+        }
     }
 #endif
     if (!screen.listening){

@@ -4,7 +4,7 @@ Music trainer and rhythm game for guitar, bass, piano and voice. It listens to y
 
 - Songs: notes on a highway, a score or tabs; any part on a piano keyboard (MIDI or the computer keys), or as taiko-style rhythm
 - Scoring built for competing: timing judged to the millisecond, accuracy, grades, best runs per song
-- An audio interface's inputs kept apart: each instrument on its own input
+- An audio interface's inputs kept apart: each instrument on its own input; on Windows, ASIO drivers for the lowest latency
 - Note detection from the mic: onsets, YIN pitch, hammer-ons, pull-offs and slides
 - Drills: scales, fretboard, intervals, chords, rhythm, sight reading, singing
 - Lessons: plain text files with images, audio, video and exercises, plus an editor
@@ -36,4 +36,5 @@ name of their own. Contributions come with a contributor licence agreement, see 
 The fonts are under the SIL Open Font License (their licences are next to them in `resources/fonts`): Figtree,
 Chivo Mono, Reem Kufi (the wordmark) and Bravura (music symbols). The libraries lahn builds with keep their own
 licences: raylib and rlImGui (zlib), Dear ImGui, pl_mpeg, miniz and doctest (MIT), miniaudio (public domain or
-MIT-0).
+MIT-0). On Windows, lahn builds with Steinberg's ASIO SDK, under its GPLv3 option; ASIO is a trademark and software
+of Steinberg Media Technologies GmbH.
