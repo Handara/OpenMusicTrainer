@@ -42,6 +42,7 @@ struct NoteDetector {
     long long lastOnsetSample = -1000000;
     bool sounding = false;       // a note is ringing (its pitch is known)
     int currentPitch = -1;
+    float currentMidi = -1.0f;   // its pitch exactly, as first measured: a legato change must move well away from it
     int candidatePitch = -1;     // a different pitch seen while ringing (a possible legato change)...
     int candidateCount = 0;      // ...and in how many analyses in a row
     long long candidateSample = 0;

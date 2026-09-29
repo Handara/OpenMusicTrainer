@@ -6,16 +6,26 @@
 #include <cmath>
 
 const float HOP_SECONDS = 0.0027f;       // hops of ~2.7 ms: onsets are placed to within one hop, then refined
-const int RECENT_HOPS = 16;              // "recent" = the last ~43 ms
+const int RECENT_HOPS = 4;               // "recent" = the last ~11 ms: a pluck jumps that fast, while a ringing
+                                         // note whose level wobbles (beating, measured on a bass: 7 dB dips every
+                                         // tenth of a second) climbs back far slower
 const float MIN_ONSET_GAP_S = 0.05f;     // two onsets closer than this are one note (a pick's double bump)
 const float ATTACK_SKIP_S = 0.01f;       // the pick's scrape right after an onset has no clear pitch: skip it
 const float PITCH_TIMEOUT_S = 0.15f;     // no pitch this long after an onset: it was a noise, not a note
 const int LEGATO_ANALYSIS_HOPS = 4;      // while a note rings, look for pitch changes every ~11 ms...
 const int LEGATO_CONFIRMATIONS = 3;      // ...and believe a change once it holds for 3 looks in a row
 const float MIN_CLARITY = 0.85f;         // how periodic a sound must be to count as a note
+// A legato change must move this far from where the note started, not just round to another note: a string tuned
+// between two notes (a bass's low E a quarter-tone flat) wobbles across the line between them as it rings
+const float LEGATO_MIN_SEMITONES = 0.75f;
+// Nor may it land on one of the ringing note's own overtones (an octave, an octave and a fifth, two octaves up), a
+// fifth up (the third harmonic, read an octave low) or an octave down: as a low note dies away its fundamental fades
+// first, and the pitch reads as what's left. A real slide of exactly those is rare; this misreading is not.
+const int OVERTONE_STEPS[] = { 7, 12, 19, 24, -12 };
 // The level falls back over this time: longer than one cycle of the lowest note, so it doesn't wobble with the
 // wave's shape (a 2.7 ms hop of an E3 holds under half a cycle: its RMS would rise and dip like new notes)
 const float ENVELOPE_RELEASE_S = 0.05f;
+const float ENVELOPE_RELEASE_CYCLES = 3.0f; // and at least this many cycles of the lowest note (a bass's E1: 73 ms)
 
 void initNoteDetector(NoteDetector& detector, int sampleRate, const NoteDetectorConfig& config){
     detector = NoteDetector{};
@@ -26,7 +36,8 @@ void initNoteDetector(NoteDetector& detector, int sampleRate, const NoteDetector
     detector.window.assign(pitchWindowSize(detector.pitch), 0.0f);
     detector.hop.reserve(detector.hopSize);
     detector.recentDb.assign(RECENT_HOPS, -120.0f);
-    detector.envelopeRelease = std::exp(-1.0f / (ENVELOPE_RELEASE_S * sampleRate));
+    float release = std::max(ENVELOPE_RELEASE_S, ENVELOPE_RELEASE_CYCLES / config.minFrequency);
+    detector.envelopeRelease = std::exp(-1.0f / (release * sampleRate));
 }
 
 // Envelope follower: rises instantly with the signal, falls slowly. Returns its level at the end of the hop, in dB.
@@ -47,6 +58,7 @@ static void emit(NoteDetector& detector, long long sample, float midi, std::vect
     out.push_back({sample, pitch, (midi - pitch) * 100.0f});
     detector.sounding = true;
     detector.currentPitch = pitch;
+    detector.currentMidi = midi;
     detector.candidateCount = 0;
 }
 
@@ -104,7 +116,8 @@ static void processHop(NoteDetector& detector, std::vector<DetectedNote>& out){
     float midi = analyzePitch(detector);
     if (midi < 0.0f) return;
     int pitch = (int)std::lround(midi);
-    if (pitch == detector.currentPitch){
+    bool overtone = std::count(std::begin(OVERTONE_STEPS), std::end(OVERTONE_STEPS), pitch - detector.currentPitch) > 0;
+    if (pitch == detector.currentPitch || overtone || std::fabs(midi - detector.currentMidi) < LEGATO_MIN_SEMITONES){
         detector.candidateCount = 0;
         return;
     }

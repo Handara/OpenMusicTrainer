@@ -115,3 +115,58 @@ TEST_CASE("a long run of low notes: every pluck found on time, nothing extra"){
     config.minFrequency = 40.0f;
     checkMatches(detect(playNotes(notes, 16.0), 800, config), notes);
 }
+
+TEST_CASE("a note between two pitches, drifting a little as it rings, is one note"){
+    // Measured on a real bass: its low E a quarter-tone flat (E1 -49 cents), wobbling a few cents around the line
+    // between E1 and D#1. Rounded to the nearest note, it flipped between the two, and each flip was taken for a
+    // slide to a new note: twelve notes from one.
+    std::vector<float> signal((size_t)(3.0 * RATE), 0.0f);
+    double phase = 0.0;
+    for (size_t i = (size_t)(0.2 * RATE); i < signal.size(); i++){
+        double t = (double)i / RATE - 0.2;
+        double midi = 27.51 + 0.08 * std::sin(2 * 3.14159265 * 0.7 * t); // 49 cents under E1, +-8 cents
+        phase += midiToFrequency((float)midi) / RATE;
+        double wave = std::sin(2 * 3.14159265 * phase) + 0.5 * std::sin(4 * 3.14159265 * phase) + 0.3 * std::sin(6 * 3.14159265 * phase);
+        signal[i] = (float)(0.4 * std::exp(-t / 1.5) * wave);
+    }
+    NoteDetectorConfig bass;
+    bass.minFrequency = 37.0f;
+    std::vector<DetectedNote> found = detect(signal, 480, bass);
+    REQUIRE(found.size() == 1);
+    CHECK((found[0].pitch == 27 || found[0].pitch == 28));
+}
+
+TEST_CASE("a ringing note whose level wobbles (beating) is still one note"){
+    // Measured on a real bass: after one pluck, its low E rang down with its level dipping 5 to 7 dB and coming
+    // back every tenth of a second. Each comeback was a 6 dB rise, and was taken for a new pluck.
+    std::vector<float> signal((size_t)(2.0 * RATE), 0.0f);
+    for (size_t i = (size_t)(0.2 * RATE); i < signal.size(); i++){
+        double t = (double)i / RATE - 0.2;
+        double phase = midiToFrequency(28.0f) * t;
+        double wave = std::sin(2 * 3.14159265 * phase) + 0.5 * std::sin(4 * 3.14159265 * phase);
+        double wobble = std::pow(10.0, -7.0 / 20.0 * (0.5 - 0.5 * std::cos(2 * 3.14159265 * 10.0 * t))); // 0 to -7 dB
+        signal[i] = (float)(0.4 * std::exp(-t / 1.0) * wobble * wave);
+    }
+    NoteDetectorConfig bass;
+    bass.minFrequency = 37.0f;
+    std::vector<DetectedNote> found = detect(signal, 480, bass);
+    CHECK(found.size() == 1);
+}
+
+TEST_CASE("a low note whose overtones outlast it doesn't turn into them"){
+    // Measured on a real bass: a low E's fundamental died away faster than its overtones, and near the end the
+    // pitch read as B2, its third harmonic (an octave and a fifth up), which was taken for a slide to a new note
+    std::vector<float> signal((size_t)(3.0 * RATE), 0.0f);
+    for (size_t i = (size_t)(0.2 * RATE); i < signal.size(); i++){
+        double t = (double)i / RATE - 0.2;
+        double phase = midiToFrequency(28.0f) * t;
+        double fundamental = std::exp(-t / 0.25) * std::sin(2 * 3.14159265 * phase);
+        double overtones = 0.3 * std::exp(-t / 3.0) * std::sin(6 * 3.14159265 * phase); // the third harmonic lingers
+        signal[i] = (float)(0.5 * (fundamental + overtones));
+    }
+    NoteDetectorConfig bass;
+    bass.minFrequency = 37.0f;
+    std::vector<DetectedNote> found = detect(signal, 480, bass);
+    REQUIRE(found.size() == 1);
+    CHECK(found[0].pitch == 28);
+}
