@@ -39,7 +39,7 @@ enum class InstrumentType { Guitar, Bass };
 
 // Guitar and bass share this shape; they differ only by tuning and how they're presented
 struct FrettedTrack {
-    InstrumentType type;
+    InstrumentType type = InstrumentType::Guitar;
     std::string name;
     std::vector<int> tuning;        // MIDI pitch per string, lowest first; its size is the string count
     std::vector<FrettedNote> notes; // sorted by tick
