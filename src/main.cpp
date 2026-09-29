@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "app/crashreport.h"
 #include "audio/audio.h"
 #include "core/paths.h"
 #include "core/routine.h"
@@ -420,6 +421,7 @@ int main(void){
         if (ec) TraceLog(LOG_WARNING, "Could not create %s: %s", dir.c_str(), ec.message().c_str());
     }
     TraceLog(LOG_INFO, "User data folder: %s", app.userDataDir.c_str());
+    installCrashReport((fs::path(app.userDataDir) / "crash.txt").string());
 
     std::vector<std::string> warnings;
     app.settings = loadSettings(app.settingsPath, warnings);

@@ -149,6 +149,7 @@ enable_warnings(lahn_core)
 # The game: audio, UI and screens on top of core
 add_executable(lahn
     src/main.cpp
+    src/app/crashreport.cpp
     src/audio/audio.cpp
     src/input/midi.cpp
     src/input/noteinput.cpp
@@ -191,7 +192,7 @@ add_executable(lahn
 )
 target_link_libraries(lahn PRIVATE lahn_core raylib miniaudio imgui pl_mpeg)
 if(WIN32)
-    target_link_libraries(lahn PRIVATE winmm) # MIDI input (input/midi.cpp)
+    target_link_libraries(lahn PRIVATE winmm dbghelp) # MIDI input (input/midi.cpp); crash reports (app/crashreport.cpp)
 endif()
 enable_warnings(lahn)
 
