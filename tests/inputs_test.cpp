@@ -64,6 +64,25 @@ TEST_CASE("the noise floor follows the quietest level, and rises slowly"){
     CHECK(floor.db == doctest::Approx(-40.0f));
     trackNoiseFloor(floor, -60.0f, 0.1f);                   // quieter: at once
     CHECK(floor.db == doctest::Approx(-60.0f));
-    for (int i = 0; i < 10; i++) trackNoiseFloor(floor, -20.0f, 0.1f); // a second of playing
-    CHECK(floor.db == doctest::Approx(-57.0f));             // 3 dB a second: the note stays well above it
+    for (int i = 0; i < 10; i++) trackNoiseFloor(floor, -50.0f, 0.1f); // a second of quiet hum, not played
+    CHECK(floor.db == doctest::Approx(-57.0f));             // 3 dB a second
+}
+
+TEST_CASE("a long note stays played: the floor hardly rises under it"){
+    // As measured on a Scarlett Solo's instrument input: hiss near -100 dB, then a bass note ringing out over ten
+    // seconds, from -10 dB down to -45 dB
+    NoiseFloor floor;
+    for (int i = 0; i < 60; i++) trackNoiseFloor(floor, -100.0f, 1.0f / 60);
+    for (int i = 0; i <= 600; i++){
+        float level = -10.0f - 35.0f * i / 600.0f;
+        trackNoiseFloor(floor, level, 1.0f / 60);
+        CHECK(isSounding(floor, level));
+    }
+}
+
+TEST_CASE("exact digital silence doesn't drag the floor down"){
+    NoiseFloor floor;
+    trackNoiseFloor(floor, -120.0f, 0.1f); // exact zeros, between notes
+    CHECK(floor.db == doctest::Approx(-100.0f));
+    CHECK_FALSE(isSounding(floor, -95.0f)); // hiss coming back isn't playing
 }

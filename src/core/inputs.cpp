@@ -53,16 +53,21 @@ bool fitsRole(InputRole role, float lowestFrequency){
 }
 
 const float FLOOR_RISE_DB_PER_S = 3.0f;
-const float SOUNDING_RISE_DB = 12.0f;  // a played note is at least this far above the input's floor
+const float FLOOR_RISE_PLAYING_DB_PER_S = 0.5f; // while played: a long note stays well above it for a minute
+const float LOWEST_FLOOR_DB = -100.0f;   // nothing played is quieter: stops digital silence (exact zeros) dragging
+                                         // the floor so low that hiss would seem played
+const float SOUNDING_RISE_DB = 12.0f;    // a played note is at least this far above the input's floor
 const float QUIETEST_PLAYED_DB = -75.0f; // below this nothing is played, however quiet the input is
 
 void trackNoiseFloor(NoiseFloor& floor, float levelDb, float seconds){
-    if (!floor.started || levelDb < floor.db){
-        floor.db = levelDb;
+    float quietest = std::max(levelDb, LOWEST_FLOOR_DB);
+    if (!floor.started || quietest < floor.db){
+        floor.db = quietest;
         floor.started = true;
         return;
     }
-    floor.db = std::min(levelDb, floor.db + FLOOR_RISE_DB_PER_S * seconds);
+    float rise = isSounding(floor, levelDb) ? FLOOR_RISE_PLAYING_DB_PER_S : FLOOR_RISE_DB_PER_S;
+    floor.db = std::min(quietest, floor.db + rise * seconds);
 }
 
 float riseAboveFloor(const NoiseFloor& floor, float levelDb){

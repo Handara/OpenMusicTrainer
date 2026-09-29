@@ -27,7 +27,9 @@ bool fitsRole(InputRole role, float lowestFrequency);
 // An input's noise floor: how loud it is with nothing played. Inputs differ a lot: a microphone hears the room, an
 // instrument input is near silent, and a bass through it with modest gain is far quieter than a voice on the mic. So
 // whether an input is being played is judged against its own floor, not a fixed level. The floor follows the
-// quietest level heard, and rises slowly (a few dB a second) so a room getting noisier is followed too.
+// quietest level heard (never below -100 dB: some devices send exact zeros between notes), and rises slowly so a room
+// getting noisier is followed too: a few dB a second, and far slower while the input is played, so a long note
+// isn't taken for the new floor.
 struct NoiseFloor {
     float db = 0.0f;
     bool started = false;
