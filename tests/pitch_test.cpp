@@ -72,3 +72,32 @@ TEST_CASE("noise and too-short input give no pitch"){
     std::vector<float> tooShort = sine(440.0f, detector.maxLag / 2);
     CHECK(detectPitch(detector, tooShort.data(), (int)tooShort.size()).frequency == 0.0f);
 }
+
+TEST_CASE("a note whose octave overtone is louder than it isn't read an octave high"){
+    // A bass through its pickups: the second harmonic often far stronger than the fundamental lines up well enough
+    // at half the period to pass first. A thousand string-like notes across a bass's range, each with overtones of
+    // random strength, a little inharmonicity (overtones slightly sharp, as on real strings), decay and noise: before
+    // the octave check, about 2 in 100 read an octave high.
+    const int rate = 48000;
+    PitchDetector detector;
+    initPitchDetector(detector, rate, 37.0f, 1400.0f);
+    const int count = pitchWindowSize(detector);
+    std::vector<float> samples(count);
+    std::mt19937 rng(11);
+    std::uniform_real_distribution<float> uni(0.0f, 1.0f);
+    int octaveOff = 0;
+    for (int note = 0; note < 1000; note++){
+        double f = 41.4 * std::pow(2.0, uni(rng) * 4.0);
+        double h1 = 0.3 + uni(rng), h2 = uni(rng) * 2.0, h3 = uni(rng), h4 = uni(rng) * 0.5;
+        double stretch = 1.0 + uni(rng) * 0.004, noise = uni(rng) * 0.15, decay = uni(rng) * 8.0;
+        for (int i = 0; i < count; i++){
+            double t = (double)i / rate, w = 2 * 3.14159265 * f * t;
+            double v = h1 * std::sin(w) + h2 * std::sin(2 * stretch * w) + h3 * std::sin(3 * stretch * stretch * w)
+                     + h4 * std::sin(4 * stretch * stretch * stretch * w);
+            samples[i] = (float)(std::exp(-decay * t) * v + noise * (uni(rng) * 2 - 1));
+        }
+        PitchResult result = detectPitch(detector, samples.data(), count);
+        if (result.frequency > 0.0f && std::fabs(std::fabs(12.0 * std::log2(result.frequency / f)) - 12.0) < 0.5) octaveOff++;
+    }
+    CHECK(octaveOff == 0);
+}

@@ -5,6 +5,9 @@
 
 // A lag counts as a period candidate once its normalized difference drops below this (the paper suggests 0.1-0.15)
 const float YIN_THRESHOLD = 0.15f;
+// The octave check (step 3b): only a lag that lines up imperfectly is doubted, and twice it must line up this much better
+const float OCTAVE_CHECK_FLOOR = 0.03f;
+const float OCTAVE_CHECK_RATIO = 0.2f;
 
 const double PI_D = 3.14159265358979323846;
 
@@ -121,6 +124,17 @@ PitchResult detectPitch(PitchDetector& detector, const float* samples, int count
         }
     }
     if (bestLag < 0) return noPitch;
+
+    // Step 3b: an octave too high? A note whose second harmonic is stronger than its fundamental (a bass through its
+    // pickups, often) lines up fairly well at half its period, enough to pass the threshold first, but lines up
+    // almost perfectly at its whole period. A note read right lines up about as well at twice its period as at it.
+    // So if twice the lag, give or take, is far better, that was the note.
+    const int doubled = 2 * bestLag;
+    if (d[bestLag] > OCTAVE_CHECK_FLOOR && doubled + 2 < maxLag){
+        int lowest = doubled;
+        for (int lag = doubled - 2; lag <= doubled + 2; lag++) if (d[lag] < d[lowest]) lowest = lag;
+        if (d[lowest] < d[bestLag] * OCTAVE_CHECK_RATIO) bestLag = lowest;
+    }
 
     // Step 4: the true period usually falls between two samples. Fit a parabola through the dip and its
     // neighbours and take the parabola's lowest point, for sub-sample precision (important for bass notes).
