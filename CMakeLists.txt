@@ -155,6 +155,8 @@ add_executable(lahn
     src/input/pianokeys.cpp
     src/ui/hitfeedback.cpp
     src/ui/menulist.cpp
+    src/ui/fretboardview.cpp
+    src/ui/pianoview.cpp
     src/ui/theme.cpp
     src/ui/transition.cpp
     src/ui/ui.cpp

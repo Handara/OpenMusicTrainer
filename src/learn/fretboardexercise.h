@@ -23,7 +23,7 @@ private:
     void nextQuestion();
     void answer(bool right, int fret);
     void setAnswerByPlaying(bool on);
-    void drawFretboard(float left, float top, float width, float scale);
+    void drawBoard(float left, float top, float width, float scale);
 
     FretboardTrainer trainer;
     std::string title;

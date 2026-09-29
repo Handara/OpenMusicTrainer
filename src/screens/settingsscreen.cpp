@@ -9,6 +9,7 @@
 #include "imgui.h"
 #include "raylib.h"
 #include "ui/ui.h"
+#include "ui/pianoview.h"
 #include "ui/theme.h"
 
 #include <algorithm>
@@ -245,47 +246,20 @@ static void pianoKeysSection(Settings& settings){
     ImGui::SeparatorText("Piano on the computer keyboard");
     ImGui::TextDisabled(screen.choosingKeyFor >= 0 ? "Press the key for this note. Backspace: no key. Esc: cancel."
                                                    : "Click a note to choose its key. Up and Down move it an octave in play.");
-    static const bool IS_BLACK_KEY[12] = { false, true, false, true, false, false, true, false, true, false, true, false };
-    static const int WHITE_BEFORE[12] = { 0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6 };
-    int whites = 0;
-    for (int slot = 0; slot < PIANO_KEY_SLOTS; slot++) if (!IS_BLACK_KEY[slot % 12]) whites++;
-    ImDrawList* draw = ImGui::GetWindowDrawList();
-    const UiFonts& fonts = uiFonts();
+    float keyWidth = std::min(40.0f, ImGui::GetContentRegionAvail().x / pianoWhiteKeys(PIANO_KEY_SLOTS)), keyHeight = 96.0f;
     ImVec2 origin = ImGui::GetCursorScreenPos();
-    float keyWidth = std::min(40.0f, ImGui::GetContentRegionAvail().x / whites), keyHeight = 96.0f;
-    auto rectFor = [&](int slot){
-        float whiteX = origin.x + ((slot / 12) * 7 + WHITE_BEFORE[slot % 12]) * keyWidth;
-        if (!IS_BLACK_KEY[slot % 12]) return ImVec4(whiteX, origin.y, keyWidth, keyHeight);
-        return ImVec4(whiteX + keyWidth * 0.7f, origin.y, keyWidth * 0.6f, keyHeight * 0.6f);
-    };
-    ImGui::InvisibleButton("pianokeys", ImVec2(keyWidth * whites, keyHeight));
-    // Which note the mouse is on: black keys first, they sit over the white ones
-    int hovered = -1;
-    ImVec2 mouse = ImGui::GetMousePos();
-    for (int pass = 0; pass < 2 && hovered < 0; pass++){
-        for (int slot = 0; slot < PIANO_KEY_SLOTS; slot++){
-            if (IS_BLACK_KEY[slot % 12] != (pass == 0)) continue;
-            ImVec4 r = rectFor(slot);
-            if (mouse.x >= r.x && mouse.x < r.x + r.z && mouse.y >= r.y && mouse.y < r.y + r.w){ hovered = slot; break; }
-        }
-    }
-    if (ImGui::IsItemClicked() && hovered >= 0) screen.choosingKeyFor = hovered;
-    for (int pass = 0; pass < 2; pass++){
-        for (int slot = 0; slot < PIANO_KEY_SLOTS; slot++){
-            bool black = IS_BLACK_KEY[slot % 12];
-            if (black != (pass == 1)) continue;
-            ImVec4 r = rectFor(slot);
-            bool choosing = slot == screen.choosingKeyFor;
-            ImU32 fill = choosing ? uiColor(UiColor::Accent) : black ? IM_COL32(30, 30, 34, 255) : IM_COL32(255, 255, 255, 255);
-            if (!choosing && slot == hovered) fill = black ? IM_COL32(70, 70, 76, 255) : uiColor(UiColor::Accent, 0.25f);
-            draw->AddRectFilled(ImVec2(r.x + 0.5f, r.y), ImVec2(r.x + r.z - 0.5f, r.y + r.w), fill, 3.0f);
-            if (!black) draw->AddRect(ImVec2(r.x + 0.5f, r.y), ImVec2(r.x + r.z - 0.5f, r.y + r.w), uiColor(UiColor::StaffLine), 3.0f);
-            std::string label = choosing ? "?" : settings.pianoKeys[slot] == "none" ? "" : settings.pianoKeys[slot];
-            ImVec2 size = fonts.bold ? fonts.bold->CalcTextSizeA(15.0f, FLT_MAX, 0.0f, label.c_str()) : ImVec2(0, 0);
-            ImU32 ink = choosing || black ? IM_COL32(255, 255, 255, 255) : uiColor(UiColor::Ink);
-            draw->AddText(fonts.bold, 15.0f, ImVec2(r.x + (r.z - size.x) / 2, r.y + r.w - size.y - 6.0f), ink, label.c_str());
-        }
-    }
+    ImGui::InvisibleButton("pianokeys", ImVec2(keyWidth * pianoWhiteKeys(PIANO_KEY_SLOTS), keyHeight));
+    bool clicked = ImGui::IsItemClicked();
+    int hovered = drawPianoKeys(origin, keyWidth, keyHeight, PIANO_KEY_SLOTS, [&](int slot, bool hovered){
+        PianoKeyStyle look;
+        bool choosing = slot == screen.choosingKeyFor;
+        if (choosing) look.fill = uiColor(UiColor::Accent);
+        else if (hovered) look.fill = pianoKeyIsBlack(slot) ? IM_COL32(70, 70, 76, 255) : uiColor(UiColor::Accent, 0.25f);
+        if (hovered && !choosing && !pianoKeyIsBlack(slot)) look.ink = uiColor(UiColor::Ink);
+        look.label = choosing ? "?" : settings.pianoKeys[slot] == "none" ? "" : settings.pianoKeys[slot];
+        return look;
+    });
+    if (clicked && hovered >= 0) screen.choosingKeyFor = hovered;
     // Waiting for a key: the first one pressed that can play a note
     screen.usedEscape = false;
     if (screen.choosingKeyFor >= 0){
