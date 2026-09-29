@@ -91,18 +91,42 @@ static void handleKeyboard(std::vector<PlayNote>& notes, GameState& state, float
     }
 }
 
+// The notes due from just before now to a little ahead: the lowest of them tells the note detector how low it must
+// look, so a pitch is known in two of that note's periods instead of two of the instrument's lowest (core/notedetector)
+const float HINT_BEHIND_S = 0.25f; // wider than the judging window: a late note is still looked for
+const float HINT_AHEAD_S = 0.6f;
+
 // With an instrument: each played note is placed in song time (now, minus how long ago it started, minus the
-// input device's delay) and judged by its pitch
+// input device's delay) and judged by its pitch. Rhythm mode needs no pitch: each attack is judged the moment it's
+// heard. Either way every attack is noted, for the hit line's flash.
 static void handleInstrument(std::vector<PlayNote>& notes, GameState& state, float songTime, float inputOffset,
-                             int& lastPlayedPitch, bool anyNote){
-    for (const PlayedNote& played : updateNoteInput()){
+                             int& lastPlayedPitch, bool rhythmMode, double& lastAttackAt){
+    int lowestDue = -1;
+    for (const PlayNote& note : notes){
+        if (note.time > songTime + HINT_AHEAD_S) break; // sorted by time
+        if (note.judged || note.time < songTime - HINT_BEHIND_S) continue;
+        if (lowestDue < 0 || note.pitch < lowestDue) lowestDue = note.pitch;
+    }
+    expectLowestNote(lowestDue >= 0 ? midiToFrequency((float)lowestDue) : 0.0f);
+
+    const std::vector<PlayedNote>& played = updateNoteInput();
+    for (double age : noteInputAttacks()){
+        lastAttackAt = GetTime() - age;
+        if (!rhythmMode) continue;
         PlayerInput input;
-        input.time = songTime - played.age - inputOffset;
-        input.pitch = played.pitch;
-        input.anyNote = anyNote;
+        input.time = songTime - age - inputOffset;
+        input.anyNote = true;
         JudgeResult result = judgeInput(notes, input);
         if (result.judgement != Judgement::Ignored) scoreHit(state, result.judgement, result.notesHit, result.error);
-        lastPlayedPitch = played.pitch;
+    }
+    for (const PlayedNote& note : played){
+        lastPlayedPitch = note.pitch;
+        if (rhythmMode) continue; // judged at its attack, above
+        PlayerInput input;
+        input.time = songTime - note.age - inputOffset;
+        input.pitch = note.pitch;
+        JudgeResult result = judgeInput(notes, input);
+        if (result.judgement != Judgement::Ignored) scoreHit(state, result.judgement, result.notesHit, result.error);
     }
 }
 
@@ -115,6 +139,7 @@ static struct {
     GameplayOptions options;
     float songTime = 0.0f;
     int lastPlayedPitch = -1; // the latest note heard from the instrument, shown so the player can trust the input
+    double lastAttackAt = -10.0; // when the instrument was last plucked (GetTime): the hit line flashes with it
     float hitLineX = 180.0f;  // where the views put the hit line, for the judgements drawn at it
     bool paused = false;
     bool keys = false;            // playing a keys part, on a MIDI keyboard
@@ -291,7 +316,7 @@ bool updateGameplay(){
     if (game.options.rhythmMode) handleDrumKeys();
     else handleKeyboard(game.notes, game.state, game.songTime, (int)track.tuning.size(), game.options.hitSounds);
     if (noteInputActive()) handleInstrument(game.notes, game.state, game.songTime, game.options.inputOffsetSeconds, game.lastPlayedPitch,
-                                            game.options.rhythmMode);
+                                            game.options.rhythmMode, game.lastAttackAt);
     if (midiInputActive() || pianoKeysActive()){
         // Each key on its own: pressing one note of a chord doesn't play the rest. Every key sounds, hit or not:
         // it's an instrument being played.
@@ -317,6 +342,22 @@ bool updateGameplay(){
     return true;
 }
 
+// The instrument's pluck lights the hit line the moment it's heard: the judgement follows once its pitch is known,
+// a few hundredths of a second later, but the player sees the pluck land at once
+const float ATTACK_FLASH_S = 0.15f;
+
+static void drawAttackFlash(Rectangle area, float x){
+    float t = (float)(GetTime() - game.lastAttackAt);
+    if (t < 0.0f || t > ATTACK_FLASH_S) return;
+    float fade = 1.0f - t / ATTACK_FLASH_S;
+    fade *= fade; // bright at once, gone softly
+    float s = GetScreenHeight() / 720.0f, glow = 28.0f * s;
+    Color accent = themeColor(UiColor::Accent);
+    DrawRectangleGradientH((int)(x - glow), (int)area.y, (int)glow, (int)area.height, Fade(accent, 0.0f), Fade(accent, 0.3f * fade));
+    DrawRectangleGradientH((int)x, (int)area.y, (int)glow, (int)area.height, Fade(accent, 0.3f * fade), Fade(accent, 0.0f));
+    DrawRectangleRec({ x - 1.5f * s, area.y, 3.0f * s, area.height }, Fade(accent, 0.9f * fade));
+}
+
 void drawGameplay(){
     if (!game.active) return;
     ClearBackground(themeColor(UiColor::Background));
@@ -326,16 +367,15 @@ void drawGameplay(){
     if (game.options.rhythmMode){
         drawRhythmLane(viewsArea, game.notes, game.score, axis);
         game.hitLineX = axis.hitLineX;
-        return;
-    }
-    if (game.keys){
+    } else if (game.keys){
         const bool* down = midiInputActive() ? midiKeysDown() : pianoKeysActive() ? pianoKeysDown() : nullptr;
         game.hitLineX = drawKeysViews(viewsArea, game.options.noteViews, game.notes, game.score, axis, down,
                                       pianoKeysActive() ? pianoKeyFor : nullptr);
-        return;
+    } else {
+        game.hitLineX = drawNoteViews(viewsArea, game.options.noteViews, game.notes, game.score, game.chart.frettedTracks[0].tuning,
+                                      game.options.lowStringOnTop, axis);
     }
-    game.hitLineX = drawNoteViews(viewsArea, game.options.noteViews, game.notes, game.score, game.chart.frettedTracks[0].tuning,
-                  game.options.lowStringOnTop, axis);
+    if (noteInputActive()) drawAttackFlash(viewsArea, game.hitLineX);
 }
 
 void drawGameplayHud(){

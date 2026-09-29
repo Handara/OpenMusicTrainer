@@ -23,3 +23,7 @@ void initPitchDetector(PitchDetector& detector, int sampleRate, float minFrequen
 int pitchWindowSize(const PitchDetector& detector);
 
 PitchResult detectPitch(PitchDetector& detector, const float* samples, int count);
+// The same, searching periods only up to `maxLag` (at most the detector's): when the lowest note that can come is
+// known to be higher, it needs just 2 * maxLag samples, sooner and for far less work (YIN's cost grows with the
+// square of the window)
+PitchResult detectPitch(PitchDetector& detector, const float* samples, int count, int maxLag);

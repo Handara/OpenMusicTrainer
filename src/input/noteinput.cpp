@@ -11,6 +11,7 @@ static struct {
     std::vector<float> buffer;             // scratch for reading the capture buffer
     std::vector<DetectedNote> detected;    // reused every frame: no allocation once warmed up
     std::vector<PlayedNote> played;
+    std::vector<double> attacks;           // how long ago each attack of the last update was heard
     std::vector<float> latest;             // everything read by the last update
     float levelDb = -100.0f;
     int channel = -1;                      // the device's input listened to, -1 for all mixed
@@ -43,6 +44,7 @@ bool noteInputActive(){
 const std::vector<PlayedNote>& updateNoteInput(){
     input.detected.clear();
     input.played.clear();
+    input.attacks.clear();
     input.latest.clear();
     if (!input.active) return input.played;
 
@@ -57,12 +59,22 @@ const std::vector<PlayedNote>& updateNoteInput(){
     }
     if (total > 0) input.levelDb = 20.0f * std::log10(std::max(std::sqrt(sumSquares / total), 1e-6f));
 
-    // How long ago each note started, counted back from the newest sample the detector has seen
+    // How long ago each attack and note started, counted back from the newest sample the detector has seen
+    for (long long attack : input.detector.attacks) input.attacks.push_back((double)(input.detector.position - attack) / input.detector.sampleRate);
+    input.detector.attacks.clear();
     for (const DetectedNote& note : input.detected){
         double age = (double)(input.detector.position - note.sample) / input.detector.sampleRate;
         input.played.push_back({note.pitch, note.cents, age});
     }
     return input.played;
+}
+
+const std::vector<double>& noteInputAttacks(){
+    return input.attacks;
+}
+
+void expectLowestNote(float frequency){
+    if (input.active) expectLowestFrequency(input.detector, frequency);
 }
 
 const std::vector<float>& latestInputSamples(){

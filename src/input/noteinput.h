@@ -20,6 +20,11 @@ bool noteInputActive();
 
 // Reads everything the input delivered since the last call; returns the notes that started in it. Call once per frame.
 const std::vector<PlayedNote>& updateNoteInput();
+// The attacks heard in that update, how long ago each (seconds), the moment they're heard: a note's pitch comes a
+// little later (core/notedetector). For reacting at once, and for rhythm mode, where any note counts.
+const std::vector<double>& noteInputAttacks();
+// The lowest note a song has due now (Hz), so pitches are known sooner; 0 for anything (core/notedetector)
+void expectLowestNote(float frequency);
 float noteInputLevelDb(); // loudness of the latest input, for a level meter
 // The raw samples the last updateNoteInput read, oldest first: for exercises that listen to more than single notes
 // (chords). At noteInputSampleRate.

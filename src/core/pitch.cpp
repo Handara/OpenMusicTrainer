@@ -21,10 +21,14 @@ int pitchWindowSize(const PitchDetector& detector){
 // So for each candidate shift ("lag"), measure how different the signal is from its shifted copy,
 // and the first lag where the difference nearly vanishes is the period.
 PitchResult detectPitch(PitchDetector& detector, const float* samples, int count){
+    return detectPitch(detector, samples, count, detector.maxLag);
+}
+
+PitchResult detectPitch(PitchDetector& detector, const float* samples, int count, int maxLag){
     const PitchResult noPitch = {0.0f, 0.0f};
-    const int maxLag = detector.maxLag;
+    maxLag = std::min(maxLag, detector.maxLag);
     const int window = count - maxLag; // every lag compares the same number of samples
-    if (window <= 0) return noPitch;
+    if (window <= 0 || maxLag < std::max(detector.minLag, 2) + 2) return noPitch;
     float* d = detector.difference.data();
 
     // Step 1: difference function. d[lag] = sum of squared differences between the signal and itself shifted by lag

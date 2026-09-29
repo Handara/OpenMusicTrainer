@@ -170,3 +170,84 @@ TEST_CASE("a low note whose overtones outlast it doesn't turn into them"){
     REQUIRE(found.size() == 1);
     CHECK(found[0].pitch == 28);
 }
+
+// How long after the start of the signal a note was reported, fed a millisecond at a time as a device would
+static double reportedAfter(const std::vector<float>& signal, NoteDetector& detector, std::vector<DetectedNote>& found){
+    for (size_t i = 0; i < signal.size(); i += 48){
+        feedNoteDetector(detector, signal.data() + i, (int)std::min<size_t>(48, signal.size() - i), found);
+        if (!found.empty()) return (double)(i + 48) / RATE;
+    }
+    return -1.0;
+}
+
+TEST_CASE("told the lowest note that can come, a bass's detector names a higher note far sooner"){
+    // A bass detector must be ready for E1, whose pitch takes two of its long periods (54 ms) to be sure of. When the
+    // song says nothing below E3 is due, two of E3's periods do: the note is known within ~25 ms of the pluck.
+    std::vector<TestNote> notes = {{0.2, 52}};
+    std::vector<float> signal = playNotes(notes, 0.6);
+    NoteDetectorConfig bass;
+    bass.minFrequency = 37.0f;
+
+    NoteDetector unhinted;
+    initNoteDetector(unhinted, RATE, bass);
+    std::vector<DetectedNote> slow;
+    double slowAfter = reportedAfter(signal, unhinted, slow) - 0.2;
+
+    NoteDetector hinted;
+    initNoteDetector(hinted, RATE, bass);
+    expectLowestFrequency(hinted, midiToFrequency(52.0f));
+    std::vector<DetectedNote> fast;
+    double fastAfter = reportedAfter(signal, hinted, fast) - 0.2;
+
+    REQUIRE(slow.size() == 1);
+    REQUIRE(fast.size() == 1);
+    CHECK(fast[0].pitch == 52);
+    CHECK(std::fabs(fast[0].sample / (double)RATE - 0.2) < 0.001); // stamped at the pluck all the same
+    CHECK(slowAfter > 0.060);
+    CHECK(fastAfter < 0.030);
+}
+
+TEST_CASE("a hinted detector still reads a melody right, and goes back to any note when told nothing is due"){
+    std::vector<TestNote> notes = {{0.10, 52}, {0.35, 55}, {0.60, 57}, {0.85, 59}};
+    NoteDetectorConfig bass;
+    bass.minFrequency = 37.0f;
+    NoteDetector detector;
+    initNoteDetector(detector, RATE, bass);
+    expectLowestFrequency(detector, midiToFrequency(52.0f));
+    std::vector<float> signal = playNotes(notes, 1.2);
+    std::vector<DetectedNote> found;
+    feedNoteDetector(detector, signal.data(), (int)signal.size(), found);
+    checkMatches(found, notes);
+
+    // No hint: the low E of a bass is found again
+    expectLowestFrequency(detector, 0.0f);
+    std::vector<TestNote> low = {{0.2, 28}};
+    std::vector<float> lowSignal = playNotes(low, 0.8);
+    std::vector<DetectedNote> lowFound;
+    feedNoteDetector(detector, lowSignal.data(), (int)lowSignal.size(), lowFound);
+    REQUIRE(lowFound.size() == 1);
+    CHECK(lowFound[0].pitch == 28);
+}
+
+TEST_CASE("an attack is reported the moment it's heard, before its pitch"){
+    std::vector<TestNote> notes = {{0.2, 28}, {0.7, 33}}; // a bass's E1 and A1: their pitches take ~54 ms
+    std::vector<float> signal = playNotes(notes, 1.2);
+    NoteDetectorConfig bass;
+    bass.minFrequency = 37.0f;
+    NoteDetector detector;
+    initNoteDetector(detector, RATE, bass);
+    std::vector<DetectedNote> found;
+    std::vector<long long> heardAt; // how far the stream was when each attack was reported
+    for (size_t i = 0; i < signal.size(); i += 48){
+        feedNoteDetector(detector, signal.data() + i, (int)std::min<size_t>(48, signal.size() - i), found);
+        for (long long attack : detector.attacks){
+            heardAt.push_back(detector.position);
+            CHECK(std::fabs(attack / (double)RATE - (heardAt.size() == 1 ? 0.2 : 0.7)) < 0.001); // placed at the pluck
+        }
+        detector.attacks.clear();
+    }
+    REQUIRE(heardAt.size() == 2);
+    CHECK(heardAt[0] / (double)RATE - 0.2 < 0.005); // within a couple of ms, where the pitch took ~65
+    CHECK(heardAt[1] / (double)RATE - 0.7 < 0.005);
+    CHECK(found.size() == 2);
+}

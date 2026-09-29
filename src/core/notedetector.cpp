@@ -34,6 +34,7 @@ void initNoteDetector(NoteDetector& detector, int sampleRate, const NoteDetector
     detector.hopSize = std::max(16, (int)(HOP_SECONDS * sampleRate));
     initPitchDetector(detector.pitch, sampleRate, config.minFrequency, config.maxFrequency);
     detector.window.assign(pitchWindowSize(detector.pitch), 0.0f);
+    detector.analysisLag = detector.pitch.maxLag;
     detector.hop.reserve(detector.hopSize);
     detector.recentDb.assign(RECENT_HOPS, -120.0f);
     float release = std::max(ENVELOPE_RELEASE_S, ENVELOPE_RELEASE_CYCLES / config.minFrequency);
@@ -46,9 +47,19 @@ static float followEnvelope(NoteDetector& detector, const std::vector<float>& sa
     return 20.0f * std::log10(std::max(detector.envelope, 1e-6f));
 }
 
-// The pitch of the latest window, as a fractional MIDI number; negative if there's no clear pitch
+void expectLowestFrequency(NoteDetector& detector, float frequency){
+    int lag = detector.pitch.maxLag;
+    // A little below the note, for one played flat
+    if (frequency > 0.0f) lag = (int)std::ceil(detector.sampleRate / (frequency * 0.9f));
+    detector.analysisLag = std::clamp(lag, detector.pitch.minLag + 4, detector.pitch.maxLag);
+}
+
+// The pitch of the latest samples (two of the longest periods looked for), as a fractional MIDI number; negative if
+// there's no clear pitch
 static float analyzePitch(NoteDetector& detector){
-    PitchResult result = detectPitch(detector.pitch, detector.window.data(), (int)detector.window.size());
+    const int count = 2 * detector.analysisLag;
+    const float* latest = detector.window.data() + detector.window.size() - count;
+    PitchResult result = detectPitch(detector.pitch, latest, count, detector.analysisLag);
     if (result.frequency <= 0.0f || result.clarity < MIN_CLARITY) return -1.0f;
     return frequencyToMidi(result.frequency);
 }
@@ -92,13 +103,14 @@ static void processHop(NoteDetector& detector, std::vector<DetectedNote>& out){
         while (offset < hopSize - 1 && std::fabs(hop[offset]) < 0.2f * peak) offset++;
         detector.onsetSample = hopStart + offset;
         detector.lastOnsetSample = detector.onsetSample;
+        detector.attacks.push_back(detector.onsetSample);
         detector.pitchPending = true;
         detector.sounding = false;
     }
 
     if (detector.pitchPending){
         // Wait for a full window of sound after the attack, then look for the pitch until the timeout
-        long long ready = detector.onsetSample + (long long)(ATTACK_SKIP_S * detector.sampleRate) + (long long)window.size();
+        long long ready = detector.onsetSample + (long long)(ATTACK_SKIP_S * detector.sampleRate) + 2LL * detector.analysisLag;
         if (detector.position < ready) return;
         float midi = analyzePitch(detector);
         if (midi >= 0.0f){
@@ -125,7 +137,7 @@ static void processHop(NoteDetector& detector, std::vector<DetectedNote>& out){
         detector.candidatePitch = pitch;
         detector.candidateCount = 0;
         // The change happened somewhere in this window: its middle is the best guess
-        detector.candidateSample = detector.position - (long long)window.size() / 2;
+        detector.candidateSample = detector.position - detector.analysisLag;
     }
     if (++detector.candidateCount >= LEGATO_CONFIRMATIONS) emit(detector, detector.candidateSample, midi, out);
 }

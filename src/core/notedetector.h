@@ -47,9 +47,19 @@ struct NoteDetector {
     int candidateCount = 0;      // ...and in how many analyses in a row
     long long candidateSample = 0;
     int hopsSinceAnalysis = 0;
+    int analysisLag = 0;         // the longest period looked for now (see expectLowestFrequency)
+    // Every attack heard (its sample), the moment it's heard: before its pitch is known, for reacting at once (a
+    // flash on the pluck; rhythm mode, where any note counts). The caller takes them and clears the list.
+    std::vector<long long> attacks;
 };
 
 void initNoteDetector(NoteDetector& detector, int sampleRate, const NoteDetectorConfig& config);
+
+// The lowest note that can come now, from what a song has due: pitches are looked for only down to it, so they're
+// known in two of its periods instead of two of the lowest the instrument has (a bass: 54 ms for E1, 18 ms for an A2
+// due). 0 goes back to anything down to the configured minimum. A note played lower than the hint reads an octave or
+// more up, never as nothing: it was a wrong note anyway.
+void expectLowestFrequency(NoteDetector& detector, float frequency);
 
 // Feeds the next samples of the stream, in any size of chunk. Notes that started are appended to `out`.
 void feedNoteDetector(NoteDetector& detector, const float* samples, int count, std::vector<DetectedNote>& out);
