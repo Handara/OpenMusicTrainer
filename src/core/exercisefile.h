@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/chords.h"
 #include "core/drill.h"
 #include "core/fretboard.h"
 #include "core/reading.h"
@@ -64,12 +65,20 @@
 //   leap 2                       (the widest move, in notes of the scale: 1 = by step only)
 //   and a rhythm drill's cells, bars, time, tempo, pass and tuning
 //
+// A chord change drill (`type chords`), all optional:
+//   chords Em C G D              (chord names, played in turn: C, Cmaj7, C7, D, Dm, D7, E, Em, E7, F, Fmaj7, G, G7,
+//                                 A, Am, A7, Am7, B7)
+//   beats 4                      (beats per chord, 1 to 8)
+//   rounds 2                     (times through the chords in one pass, 1 to 8)
+//   tempo 60 120 4               (start, goal, step, in bpm)
+//   pass 80                      (percent of changes right for a pass to count as clean and speed up)
+//
 // A routine (`type routine`) is a playlist of other exercises, a few minutes each, done one after the other:
 //   step e-minor-open 3          (an exercise's file name without .exercise, then minutes: at least one step)
 //   step intervals-up 5
 // A built-in routine uses built-in exercises; the player's own routines look in their own exercises first.
 
-enum class ExerciseType { Intervals, Scale, Routine, Fretboard, Rhythm, Reading };
+enum class ExerciseType { Intervals, Scale, Routine, Fretboard, Rhythm, Reading, Chords };
 
 struct ExerciseFile {
     ExerciseType type = ExerciseType::Intervals;
@@ -82,6 +91,7 @@ struct ExerciseFile {
     FretboardConfig fretboard; // the rules, for type Fretboard
     RhythmConfig rhythm;       // the rules, for type Rhythm
     ReadingConfig reading;     // the rules, for type Reading
+    ChordDrillConfig chords;   // the rules, for type Chords
     std::vector<RoutineStep> routine; // the steps, for type Routine
 };
 

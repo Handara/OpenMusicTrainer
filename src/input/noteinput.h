@@ -20,3 +20,7 @@ bool noteInputActive();
 // Reads everything the input delivered since the last call; returns the notes that started in it. Call once per frame.
 const std::vector<PlayedNote>& updateNoteInput();
 float noteInputLevelDb(); // loudness of the latest input, for a level meter
+// The raw samples the last updateNoteInput read, oldest first: for exercises that listen to more than single notes
+// (chords). At noteInputSampleRate.
+const std::vector<float>& latestInputSamples();
+int noteInputSampleRate();

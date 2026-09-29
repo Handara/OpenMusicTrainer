@@ -3,6 +3,7 @@
 #include "core/exercisefile.h"
 #include "core/lesson.h"
 #include "core/music.h"
+#include "learn/chordexercise.h"
 #include "learn/drillexercise.h"
 #include "learn/fretboardexercise.h"
 #include "learn/intervalexercise.h"
@@ -95,6 +96,8 @@ static std::unique_ptr<Exercise> createExercise(const ExerciseEntry& entry){
             setup.nextPass = [config, rng = std::mt19937(std::random_device{}())]() mutable { return buildRhythm(config, rng); };
             return std::make_unique<DrillExercise>(entry.exercise.title, setup, progressPath(entry), learn.setup.settings);
         }
+        case ExerciseType::Chords:
+            return std::make_unique<ChordExercise>(entry.exercise.title, entry.exercise.chords, progressPath(entry), learn.setup.settings);
         case ExerciseType::Fretboard:
             return std::make_unique<FretboardExercise>(entry.exercise.title, entry.exercise.fretboard, progressPath(entry),
                                                        learn.setup.settings.inputDevice);
@@ -121,7 +124,8 @@ static std::string progressSummary(const ExerciseEntry& entry){
         }
         case ExerciseType::Scale:
         case ExerciseType::Rhythm:
-        case ExerciseType::Reading: {
+        case ExerciseType::Reading:
+        case ExerciseType::Chords: {
             int best = loadDrillProgress(progressPath(entry)).bestCleanTempo;
             return best > 0 ? TextFormat("best %d bpm", best) : "";
         }

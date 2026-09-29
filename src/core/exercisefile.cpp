@@ -161,7 +161,9 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
             else if (line.rest == "fretboard") out.type = ExerciseType::Fretboard;
             else if (line.rest == "rhythm") out.type = ExerciseType::Rhythm;
             else if (line.rest == "reading") out.type = ExerciseType::Reading;
-            else return lineError("unknown exercise type '" + line.rest + "' (known: intervals, scale, routine, fretboard, rhythm, reading)");
+            else if (line.rest == "chords") out.type = ExerciseType::Chords;
+            else return lineError("unknown exercise type '" + line.rest + "' (known: intervals, scale, routine, fretboard, rhythm, "
+                                  "reading, chords)");
             hasType = true;
         }
     }
@@ -256,6 +258,20 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
             out.fretboard.tuning = tuning;
         } else if (out.type == ExerciseType::Rhythm && readRhythmSetting(key, ss, out.rhythm, lineError)){
             if (!error.empty()) return false;
+        } else if (out.type == ExerciseType::Chords && key == "chords"){
+            out.chords.chords.clear();
+            std::string name;
+            while (ss >> name){
+                if (!findChord(name)) return lineError("unknown chord '" + name + "' (known: C Cmaj7 C7 D Dm D7 E Em E7 F Fmaj7 G G7 A Am A7 Am7 B7)");
+                out.chords.chords.push_back(name);
+            }
+            if (out.chords.chords.size() < 2) return lineError("a chord change needs at least 2 chords");
+        } else if (out.type == ExerciseType::Chords && key == "beats"){
+            if (!(ss >> out.chords.beatsPerChord) || out.chords.beatsPerChord < 1 || out.chords.beatsPerChord > 8) return lineError("beats must be 1 to 8");
+        } else if (out.type == ExerciseType::Chords && key == "rounds"){
+            if (!(ss >> out.chords.rounds) || out.chords.rounds < 1 || out.chords.rounds > 8) return lineError("rounds must be 1 to 8");
+        } else if (out.type == ExerciseType::Chords && readTempoSetting(key, ss, out.chords.tempo, lineError)){
+            if (!error.empty()) return false;
         } else if (out.type == ExerciseType::Reading && key == "key"){
             std::string word;
             if (!(ss >> word) || !parsePitchClass(word, out.reading.rootPitchClass)) return lineError("key must be a note name like G, F# or Bb");
@@ -291,7 +307,7 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
         if (out.routine.empty()) return fileError("a routine needs at least one 'step'");
         return true;
     }
-    if (out.type == ExerciseType::Rhythm) return true;
+    if (out.type == ExerciseType::Rhythm || out.type == ExerciseType::Chords) return true;
     if (out.type == ExerciseType::Reading){
         for (int string : readingStrings){
             if (string < 1 || string > (int)out.reading.tuning.size()){

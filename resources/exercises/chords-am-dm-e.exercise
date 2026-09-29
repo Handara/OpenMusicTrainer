@@ -1,0 +1,10 @@
+# lahn exercise
+version 1
+type chords
+category Chords
+title Am, Dm and E
+description A minor's own chords: the E brings the pull back home.
+chords Am Dm E Am
+beats 4
+rounds 2
+tempo 50 110 4

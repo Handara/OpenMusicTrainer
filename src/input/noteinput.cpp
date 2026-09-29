@@ -11,6 +11,7 @@ static struct {
     std::vector<float> buffer;             // scratch for reading the capture buffer
     std::vector<DetectedNote> detected;    // reused every frame: no allocation once warmed up
     std::vector<PlayedNote> played;
+    std::vector<float> latest;             // everything read by the last update
     float levelDb = -100.0f;
     bool active = false;
 } input;
@@ -40,6 +41,7 @@ bool noteInputActive(){
 const std::vector<PlayedNote>& updateNoteInput(){
     input.detected.clear();
     input.played.clear();
+    input.latest.clear();
     if (!input.active) return input.played;
 
     float sumSquares = 0.0f;
@@ -47,6 +49,7 @@ const std::vector<PlayedNote>& updateNoteInput(){
     int got;
     while ((got = readCapture(input.buffer.data(), (int)input.buffer.size())) > 0){
         feedNoteDetector(input.detector, input.buffer.data(), got, input.detected);
+        input.latest.insert(input.latest.end(), input.buffer.begin(), input.buffer.begin() + got);
         for (int i = 0; i < got; i++) sumSquares += input.buffer[i] * input.buffer[i];
         total += got;
     }
@@ -58,6 +61,14 @@ const std::vector<PlayedNote>& updateNoteInput(){
         input.played.push_back({note.pitch, note.cents, age});
     }
     return input.played;
+}
+
+const std::vector<float>& latestInputSamples(){
+    return input.latest;
+}
+
+int noteInputSampleRate(){
+    return input.active ? input.detector.sampleRate : 0;
 }
 
 float noteInputLevelDb(){

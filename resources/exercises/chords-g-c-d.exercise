@@ -1,0 +1,10 @@
+# lahn exercise
+version 1
+type chords
+category Chords
+title G, C and D
+description The three chords of a thousand songs.
+chords G C D
+beats 4
+rounds 3
+tempo 50 110 4

@@ -153,6 +153,7 @@ add_executable(lahn
     src/screens/learnscreen.cpp
     src/screens/lessoneditor.cpp
     src/screens/mainmenu.cpp
+    src/learn/chordexercise.cpp
     src/learn/drillexercise.cpp
     src/learn/fretboardexercise.cpp
     src/learn/intervalexercise.cpp

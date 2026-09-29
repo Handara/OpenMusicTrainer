@@ -1,0 +1,10 @@
+# lahn exercise
+version 1
+type chords
+category Chords
+title Em and C
+description The first change: two fingers move down a string each.
+chords Em C
+beats 4
+rounds 4
+tempo 50 110 4

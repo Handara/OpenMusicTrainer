@@ -1,0 +1,10 @@
+# lahn exercise
+version 1
+type chords
+category Chords
+title G, D, Em, C
+description The progression under countless pop songs, two beats a chord once it's in the hands.
+chords G D Em C
+beats 2
+rounds 3
+tempo 50 100 4
