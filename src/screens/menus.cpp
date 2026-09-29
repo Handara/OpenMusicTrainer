@@ -2,10 +2,12 @@
 
 #include "raylib.h"
 #include "screens/tuner.h"
+#include "ui/hitfeedback.h"
 #include "ui/menulist.h"
 #include "ui/theme.h"
 #include "ui/ui.h"
 
+#include <algorithm>
 #include <cmath>
 
 // Immediate mode: these functions run every frame, drawing the widgets and reacting to clicks in the same call.
@@ -204,7 +206,8 @@ ResultsChoice resultsScreen(const GameResult& result){
     // The run, on a card: the grade big, the accuracy by it, then the score, the combo and the timing
     ImVec2 card(width * 0.55f, height * 0.25f);
     float cardWidth = width * 0.38f, pad = 26 * s, inner = cardWidth - 2 * pad;
-    float cardHeight = pad * 2 + 110 * s + 3 * (13 * s + 8 * s + 30 * s + 14 * s) + 22 * s;
+    const float distributionHeight = 64 * s;
+    float cardHeight = pad * 2 + 110 * s + 3 * (13 * s + 8 * s + 30 * s + 14 * s) + distributionHeight + 26 * s + 22 * s;
     draw->AddRectFilled(ImVec2(card.x, card.y + 3 * s), ImVec2(card.x + cardWidth, card.y + cardHeight + 3 * s), uiColor(UiColor::Ink, 0.04f), 10 * s);
     draw->AddRectFilled(card, ImVec2(card.x + cardWidth, card.y + cardHeight), uiColor(UiColor::Card), 10 * s);
     float x = card.x + pad, y = card.y + pad;
@@ -233,6 +236,20 @@ ResultsChoice resultsScreen(const GameResult& result){
     std::string lean = std::fabs(timing.meanMs) < 1.0f ? "right on average"
                      : TextFormat("%.0f ms %s on average", std::fabs(timing.meanMs), timing.meanMs > 0 ? "early" : "late");
     row("TIMING", TextFormat("%.0f UR", timing.unstableRate), UiColor::Ink, lean);
+    // The run's timing distribution: it arrives from the play screen, where it was, growing into its place here
+    static double shownAt = 0.0;
+    if (ImGui::IsWindowAppearing()) shownAt = GetTime();
+    float flight = std::clamp((float)(GetTime() - shownAt) / 0.7f, 0.0f, 1.0f);
+    flight = 1.0f - (1.0f - flight) * (1.0f - flight) * (1.0f - flight); // fast, then settling
+    const Rectangle& from = result.distributionFrom;
+    bool fromPlay = from.width > 0.0f;
+    ImVec2 at(x, y + 4 * s), size(inner, distributionHeight);
+    if (fromPlay){
+        at = ImVec2(from.x + (at.x - from.x) * flight, from.y + (at.y - from.y) * flight);
+        size = ImVec2(from.width + (size.x - from.width) * flight, from.height + (size.y - from.height) * flight);
+    }
+    drawTimingDistribution(ImGui::GetForegroundDrawList(), result.errorsMs, at, size, s);
+    y += distributionHeight + 26 * s;
     draw->AddText(fonts.text, 17 * s, ImVec2(x, y), uiColor(UiColor::Dim),
                   TextFormat("Perfect %d  ·  Good %d  ·  Miss %d%s", result.perfectCount, result.nearCount, result.missCount,
                              result.withInstrument ? "" : "  ·  keyboard"));

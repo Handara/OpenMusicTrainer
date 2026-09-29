@@ -3,6 +3,7 @@
 #include "core/chart.h"
 #include "core/ranking.h"
 #include "core/settings.h"
+#include "raylib.h"
 
 #include <string>
 
@@ -19,6 +20,8 @@ struct GameResult {
     TimingStats timing;      // the average error and the unstable rate
     bool withInstrument;
     std::string fingerprint; // of the part played: its records are kept under it
+    std::vector<float> errorsMs;  // every hit's timing (+ early), for its distribution
+    Rectangle distributionFrom;   // where the distribution was on the play screen: the results grow it from there
     // Filled in once the run is recorded: where it placed among the part's runs (0 = a new best, -1 = not kept),
     // and the part's best runs to show beside it
     int place = -1;

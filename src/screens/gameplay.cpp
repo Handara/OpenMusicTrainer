@@ -111,6 +111,7 @@ static struct {
     int lastPlayedPitch = -1; // the latest note heard from the instrument, shown so the player can trust the input
     float hitLineX = 180.0f;  // where the views put the hit line, for the judgements drawn at it
     bool paused = false;
+    Rectangle distribution = {}; // where the HUD's timing distribution is: the results screen grows it from there
     float resumeAt = -1.0f;   // after a resume: the song time it was paused at (GET READY shows until then)
     std::string fingerprint;  // of the part being played
     bool active = false;
@@ -283,7 +284,10 @@ void drawGameplayHud(){
         draw->AddText(fonts.heavy, 26 * s, ImVec2(game.hitLineX - readyWidth / 2, ImGui::GetIO().DisplaySize.y * 0.14f - 20 * s),
                       uiColor(UiColor::Accent), ready);
     }
-    drawHitFeedback(feedback, draw, state.combo, { game.hitLineX, height * 0.14f - 4 * s, width / 2, height - 34 * s, s });
+    HitFeedbackLayout layout = { game.hitLineX, height * 0.14f - 4 * s, width / 2, height - 30 * s, s };
+    drawHitFeedback(feedback, draw, state.combo, state.errorsMs, layout);
+    ImVec2 area = hitDistributionArea(layout), size = hitDistributionSize(s);
+    game.distribution = { area.x, area.y, size.x, size.y };
 }
 
 void stopGameplay(){
@@ -307,5 +311,7 @@ GameResult gameplayResult(){
     result.timing = timingStats(state.errorsMs);
     result.withInstrument = game.options.playWithInstrument;
     result.fingerprint = game.fingerprint;
+    result.errorsMs = state.errorsMs;
+    result.distributionFrom = game.distribution;
     return result;
 }

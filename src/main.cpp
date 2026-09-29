@@ -49,6 +49,7 @@ static struct {
     std::string packagesDir;      // song packages the player made, to share
     std::string mainMenuError;    // why the last main menu action failed (e.g. no input device)
     GameResult lastResult;
+    Vector2 zoomTo = {-1.0f, -1.0f}; // the next change of screen zooms into this point (the end of a song)
     bool testPlaying = false;     // playing the editor's chart: the end or Esc goes back to the editor
     CalibrationMode calibrationMode = CalibrationMode::Tap;
     std::string settingsError;    // why calibration couldn't start (e.g. no input device)
@@ -446,10 +447,15 @@ int main(void){
             app.lastResult = gameplayResult();
             stopGameplay();
             recordRun(app.lastResult);
+            const Rectangle& from = app.lastResult.distributionFrom;
+            app.zoomTo = { from.x + from.width / 2, from.y + from.height / 2 }; // into the timing distribution
             app.screen = Screen::Results;
         }
         drawTransition();
-        if (app.screen != shown) startTransition();
+        if (app.screen != shown){
+            startTransition(app.zoomTo.x, app.zoomTo.y);
+            app.zoomTo = {-1.0f, -1.0f};
+        }
         EndDrawing();
     }
 

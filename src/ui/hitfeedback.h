@@ -34,8 +34,21 @@ void feedbackMiss(HitFeedback& feedback, int comboBefore);
 struct HitFeedbackLayout {
     float hitLineX;     // the judgement pops up centered on it...
     float judgementY;   // ...at this height
-    float barCenterX;   // the timing bar, and the combo just above it
-    float barY;
+    float barCenterX;   // the timing distribution's middle, with the combo left of it...
+    float barY;         // ...and its baseline
     float scale;        // 1 at a 720-pixel-tall window
 };
-void drawHitFeedback(const HitFeedback& feedback, ImDrawList* draw, int combo, const HitFeedbackLayout& layout);
+// errorsMs: every hit of the run so far (+ early), for the distribution
+void drawHitFeedback(const HitFeedback& feedback, ImDrawList* draw, int combo, const std::vector<float>& errorsMs,
+                     const HitFeedbackLayout& layout);
+
+// Where the distribution goes in that layout, and its size: for anything that wants to take it from there (the
+// results screen, which grows it out of the play screen)
+ImVec2 hitDistributionArea(const HitFeedbackLayout& layout);
+ImVec2 hitDistributionSize(float scale);
+
+// The run's timing as a distribution: every hit in 5 ms bins across the near window, early on the left, green
+// where it's perfect and brass for the rest, a notch at the average; the latest hit marked (fading with
+// latestAlpha, 0 for none)
+void drawTimingDistribution(ImDrawList* draw, const std::vector<float>& errorsMs, ImVec2 topLeft, ImVec2 size, float scale,
+                            float latestMs = 0.0f, float latestAlpha = 0.0f);

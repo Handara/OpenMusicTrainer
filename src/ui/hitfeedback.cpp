@@ -9,13 +9,16 @@
 
 const size_t KEEP_RECENT = 32;          // hits shown on the timing bar
 const double POPUP_S = 0.45;            // how long a judgement stays up
-const double BAR_TICK_S = 4.0;          // how long a hit's tick stays on the timing bar, fading
 const double PULSE_S = 0.12;
 const double MILESTONE_S = 0.8;
 const double BREAK_S = 1.1;
 const int MILESTONE_EVERY = 50;
 const int BREAK_WORTH_SHOWING = 10;     // a smaller combo breaking isn't news
-const float BAR_HALF_WIDTH = 150.0f;    // the bar's half, at scale 1, covers the whole near window
+const float BAR_HALF_WIDTH = 150.0f;    // the distribution's half, at scale 1, covers the whole near window
+const float DISTRIBUTION_HEIGHT = 40.0f;
+const float COMBO_GAP = 70.0f;          // the combo's middle, this far left of the distribution
+const double LATEST_S = 0.6;            // the latest hit's mark fades over this long
+const float BIN_MS = 5.0f;
 
 static void remember(HitFeedback& feedback, HitFeedback::Judged judged){
     feedback.recent.push_back(judged);
@@ -52,7 +55,8 @@ static void centeredText(ImDrawList* draw, ImFont* font, float size, ImVec2 cent
     draw->AddText(font, size, ImVec2(center.x - measured.x / 2, center.y - measured.y / 2), color, text);
 }
 
-void drawHitFeedback(const HitFeedback& feedback, ImDrawList* draw, int combo, const HitFeedbackLayout& layout){
+void drawHitFeedback(const HitFeedback& feedback, ImDrawList* draw, int combo, const std::vector<float>& errorsMs,
+                     const HitFeedbackLayout& layout){
     const UiFonts& fonts = uiFonts();
     const float s = layout.scale;
     const double now = GetTime();
@@ -76,34 +80,17 @@ void drawHitFeedback(const HitFeedback& feedback, ImDrawList* draw, int combo, c
         }
     }
 
-    // The timing bar: early on the left, late on the right, like osu!'s. The perfect zone green, the rest of the
-    // near window brass; each recent hit a tick where it landed, fading with age; a notch at their average.
-    const float half = BAR_HALF_WIDTH * s, center = layout.barCenterX, y = layout.barY;
-    const float perfectHalf = half * (float)(PERFECT_WINDOW_S / NEAR_WINDOW_S);
-    draw->AddRectFilled(ImVec2(center - half, y - 2 * s), ImVec2(center + half, y + 2 * s), uiColor(UiColor::Accent, 0.35f), 2 * s);
-    draw->AddRectFilled(ImVec2(center - perfectHalf, y - 2 * s), ImVec2(center + perfectHalf, y + 2 * s), uiColor(UiColor::Good, 0.6f), 2 * s);
-    verticalLine(draw, center, y - 9 * s, y + 9 * s, 2.0f * s, uiColor(UiColor::Ink, 0.7f));
-    float sum = 0.0f;
-    int counted = 0;
-    for (const HitFeedback::Judged& hit : feedback.recent){
-        float age = (float)(now - hit.at);
-        if (hit.missed || age > BAR_TICK_S) continue;
-        float x = center - hit.errorMs / (float)(NEAR_WINDOW_S * 1000.0) * half; // an early hit (+) to the left
-        float alpha = 1.0f - age / (float)BAR_TICK_S;
-        verticalLine(draw, x, y - 7 * s, y + 7 * s, 2.0f * s, uiColor(hit.perfect ? UiColor::Good : UiColor::Accent, alpha));
-        sum += hit.errorMs;
-        counted++;
-    }
-    if (counted > 0){
-        float x = center - sum / counted / (float)(NEAR_WINDOW_S * 1000.0) * half;
-        draw->AddTriangleFilled(ImVec2(x - 5 * s, y - 14 * s), ImVec2(x + 5 * s, y - 14 * s), ImVec2(x, y - 8 * s), uiColor(UiColor::Ink));
-    }
-    draw->AddText(fonts.mono, 11 * s, ImVec2(center - half, y + 10 * s), uiColor(UiColor::Dim), "EARLY");
-    float lateWidth = fonts.mono ? fonts.mono->CalcTextSizeA(11 * s, FLT_MAX, 0.0f, "LATE").x : 30 * s;
-    draw->AddText(fonts.mono, 11 * s, ImVec2(center + half - lateWidth, y + 10 * s), uiColor(UiColor::Dim), "LATE");
+    // The run's timing so far, as a distribution under the notes (see drawTimingDistribution)
+    ImVec2 area = hitDistributionArea(layout);
+    const float half = BAR_HALF_WIDTH * s;
+    double latestAt = -100.0;
+    float latestMs = 0.0f;
+    for (const HitFeedback::Judged& hit : feedback.recent) if (!hit.missed){ latestAt = hit.at; latestMs = hit.errorMs; }
+    float latestAlpha = std::max(0.0f, 1.0f - (float)((now - latestAt) / LATEST_S));
+    drawTimingDistribution(draw, errorsMs, area, ImVec2(2 * half, DISTRIBUTION_HEIGHT * s), s, latestMs, latestAlpha);
 
-    // The combo above the bar: it pulses with each hit, flashes brass on every 50th
-    float comboY = y - 44 * s;
+    // The combo left of it: it pulses with each hit, flashes brass on every 50th
+    const float center = area.x - COMBO_GAP * s, comboY = area.y + DISTRIBUTION_HEIGHT * s * 0.55f;
     if (combo > 1){
         float pulse = 1.0f + 0.18f * (1.0f - easeOut((float)((now - feedback.comboPulseAt) / PULSE_S)));
         float milestone = 1.0f - (float)((now - feedback.milestoneAt) / MILESTONE_S);
@@ -121,4 +108,61 @@ void drawHitFeedback(const HitFeedback& feedback, ImDrawList* draw, int combo, c
         centeredText(draw, fonts.bold, 18 * s, ImVec2(center + shake, comboY + 26 * s + 16 * s * easeOut(broke)),
                      uiColor(UiColor::Bad, 1.0f - broke), TextFormat("COMBO BROKEN  %d", feedback.broken));
     }
+}
+
+ImVec2 hitDistributionArea(const HitFeedbackLayout& layout){
+    float s = layout.scale;
+    return ImVec2(layout.barCenterX - BAR_HALF_WIDTH * s, layout.barY - DISTRIBUTION_HEIGHT * s);
+}
+
+ImVec2 hitDistributionSize(float scale){
+    return ImVec2(2 * BAR_HALF_WIDTH * scale, DISTRIBUTION_HEIGHT * scale);
+}
+
+void drawTimingDistribution(ImDrawList* draw, const std::vector<float>& errorsMs, ImVec2 topLeft, ImVec2 size, float scale,
+                            float latestMs, float latestAlpha){
+    const UiFonts& fonts = uiFonts();
+    const float s = scale, windowMs = (float)(NEAR_WINDOW_S * 1000.0);
+    const int bins = (int)(2 * windowMs / BIN_MS);
+    const float baseline = topLeft.y + size.y, center = topLeft.x + size.x / 2, half = size.x / 2;
+    auto xAt = [&](float errorMs){ return center - errorMs / windowMs * half; }; // early (+) to the left
+
+    // The hits into bins, early on the left
+    std::vector<int> counts(bins, 0);
+    for (float error : errorsMs){
+        int bin = (int)((windowMs - error) / BIN_MS);
+        if (bin >= 0 && bin < bins) counts[bin]++;
+    }
+    int tallest = std::max(1, *std::max_element(counts.begin(), counts.end()));
+
+    // The axis, green where a hit is perfect, brass for the rest of the window
+    const float perfectHalf = half * (float)(PERFECT_WINDOW_S / NEAR_WINDOW_S);
+    draw->AddRectFilled(ImVec2(center - half, baseline - 1.5f * s), ImVec2(center + half, baseline + 1.5f * s), uiColor(UiColor::Accent, 0.35f));
+    draw->AddRectFilled(ImVec2(center - perfectHalf, baseline - 1.5f * s), ImVec2(center + perfectHalf, baseline + 1.5f * s), uiColor(UiColor::Good, 0.6f));
+    // A bar per bin, as tall as its share of the tallest
+    float binWidth = size.x / bins;
+    for (int bin = 0; bin < bins; bin++){
+        if (counts[bin] == 0) continue;
+        float binCenterMs = windowMs - (bin + 0.5f) * BIN_MS;
+        bool perfect = std::fabs(binCenterMs) <= PERFECT_WINDOW_S * 1000.0;
+        float barHeight = std::max(2.0f * s, (size.y - 4 * s) * counts[bin] / tallest);
+        float x0 = topLeft.x + bin * binWidth + 0.5f * s, x1 = topLeft.x + (bin + 1) * binWidth - 0.5f * s;
+        draw->AddRectFilled(ImVec2(x0, baseline - barHeight), ImVec2(x1, baseline), uiColor(perfect ? UiColor::Good : UiColor::Accent, 0.85f), 1.0f * s);
+    }
+    verticalLine(draw, center, topLeft.y, baseline + 6 * s, 1.5f * s, uiColor(UiColor::Ink, 0.5f));
+
+    // The average, a notch under the axis; the latest hit, a mark fading out
+    if (!errorsMs.empty()){
+        float mean = 0.0f;
+        for (float error : errorsMs) mean += error;
+        mean /= errorsMs.size();
+        float x = xAt(std::clamp(mean, -windowMs, windowMs));
+        draw->AddTriangleFilled(ImVec2(x, baseline + 3 * s), ImVec2(x - 5 * s, baseline + 10 * s), ImVec2(x + 5 * s, baseline + 10 * s), uiColor(UiColor::Ink));
+    }
+    if (latestAlpha > 0.0f) verticalLine(draw, xAt(std::clamp(latestMs, -windowMs, windowMs)), topLeft.y - 4 * s, baseline, 2.0f * s, uiColor(UiColor::Ink, latestAlpha));
+
+    float labelSize = 11 * s;
+    draw->AddText(fonts.mono, labelSize, ImVec2(center - half, baseline + 6 * s), uiColor(UiColor::Dim), "EARLY");
+    float lateWidth = fonts.mono ? fonts.mono->CalcTextSizeA(labelSize, FLT_MAX, 0.0f, "LATE").x : 30 * s;
+    draw->AddText(fonts.mono, labelSize, ImVec2(center + half - lateWidth, baseline + 6 * s), uiColor(UiColor::Dim), "LATE");
 }
