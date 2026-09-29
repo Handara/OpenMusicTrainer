@@ -1,10 +1,13 @@
 #include "screens/settingsscreen.h"
 
 #include "audio/audio.h"
+#include "core/music.h"
+#include "input/midi.h"
 #include "raylib.h"
 #include "ui/ui.h"
 #include "ui/theme.h"
 
+#include <cctype>
 #include <vector>
 
 const float PANEL_WIDTH = 760.0f;
@@ -16,6 +19,9 @@ const int FRAME_RATE_CHOICE_COUNT = 5;
 static struct {
     std::vector<std::string> outputDevices;
     std::vector<std::string> inputDevices;
+    std::vector<std::string> midiDevices;
+    std::string midiListening;     // the MIDI device being listened to, to show what it plays
+    std::string midiError;
     std::vector<std::string> previewSounds;
     std::string status;   // result of the last change, e.g. a device that failed to open
     bool statusIsError = false;
@@ -29,8 +35,47 @@ void applyDisplaySettings(const Settings& settings){
 void openSettingsScreen(const std::string& soundsDir){
     screen.outputDevices = outputDeviceNames();
     screen.inputDevices = inputDeviceNames();
+    screen.midiDevices = midiDeviceNames();
+    screen.midiListening = "\x01"; // none yet: the MIDI section opens the chosen device when it's first drawn
     screen.previewSounds = previewSoundNames(soundsDir);
     screen.status.clear();
+}
+
+void closeSettingsScreen(){
+    stopMidiInput();
+}
+
+// MIDI: the device, and the keys it's heard pressing right now, so the player can see it's connected and working
+static void midiSection(Settings& settings){
+    ImGui::SeparatorText("MIDI keyboard");
+    if (ImGui::BeginCombo("MIDI", settings.midiDevice.empty() ? "The first one connected" : settings.midiDevice.c_str())){
+        if (ImGui::Selectable("The first one connected", settings.midiDevice.empty())) settings.midiDevice.clear();
+        for (const std::string& device : screen.midiDevices){
+            if (ImGui::Selectable(device.c_str(), device == settings.midiDevice)) settings.midiDevice = device;
+        }
+        ImGui::EndCombo();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Refresh")){
+        screen.midiDevices = midiDeviceNames();
+        screen.midiListening = "\x01";
+    }
+    if (screen.midiListening != settings.midiDevice){
+        screen.midiListening = settings.midiDevice;
+        screen.midiError.clear();
+        if (!startMidiInput(settings.midiDevice, screen.midiError)) stopMidiInput();
+    }
+    if (!midiInputActive()){
+        std::string why = screen.midiError.empty() ? "no MIDI device" : screen.midiError;
+        why[0] = (char)std::toupper((unsigned char)why[0]);
+        ImGui::TextDisabled("%s", why.c_str());
+        return;
+    }
+    updateMidiInput();
+    std::string held;
+    const bool* down = midiKeysDown();
+    for (int pitch = 0; pitch < 128; pitch++) if (down[pitch]) held += TextFormat("%s%s%d", held.empty() ? "" : " ", pitchClassName(pitch), pitchOctave(pitch));
+    ImGui::TextDisabled("%s: %s", midiDeviceName(), held.empty() ? "play a few keys to check it" : held.c_str());
 }
 
 static void setStatus(const std::string& text, bool isError){
@@ -74,6 +119,7 @@ static void audioTab(Settings& settings, const std::string& soundsDir){
     // The input device is opened when something listens (the tuner), so choosing it here is enough
     deviceCombo("Input", settings.inputDevice, screen.inputDevices);
     ImGui::TextDisabled("Audio system: %s", audioBackendName());
+    midiSection(settings);
 
     ImGui::SeparatorText("Volume");
     if (ImGui::SliderFloat("Master", &settings.masterVolume, 0.0f, 1.0f, "%.2f")) setMasterVolume(settings.masterVolume);

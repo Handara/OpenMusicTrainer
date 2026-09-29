@@ -22,6 +22,7 @@ struct Settings {
     // Audio
     std::string outputDevice;          // device name as the system reports it; empty = system default
     std::string inputDevice;
+    std::string midiDevice;            // a MIDI keyboard or controller, by name; empty = the first one connected
     float masterVolume = 1.0f;         // 0..1
     float previewVolume = 0.6f;        // sounds the game makes itself (editor note previews, later ear training)
     std::string previewSound = "pluck"; // a built-in sound, or a file name in the user's sounds folder

@@ -57,6 +57,7 @@ Settings loadSettings(const std::string& path, std::vector<std::string>& warning
         if (key == "version") continue; // only one version so far; later versions may need converting here
         else if (key == "output_device") settings.outputDevice = value;
         else if (key == "input_device") settings.inputDevice = value;
+        else if (key == "midi_device") settings.midiDevice = value;
         else if (key == "master_volume") number(settings.masterVolume, 0.0f, 1.0f);
         else if (key == "preview_volume") number(settings.previewVolume, 0.0f, 1.0f);
         else if (key == "preview_sound"){ if (!value.empty()) settings.previewSound = value; }
@@ -90,6 +91,7 @@ bool saveSettings(const std::string& path, const Settings& settings, std::string
     out << "version " << SUPPORTED_SETTINGS_VERSION << "\n\n";
     out << "output_device " << settings.outputDevice << "\n";
     out << "input_device " << settings.inputDevice << "\n";
+    out << "midi_device " << settings.midiDevice << "\n";
     out << "master_volume " << settings.masterVolume << "\n";
     out << "preview_volume " << settings.previewVolume << "\n";
     out << "preview_sound " << settings.previewSound << "\n\n";

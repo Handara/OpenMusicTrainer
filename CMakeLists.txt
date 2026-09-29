@@ -146,6 +146,7 @@ enable_warnings(lahn_core)
 add_executable(lahn
     src/main.cpp
     src/audio/audio.cpp
+    src/input/midi.cpp
     src/input/noteinput.cpp
     src/ui/hitfeedback.cpp
     src/ui/menulist.cpp
@@ -179,6 +180,9 @@ add_executable(lahn
     src/video/video.cpp
 )
 target_link_libraries(lahn PRIVATE lahn_core raylib miniaudio imgui pl_mpeg)
+if(WIN32)
+    target_link_libraries(lahn PRIVATE winmm) # MIDI input (input/midi.cpp)
+endif()
 enable_warnings(lahn)
 
 # Makes the sample song's chart and audio (tools/make_song.cpp). Not built with the game: build and run it by hand.

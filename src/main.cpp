@@ -124,6 +124,7 @@ static void leaveCalibration(){
 }
 
 static void leaveSettings(){
+    closeSettingsScreen();
     std::string error;
     if (!saveSettings(app.settingsPath, app.settings, error)) TraceLog(LOG_WARNING, "Settings: %s", error.c_str());
     app.screen = Screen::MainMenu;
