@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/chart.h"
+#include "core/ranking.h"
 
 #include <string>
 #include <vector>
@@ -10,6 +11,9 @@ struct SongPart {
     std::string name;
     InstrumentType type;
     int stringCount;
+    std::string fingerprint;   // its records are kept under it (core/ranking)
+    bool played = false;       // filled in by whoever reads the records: the part's best run, if there's one
+    RunRecord best;
 };
 
 struct SongEntry {
@@ -21,6 +25,12 @@ struct SongEntry {
     bool builtIn;       // ships with the game (read-only) rather than living in the user's data folder
     std::vector<SongPart> parts; // its fretted tracks, in the chart's order
 };
+
+// The song's id, for its records: "builtin-<folder>" or "user-<folder>"
+std::string songId(const SongEntry& song);
+
+// Reads each part's best run from the records folder into the songs' parts
+void loadBestRuns(std::vector<SongEntry>& songs, const std::string& recordsDir);
 
 // Finds every <songsDir>/<folder>/song.chart, sorted by title
 std::vector<SongEntry> scanSongs(const std::string& songsDir, bool builtIn);

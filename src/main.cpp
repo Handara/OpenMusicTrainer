@@ -42,7 +42,7 @@ static struct {
     std::string settingsPath;
     Settings settings;
     std::vector<SongEntry> songs;
-    std::string currentChartPath; // the song being played, kept for Retry
+    SongEntry currentSong;        // the song being played, kept for Retry and its records
     int currentPart = 0;          // and which of its parts
     std::string songSelectError;  // why the last song failed to start (or a package failed to install)
     std::string songSelectNotice; // a song package just installed
@@ -56,12 +56,17 @@ static struct {
 
 // --- Screen transitions -----------------------------------------------------------------------------
 
+static std::string recordsDir(){
+    return (fs::path(app.progressDir) / "records").string();
+}
+
 // Built-in songs first, then the player's own. Rescanned on every visit so new song folders show up.
 static void goToSongList(Screen listScreen){
     if (app.screen != listScreen) app.songSelectNotice.clear(); // news is for the visit it happened in
     app.songs = scanSongs(app.resourcesDir + "songs", true);
     std::vector<SongEntry> userSongs = scanSongs(app.userSongsDir, false);
     app.songs.insert(app.songs.end(), userSongs.begin(), userSongs.end());
+    loadBestRuns(app.songs, recordsDir());
     app.screen = listScreen;
 }
 
@@ -136,14 +141,9 @@ static void editSong(const SongEntry& song){
 // A finished run goes into its part's records (not a test-play from the editor: that isn't a real run). The
 // result then knows where it placed, and shows the part's best runs.
 static void recordRun(GameResult& result){
-    // The song's own id: built-in or the player's, and its folder's name
-    fs::path chart = app.currentChartPath;
-    bool builtIn = chart.string().rfind(app.resourcesDir, 0) == 0;
-    std::string songId = (builtIn ? "builtin-" : "user-") + chart.parent_path().filename().string();
-    fs::path recordsDir = fs::path(app.progressDir) / "records";
     std::error_code ec;
-    fs::create_directories(recordsDir, ec);
-    std::string path = recordsPath(recordsDir.string(), songId, app.currentPart, result.fingerprint);
+    fs::create_directories(recordsDir(), ec);
+    std::string path = recordsPath(recordsDir(), songId(app.currentSong), app.currentPart, result.fingerprint);
 
     RunRecord run;
     run.score = result.score;
@@ -177,13 +177,13 @@ static GameplayOptions gameplayOptions(){
     return options;
 }
 
-static void startSong(const std::string& chartPath, int part){
+static void startSong(const SongEntry& song, int part){
     std::string error;
     app.testPlaying = false;
     GameplayOptions options = gameplayOptions();
     options.part = part;
-    if (startGameplay(chartPath, options, error)){
-        app.currentChartPath = chartPath;
+    if (startGameplay(song.chartPath, options, error)){
+        app.currentSong = song;
         app.currentPart = part;
         app.songSelectError.clear();
         app.screen = Screen::Playing;
@@ -278,7 +278,7 @@ static void runMenus(){
             SongSelectChoice choice = songSelectScreen("Select a song", app.songs, app.songSelectError, app.songSelectNotice, false);
             if (choice.back) app.screen = Screen::MainMenu;
             else if (choice.openDataFolder) openDataFolder();
-            else if (choice.songIndex >= 0) startSong(app.songs[choice.songIndex].chartPath, choice.part);
+            else if (choice.songIndex >= 0) startSong(app.songs[choice.songIndex], choice.part);
             break;
         }
         case Screen::EditorSelect: {
@@ -323,7 +323,7 @@ static void runMenus(){
             break;
         case Screen::Results:
             switch (resultsScreen(app.lastResult)){
-                case ResultsChoice::Retry: startSong(app.currentChartPath, app.currentPart); break;
+                case ResultsChoice::Retry: startSong(app.currentSong, app.currentPart); break;
                 case ResultsChoice::BackToSongs: goToSongSelect(); break;
                 case ResultsChoice::None: break;
             }

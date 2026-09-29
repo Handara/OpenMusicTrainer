@@ -28,7 +28,15 @@ std::vector<SongEntry> scanSongs(const std::string& songsDir, bool builtIn){
         if (loadChart(song.chartPath, chart, song.error)){
             if (!chart.title.empty()) song.title = chart.title;
             song.artist = chart.artist;
-            for (const FrettedTrack& track : chart.frettedTracks) song.parts.push_back({track.name, track.type, (int)track.tuning.size()});
+            for (int part = 0; part < (int)chart.frettedTracks.size(); part++){
+                const FrettedTrack& track = chart.frettedTracks[part];
+                SongPart info;
+                info.name = track.name;
+                info.type = track.type;
+                info.stringCount = (int)track.tuning.size();
+                info.fingerprint = partFingerprint(chart, part);
+                song.parts.push_back(info);
+            }
         } else if (song.error.rfind(song.chartPath, 0) == 0){
             // Menus show the error: "folder/song.chart" is enough there, the full path would take several lines
             song.error = (entry.path().filename() / "song.chart").generic_string() + song.error.substr(song.chartPath.size());
@@ -37,6 +45,21 @@ std::vector<SongEntry> scanSongs(const std::string& songsDir, bool builtIn){
     }
     std::sort(songs.begin(), songs.end(), [](const SongEntry& a, const SongEntry& b){ return a.title < b.title; });
     return songs;
+}
+
+std::string songId(const SongEntry& song){
+    return (song.builtIn ? "builtin-" : "user-") + fs::path(song.folder).filename().string();
+}
+
+void loadBestRuns(std::vector<SongEntry>& songs, const std::string& recordsDir){
+    for (SongEntry& song : songs){
+        for (int part = 0; part < (int)song.parts.size(); part++){
+            SongPart& info = song.parts[part];
+            std::vector<RunRecord> records = loadRuns(recordsPath(recordsDir, songId(song), part, info.fingerprint));
+            info.played = !records.empty();
+            if (info.played) info.best = records.front();
+        }
+    }
 }
 
 bool createSong(const std::string& songsDir, const NewSong& song, std::string& chartPath, std::string& error){

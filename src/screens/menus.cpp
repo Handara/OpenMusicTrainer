@@ -16,6 +16,55 @@ static MenuListArea listArea(float widthShare){
     return { ImVec2(width * 0.07f, height * 0.25f), width * widthShare, height * 0.66f - 20 * s, s };
 }
 
+static UiColor gradeColor(Grade grade){
+    switch (grade){
+        case Grade::SS: case Grade::S: return UiColor::Accent; // brass: the best there is
+        case Grade::A:                 return UiColor::Good;
+        case Grade::D:                 return UiColor::Bad;
+        default:                       return UiColor::Ink;
+    }
+}
+
+// The selected song on a card beside the list: its parts, and the best run on each
+static void drawSongCard(const SongEntry& song, float s){
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    const UiFonts& fonts = uiFonts();
+    float width = ImGui::GetWindowWidth(), height = ImGui::GetWindowHeight();
+    ImVec2 card(width * 0.55f, height * 0.25f);
+    float cardWidth = width * 0.38f, pad = 26 * s, inner = cardWidth - 2 * pad;
+    float partHeight = 64 * s;
+    float cardHeight = pad * 2 + 30 * s + (song.artist.empty() ? 0 : 24 * s) + 16 * s + (float)song.parts.size() * partHeight;
+    if (song.parts.empty()) return;
+    draw->AddRectFilled(ImVec2(card.x, card.y + 3 * s), ImVec2(card.x + cardWidth, card.y + cardHeight + 3 * s), uiColor(UiColor::Ink, 0.04f), 10 * s);
+    draw->AddRectFilled(card, ImVec2(card.x + cardWidth, card.y + cardHeight), uiColor(UiColor::Card), 10 * s);
+    float x = card.x + pad, y = card.y + pad;
+    draw->AddText(fonts.bold, 26 * s, ImVec2(x, y), uiColor(UiColor::Ink), song.title.c_str(), nullptr, inner);
+    y += 30 * s;
+    if (!song.artist.empty()){
+        draw->AddText(fonts.text, 18 * s, ImVec2(x, y), uiColor(UiColor::Dim), song.artist.c_str());
+        y += 24 * s;
+    }
+    y += 16 * s;
+    for (const SongPart& part : song.parts){
+        const char* instrument = part.type == InstrumentType::Bass ? "BASS" : "GUITAR";
+        draw->AddText(fonts.mono, 13 * s, ImVec2(x, y), uiColor(UiColor::Dim),
+                      TextFormat("%s  ·  %s, %d STRINGS", part.name.c_str(), instrument, part.stringCount));
+        float rowY = y + 20 * s;
+        if (!part.played){
+            draw->AddText(fonts.text, 18 * s, ImVec2(x, rowY + 4 * s), uiColor(UiColor::Dim), "Not played yet");
+        } else {
+            const RunRecord& best = part.best;
+            draw->AddText(fonts.heavy, 30 * s, ImVec2(x, rowY - 2 * s), uiColor(gradeColor(best.grade())), gradeName(best.grade()));
+            draw->AddText(fonts.bold, 20 * s, ImVec2(x + 56 * s, rowY + 4 * s), uiColor(UiColor::Ink),
+                          TextFormat("%.2f%%   %d", best.accuracy, best.score));
+            if (best.fullCombo()){
+                draw->AddText(fonts.mono, 13 * s, ImVec2(x + inner - 30 * s, rowY + 9 * s), uiColor(UiColor::Accent), "FC");
+            }
+        }
+        y += partHeight;
+    }
+}
+
 static int choosingPartOf = -1; // the song whose parts are listed, -1 when the songs are
 
 bool songSelectBack(){
@@ -43,7 +92,8 @@ static void partList(const SongEntry& song, SongSelectChoice& choice){
     }
     const int back = (int)rows.size();
     rows.push_back(actionRow("Back", "Esc"));
-    int confirmed = menuList(list, rows, listArea(0.8f));
+    int confirmed = menuList(list, rows, listArea(0.45f));
+    drawSongCard(song, s);
     if (confirmed >= 0 && confirmed < back){
         choice.songIndex = choosingPartOf;
         choice.part = confirmed;
@@ -93,7 +143,8 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
     rows.push_back(actionRow("Open data folder"));
     rows.push_back(actionRow("Back", "Esc"));
 
-    int confirmed = menuList(list, rows, listArea(0.8f));
+    int confirmed = menuList(list, rows, listArea(0.45f));
+    if (list.selected >= 0 && list.selected < (int)songs.size() && songs[list.selected].error.empty()) drawSongCard(songs[list.selected], s);
     if (confirmed >= 0 && confirmed < (int)songs.size()){
         // Several parts to play: choose one first
         if (!forEditing && songs[confirmed].parts.size() > 1) choosingPartOf = confirmed;
@@ -112,15 +163,6 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
                               : "Up/Down  choose    Enter  play    Esc  back    Drop a .lahn file to add a song", s);
     ImGui::End();
     return choice;
-}
-
-static UiColor gradeColor(Grade grade){
-    switch (grade){
-        case Grade::SS: case Grade::S: return UiColor::Accent; // brass: the best there is
-        case Grade::A:                 return UiColor::Good;
-        case Grade::D:                 return UiColor::Bad;
-        default:                       return UiColor::Ink;
-    }
 }
 
 ResultsChoice resultsScreen(const GameResult& result){
