@@ -58,6 +58,14 @@ Settings loadSettings(const std::string& path, std::vector<std::string>& warning
         else if (key == "output_device") settings.outputDevice = value;
         else if (key == "input_device") settings.inputDevice = value;
         else if (key == "midi_device") settings.midiDevice = value;
+        else if (key == "piano_keys"){
+            std::istringstream names(value);
+            std::vector<std::string> keys;
+            std::string name;
+            while (names >> name) keys.push_back(name);
+            if ((int)keys.size() == PIANO_KEY_SLOTS) settings.pianoKeys = keys;
+            else warnings.push_back("line " + std::to_string(lineNumber) + ": piano_keys needs " + std::to_string(PIANO_KEY_SLOTS) + " keys, keeping the default");
+        }
         else if (key == "master_volume") number(settings.masterVolume, 0.0f, 1.0f);
         else if (key == "preview_volume") number(settings.previewVolume, 0.0f, 1.0f);
         else if (key == "preview_sound"){ if (!value.empty()) settings.previewSound = value; }
@@ -108,6 +116,9 @@ bool saveSettings(const std::string& path, const Settings& settings, std::string
     out << "play_with_instrument " << (settings.playWithInstrument ? 1 : 0) << "\n";
     out << "note_speed " << settings.noteSpeed << "\n";
     out << "global_offset_ms " << settings.globalOffsetMs << "\n";
+    out << "piano_keys";
+    for (const std::string& key : settings.pianoKeys) out << " " << key;
+    out << "\n";
     out << "input_offset_ms " << settings.inputOffsetMs << "\n";
     return writeFileAtomically(path, out.str(), error);
 }

@@ -9,7 +9,8 @@ static struct {
 } view;
 
 bool loadViewFont(const std::string& path){
-    const char* characters = "0123456789ABCDEFGTb#[] "; // numbers, the tab clef, note names like "F#2 [3]"
+    // Numbers, the tab clef, note names like "F#2 [3]", and the computer keys that play piano ("Z", ",")
+    const char* characters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZb#[] ,./;'-=\\`";
     int count = 0;
     int* codepoints = LoadCodepoints(characters, &count);
     Font font = LoadFontEx(path.c_str(), FONT_LOAD_SIZE, codepoints, count);

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/pianokeys.h"
+
 #include <string>
 #include <vector>
 
@@ -40,6 +42,7 @@ struct Settings {
     float noteSpeed = 300.0f;          // how fast notes scroll, pixels per second
     int globalOffsetMs = 0;            // output latency compensation: positive = notes are judged and drawn later
     int inputOffsetMs = 0;             // the input device's own delay, on top: positive = played notes arrive late
+    std::vector<std::string> pianoKeys = defaultPianoKeys(); // the computer keys that play piano, from a C (core/pianokeys)
 };
 
 // Unlike charts, settings load leniently: they're the player's own file, and a typo or a line from a newer

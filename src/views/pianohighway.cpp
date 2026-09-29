@@ -5,7 +5,7 @@
 
 #include <algorithm>
 
-const float MAX_WHITE_KEY_WIDTH = 34.0f;
+const float MAX_WHITE_KEY_WIDTH = 46.0f;
 const float KEYBOARD_SHARE = 0.2f;       // of the view's height, for the keys themselves
 const float BLACK_KEY_WIDTH = 0.6f;      // of a white key
 const float BLACK_KEY_LENGTH = 0.62f;    // of a white key's length
@@ -22,7 +22,8 @@ static int whiteIndex(int pitch){
     return (pitch / 12) * 7 + WHITE_BEFORE[pitch % 12];
 }
 
-void drawPianoHighway(Rectangle area, const std::vector<PlayNote>& notes, const TimeAxis& axis, const bool* keysDown){
+void drawPianoHighway(Rectangle area, const std::vector<PlayNote>& notes, const TimeAxis& axis, const bool* keysDown,
+                      std::string (*keyLabel)(int pitch)){
     // The range: the part's notes, widened to whole octaves, two at least
     int lowest = 60, highest = 71;
     if (!notes.empty()){
@@ -89,6 +90,17 @@ void drawPianoHighway(Rectangle area, const std::vector<PlayNote>& notes, const 
     for (int pitch = lowest; pitch <= highest; pitch++){
         if (!isBlack(pitch)) continue;
         DrawRectangleRec({keyX(pitch), keyboardTop, keyW(pitch), keyLength * BLACK_KEY_LENGTH}, keyColor(pitch, {30, 30, 34, 255}));
+    }
+    // The computer key that plays each note, on its piano key: white keys near their bottom, black keys on them
+    if (keyLabel){
+        float size = std::max(9.0f, keyWidth * 0.34f);
+        for (int pitch = lowest; pitch <= highest; pitch++){
+            std::string label = keyLabel(pitch);
+            if (label.empty()) continue;
+            bool black = isBlack(pitch);
+            float y = black ? keyboardTop + keyLength * BLACK_KEY_LENGTH - size : keyboardBottom - keyWidth * 0.9f;
+            drawViewText(label.c_str(), keyX(pitch) + keyW(pitch) / 2, y, size, black ? WHITE : themeColor(UiColor::Ink));
+        }
     }
     for (const PlayNote& note : notes){
         if (!note.hit || note.hitFlash <= 0.0f) continue;

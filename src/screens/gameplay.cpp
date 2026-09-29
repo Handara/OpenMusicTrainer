@@ -4,10 +4,12 @@
 #include "core/chart.h"
 #include "core/judge.h"
 #include "core/music.h"
+#include "core/pianokeys.h"
 #include "core/score.h"
 #include "imgui.h"
 #include "input/midi.h"
 #include "input/noteinput.h"
+#include "input/pianokeys.h"
 #include "raylib.h"
 #include "ui/hitfeedback.h"
 #include "ui/menulist.h"
@@ -187,11 +189,15 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
     game.state.multiplier = 1;
     game.options = options;
     game.lastPlayedPitch = -1;
-    // A keys part is played on a MIDI keyboard, and only there: the part waits for one to be connected
-    if (game.keys && !startMidiInput(options.midiDevice, error)){
-        error = "This part is played on a MIDI keyboard: " + error + " (Settings > Audio)";
-        unloadSong();
-        return false;
+    // A keys part is played on a MIDI keyboard if one is connected, else on the computer keyboard, laid out from
+    // the C at or below the part's lowest note
+    if (game.keys){
+        std::string midiError;
+        if (!startMidiInput(options.midiDevice, midiError)){
+            int lowest = 127;
+            for (const PlayNote& note : game.notes) lowest = std::min(lowest, note.pitch);
+            startPianoKeys(options.pianoKeys, pianoBaseFor(game.notes.empty() ? 60 : lowest));
+        }
     }
     if (options.playWithInstrument && !game.keys){
         // Listen down to just below the track's lowest string: a bass or a drop tuning gets its own range
@@ -234,6 +240,7 @@ bool updateGameplay(){
     if (game.paused){
         if (noteInputActive()) updateNoteInput(); // what's played while paused is thrown away, not judged later
         if (midiInputActive()) updateMidiInput();
+        if (pianoKeysActive()) updatePianoKeys();
         return true;
     }
 
@@ -248,9 +255,11 @@ bool updateGameplay(){
     const FrettedTrack& track = game.chart.frettedTracks[0];
     handleKeyboard(game.notes, game.state, game.songTime, (int)track.tuning.size(), game.options.hitSounds);
     if (noteInputActive()) handleInstrument(game.notes, game.state, game.songTime, game.options.inputOffsetSeconds, game.lastPlayedPitch);
-    if (midiInputActive()){
-        // Each key on its own: pressing one note of a chord doesn't play the rest
-        for (const PlayedNote& played : updateMidiInput()){
+    if (midiInputActive() || pianoKeysActive()){
+        // Each key on its own: pressing one note of a chord doesn't play the rest. Every key sounds, hit or not:
+        // it's an instrument being played.
+        for (const PlayedNote& played : midiInputActive() ? updateMidiInput() : updatePianoKeys()){
+            playKeysNote(midiToFrequency((float)played.pitch));
             PlayerInput input;
             input.time = game.songTime - played.age;
             input.pitch = played.pitch;
@@ -277,7 +286,9 @@ void drawGameplay(){
     float width = (float)GetScreenWidth(), height = (float)GetScreenHeight();
     Rectangle viewsArea = { 0, height * 0.14f, width, height * 0.72f }; // below the HUD, above the combo and timing bar
     if (game.keys){
-        game.hitLineX = drawKeysViews(viewsArea, game.options.noteViews, game.notes, game.score, axis, midiInputActive() ? midiKeysDown() : nullptr);
+        const bool* down = midiInputActive() ? midiKeysDown() : pianoKeysActive() ? pianoKeysDown() : nullptr;
+        game.hitLineX = drawKeysViews(viewsArea, game.options.noteViews, game.notes, game.score, axis, down,
+                                      pianoKeysActive() ? pianoKeyFor : nullptr);
         return;
     }
     game.hitLineX = drawNoteViews(viewsArea, game.options.noteViews, game.notes, game.score, game.chart.frettedTracks[0].tuning,
@@ -335,6 +346,7 @@ void drawGameplayHud(){
 void stopGameplay(){
     stopNoteInput();
     stopMidiInput();
+    stopPianoKeys();
     unloadSong();
     game.active = false;
 }
@@ -352,7 +364,7 @@ GameResult gameplayResult(){
     result.totalNotes = (int)game.notes.size();
     result.accuracy = runAccuracy(state.perfectCount, state.nearCount, state.missCount);
     result.timing = timingStats(state.errorsMs);
-    result.withInstrument = game.options.playWithInstrument;
+    result.withInstrument = game.keys ? midiInputActive() : game.options.playWithInstrument; // the computer keyboard isn't an instrument
     result.fingerprint = game.fingerprint;
     result.errorsMs = state.errorsMs;
     result.distributionFrom = game.distribution;

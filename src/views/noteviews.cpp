@@ -72,7 +72,7 @@ float drawNoteViews(Rectangle area, const NoteViews& views, const std::vector<Pl
 }
 
 float drawKeysViews(Rectangle area, const NoteViews& views, const std::vector<PlayNote>& notes, const Score& score,
-                    TimeAxis axis, const bool* keysDown){
+                    TimeAxis axis, const bool* keysDown, std::string (*keyLabel)(int pitch)){
     Rectangle piano = area;
     if (views.staff){
         float staffHeight = std::min(STAFF_SIZE.maxHeight, area.height * 0.4f);
@@ -82,6 +82,6 @@ float drawKeysViews(Rectangle area, const NoteViews& views, const std::vector<Pl
         drawStaff(staff, notes, score, axis);
         piano = { area.x, area.y + staffHeight + VIEW_GAP, area.width, area.height - staffHeight - VIEW_GAP };
     }
-    drawPianoHighway(piano, notes, axis, keysDown);
+    drawPianoHighway(piano, notes, axis, keysDown, keyLabel);
     return area.x + area.width / 2;
 }

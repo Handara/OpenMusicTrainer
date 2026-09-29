@@ -145,7 +145,7 @@ std::vector<std::string> inputDeviceNames(){ return deviceNames(ma_device_type_c
 
 static void releaseVoice(Voice& voice);
 static void startVoice(Voice& voice, const float* data, size_t frames, float pitchRatio, float volume, unsigned long long startFrame);
-static void startPreview(float frequency, ma_uint64 startFrame);
+static void startPreview(float frequency, ma_uint64 startFrame, const char* builtIn = nullptr);
 
 // On some systems (PulseAudio under WSL, at least) the engine's clock doesn't start until the first sound plays,
 // and anything timed on it (the metronome, drills) would wait forever. A moment of silence gets it running for good.
@@ -650,7 +650,7 @@ void playPreviewAt(float frequency, double time){
 }
 
 // A preview note starting at a frame of the engine's clock
-static void startPreview(float frequency, ma_uint64 startFrame){
+static void startPreview(float frequency, ma_uint64 startFrame, const char* builtIn){
     Voice& voice = takeVoice();
 
     // Built-in sounds are rendered at the engine's own sample rate and pitch, so nothing is resampled.
@@ -659,9 +659,9 @@ static void startPreview(float frequency, ma_uint64 startFrame){
     const float* data;
     size_t frames;
     float pitchRatio = 1.0f;
-    if (audio.customSound.empty()){
+    if (builtIn || audio.customSound.empty()){
         voice.samples.resize((size_t)(PREVIEW_LENGTH_S * sampleRate)); // keeps its memory between notes: no allocation after the first
-        renderBuiltInSound(audio.previewSoundName.c_str(), voice.samples.data(), (int)voice.samples.size(), frequency,
+        renderBuiltInSound(builtIn ? builtIn : audio.previewSoundName.c_str(), voice.samples.data(), (int)voice.samples.size(), frequency,
                            (int)sampleRate, (unsigned)audio.previewCount);
         data = voice.samples.data();
         frames = voice.samples.size();
@@ -672,6 +672,11 @@ static void startPreview(float frequency, ma_uint64 startFrame){
     }
     audio.previewCount++;
     startVoice(voice, data, frames, pitchRatio, audio.previewVolume, startFrame);
+}
+
+void playKeysNote(float frequency){
+    if (!audio.engineReady) return;
+    startPreview(frequency, ma_engine_get_time_in_pcm_frames(&audio.engine), "keys");
 }
 
 void playClickAt(double time, bool accent){

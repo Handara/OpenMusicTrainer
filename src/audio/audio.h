@@ -52,6 +52,9 @@ bool previewSoundHasPitch();
 void setPreviewVolume(float volume); // 0..1
 void playPreview(float frequency, float delaySeconds = 0.0f); // the delay is timed on the audio clock, to the sample
 void playPreviewAt(float frequency, double time); // at a time on the engine's clock (audioTime), like playClickAt
+// A note played on the game's piano (the built-in electric piano), whatever the preview sound: keys parts sound
+// it for every key the player presses, since most MIDI controllers and every computer keyboard make no sound
+void playKeysNote(float frequency);
 
 // The audio engine's own clock in seconds, smoothed between its updates like songPosition: for anything that
 // keeps time without a song (metronome, drills, calibration). Call it every frame.

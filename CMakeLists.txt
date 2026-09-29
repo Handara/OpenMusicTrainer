@@ -123,6 +123,7 @@ add_library(lahn_core STATIC
     src/core/notation.cpp
     src/core/notedetector.cpp
     src/core/paths.cpp
+    src/core/pianokeys.cpp
     src/core/pitch.cpp
     src/core/quiz.cpp
     src/core/ranking.cpp
@@ -148,6 +149,7 @@ add_executable(lahn
     src/audio/audio.cpp
     src/input/midi.cpp
     src/input/noteinput.cpp
+    src/input/pianokeys.cpp
     src/ui/hitfeedback.cpp
     src/ui/menulist.cpp
     src/ui/theme.cpp
@@ -218,6 +220,7 @@ if(BUILD_TESTING)
         tests/music_test.cpp
         tests/notation_test.cpp
         tests/notedetector_test.cpp
+        tests/pianokeys_test.cpp
         tests/pitch_test.cpp
         tests/ranking_test.cpp
         tests/reading_test.cpp
