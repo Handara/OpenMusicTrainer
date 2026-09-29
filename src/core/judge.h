@@ -43,6 +43,7 @@ struct JudgeResult {
     int notesHit = 0;    // more than 1 when a detected pitch completes a chord (see judgeInput)
     double error = 0.0;  // note time - input time: positive = early, negative = late
     int pitch = -1;      // the note hit, as it sounds (to play it back to someone playing on the keyboard)
+    int noteIndex = -1;  // which note (a chord's first), for showing the judgement where it is
 };
 
 // Judges one input against the nearest unjudged note it matches, within the near window. An input with
@@ -51,4 +52,5 @@ struct JudgeResult {
 JudgeResult judgeInput(std::vector<PlayNote>& notes, const PlayerInput& input);
 
 // Marks unjudged notes more than the near window before `now` as missed; returns how many
-int markMisses(std::vector<PlayNote>& notes, double now);
+// latest: the index of the latest note missed, for showing where (untouched when none is)
+int markMisses(std::vector<PlayNote>& notes, double now, int* latest = nullptr);

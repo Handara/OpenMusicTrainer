@@ -25,6 +25,7 @@ JudgeResult judgeInput(std::vector<PlayNote>& notes, const PlayerInput& input){
 
     result.error = nearest->time - input.time;
     result.pitch = nearest->pitch;
+    result.noteIndex = (int)(nearest - notes.data());
     bool perfect = std::fabs(result.error) <= PERFECT_WINDOW_S;
     result.judgement = perfect ? Judgement::Perfect : Judgement::Near;
 
@@ -45,7 +46,7 @@ JudgeResult judgeInput(std::vector<PlayNote>& notes, const PlayerInput& input){
     return result;
 }
 
-int markMisses(std::vector<PlayNote>& notes, double now){
+int markMisses(std::vector<PlayNote>& notes, double now, int* latest){
     // Everything before this point is too late to hit (notes are sorted by time)
     auto end = std::lower_bound(notes.begin(), notes.end(), now - NEAR_WINDOW_S,
                                 [](const PlayNote& note, double time){ return note.time < time; });
@@ -54,6 +55,7 @@ int markMisses(std::vector<PlayNote>& notes, double now){
         if (it->judged) continue;
         it->judged = true;
         missed++;
+        if (latest) *latest = (int)(it - notes.begin());
     }
     return missed;
 }

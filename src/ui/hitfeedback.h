@@ -16,6 +16,7 @@ struct HitFeedback {
         bool missed;
         bool perfect;
         float errorMs;      // + early, - late
+        ImVec2 anchor;      // where it pops up (over the note it was for); x < 0: at the hit line
     };
     std::vector<Judged> recent;     // the latest, newest last: the popup and the timing bar
     double comboPulseAt = -100.0;   // the last hit, for the combo's pulse
@@ -27,9 +28,10 @@ struct HitFeedback {
 
 // A hit: the judgement and how far off it was (the judge's error: note time - input time, in seconds), and the
 // combo after it
-void feedbackHit(HitFeedback& feedback, Judgement judgement, double errorSeconds, int combo);
+// anchor: where to show it, over the note it was for (the neck knows where its notes are); x < 0 for the hit line
+void feedbackHit(HitFeedback& feedback, Judgement judgement, double errorSeconds, int combo, ImVec2 anchor = ImVec2(-1, -1));
 // A miss, with the combo it ended
-void feedbackMiss(HitFeedback& feedback, int comboBefore);
+void feedbackMiss(HitFeedback& feedback, int comboBefore, ImVec2 anchor = ImVec2(-1, -1));
 
 struct HitFeedbackLayout {
     float hitLineX;     // the judgement pops up centered on it...

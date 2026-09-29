@@ -15,6 +15,7 @@
 #include "ui/hitfeedback.h"
 #include "ui/menulist.h"
 #include "ui/theme.h"
+#include "views/neckview.h"
 #include "views/noteviews.h"
 #include "views/rhythmlane.h"
 
@@ -48,9 +49,16 @@ const double RESUME_RUNUP_S = 1.5; // resuming, the song picks up this long befo
 
 static HitFeedback feedback; // the judgements, timing bar and combo shown over the play screen
 
-static void scoreMisses(GameState& state, int count){
+// Where a judgement is shown: over its note on the neck, when the neck is drawn; else at the hit line (x < 0)
+static ImVec2 judgementAnchor(const std::vector<PlayNote>& notes, int index){
+    float x, y, radius;
+    if (index < 0 || index >= (int)notes.size() || !neckNoteAt(notes[index], x, y, radius)) return ImVec2(-1.0f, -1.0f);
+    return ImVec2(x, y - radius - 24.0f * GetScreenHeight() / 720.0f);
+}
+
+static void scoreMisses(GameState& state, int count, ImVec2 anchor = ImVec2(-1.0f, -1.0f)){
     if (count == 0) return;
-    feedbackMiss(feedback, state.combo);
+    feedbackMiss(feedback, state.combo, anchor);
     state.combo = 0;
     state.multiplier = 1;
     state.missCount += count;
@@ -58,7 +66,10 @@ static void scoreMisses(GameState& state, int count){
 }
 
 // Scoring is the game's own rule on top of judging: perfect hits build the multiplier, near hits don't
-static void scoreHit(GameState& state, Judgement judgement, int notesHit, double error){
+static void scoreHit(GameState& state, const JudgeResult& result, ImVec2 anchor){
+    const Judgement judgement = result.judgement;
+    const int notesHit = result.notesHit;
+    const double error = result.error;
     state.errorsMs.push_back((float)(error * 1000.0));
     for (int i = 0; i < notesHit; i++){
         state.combo++;
@@ -74,7 +85,7 @@ static void scoreHit(GameState& state, Judgement judgement, int notesHit, double
         }
     }
     state.maxCombo = std::max(state.maxCombo, state.combo);
-    feedbackHit(feedback, judgement, error, state.combo);
+    feedbackHit(feedback, judgement, error, state.combo, anchor);
 }
 
 // Number keys 1 to 6 stand for the strings, lowest first
@@ -86,7 +97,7 @@ static void handleKeyboard(std::vector<PlayNote>& notes, GameState& state, float
         press.stringIndex = lane;
         JudgeResult result = judgeInput(notes, press);
         if (result.judgement == Judgement::Ignored) continue;
-        scoreHit(state, result.judgement, result.notesHit, result.error);
+        scoreHit(state, result, judgementAnchor(notes, result.noteIndex));
         if (hitSounds) playPreview(midiToFrequency((float)result.pitch)); // the key plays the note it hit
     }
 }
@@ -117,7 +128,7 @@ static void handleInstrument(std::vector<PlayNote>& notes, GameState& state, flo
         input.time = songTime - age - inputOffset;
         input.anyNote = true;
         JudgeResult result = judgeInput(notes, input);
-        if (result.judgement != Judgement::Ignored) scoreHit(state, result.judgement, result.notesHit, result.error);
+        if (result.judgement != Judgement::Ignored) scoreHit(state, result, judgementAnchor(notes, result.noteIndex));
     }
     for (const PlayedNote& note : played){
         lastPlayedPitch = note.pitch;
@@ -126,7 +137,7 @@ static void handleInstrument(std::vector<PlayNote>& notes, GameState& state, flo
         input.time = songTime - note.age - inputOffset;
         input.pitch = note.pitch;
         JudgeResult result = judgeInput(notes, input);
-        if (result.judgement != Judgement::Ignored) scoreHit(state, result.judgement, result.notesHit, result.error);
+        if (result.judgement != Judgement::Ignored) scoreHit(state, result, judgementAnchor(notes, result.noteIndex));
     }
 }
 
@@ -161,7 +172,7 @@ static void handleDrumKeys(){
         press.time = game.songTime;
         press.stringIndex = ka ? 1 : 0;
         JudgeResult result = judgeInput(game.notes, press);
-        if (result.judgement != Judgement::Ignored) scoreHit(game.state, result.judgement, result.notesHit, result.error);
+        if (result.judgement != Judgement::Ignored) scoreHit(game.state, result, judgementAnchor(game.notes, result.noteIndex));
     }
 }
 
@@ -347,11 +358,13 @@ bool updateGameplay(){
             input.completesChord = false;
             input.anyNote = game.options.rhythmMode;
             JudgeResult result = judgeInput(game.notes, input);
-            if (result.judgement != Judgement::Ignored) scoreHit(game.state, result.judgement, result.notesHit, result.error);
+            if (result.judgement != Judgement::Ignored) scoreHit(game.state, result, judgementAnchor(game.notes, result.noteIndex));
             game.lastPlayedPitch = played.pitch;
         }
     }
-    scoreMisses(game.state, markMisses(game.notes, game.songTime));
+    int missedNote = -1;
+    int missed = markMisses(game.notes, game.songTime, &missedNote);
+    scoreMisses(game.state, missed, judgementAnchor(game.notes, missedNote));
 
     if (songEnded()){
         // Anything still unjudged when the music stops counts as missed

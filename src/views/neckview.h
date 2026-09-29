@@ -12,3 +12,7 @@
 // speed. `notes` must be sorted by time.
 void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std::vector<int>& tuning, bool lowStringOnTop,
                   const TimeAxis& axis);
+
+// Where a note is on the neck as it was last drawn (its middle, and its radius), for showing its judgement over it.
+// False when the neck isn't being drawn.
+bool neckNoteAt(const PlayNote& note, float& x, float& y, float& radius);

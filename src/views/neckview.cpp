@@ -64,6 +64,23 @@ static const SongShape& shapeOf(const std::vector<PlayNote>& notes){
     return shape;
 }
 
+// The layout the neck was last drawn with, so where a note is can be asked afterwards (neckNoteAt)
+static struct {
+    double drawnAt = -100.0; // GetTime
+    float boardLeft = 0, nut = 0, fretWidth = 0, top = 0, spacing = 0, radius = 0;
+    int strings = 0, firstFretted = 1;
+    bool lowStringOnTop = false;
+} lastNeck;
+
+bool neckNoteAt(const PlayNote& note, float& x, float& y, float& radius){
+    if (GetTime() - lastNeck.drawnAt > 0.25) return false; // not on screen now
+    x = note.fret == 0 ? lastNeck.boardLeft + lastNeck.fretWidth * OPEN_COLUMN_SHARE / 2
+                       : lastNeck.nut + (note.fret - lastNeck.firstFretted + 0.5f) * lastNeck.fretWidth;
+    y = lastNeck.top + lastNeck.spacing * (0.5f + (lastNeck.lowStringOnTop ? note.stringIndex : lastNeck.strings - 1 - note.stringIndex));
+    radius = lastNeck.radius;
+    return true;
+}
+
 void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std::vector<int>& tuning, bool lowStringOnTop,
                   const TimeAxis& axis){
     const int strings = (int)tuning.size();
@@ -84,6 +101,7 @@ void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std:
     const float boardHeight = spacing * strings;
     const float top = area.y + (area.height - boardHeight - numbersHeight) / 2;
     const float radius = std::min(fretWidth, spacing) * 0.36f;
+    lastNeck = { GetTime(), boardLeft, nut, fretWidth, top, spacing, radius, strings, firstFretted, lowStringOnTop };
     auto stringY = [&](int string){ return top + spacing * (0.5f + (lowStringOnTop ? string : strings - 1 - string)); };
     auto fretX = [&](int fret){
         if (fret == 0) return boardLeft + fretWidth * OPEN_COLUMN_SHARE / 2;

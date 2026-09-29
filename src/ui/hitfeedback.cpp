@@ -25,9 +25,9 @@ static void remember(HitFeedback& feedback, HitFeedback::Judged judged){
     if (feedback.recent.size() > KEEP_RECENT) feedback.recent.erase(feedback.recent.begin());
 }
 
-void feedbackHit(HitFeedback& feedback, Judgement judgement, double errorSeconds, int combo){
+void feedbackHit(HitFeedback& feedback, Judgement judgement, double errorSeconds, int combo, ImVec2 anchor){
     double now = GetTime();
-    remember(feedback, { now, false, judgement == Judgement::Perfect, (float)(errorSeconds * 1000.0) });
+    remember(feedback, { now, false, judgement == Judgement::Perfect, (float)(errorSeconds * 1000.0), anchor });
     feedback.comboPulseAt = now;
     if (combo > 0 && combo % MILESTONE_EVERY == 0){
         feedback.milestone = combo;
@@ -35,9 +35,9 @@ void feedbackHit(HitFeedback& feedback, Judgement judgement, double errorSeconds
     }
 }
 
-void feedbackMiss(HitFeedback& feedback, int comboBefore){
+void feedbackMiss(HitFeedback& feedback, int comboBefore, ImVec2 anchor){
     double now = GetTime();
-    remember(feedback, { now, true, false, 0.0f });
+    remember(feedback, { now, true, false, 0.0f, anchor });
     if (comboBefore >= BREAK_WORTH_SHOWING){
         feedback.broken = comboBefore;
         feedback.brokeAt = now;
@@ -61,7 +61,8 @@ void drawHitFeedback(const HitFeedback& feedback, ImDrawList* draw, int combo, c
     const float s = layout.scale;
     const double now = GetTime();
 
-    // The latest judgement, at the hit line: it pops in a little large, settles, rises and fades
+    // The latest judgement, at the hit line or over the note it was for: it pops in a little large, settles, rises
+    // and fades
     if (!feedback.recent.empty()){
         const HitFeedback::Judged& last = feedback.recent.back();
         float age = (float)(now - last.at);
@@ -70,7 +71,8 @@ void drawHitFeedback(const HitFeedback& feedback, ImDrawList* draw, int combo, c
             float alpha = t < 0.6f ? 1.0f : 1.0f - (t - 0.6f) / 0.4f;
             UiColor color = last.missed ? UiColor::Bad : (last.perfect ? UiColor::Good : UiColor::Accent);
             const char* word = last.missed ? "MISS" : (last.perfect ? "PERFECT" : "GOOD");
-            ImVec2 at(layout.hitLineX, layout.judgementY - 10 * s * easeOut(t));
+            ImVec2 base = last.anchor.x >= 0.0f ? last.anchor : ImVec2(layout.hitLineX, layout.judgementY);
+            ImVec2 at(base.x, base.y - 10 * s * easeOut(t));
             centeredText(draw, fonts.heavy, 26 * s * pop, at, uiColor(color, alpha), word);
             if (!last.missed && !last.perfect){
                 // Which way it was off, so the player knows how to correct
