@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/quiz.h"
+
 #include <random>
 #include <string>
 #include <vector>
@@ -20,15 +22,9 @@ struct FretboardQuestion {
     int pitchClass;  // 0 = C ... 11 = B
 };
 
-struct FretboardProgress {
-    int asked = 0;
-    int correct = 0;
-    int bestStreak = 0;
-};
-
 struct FretboardTrainer {
     FretboardConfig config;
-    FretboardProgress progress;
+    QuizProgress progress;
     std::mt19937 rng;
     int streak = 0;                 // right answers in a row
     FretboardQuestion last{-1, -1}; // never the same question twice in a row
@@ -47,9 +43,3 @@ bool fretIsRight(const FretboardConfig& config, const FretboardQuestion& questio
 // so it counts too)
 bool pitchIsRight(const FretboardConfig& config, const FretboardQuestion& question, int pitch);
 
-// Records an answer: the counts, the streak and the best streak
-void recordFretboardAnswer(FretboardTrainer& trainer, bool right);
-
-// Progress files load leniently, like the other progress files: they're the player's own
-FretboardProgress loadFretboardProgress(const std::string& path);
-bool saveFretboardProgress(const std::string& path, const FretboardProgress& progress, std::string& error);

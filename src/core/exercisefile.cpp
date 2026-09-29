@@ -162,8 +162,9 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
             else if (line.rest == "rhythm") out.type = ExerciseType::Rhythm;
             else if (line.rest == "reading") out.type = ExerciseType::Reading;
             else if (line.rest == "chords") out.type = ExerciseType::Chords;
+            else if (line.rest == "singing") out.type = ExerciseType::Singing;
             else return lineError("unknown exercise type '" + line.rest + "' (known: intervals, scale, routine, fretboard, rhythm, "
-                                  "reading, chords)");
+                                  "reading, chords, singing)");
             hasType = true;
         }
     }
@@ -258,6 +259,27 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
             out.fretboard.tuning = tuning;
         } else if (out.type == ExerciseType::Rhythm && readRhythmSetting(key, ss, out.rhythm, lineError)){
             if (!error.empty()) return false;
+        } else if (out.type == ExerciseType::Singing && key == "range"){
+            SingingConfig& singing = out.singing;
+            if (!(ss >> singing.lowest >> singing.highest) || singing.lowest < 24 || singing.highest > 96 || singing.lowest > singing.highest){
+                return lineError("range must be two MIDI notes from 24 to 96, lowest first");
+            }
+        } else if (out.type == ExerciseType::Singing && key == "notes"){
+            std::string notes;
+            ss >> notes;
+            if (notes == "naturals") out.singing.naturalsOnly = true;
+            else if (notes == "all") out.singing.naturalsOnly = false;
+            else return lineError("notes must be naturals or all");
+        } else if (out.type == ExerciseType::Singing && key == "octave"){
+            std::string octave;
+            ss >> octave;
+            if (octave == "any") out.singing.anyOctave = true;
+            else if (octave == "exact") out.singing.anyOctave = false;
+            else return lineError("octave must be any or exact");
+        } else if (out.type == ExerciseType::Singing && key == "tolerance"){
+            if (!(ss >> out.singing.toleranceCents) || out.singing.toleranceCents < 5 || out.singing.toleranceCents > 50) return lineError("tolerance must be 5 to 50 cents");
+        } else if (out.type == ExerciseType::Singing && key == "hold"){
+            if (!(ss >> out.singing.holdSeconds) || out.singing.holdSeconds < 0.3 || out.singing.holdSeconds > 3.0) return lineError("hold must be 0.3 to 3 seconds");
         } else if (out.type == ExerciseType::Chords && key == "chords"){
             out.chords.chords.clear();
             std::string name;
@@ -307,7 +329,7 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
         if (out.routine.empty()) return fileError("a routine needs at least one 'step'");
         return true;
     }
-    if (out.type == ExerciseType::Rhythm || out.type == ExerciseType::Chords) return true;
+    if (out.type == ExerciseType::Rhythm || out.type == ExerciseType::Chords || out.type == ExerciseType::Singing) return true;
     if (out.type == ExerciseType::Reading){
         for (int string : readingStrings){
             if (string < 1 || string > (int)out.reading.tuning.size()){

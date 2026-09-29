@@ -123,12 +123,14 @@ add_library(lahn_core STATIC
     src/core/notedetector.cpp
     src/core/paths.cpp
     src/core/pitch.cpp
+    src/core/quiz.cpp
     src/core/reading.cpp
     src/core/rhythm.cpp
     src/core/routine.cpp
     src/core/score.cpp
     src/core/scales.cpp
     src/core/settings.cpp
+    src/core/singing.cpp
     src/core/songlibrary.cpp
     src/core/songpackage.cpp
     src/core/synth.cpp
@@ -161,6 +163,7 @@ add_executable(lahn
     src/learn/lessonview.cpp
     src/learn/playexercise.cpp
     src/learn/routineexercise.cpp
+    src/learn/singingexercise.cpp
     src/screens/menus.cpp
     src/screens/newsong.cpp
     src/screens/settingsscreen.cpp
@@ -213,6 +216,7 @@ if(BUILD_TESTING)
         tests/score_test.cpp
         tests/scales_test.cpp
         tests/settings_test.cpp
+        tests/singing_test.cpp
         tests/songlibrary_test.cpp
         tests/songpackage_test.cpp
         tests/synth_test.cpp

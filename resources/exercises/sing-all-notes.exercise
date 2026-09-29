@@ -1,0 +1,10 @@
+# lahn exercise
+version 1
+type singing
+category Voice
+title Every note, closer
+description Sharps and flats too, within 20 cents, held for a second and a half.
+range 48 67
+notes all
+tolerance 20
+hold 1.5

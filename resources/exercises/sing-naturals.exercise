@@ -1,0 +1,10 @@
+# lahn exercise
+version 1
+type singing
+category Voice
+title Sing it back
+description A note plays: sing it and hold it in tune for a second. Any octave counts, so it suits any voice.
+range 48 67
+notes naturals
+tolerance 30
+hold 1

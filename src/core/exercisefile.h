@@ -5,6 +5,7 @@
 #include "core/fretboard.h"
 #include "core/reading.h"
 #include "core/rhythm.h"
+#include "core/singing.h"
 #include "core/intervals.h"
 #include "core/routine.h"
 
@@ -73,12 +74,19 @@
 //   tempo 60 120 4               (start, goal, step, in bpm)
 //   pass 80                      (percent of changes right for a pass to count as clean and speed up)
 //
+// Singing notes back (`type singing`), all optional:
+//   range 48 67                  (the lowest and highest note asked, MIDI: C3 to G4)
+//   notes naturals               (naturals: C D E F G A B; all: the sharps and flats too)
+//   octave any                   (any: the right note in any octave counts; exact: in the octave played)
+//   tolerance 30                 (how many cents off still counts as in tune, 5 to 50)
+//   hold 1                       (seconds to hold it in tune, 0.3 to 3)
+//
 // A routine (`type routine`) is a playlist of other exercises, a few minutes each, done one after the other:
 //   step e-minor-open 3          (an exercise's file name without .exercise, then minutes: at least one step)
 //   step intervals-up 5
 // A built-in routine uses built-in exercises; the player's own routines look in their own exercises first.
 
-enum class ExerciseType { Intervals, Scale, Routine, Fretboard, Rhythm, Reading, Chords };
+enum class ExerciseType { Intervals, Scale, Routine, Fretboard, Rhythm, Reading, Chords, Singing };
 
 struct ExerciseFile {
     ExerciseType type = ExerciseType::Intervals;
@@ -92,6 +100,7 @@ struct ExerciseFile {
     RhythmConfig rhythm;       // the rules, for type Rhythm
     ReadingConfig reading;     // the rules, for type Reading
     ChordDrillConfig chords;   // the rules, for type Chords
+    SingingConfig singing;     // the rules, for type Singing
     std::vector<RoutineStep> routine; // the steps, for type Routine
 };
 

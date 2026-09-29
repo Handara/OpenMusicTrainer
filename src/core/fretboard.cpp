@@ -1,10 +1,6 @@
 #include "core/fretboard.h"
 
-#include "core/files.h"
-
 #include <algorithm>
-#include <fstream>
-#include <sstream>
 
 const int NATURALS[7] = { 0, 2, 4, 5, 7, 9, 11 };
 
@@ -50,44 +46,4 @@ FretboardQuestion nextFretboardQuestion(FretboardTrainer& trainer){
     std::uniform_int_distribution<int> pick(0, (int)candidates.size() - 1);
     trainer.last = candidates[pick(trainer.rng)];
     return trainer.last;
-}
-
-void recordFretboardAnswer(FretboardTrainer& trainer, bool right){
-    trainer.progress.asked++;
-    if (right){
-        trainer.progress.correct++;
-        trainer.streak++;
-        trainer.progress.bestStreak = std::max(trainer.progress.bestStreak, trainer.streak);
-    } else {
-        trainer.streak = 0;
-    }
-}
-
-FretboardProgress loadFretboardProgress(const std::string& path){
-    FretboardProgress progress;
-    std::ifstream file(path);
-    std::string line;
-    while (std::getline(file, line)){
-        std::istringstream ss(line);
-        std::string key;
-        if (!(ss >> key) || key[0] == '#') continue;
-        int value = 0;
-        if (!(ss >> value) || value < 0) continue;
-        if (key == "asked") progress.asked = value;
-        else if (key == "correct") progress.correct = value;
-        else if (key == "best_streak") progress.bestStreak = value;
-        // anything else (the version line, a key from a newer version) is skipped
-    }
-    progress.correct = std::min(progress.correct, progress.asked);
-    return progress;
-}
-
-bool saveFretboardProgress(const std::string& path, const FretboardProgress& progress, std::string& error){
-    std::ostringstream out;
-    out << "# lahn progress: fretboard notes\n";
-    out << "version 1\n";
-    out << "asked " << progress.asked << "\n";
-    out << "correct " << progress.correct << "\n";
-    out << "best_streak " << progress.bestStreak << "\n";
-    return writeFileAtomically(path, out.str(), error);
 }

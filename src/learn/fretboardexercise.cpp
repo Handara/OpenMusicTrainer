@@ -22,7 +22,7 @@ FretboardExercise::FretboardExercise(const std::string& title, const FretboardCo
                                      const std::string& inputDevice)
     : title(title), progressPath(progressPath), inputDevice(inputDevice){
     trainer.config = config;
-    trainer.progress = loadFretboardProgress(progressPath);
+    trainer.progress = loadQuizProgress(progressPath);
     trainer.rng.seed(std::random_device{}());
     ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard; // Space and Enter move on here
     nextQuestion();
@@ -47,7 +47,7 @@ void FretboardExercise::answer(bool right, int fret){
     lastRight = right;
     clickedFret = fret;
     answeredAt = GetTime();
-    recordFretboardAnswer(trainer, right);
+    recordQuizAnswer(trainer.progress, trainer.streak, right);
     sessionAsked++;
     if (right) sessionCorrect++;
     // The right note sounds either way: hearing where it is helps remember it
@@ -56,7 +56,7 @@ void FretboardExercise::answer(bool right, int fret){
     listenFrom = GetTime() + SOUND_TAIL_S;
 
     saveError.clear();
-    if (!saveFretboardProgress(progressPath, trainer.progress, saveError)) TraceLog(LOG_WARNING, "Progress: %s", saveError.c_str());
+    if (!saveQuizProgress(progressPath, trainer.progress, saveError)) TraceLog(LOG_WARNING, "Progress: %s", saveError.c_str());
 }
 
 void FretboardExercise::setAnswerByPlaying(bool on){

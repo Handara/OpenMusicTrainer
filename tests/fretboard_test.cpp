@@ -49,10 +49,10 @@ TEST_CASE("questions stay inside the rules and don't repeat"){
 
 TEST_CASE("the streak and progress"){
     FretboardTrainer trainer;
-    recordFretboardAnswer(trainer, true);
-    recordFretboardAnswer(trainer, true);
-    recordFretboardAnswer(trainer, false);
-    recordFretboardAnswer(trainer, true);
+    recordQuizAnswer(trainer.progress, trainer.streak, true);
+    recordQuizAnswer(trainer.progress, trainer.streak, true);
+    recordQuizAnswer(trainer.progress, trainer.streak, false);
+    recordQuizAnswer(trainer.progress, trainer.streak, true);
     CHECK(trainer.streak == 1);
     CHECK(trainer.progress.bestStreak == 2);
     CHECK(trainer.progress.asked == 4);
@@ -61,8 +61,8 @@ TEST_CASE("the streak and progress"){
     fs::path path = fs::temp_directory_path() / "lahn_tests" / "fretboard_progress.txt";
     fs::create_directories(path.parent_path());
     std::string error;
-    REQUIRE_MESSAGE(saveFretboardProgress(path.string(), trainer.progress, error), error);
-    FretboardProgress loaded = loadFretboardProgress(path.string());
+    REQUIRE_MESSAGE(saveQuizProgress(path.string(), trainer.progress, error), error);
+    QuizProgress loaded = loadQuizProgress(path.string());
     CHECK(loaded.asked == 4);
     CHECK(loaded.correct == 3);
     CHECK(loaded.bestStreak == 2);

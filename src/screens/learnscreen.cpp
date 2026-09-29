@@ -9,6 +9,7 @@
 #include "learn/intervalexercise.h"
 #include "learn/lessonplayer.h"
 #include "learn/routineexercise.h"
+#include "learn/singingexercise.h"
 #include "raylib.h"
 #include "ui/menulist.h"
 #include "ui/theme.h"
@@ -96,6 +97,9 @@ static std::unique_ptr<Exercise> createExercise(const ExerciseEntry& entry){
             setup.nextPass = [config, rng = std::mt19937(std::random_device{}())]() mutable { return buildRhythm(config, rng); };
             return std::make_unique<DrillExercise>(entry.exercise.title, setup, progressPath(entry), learn.setup.settings);
         }
+        case ExerciseType::Singing:
+            return std::make_unique<SingingExercise>(entry.exercise.title, entry.exercise.singing, progressPath(entry),
+                                                     learn.setup.settings.inputDevice);
         case ExerciseType::Chords:
             return std::make_unique<ChordExercise>(entry.exercise.title, entry.exercise.chords, progressPath(entry), learn.setup.settings);
         case ExerciseType::Fretboard:
@@ -129,8 +133,9 @@ static std::string progressSummary(const ExerciseEntry& entry){
             int best = loadDrillProgress(progressPath(entry)).bestCleanTempo;
             return best > 0 ? TextFormat("best %d bpm", best) : "";
         }
-        case ExerciseType::Fretboard: {
-            int best = loadFretboardProgress(progressPath(entry)).bestStreak;
+        case ExerciseType::Fretboard:
+        case ExerciseType::Singing: {
+            int best = loadQuizProgress(progressPath(entry)).bestStreak;
             return best > 0 ? TextFormat("best streak %d", best) : "";
         }
         case ExerciseType::Routine: {
