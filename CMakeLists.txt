@@ -110,6 +110,7 @@ endfunction()
 add_library(lahn_core STATIC
     src/core/calibration.cpp
     src/core/chart.cpp
+    src/core/chords.cpp
     src/core/drill.cpp
     src/core/exercisefile.cpp
     src/core/files.cpp
@@ -194,6 +195,7 @@ if(BUILD_TESTING)
         tests/main.cpp
         tests/calibration_test.cpp
         tests/chart_test.cpp
+        tests/chords_test.cpp
         tests/drill_test.cpp
         tests/exercisefile_test.cpp
         tests/fretboard_test.cpp
