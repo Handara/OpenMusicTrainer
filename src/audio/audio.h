@@ -69,6 +69,13 @@ void stopPreviews();
 // between startCapture and stopCapture.
 bool startCapture(const std::string& inputDevice, std::string& error);
 void stopCapture();
+// Windows: take the input device for lahn alone (WASAPI exclusive mode), past the effects Windows puts on
+// microphones. Its noise suppression lets an instrument through only while someone speaks: on a Scarlett Solo, a
+// bass alone came through near silent, and at full strength the moment someone sang. Other programs can't use the
+// device while lahn listens. When it can't be had alone (another program has it that way), it's shared as usual.
+// Takes effect at the next startCapture. Elsewhere it changes nothing.
+void setExclusiveCapture(bool on);
+bool captureIsExclusive(); // the device listened to now is lahn's alone
 int captureSampleRate();
 const char* captureDeviceName();
 // The device's inputs (an audio interface has several: a guitar on one, a microphone on another)

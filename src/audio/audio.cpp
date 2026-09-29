@@ -94,6 +94,8 @@ static struct {
     ma_device captureDevice;
     ma_pcm_rb captureBuffer;
     bool captureReady = false;
+    bool exclusiveWanted = true;  // see setExclusiveCapture
+    bool captureExclusive = false;
 
     Voice voices[VOICE_COUNT];
     Voice wake; // plays a moment of silence when an engine starts (see wakeEngineClock): not part of the pool,
@@ -451,7 +453,17 @@ bool startCapture(const std::string& inputDevice, std::string& error){
     config.dataCallback = captureCallback;
     ma_device_id id;
     if (findDevice(ma_device_type_capture, inputDevice, id)) config.capture.pDeviceID = &id; // not found: system default
-    ma_result result = ma_device_init(&audio.context, &config, &audio.captureDevice);
+    ma_result result = MA_ERROR;
+    audio.captureExclusive = false;
+#ifdef _WIN32
+    if (audio.exclusiveWanted){
+        config.capture.shareMode = ma_share_mode_exclusive;
+        result = ma_device_init(&audio.context, &config, &audio.captureDevice);
+        audio.captureExclusive = result == MA_SUCCESS;
+        config.capture.shareMode = ma_share_mode_shared; // if it failed: shared, below
+    }
+#endif
+    if (result != MA_SUCCESS) result = ma_device_init(&audio.context, &config, &audio.captureDevice);
     if (result != MA_SUCCESS){
         error = std::string("could not open input device: ") + ma_result_description(result);
         return false;
@@ -474,6 +486,14 @@ bool startCapture(const std::string& inputDevice, std::string& error){
     }
     audio.captureReady = true;
     return true;
+}
+
+void setExclusiveCapture(bool on){
+    audio.exclusiveWanted = on;
+}
+
+bool captureIsExclusive(){
+    return audio.captureReady && audio.captureExclusive;
 }
 
 void stopCapture(){

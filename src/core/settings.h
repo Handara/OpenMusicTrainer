@@ -30,6 +30,7 @@ struct Settings {
     int guitarChannel = -1;
     int bassChannel = -1;
     int voiceChannel = -1;
+    bool exclusiveInput = true;        // Windows: the input device for lahn alone, past Windows' effects (audio.h)
     std::string midiDevice;            // a MIDI keyboard or controller, by name; empty = the first one connected
     float masterVolume = 1.0f;         // 0..1
     float previewVolume = 0.6f;        // sounds the game makes itself (editor note previews, later ear training)

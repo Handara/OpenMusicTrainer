@@ -132,3 +132,16 @@ TEST_CASE("each instrument's input, as the interface numbers them"){
     CHECK(loaded.voiceChannel == -1);
     CHECK(channelFor(loaded, InputRole::Bass) == 1);
 }
+
+TEST_CASE("the input is kept to lahn alone unless the player shares it"){
+    Settings settings;
+    CHECK(settings.exclusiveInput); // Windows' effects on microphones cut instruments: skipped by default
+    settings.exclusiveInput = false; // to use the mic in a voice chat at the same time
+    std::filesystem::path path = std::filesystem::temp_directory_path() / "lahn_tests" / "exclusive_settings.txt";
+    std::filesystem::create_directories(path.parent_path());
+    std::string error;
+    REQUIRE_MESSAGE(saveSettings(path.string(), settings, error), error);
+    std::vector<std::string> warnings;
+    CHECK_FALSE(loadSettings(path.string(), warnings).exclusiveInput);
+    CHECK(warnings.empty());
+}

@@ -333,6 +333,19 @@ static void instrumentsTab(Settings& settings){
     ImGui::SeparatorText("Inputs");
     ImGui::TextDisabled("%s", settings.inputDevice.empty() ? "The system's default input device (Audio tab to change it)"
                                                            : ("On " + settings.inputDevice + " (Audio tab to change it)").c_str());
+#ifdef _WIN32
+    // Windows' own effects on microphones (noise suppression) let an instrument through only while someone speaks
+    if (ImGui::Checkbox("Keep the input to lahn alone", &settings.exclusiveInput)){
+        setExclusiveCapture(settings.exclusiveInput);
+        stopListening(); // opened again, the new way, next frame
+    }
+    if (screen.listening){
+        const char* how = captureIsExclusive() ? "Windows' audio effects are skipped. Other programs can't use this input while lahn listens."
+                        : settings.exclusiveInput ? "Another program has this input to itself, so it's shared: Windows' effects may cut your instrument."
+                        : "Shared with other programs: Windows' effects (noise suppression) may cut your instrument.";
+        ImGui::TextDisabled("%s", how);
+    }
+#endif
     if (!screen.listening){
         ImGui::TextColored(uiColorVec(UiColor::Bad), "Can't listen: %s", screen.listenError.c_str());
         return;

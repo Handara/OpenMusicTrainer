@@ -434,6 +434,7 @@ int main(void){
     }
     TraceLog(LOG_INFO, "Audio: using %s backend, output '%s'", audioBackendName(), outputDeviceName());
     setMasterVolume(app.settings.masterVolume);
+    setExclusiveCapture(app.settings.exclusiveInput);
     setPreviewVolume(app.settings.previewVolume);
     if (!setPreviewSound(app.settings.previewSound, app.soundsDir, error)){
         TraceLog(LOG_WARNING, "Preview sound: %s (using the pluck)", error.c_str());

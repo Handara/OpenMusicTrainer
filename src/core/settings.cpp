@@ -58,6 +58,7 @@ Settings loadSettings(const std::string& path, std::vector<std::string>& warning
         else if (key == "output_device") settings.outputDevice = value;
         else if (key == "input_device") settings.inputDevice = value;
         else if (key == "midi_device") settings.midiDevice = value;
+        else if (key == "exclusive_input") settings.exclusiveInput = value == "1";
         else if (key == "guitar_input" || key == "bass_input" || key == "voice_input"){
             // "all", or an input's number from 1, as the interface prints it
             int& channel = key == "guitar_input" ? settings.guitarChannel : key == "bass_input" ? settings.bassChannel : settings.voiceChannel;
@@ -114,6 +115,7 @@ bool saveSettings(const std::string& path, const Settings& settings, std::string
     out << "guitar_input " << input(settings.guitarChannel) << "\n";
     out << "bass_input " << input(settings.bassChannel) << "\n";
     out << "voice_input " << input(settings.voiceChannel) << "\n";
+    out << "exclusive_input " << (settings.exclusiveInput ? 1 : 0) << "\n";
     out << "master_volume " << settings.masterVolume << "\n";
     out << "preview_volume " << settings.previewVolume << "\n";
     out << "preview_sound " << settings.previewSound << "\n\n";
