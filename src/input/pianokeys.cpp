@@ -31,6 +31,11 @@ std::string pianoKeyName(int code){
     return "";
 }
 
+int pianoKeyJustPressed(){
+    for (const NamedKey& key : KEYS) if (IsKeyPressed(key.code)) return key.code;
+    return 0;
+}
+
 static struct {
     std::vector<int> codes;   // by slot, 0 for none
     std::vector<std::string> names;

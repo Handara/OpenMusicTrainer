@@ -10,6 +10,7 @@
 void applyDisplaySettings(const Settings& settings); // fullscreen and frame rate: at startup, and when changed
 void openSettingsScreen(const std::string& soundsDir); // refreshes the device and sound lists
 void closeSettingsScreen();                            // lets go of the MIDI device it listens to
+bool settingsUsedEscape(); // Esc this frame went to the screen itself (cancelling a key being chosen), not to leaving
 enum class SettingsChoice { None, Back, CalibrateTapping, CalibrateInstrument };
 // error: a problem from outside the screen to show (e.g. calibration couldn't open the input device)
 SettingsChoice settingsScreen(Settings& settings, const std::string& soundsDir, const std::string& error);

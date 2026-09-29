@@ -245,7 +245,7 @@ static void handleBackKey(){
             break;
         case Screen::Results: goToSongSelect(); break;
         case Screen::Tuner: leaveTuner(); break;
-        case Screen::Settings: leaveSettings(); break;
+        case Screen::Settings: if (!settingsUsedEscape()) leaveSettings(); break;
         case Screen::Calibration: leaveCalibration(); break;
         case Screen::Learn: if (learnBack()) app.screen = Screen::MainMenu; break;
         case Screen::EditorSelect: app.screen = Screen::MainMenu; break;

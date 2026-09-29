@@ -17,6 +17,9 @@ const std::vector<PlayedNote>& updatePianoKeys();
 const bool* pianoKeysDown();   // 128 flags by pitch: the notes held down now
 std::string pianoKeyFor(int pitch); // the key that plays this pitch now ("Z"), "" if none does
 
+// A key that can play a note, pressed this frame (its raylib code), 0 for none: for choosing keys in the settings
+int pianoKeyJustPressed();
+
 // Key names, as the settings write them, to raylib's keys and back (0 / "" for none)
 int pianoKeyCode(const std::string& name);
 std::string pianoKeyName(int code);
