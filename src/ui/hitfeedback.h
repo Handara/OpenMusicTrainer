@@ -47,8 +47,16 @@ void drawHitFeedback(const HitFeedback& feedback, ImDrawList* draw, int combo, c
 ImVec2 hitDistributionArea(const HitFeedbackLayout& layout);
 ImVec2 hitDistributionSize(float scale);
 
-// The run's timing as a distribution: every hit in 5 ms bins across the near window, early on the left, green
-// where it's perfect and brass for the rest, a notch at the average; the latest hit marked (fading with
-// latestAlpha, 0 for none)
+// How the distribution shows, each from 0 (not at all) to 1: the bars; the curve, traced that far from the left;
+// the area under it filled in, with each region's share of the hits
+struct DistributionLook {
+    float bars = 1.0f;
+    float curve = 0.0f;
+    float fill = 0.0f;
+};
+
+// The run's timing as a distribution across the near window, early on the left, green where it's perfect and brass
+// for the rest, a notch at the average: as thin bars (5 ms bins) or as a smooth curve and the area under it; the
+// latest hit marked (fading with latestAlpha, 0 for none)
 void drawTimingDistribution(ImDrawList* draw, const std::vector<float>& errorsMs, ImVec2 topLeft, ImVec2 size, float scale,
-                            float latestMs = 0.0f, float latestAlpha = 0.0f);
+                            const DistributionLook& look = {}, float latestMs = 0.0f, float latestAlpha = 0.0f);

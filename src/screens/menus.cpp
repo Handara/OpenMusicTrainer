@@ -207,7 +207,7 @@ ResultsChoice resultsScreen(const GameResult& result){
     ImVec2 card(width * 0.55f, height * 0.25f);
     float cardWidth = width * 0.38f, pad = 26 * s, inner = cardWidth - 2 * pad;
     const float distributionHeight = 64 * s;
-    float cardHeight = pad * 2 + 110 * s + 3 * (13 * s + 8 * s + 30 * s + 14 * s) + distributionHeight + 26 * s + 22 * s;
+    float cardHeight = pad * 2 + 110 * s + 3 * (13 * s + 8 * s + 30 * s + 14 * s) + distributionHeight + 32 * s + 22 * s;
     draw->AddRectFilled(ImVec2(card.x, card.y + 3 * s), ImVec2(card.x + cardWidth, card.y + cardHeight + 3 * s), uiColor(UiColor::Ink, 0.04f), 10 * s);
     draw->AddRectFilled(card, ImVec2(card.x + cardWidth, card.y + cardHeight), uiColor(UiColor::Card), 10 * s);
     float x = card.x + pad, y = card.y + pad;
@@ -248,8 +248,14 @@ ResultsChoice resultsScreen(const GameResult& result){
         at = ImVec2(from.x + (at.x - from.x) * flight, from.y + (at.y - from.y) * flight);
         size = ImVec2(from.width + (size.x - from.width) * flight, from.height + (size.y - from.height) * flight);
     }
-    drawTimingDistribution(ImGui::GetForegroundDrawList(), result.errorsMs, at, size, s);
-    y += distributionHeight + 26 * s;
+    // Once it's there, the bars give way to the curve, traced from the left, then the area under it fills in
+    float since = (float)(GetTime() - shownAt);
+    DistributionLook look;
+    look.curve = std::clamp((since - 0.8f) / 0.9f, 0.0f, 1.0f);
+    look.bars = 1.0f - std::clamp((since - 0.7f) / 0.5f, 0.0f, 1.0f);
+    look.fill = std::clamp((since - 1.7f) / 0.5f, 0.0f, 1.0f);
+    drawTimingDistribution(ImGui::GetForegroundDrawList(), result.errorsMs, at, size, s, look);
+    y += distributionHeight + 32 * s;
     draw->AddText(fonts.text, 17 * s, ImVec2(x, y), uiColor(UiColor::Dim),
                   TextFormat("Perfect %d  ·  Good %d  ·  Miss %d%s", result.perfectCount, result.nearCount, result.missCount,
                              result.withInstrument ? "" : "  ·  keyboard"));
