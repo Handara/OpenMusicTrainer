@@ -1,5 +1,6 @@
 #pragma once
 
+#include <complex>
 #include <vector>
 
 // Monophonic pitch detection with the YIN algorithm (de Cheveigné & Kawahara, 2002).
@@ -15,6 +16,11 @@ struct PitchDetector {
     int minLag = 0; // shortest period searched, in samples (= highest frequency)
     int maxLag = 0; // longest period searched, in samples (= lowest frequency)
     std::vector<float> difference; // work buffer, allocated once in initPitchDetector, reused every call
+    // The FFT's work (see detectPitch): allocated once, sized for the longest window
+    int fftSize = 0;
+    std::vector<std::complex<double>> spectrum;
+    std::vector<std::complex<double>> twiddles; // e^(-2 pi i k / fftSize), for every FFT size up to it
+    std::vector<double> energy;                 // running sums of the samples' squares
 };
 
 void initPitchDetector(PitchDetector& detector, int sampleRate, float minFrequency, float maxFrequency);
