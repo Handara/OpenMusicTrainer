@@ -39,6 +39,7 @@ const int laneKeys[MAX_LANES] = { KEY_ONE, KEY_TWO, KEY_THREE, KEY_FOUR, KEY_FIV
 
 const int MAX_MULTIPLIER = 4;
 const double LEAD_IN_S = 2.0; // starting part-way into a song, it plays this long before the first note
+const double RESUME_RUNUP_S = 1.5; // resuming, the song picks up this long before where it was paused
 
 static HitFeedback feedback; // the judgements, timing bar and combo shown over the play screen
 
@@ -109,6 +110,8 @@ static struct {
     float songTime = 0.0f;
     int lastPlayedPitch = -1; // the latest note heard from the instrument, shown so the player can trust the input
     float hitLineX = 180.0f;  // where the views put the hit line, for the judgements drawn at it
+    bool paused = false;
+    float resumeAt = -1.0f;   // after a resume: the song time it was paused at (GET READY shows until then)
     std::string fingerprint;  // of the part being played
     bool active = false;
 } game;
@@ -159,6 +162,8 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
     game.score = buildScore(game.chart, track); // its events point into track.notes, in the same order as game.notes
     game.state = {};
     feedback = {};
+    game.paused = false;
+    game.resumeAt = -1.0f;
     game.state.multiplier = 1;
     game.options = options;
     game.lastPlayedPitch = -1;
@@ -178,8 +183,32 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
     return true;
 }
 
+void pauseGameplay(){
+    if (!game.active || game.paused) return;
+    stopSong();
+    stopPreviews();
+    game.paused = true;
+}
+
+void resumeGameplay(){
+    if (!game.active || !game.paused) return;
+    game.paused = false;
+    game.resumeAt = game.songTime;
+    playSongFrom(game.songTime + game.options.offsetSeconds - RESUME_RUNUP_S);
+}
+
+bool gameplayPaused(){
+    return game.active && game.paused;
+}
+
 bool updateGameplay(){
     if (!game.active) return false;
+    // Away from the game (another window has the focus), it waits
+    if (!IsWindowFocused()) pauseGameplay();
+    if (game.paused){
+        if (noteInputActive()) updateNoteInput(); // what's played while paused is thrown away, not judged later
+        return true;
+    }
 
     // The song's playback position is the clock: notes stay in sync with the music even if frames stutter
     // The offset shifts the whole game against the audio: if sound reaches your ears late (Bluetooth,
@@ -247,6 +276,13 @@ void drawGameplayHud(){
 
     // The judgements at the hit line, just above the notes; the combo and the timing bar under them, centered
     const float height = ImGui::GetIO().DisplaySize.y;
+    // Back from a pause, the song plays its run-up: nothing counts against the player until it's back where it was
+    if (game.resumeAt >= 0.0f && game.songTime < game.resumeAt){
+        const char* ready = "GET READY";
+        float readyWidth = textWidth(fonts.heavy, 26 * s, ready);
+        draw->AddText(fonts.heavy, 26 * s, ImVec2(game.hitLineX - readyWidth / 2, ImGui::GetIO().DisplaySize.y * 0.14f - 20 * s),
+                      uiColor(UiColor::Accent), ready);
+    }
     drawHitFeedback(feedback, draw, state.combo, { game.hitLineX, height * 0.14f - 4 * s, width / 2, height - 34 * s, s });
 }
 

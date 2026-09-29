@@ -27,6 +27,10 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
 // Esc on the song list: closes the list of parts if it's open (true: it was, the screen stays)
 bool songSelectBack();
 
+enum class PauseChoice { None, Resume, Retry, Quit };
+// Over the paused play screen: the song, and what to do
+PauseChoice pauseScreen(const std::string& song);
+
 enum class ResultsChoice { None, Retry, BackToSongs };
 ResultsChoice resultsScreen(const GameResult& result);
 

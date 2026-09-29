@@ -235,8 +235,9 @@ static void handleBackKey(){
         case Screen::MainMenu: break;
         case Screen::SongSelect: if (!songSelectBack()) app.screen = Screen::MainMenu; break;
         case Screen::Playing:
-            if (app.testPlaying) backToEditor();
-            else { stopGameplay(); goToSongSelect(); }
+            if (app.testPlaying) backToEditor();           // a test-play goes straight back to the editor
+            else if (gameplayPaused()) resumeGameplay();
+            else pauseGameplay();
             break;
         case Screen::Results: goToSongSelect(); break;
         case Screen::Tuner: leaveTuner(); break;
@@ -354,7 +355,24 @@ static void runMenus(){
                 app.screen = Screen::MainMenu;
             }
             break;
-        case Screen::Playing: drawGameplayHud(); break; // the note views are drawn before the UI, with raylib
+        case Screen::Playing: // the note views are drawn before the UI, with raylib
+            if (!gameplayPaused()) drawGameplayHud(); // paused, the menu takes over the screen
+            else {
+                std::string song = app.currentSong.title;
+                switch (pauseScreen(song)){
+                    case PauseChoice::Resume: resumeGameplay(); break;
+                    case PauseChoice::Retry:
+                        if (app.testPlaying){ stopGameplay(); startTestPlay(); }
+                        else startSong(app.currentSong, app.currentPart);
+                        break;
+                    case PauseChoice::Quit:
+                        if (app.testPlaying) backToEditor();
+                        else { stopGameplay(); goToSongSelect(); }
+                        break;
+                    case PauseChoice::None: break;
+                }
+            }
+            break;
     }
 }
 

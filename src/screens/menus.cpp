@@ -165,6 +165,26 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
     return choice;
 }
 
+PauseChoice pauseScreen(const std::string& song){
+    static MenuList list;
+    static const std::vector<MenuRow> rows = { actionRow("Resume", "Esc"), actionRow("Retry"), actionRow("Quit to songs") };
+    PauseChoice choice = PauseChoice::None;
+    beginMenu("Paused");
+    float s = menuScale(), width = ImGui::GetWindowWidth(), height = ImGui::GetWindowHeight();
+    if (ImGui::IsWindowAppearing()) list.selected = 0; // Resume first, every time
+    // The play screen stays in sight, dimmed behind the menu
+    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(0, 0), ImVec2(width, height), uiColor(UiColor::Background, 0.88f));
+    menuScreenTitle("Paused", s);
+    ImGui::GetWindowDrawList()->AddText(uiFonts().text, 18 * s, ImVec2(width * 0.07f, height * 0.09f + 50 * s), uiColor(UiColor::Dim), song.c_str());
+    int confirmed = menuList(list, rows, {ImVec2(width * 0.07f, height * 0.25f), width * 0.45f, 3 * 48 * s, s});
+    if (confirmed == 0) choice = PauseChoice::Resume;
+    if (confirmed == 1) choice = PauseChoice::Retry;
+    if (confirmed == 2) choice = PauseChoice::Quit;
+    menuScreenHint("Enter  choose    Esc  resume", s);
+    ImGui::End();
+    return choice;
+}
+
 ResultsChoice resultsScreen(const GameResult& result){
     static MenuList list;
     static const std::vector<MenuRow> rows = { actionRow("Retry"), actionRow("Back to songs", "Esc") };
