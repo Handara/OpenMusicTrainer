@@ -1,6 +1,6 @@
 #include "audio/audio.h"
 
-#include "audio/asioinput.h"
+#include "audio/asiodriver.h"
 #include "core/inputs.h"
 #include "core/pitch.h"
 #include "core/settings.h"
@@ -135,6 +135,14 @@ static struct {
     bool monitorSoundReady = false;
     std::atomic<float> toneVolume{0.8f}, toneDrive{0.0f}, toneBrightness{0.7f}; // set by the main thread
     std::atomic<bool> asioGate{false}; // ASIO calls as soon as it starts: its samples go in once the buffer exists
+    // Playing through the ASIO driver too (see startAsioCapture): the engine has no device of its own, and the driver's
+    // callback reads it. The driver then stays open between screens, since everything heard depends on it.
+    std::atomic<bool> engineOnAsio{false};
+    bool closing = false;               // closeAudio: nothing is started again on the way out
+    std::string outputDeviceWanted;     // Windows' output device the settings ask for, used again when ASIO closes
+    const float* asioInput = nullptr;   // the ASIO callback's latest input, for the same callback's direct monitor
+    int asioInputFrames = 0;
+    ToneState directTone;               // the direct monitor's amp (the ASIO thread's only)
 
     Voice voices[VOICE_COUNT];
     Voice synthVoices[2];  // the synth bass (playSynthNote): one playing, the last fading out while it starts
@@ -210,6 +218,7 @@ static void wakeEngineClock(){
 }
 
 static bool startEngine(const std::string& outputDevice, std::string& error){
+    audio.outputDeviceWanted = outputDevice;
     ma_device_id id;
     ma_engine_config config = ma_engine_config_init();
     config.pContext = &audio.context;
@@ -223,6 +232,26 @@ static bool startEngine(const std::string& outputDevice, std::string& error){
     audio.engineClockStarted = false; // a new engine counts from zero again
     wakeEngineClock();
     if (audio.monitorWanted) startMonitorSound(); // a new output: the instrument is heard on it too
+    return true;
+}
+
+// The engine with no device: the ASIO driver's callback reads it (asioRender), at the driver's rate, in stereo
+static bool startEngineOnAsio(ma_uint32 sampleRate, std::string& error){
+    ma_engine_config config = ma_engine_config_init();
+    config.pContext = &audio.context;
+    config.noDevice = MA_TRUE;
+    config.channels = 2;
+    config.sampleRate = sampleRate;
+    ma_result result = ma_engine_init(&config, &audio.engine);
+    if (result != MA_SUCCESS){
+        error = std::string("could not start audio output through ASIO: ") + ma_result_description(result);
+        return false;
+    }
+    audio.engineReady = true;
+    audio.engineClockStarted = false;
+    wakeEngineClock();
+    if (audio.monitorWanted) startMonitorSound();
+    audio.engineOnAsio = true; // the driver's callback may read it from now on
     return true;
 }
 
@@ -254,6 +283,7 @@ static void stopEngine(){
 }
 
 void closeAudio(){
+    audio.closing = true;
     audio.monitorWanted = false;
     audio.monitorGate = false;
     closeCapture();
@@ -265,6 +295,10 @@ void closeAudio(){
 }
 
 bool setOutputDevice(const std::string& outputDevice, std::string& error){
+    if (audio.engineOnAsio){
+        audio.outputDeviceWanted = outputDevice; // lahn plays through the ASIO driver: this one's for when it closes
+        return true;
+    }
     float volume = audio.engineReady ? ma_engine_get_volume(&audio.engine) : 1.0f;
     stopEngine();
     if (!startEngine(outputDevice, error)) return false;
@@ -276,11 +310,17 @@ bool setOutputDevice(const std::string& outputDevice, std::string& error){
 }
 
 const char* outputDeviceName(){
+    if (audio.engineOnAsio) return audio.asioDevice.c_str();
     return audio.engineReady ? ma_engine_get_device(&audio.engine)->playback.name : "none";
+}
+
+bool outputIsAsio(){
+    return audio.engineOnAsio;
 }
 
 double outputLatencySeconds(){
     if (!audio.engineReady) return 0.0;
+    if (audio.engineOnAsio) return asioOutputLatencyFrames() / std::max(1.0, asioSampleRate());
     const ma_device* device = ma_engine_get_device(&audio.engine);
     return (double)device->playback.internalPeriodSizeInFrames * device->playback.internalPeriods / std::max<ma_uint32>(1, device->playback.internalSampleRate);
 }
@@ -531,19 +571,68 @@ static void captureCallback(ma_device* device, void* output, const void* input, 
 }
 
 static void asioCallback(const float* frames, int frameCount){
+    audio.asioInput = frames; // for asioRender, next in the same call
+    audio.asioInputFrames = frameCount;
     if (audio.asioGate) writeCapture(frames, (ma_uint32)frameCount);
 }
 
-// ASIO: the interface's own driver, straight to the hardware (audio/asioinput). It fills the same buffer, so
-// everything reading the input works the same on it.
+// The driver's outputs, in the same call as its inputs: everything lahn plays, and the instrument heard straight
+// through (the real sound, not the synth), from the input just handed over: one buffer in, one out, as Ableton does
+static void asioRender(float* stereo, int frameCount){
+    if (audio.engineOnAsio.load(std::memory_order_acquire)) ma_engine_read_pcm_frames(&audio.engine, stereo, (ma_uint64)frameCount, nullptr);
+    if (!audio.monitorGate || audio.monitorSynth || !audio.asioInput || audio.asioInputFrames != frameCount) return;
+    const ma_uint32 channels = audio.captureChannels, mixed = std::min<ma_uint32>(channels, MAX_MONITOR_INPUTS);
+    ToneSettings tone{ audio.toneVolume.load(std::memory_order_relaxed), audio.toneDrive.load(std::memory_order_relaxed),
+                       audio.toneBrightness.load(std::memory_order_relaxed) };
+    for (int done = 0; done < frameCount;){
+        int chunk = std::min(frameCount - done, (int)MONITOR_CHUNK);
+        for (int i = 0; i < chunk; i++){
+            const float* frame = audio.asioInput + (size_t)(done + i) * channels;
+            float sum = 0.0f;
+            for (ma_uint32 c = 0; c < mixed; c++) sum += frame[c] * audio.monitorWeights[c].load(std::memory_order_relaxed);
+            audio.monitorScratch[i] = sum;
+        }
+        processTone(audio.directTone, tone, audio.monitorScratch, chunk, (int)asioSampleRate());
+        for (int i = 0; i < chunk; i++){
+            stereo[2 * (done + i)] += audio.monitorScratch[i];
+            stereo[2 * (done + i) + 1] += audio.monitorScratch[i];
+        }
+        done += chunk;
+    }
+}
+
+// ASIO: the interface's own driver, straight to the hardware (audio/asiodriver). Its inputs fill the same buffer as
+// Windows' would, so everything reading the input works the same. And lahn plays through it too, when it can: the
+// engine is started again without a device, for the driver's callback to read, which takes the output from Windows'
+// 20-30 ms to one of the driver's buffers. Not while a song is loaded (the engine starting again would stop it): then
+// the driver is for listening, and the output stays with Windows.
 static bool startAsioCapture(const std::string& device, std::string& error){
     std::string driver = device.substr(std::strlen(ASIO_PREFIX));
+    const bool duplex = !audio.songReady;
+    const std::string outputDevice = audio.outputDeviceWanted;
+    const float volume = audio.engineReady ? ma_engine_get_volume(&audio.engine) : 1.0f;
     // At the output's rate: one interface asked for two rates at once would glitch or refuse
     double rate = audio.engineReady ? (double)ma_engine_get_sample_rate(&audio.engine) : 48000.0;
-    if (!startAsioInput(driver, rate, asioCallback, error)) return false;
+    if (duplex) stopEngine(); // the driver may need the device Windows' output has (ASIO4ALL does)
+    audio.asioInput = nullptr;
+    audio.directTone = ToneState{};
+    if (!startAsio(driver, rate, asioCallback, duplex ? asioRender : nullptr, error)){
+        std::string ignored;
+        if (duplex) startEngine(outputDevice, ignored);
+        return false;
+    }
+    std::string engineError;
+    if (duplex && !(asioOutputChannels() > 0 && startEngineOnAsio((ma_uint32)asioSampleRate(), engineError))){
+        startEngine(outputDevice, engineError); // no outputs to play through: Windows' again
+    }
+    if (audio.engineReady) ma_engine_set_volume(&audio.engine, volume);
     audio.captureChannels = (ma_uint32)std::max(1, asioInputChannels());
     if (ma_pcm_rb_init(ma_format_f32, audio.captureChannels, CAPTURE_BUFFER_FRAMES, nullptr, nullptr, &audio.captureBuffer) != MA_SUCCESS){
-        stopAsioInput();
+        audio.engineOnAsio = false;
+        stopAsio();
+        stopEngine();
+        std::string ignored;
+        startEngine(outputDevice, ignored);
         error = "could not create capture buffer";
         return false;
     }
@@ -565,8 +654,9 @@ static ma_result monitorRead(ma_data_source* source, void* out, ma_uint64 frameC
     MonitorSource* self = (MonitorSource*)source;
     float* samples = (float*)out;
     const ma_uint32 wanted = (ma_uint32)frameCount;
-    if (audio.monitorSynth.load(std::memory_order_relaxed)){
-        // Heard as a synth: the main thread reads the input (readMonitor) and plays the notes it finds
+    if (audio.monitorSynth.load(std::memory_order_relaxed) || audio.engineOnAsio.load(std::memory_order_relaxed)){
+        // Heard as a synth: the main thread reads the input (readMonitor) and plays the notes it finds. Or through
+        // ASIO: the driver's own callback plays it straight through (asioRender).
         std::fill(samples, samples + wanted, 0.0f);
         *framesRead = frameCount;
         return MA_SUCCESS;
@@ -613,7 +703,7 @@ static ma_data_source_vtable MONITOR_VTABLE = { monitorRead, monitorSeek, monito
 
 static ma_uint32 openCaptureRate(){
     if (!audio.captureReady) return 0;
-    return audio.asioDevice.empty() ? audio.captureDevice.sampleRate : (ma_uint32)asioInputSampleRate();
+    return audio.asioDevice.empty() ? audio.captureDevice.sampleRate : (ma_uint32)asioSampleRate();
 }
 
 // Which of the capture's inputs are heard: the ones asked for, or every one but the excluded (the voice's mic)
@@ -814,15 +904,24 @@ bool captureIsExclusive(){
 static void closeCapture(){
     if (!audio.captureReady) return;
     // The thread writing to the buffer is stopped before the buffer goes away
+    const bool engineWasOnAsio = audio.engineOnAsio;
     if (!audio.asioDevice.empty()){
         audio.asioGate = false;
-        stopAsioInput();
+        audio.engineOnAsio = false;
+        stopAsio();
         audio.asioDevice.clear();
     } else {
         ma_device_uninit(&audio.captureDevice);
     }
     ma_pcm_rb_uninit(&audio.captureBuffer);
     audio.captureReady = false;
+    if (engineWasOnAsio && !audio.closing){
+        // Everything was playing through the driver: back to Windows' output
+        float volume = ma_engine_get_volume(&audio.engine);
+        stopEngine();
+        std::string error;
+        if (startEngine(audio.outputDeviceWanted, error)) ma_engine_set_volume(&audio.engine, volume);
+    }
 }
 
 // Throws away what waited in the capture buffer with nobody reading: a screen starts from now
@@ -850,6 +949,7 @@ bool startCapture(const std::string& inputDevice, std::string& error){
 
 void stopCapture(){
     audio.captureReader = false;
+    if (audio.engineOnAsio) return; // everything plays through the driver: it stays open
     if (!audio.monitorWanted){
         closeCapture();
         return;
@@ -874,7 +974,7 @@ static void restartAsioIfAsked(){
 
 int captureSampleRate(){
     if (!audio.captureReady) return 0;
-    return audio.asioDevice.empty() ? (int)audio.captureDevice.sampleRate : (int)asioInputSampleRate();
+    return audio.asioDevice.empty() ? (int)audio.captureDevice.sampleRate : (int)asioSampleRate();
 }
 
 const char* captureDeviceName(){
@@ -888,7 +988,7 @@ bool captureIsAsio(){
 
 double captureLatencySeconds(){
     if (!audio.captureReady) return 0.0;
-    if (!audio.asioDevice.empty()) return asioInputLatencyFrames() / std::max(1.0, asioInputSampleRate());
+    if (!audio.asioDevice.empty()) return asioInputLatencyFrames() / std::max(1.0, asioSampleRate());
     const ma_device& device = audio.captureDevice;
     return (double)device.capture.internalPeriodSizeInFrames * device.capture.internalPeriods / std::max<ma_uint32>(1, device.capture.internalSampleRate);
 }

@@ -69,7 +69,7 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(raylib miniaudio imgui rlimgui doctest pl_mpeg miniz)
 
-# Windows: Steinberg's ASIO SDK, for the audio interfaces' own low-latency drivers (audio/asioinput.cpp). lahn takes
+# Windows: Steinberg's ASIO SDK, for the audio interfaces' own low-latency drivers (audio/asiodriver.cpp). lahn takes
 # it under its GPLv3 option. Pinned by checksum to Steinberg's own package; its host helpers are compiled here.
 if(WIN32)
     FetchContent_Declare(
@@ -174,7 +174,7 @@ add_executable(lahn
     src/main.cpp
     src/app/crashreport.cpp
     src/audio/audio.cpp
-    src/audio/asioinput.cpp
+    src/audio/asiodriver.cpp
     src/input/midi.cpp
     src/input/noteinput.cpp
     src/input/pianokeys.cpp

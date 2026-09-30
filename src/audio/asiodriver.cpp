@@ -1,4 +1,4 @@
-#include "audio/asioinput.h"
+#include "audio/asiodriver.h"
 
 #ifdef _WIN32
 
@@ -13,6 +13,7 @@
 #include "asio.h"
 #include "asiodrivers.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cstring>
 #include <future>
@@ -34,13 +35,19 @@ static struct {
 
     // Set up before the driver starts calling, read on its thread
     AsioSink sink = nullptr;
+    AsioRender render = nullptr;
     int channels = 0;
+    int outputs = 0;           // the outputs lahn plays through (the first two), 0 for input only
+    bool postOutput = false;   // the driver wants to be told when its outputs are filled (ASIOOutputReady)
     long bufferFrames = 0;
     double sampleRate = 0.0;
     long inputLatency = 0;
-    std::vector<ASIOBufferInfo> buffers;
+    long outputLatency = 0;
+    std::vector<ASIOBufferInfo> buffers; // the inputs', then the outputs'
     std::vector<SampleFormat> formats;
+    std::vector<SampleFormat> outFormats;
     std::vector<float> frames; // one buffer's worth, interleaved: made before the driver starts, never reallocated
+    std::vector<float> out;    // one buffer of stereo frames to play, likewise
     ASIOCallbacks callbacks{};
 } asio;
 
@@ -52,6 +59,14 @@ static void bufferSwitch(long index, ASIOBool){
         convertSamples(asio.buffers[c].buffers[index], asio.formats[c], frames, asio.frames.data() + c, channels);
     }
     asio.sink(asio.frames.data(), frames);
+    if (asio.outputs == 0) return;
+    // What lahn plays, in the same call: the input just heard can be in it, a buffer later (Ableton's way)
+    std::fill(asio.out.begin(), asio.out.end(), 0.0f);
+    asio.render(asio.out.data(), frames);
+    for (int o = 0; o < asio.outputs; o++){
+        convertToFormat(asio.out.data() + (o % 2), 2, asio.outFormats[o], frames, asio.buffers[channels + o].buffers[index]);
+    }
+    if (asio.postOutput) ASIOOutputReady();
 }
 
 static ASIOTime* bufferSwitchTimeInfo(ASIOTime*, long index, ASIOBool processNow){
@@ -94,7 +109,7 @@ static bool formatOf(ASIOSampleType type, SampleFormat& format){
 }
 
 // Loads, sets up and starts the driver; on the driver's thread. An empty string when it's running.
-static std::string openDriver(const std::string& driver, double wantedRate, HWND window){
+static std::string openDriver(const std::string& driver, double wantedRate, HWND window, bool wantsOutput){
     char name[128] = {};
     std::strncpy(name, driver.c_str(), sizeof(name) - 1);
     if (!loadAsioDriver(name)) return "couldn't load the ASIO driver '" + driver + "'";
@@ -113,17 +128,26 @@ static std::string openDriver(const std::string& driver, double wantedRate, HWND
     ASIOSampleRate rate = 0.0;
     if (ASIOGetSampleRate(&rate) != ASE_OK || rate <= 0.0) return fail("the ASIO driver gave no sample rate");
 
-    asio.buffers.assign(inputs, ASIOBufferInfo{});
-    for (long c = 0; c < inputs; c++){
-        asio.buffers[c].isInput = ASIOTrue;
-        asio.buffers[c].channelNum = c;
-    }
     asio.callbacks.bufferSwitch = bufferSwitch;
     asio.callbacks.sampleRateDidChange = sampleRateDidChange;
     asio.callbacks.asioMessage = asioMessage;
     asio.callbacks.bufferSwitchTimeInfo = bufferSwitchTimeInfo;
-    // The driver's preferred size: what its control panel is set to, which the player may have tuned
-    if (ASIOCreateBuffers(asio.buffers.data(), inputs, preferred, &asio.callbacks) != ASE_OK) return fail("the ASIO driver couldn't make its buffers");
+    // Every input, and the first two outputs when lahn plays through the driver too. A driver that can't give both
+    // is asked again for the inputs alone (lahn's sound then goes out through Windows).
+    auto createBuffers = [&](long outs){
+        asio.buffers.assign(inputs + outs, ASIOBufferInfo{});
+        for (long c = 0; c < inputs + outs; c++){
+            asio.buffers[c].isInput = c < inputs ? ASIOTrue : ASIOFalse;
+            asio.buffers[c].channelNum = c < inputs ? c : c - inputs;
+        }
+        // The driver's preferred size: what its control panel is set to, which the player may have tuned
+        return ASIOCreateBuffers(asio.buffers.data(), inputs + outs, preferred, &asio.callbacks) == ASE_OK;
+    };
+    long outs = wantsOutput ? std::min(outputs, 2L) : 0;
+    if (!createBuffers(outs)){
+        if (outs == 0 || !createBuffers(0)) return fail("the ASIO driver couldn't make its buffers");
+        outs = 0;
+    }
 
     asio.formats.assign(inputs, SampleFormat::Int32);
     for (long c = 0; c < inputs; c++){
@@ -135,14 +159,28 @@ static std::string openDriver(const std::string& driver, double wantedRate, HWND
             return fail("the ASIO driver's sample format isn't supported");
         }
     }
+    asio.outFormats.assign(outs, SampleFormat::Int32);
+    for (long o = 0; o < outs; o++){
+        ASIOChannelInfo channel{};
+        channel.channel = o;
+        channel.isInput = ASIOFalse;
+        if (ASIOGetChannelInfo(&channel) != ASE_OK || !formatOf(channel.type, asio.outFormats[o])){
+            ASIODisposeBuffers();
+            return fail("the ASIO driver's output format isn't supported");
+        }
+    }
     long inputLatency = 0, outputLatency = 0;
-    if (ASIOGetLatencies(&inputLatency, &outputLatency) != ASE_OK) inputLatency = preferred;
+    if (ASIOGetLatencies(&inputLatency, &outputLatency) != ASE_OK) inputLatency = outputLatency = preferred;
 
     asio.channels = (int)inputs;
+    asio.outputs = (int)outs;
     asio.bufferFrames = preferred;
     asio.sampleRate = rate;
     asio.inputLatency = inputLatency;
+    asio.outputLatency = outputLatency;
     asio.frames.assign((size_t)preferred * inputs, 0.0f);
+    asio.out.assign((size_t)preferred * 2, 0.0f);
+    asio.postOutput = outs > 0 && ASIOOutputReady() == ASE_OK;
     if (ASIOStart() != ASE_OK){
         ASIODisposeBuffers();
         return fail("the ASIO driver didn't start playing");
@@ -159,11 +197,11 @@ static void closeDriver(){
 // The driver's thread: ASIO drivers are COM objects that expect a single-threaded apartment, which the main thread
 // isn't (miniaudio made it multithreaded). Everything the driver is asked is asked from here, and its windows (the
 // control panel) get their messages pumped here.
-static void driverThread(std::string driver, double wantedRate, HWND window, std::promise<std::string> started){
+static void driverThread(std::string driver, double wantedRate, HWND window, bool wantsOutput, std::promise<std::string> started){
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     MSG message;
     PeekMessage(&message, nullptr, WM_USER, WM_USER, PM_NOREMOVE); // makes this thread's message queue now
-    std::string error = openDriver(driver, wantedRate, window);
+    std::string error = openDriver(driver, wantedRate, window, wantsOutput);
     bool running = error.empty();
     started.set_value(error);
     if (running){
@@ -197,15 +235,17 @@ std::vector<std::string> asioDriverNames(){
     return names;
 }
 
-bool startAsioInput(const std::string& driver, double sampleRate, AsioSink sink, std::string& error){
-    stopAsioInput();
+bool startAsio(const std::string& driver, double sampleRate, AsioSink sink, AsioRender render, std::string& error){
+    stopAsio();
     asio.sink = sink;
+    asio.render = render;
+    asio.outputs = 0;
     asio.restartRequested = false;
     std::promise<std::string> started;
     std::future<std::string> result = started.get_future();
     // The game's window, for drivers that show their settings over it
     HWND window = GetForegroundWindow();
-    asio.thread = std::thread(driverThread, driver, sampleRate, window, std::move(started));
+    asio.thread = std::thread(driverThread, driver, sampleRate, window, render != nullptr, std::move(started));
     asio.threadId = GetThreadId(asio.thread.native_handle());
     error = result.get();
     if (!error.empty()){
@@ -216,18 +256,20 @@ bool startAsioInput(const std::string& driver, double sampleRate, AsioSink sink,
     return true;
 }
 
-void stopAsioInput(){
+void stopAsio(){
     if (!asio.thread.joinable()) return;
     if (asio.active) PostThreadMessage(asio.threadId, STOP_MESSAGE, 0, 0);
     asio.thread.join();
     asio.active = false;
 }
 
-bool asioInputActive(){ return asio.active; }
+bool asioActive(){ return asio.active; }
 int asioInputChannels(){ return asio.active ? asio.channels : 0; }
-double asioInputSampleRate(){ return asio.active ? asio.sampleRate : 0.0; }
+int asioOutputChannels(){ return asio.active ? asio.outputs : 0; }
+double asioSampleRate(){ return asio.active ? asio.sampleRate : 0.0; }
 int asioBufferFrames(){ return asio.active ? (int)asio.bufferFrames : 0; }
 int asioInputLatencyFrames(){ return asio.active ? (int)asio.inputLatency : 0; }
+int asioOutputLatencyFrames(){ return asio.active && asio.outputs > 0 ? (int)asio.outputLatency : 0; }
 bool asioRestartRequested(){ return asio.active && asio.restartRequested; }
 
 void openAsioControlPanel(){
@@ -237,16 +279,18 @@ void openAsioControlPanel(){
 #else
 
 std::vector<std::string> asioDriverNames(){ return {}; }
-bool startAsioInput(const std::string&, double, AsioSink, std::string& error){
+bool startAsio(const std::string&, double, AsioSink, AsioRender, std::string& error){
     error = "ASIO is only on Windows";
     return false;
 }
-void stopAsioInput(){}
-bool asioInputActive(){ return false; }
+void stopAsio(){}
+bool asioActive(){ return false; }
 int asioInputChannels(){ return 0; }
-double asioInputSampleRate(){ return 0.0; }
+int asioOutputChannels(){ return 0; }
+double asioSampleRate(){ return 0.0; }
 int asioBufferFrames(){ return 0; }
 int asioInputLatencyFrames(){ return 0; }
+int asioOutputLatencyFrames(){ return 0; }
 bool asioRestartRequested(){ return false; }
 void openAsioControlPanel(){}
 

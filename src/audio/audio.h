@@ -16,6 +16,9 @@ std::vector<std::string> inputDeviceNames(); // Windows' own inputs, then the AS
 bool setOutputDevice(const std::string& outputDevice, std::string& error); // restarts output: stops any song
 const char* outputDeviceName(); // the device actually in use
 double outputLatencySeconds();  // the output's buffering: how late sound leaves, at the least (the global offset covers it)
+// lahn plays through the ASIO driver the input is on, both ways in one callback (see startCapture): Windows' output
+// device is then unused until the driver closes
+bool outputIsAsio();
 void setMasterVolume(float volume); // 0..1
 
 // One song at a time, streamed from disk. The song's playback position is the game's master clock.
