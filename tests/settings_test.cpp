@@ -119,21 +119,18 @@ TEST_CASE("notes say their fret, their name or both: both unless the player choo
     }
 }
 
-TEST_CASE("the neck: whole and in 3D unless the player keeps it to the song's frets, or flat"){
+TEST_CASE("the neck: whole unless the player keeps it to the song's frets"){
     CHECK(Settings{}.noteViews.wholeNeck);
-    CHECK(Settings{}.noteViews.neck3d);
     std::string path = settingsPath("neckrange.txt");
     std::ofstream(path, std::ios::binary) << "version 1\nneck_range song\nneck_style flat\nnote_view neck\n";
     std::vector<std::string> warnings;
     Settings settings = loadSettings(path, warnings);
     CHECK(warnings.empty());
     CHECK_FALSE(settings.noteViews.wholeNeck); // reading note_view after them doesn't reset them
-    CHECK_FALSE(settings.noteViews.neck3d);
     std::string error;
     REQUIRE(saveSettings(path, settings, error));
     Settings again = loadSettings(path, warnings);
     CHECK_FALSE(again.noteViews.wholeNeck);
-    CHECK_FALSE(again.noteViews.neck3d);
 }
 
 TEST_CASE("each instrument's input, as the interface numbers them"){

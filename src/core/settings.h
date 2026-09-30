@@ -13,15 +13,14 @@ const int BUILT_IN_PREVIEW_SOUND_COUNT = 4;
 
 // How notes are shown while playing: any mix of the views, stacked top to bottom (sheet music, tab, then the
 // highway). At least one is always on.
-// What a note on the highway and the neck says: its fret, its note's name (to learn the neck by), or both
+// What a note on the neck says: its fret, its note's name (to learn the neck by), or both
 enum class NoteLabel { Fret, Name, Both };
 
 struct NoteViews {
     bool staff = false;   // sheet music
     bool neck = true;     // osu!-style: rings closing onto the notes' places on a drawn fretboard (views/neckview)
     NoteLabel label = NoteLabel::Both;
-    bool wholeNeck = true;
-    bool neck3d = true;    // the neck leaning back in perspective, the notes standing up off it; else flat, from above // the neck view shows the whole neck, from the nut up; else just the frets the song uses
+    bool wholeNeck = true; // the neck view shows the whole neck, from the nut up; else just the frets the song uses
     bool any() const { return staff || neck; }
 };
 
