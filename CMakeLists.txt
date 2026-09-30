@@ -210,14 +210,12 @@ add_executable(lahn
     src/screens/settingsscreen.cpp
     src/screens/tuner.cpp
     src/screens/tuningscreen.cpp
-    src/views/highway.cpp
     src/views/neckview.cpp
     src/views/noteviews.cpp
     src/views/pianohighway.cpp
     src/views/rhythmlane.cpp
     src/views/smooth.cpp
     src/views/staff.cpp
-    src/views/tab.cpp
     src/views/viewfont.cpp
     src/video/video.cpp
 )

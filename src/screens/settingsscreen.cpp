@@ -244,25 +244,17 @@ static void displaySection(Settings& settings){
     settingsGroup("SHOW NOTES AS");
     NoteViews& views = settings.noteViews;
     if (settingToggle("Sheet music", nullptr, &views.staff) && !views.any()) views.staff = true;
-    if (settingToggle("Tab", nullptr, &views.tab) && !views.any()) views.tab = true;
-    if (settingToggle("Highway", "Notes flying at a line, one lane per string", &views.highway) && !views.any()) views.highway = true;
     if (settingToggle("Neck", "Rings closing onto each note's place on the fretboard", &views.neck) && !views.any()) views.neck = true;
-    ImGui::BeginDisabled(!views.highway);
-    int direction = views.highwayFalls ? 1 : 0;
-    if (settingSegments("Highway direction", nullptr, &direction, { "Across", "Falling" })) views.highwayFalls = direction == 1;
-    ImGui::EndDisabled();
-    ImGui::BeginDisabled(!views.highway && !views.neck);
-    int label = (int)views.label;
-    if (settingSegments("On each note", "On the highway and the neck. The note's name helps you learn the neck.", &label,
-                        { "Fret", "Note name", "Both" })) views.label = (NoteLabel)label;
-    ImGui::EndDisabled();
     ImGui::BeginDisabled(!views.neck);
+    int label = (int)views.label;
+    if (settingSegments("On each note", "The note's name helps you learn the neck", &label,
+                        { "Fret", "Note name", "Both" })) views.label = (NoteLabel)label;
     int range = views.wholeNeck ? 0 : 1;
     if (settingSegments("Neck shown", "The whole neck, as on your instrument, or only the frets the song uses", &range,
                         { "Whole neck", "The song's frets" })) views.wholeNeck = range == 0;
     ImGui::EndDisabled();
     int order = settings.lowStringOnTop ? 0 : 1;
-    if (settingSegments("Lowest string", "On the highway and in the editor (left when falling)", &order, { "On top", "At the bottom" })){
+    if (settingSegments("Lowest string", "On the neck and in the editor", &order, { "On top", "At the bottom" })){
         settings.lowStringOnTop = order == 0;
     }
 

@@ -1,50 +1,32 @@
 #include "views/noteviews.h"
 
-#include "views/highway.h"
 #include "views/neckview.h"
 #include "views/pianohighway.h"
 #include "views/staff.h"
-#include "views/tab.h"
 
 #include <algorithm>
 
 const float VIEW_GAP = 10.0f;
 
-// Each view's share of the area when several are shown, and the most it ever needs: past that it would only
-// get bigger, not clearer (the highway's lanes stop spreading at 70 px, the staff is plenty readable at this size)
-enum class View { Staff, Tab, Highway, Neck };
+// Each view's share of the area when both are shown, and the most it ever needs: past that it would only get
+// bigger, not clearer
+enum class View { Staff, Neck };
 struct ViewSize { float weight; float maxHeight; };
 const ViewSize STAFF_SIZE = { 1.0f, 400.0f };
-const ViewSize TAB_SIZE = { 0.7f, 200.0f };
-const ViewSize HIGHWAY_SIZE = { 1.0f, 460.0f };
 const ViewSize NECK_SIZE = { 1.0f, 420.0f };
-const float FALLING_LANE_WIDTH = 70.0f;   // the falling highway's columns stop spreading here, like the lanes across
-const float FALLING_MAX_SHARE = 0.4f;     // of the width, when it shares the screen with other views
 
 float drawNoteViews(Rectangle area, const NoteViews& views, const std::vector<PlayNote>& notes, const Score& score,
                    const std::vector<int>& tuning, bool lowStringOnTop, TimeAxis axis){
-    // A falling highway runs top to bottom, so it can't stack with views whose time runs left to right: it gets a
-    // column of its own, on the right beside the others, or centered alone. The others stack in what's left.
     // The neck alone: it has no time axis, so it takes the whole area, and judgements go over its middle
-    if (views.neck && !views.staff && !views.tab && !views.highway){
+    if (views.neck && !views.staff){
         drawNeckView(area, notes, tuning, lowStringOnTop, views.wholeNeck, views.label, axis);
         return area.x + area.width / 2;
     }
-    if (views.highway && views.highwayFalls){
-        bool alone = !views.staff && !views.tab && !views.neck;
-        float width = std::min(tuning.size() * FALLING_LANE_WIDTH + 2 * FALLING_LANE_WIDTH, area.width * (alone ? 1.0f : FALLING_MAX_SHARE));
-        Rectangle column = { alone ? area.x + (area.width - width) / 2 : area.x + area.width - width, area.y, width, area.height };
-        drawHighway(column, notes, score, tuning, lowStringOnTop, true, views.label, axis);
-        if (alone) return column.x + column.width / 2; // falling, the hit line runs across: its middle
-        area.width -= width + VIEW_GAP;
-    }
 
-    // Top to bottom: sheet music over tab, like a printed guitar score, then the highway, then the neck
+    // Top to bottom: the sheet music, then the neck
     struct Shown { View view; ViewSize size; float height; };
     std::vector<Shown> shown;
     if (views.staff) shown.push_back({View::Staff, STAFF_SIZE, 0.0f});
-    if (views.tab) shown.push_back({View::Tab, TAB_SIZE, 0.0f});
-    if (views.highway && !views.highwayFalls) shown.push_back({View::Highway, HIGHWAY_SIZE, 0.0f});
     if (views.neck) shown.push_back({View::Neck, NECK_SIZE, 0.0f});
     if (shown.empty()) return axis.hitLineX;
 
@@ -58,7 +40,7 @@ float drawNoteViews(Rectangle area, const NoteViews& views, const std::vector<Pl
     }
 
     // The hit line stays clear of the sheet music's clef, key and time signature, and bar lines leave room for a
-    // downbeat's accidental: both set for every view at once, so they stay lined up
+    // downbeat's accidental
     for (const Shown& view : shown){
         if (view.view != View::Staff) continue;
         axis.hitLineX = std::max(axis.hitLineX, area.x + staffLeadWidth(view.height, score));
@@ -70,10 +52,8 @@ float drawNoteViews(Rectangle area, const NoteViews& views, const std::vector<Pl
     for (const Shown& shownView : shown){
         Rectangle viewArea = { area.x, y, area.width, shownView.height };
         switch (shownView.view){
-            case View::Staff:   drawStaff(viewArea, notes, score, axis); break;
-            case View::Tab:     drawTab(viewArea, notes, score, (int)tuning.size(), axis); break;
-            case View::Highway: drawHighway(viewArea, notes, score, tuning, lowStringOnTop, false, views.label, axis); break;
-            case View::Neck:    drawNeckView(viewArea, notes, tuning, lowStringOnTop, views.wholeNeck, views.label, axis); break;
+            case View::Staff: drawStaff(viewArea, notes, score, axis); break;
+            case View::Neck:  drawNeckView(viewArea, notes, tuning, lowStringOnTop, views.wholeNeck, views.label, axis); break;
         }
         y += shownView.height + VIEW_GAP;
     }

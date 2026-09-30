@@ -176,6 +176,6 @@ void DrillExercise::draw(){
     float width = (float)GetScreenWidth(), height = (float)GetScreenHeight();
     TimeAxis axis = { (float)drillTime(), HIT_LINE_X, settings.noteSpeed };
     NoteViews views = settings.noteViews;
-    if (setup.staffOnly) views = NoteViews{true, false, false, false};
+    if (setup.staffOnly){ views.staff = true; views.neck = false; }
     drawNoteViews({0, height * 0.48f, width, height * 0.51f}, views, notes, score, setup.tuning, settings.lowStringOnTop, axis);
 }

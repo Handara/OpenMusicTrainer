@@ -1,6 +1,7 @@
 #include "views/viewfont.h"
 
 #include "core/music.h"
+#include "views/playnote.h"
 
 const int FONT_LOAD_SIZE = 64; // drawn smaller than this, through mipmaps, so it stays smooth
 
@@ -56,3 +57,9 @@ void drawNoteLabel(int fret, int pitch, NoteLabel label, float x, float y, float
             break;
     }
 }
+
+// Each string its own color, lowest first, as on the neck: red, orange, yellow, green, blue, purple
+static const Color STRING_COLORS[] = { {200, 70, 62, 255}, {214, 120, 40, 255}, {190, 145, 30, 255},
+                                       {52, 140, 90, 255}, {50, 120, 190, 255}, {128, 90, 190, 255} };
+
+Color stringColor(int stringIndex){ return STRING_COLORS[stringIndex % 6]; }

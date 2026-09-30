@@ -18,13 +18,10 @@ enum class NoteLabel { Fret, Name, Both };
 
 struct NoteViews {
     bool staff = false;   // sheet music
-    bool tab = false;
-    bool highway = true;
-    bool highwayFalls = false; // the highway's notes fall down columns (strings side by side) instead of scrolling across
-    bool neck = false;    // osu!-style: rings closing onto the notes' places on a drawn fretboard (views/neckview)
+    bool neck = true;     // osu!-style: rings closing onto the notes' places on a drawn fretboard (views/neckview)
     NoteLabel label = NoteLabel::Both;
     bool wholeNeck = true; // the neck view shows the whole neck, from the nut up; else just the frets the song uses
-    bool any() const { return staff || tab || highway || neck; }
+    bool any() const { return staff || neck; }
 };
 
 struct Settings {

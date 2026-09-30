@@ -32,9 +32,7 @@ TEST_CASE("settings survive a save and load"){
     original.fullscreen = true;
     original.darkTheme = true;
     original.lowStringOnTop = false;
-    original.noteViews.staff = true; // with the highway
-    original.noteViews.tab = true;
-    original.noteViews.highwayFalls = true;
+    original.noteViews.staff = true; // with the neck
     original.frameRateLimit = 144;
     original.noteSpeed = 450.0f;
     original.globalOffsetMs = -35;
@@ -57,9 +55,7 @@ TEST_CASE("settings survive a save and load"){
     CHECK(loaded.darkTheme);
     CHECK_FALSE(loaded.lowStringOnTop);
     CHECK(loaded.noteViews.staff);
-    CHECK(loaded.noteViews.tab);
-    CHECK(loaded.noteViews.highway);
-    CHECK(loaded.noteViews.highwayFalls);
+    CHECK(loaded.noteViews.neck);
     CHECK(loaded.frameRateLimit == 144);
     CHECK(loaded.noteSpeed == doctest::Approx(450.0f));
     CHECK(loaded.globalOffsetMs == -35);
@@ -83,81 +79,30 @@ TEST_CASE("bad lines are reported but don't lose the rest"){
     CHECK(settings.globalOffsetMs == 20);              // still loaded after the problems
 }
 
-TEST_CASE("note views: any mix, and the older one-word form"){
-    struct Case { const char* line; bool staff, tab, highway; size_t warnings; };
+TEST_CASE("note views: sheet music, the neck or both, and the older forms"){
+    struct Case { const char* line; bool staff, neck; size_t warnings; };
     const Case cases[] = {
-        {"note_view staff",          true,  false, false, 0},
-        {"note_view staff tab",      true,  true,  false, 0},
-        {"note_view highway staff",  true,  false, true,  0},
-        {"note_view both",           true,  false, true,  0}, // how files first wrote it
-        {"note_view",                false, false, true,  1}, // nothing on: keep the default
-        {"note_view tab piano",      false, false, true,  1}, // an unknown word: keep the default, not half of it
+        {"note_view staff",          true,  false, 0},
+        {"note_view neck",           false, true,  0},
+        {"note_view staff neck",     true,  true,  0},
+        {"note_view highway staff",  true,  true,  0}, // the highway and the tab are gone: the neck shows the notes now
+        {"note_view tab",            false, true,  0},
+        {"note_view both",           true,  true,  0}, // how files first wrote sheet music and the highway
+        {"note_view",                false, true,  1}, // nothing on: keep the default
+        {"note_view staff piano",    false, true,  1}, // an unknown word: keep the default, not half of it
     };
     for (const Case& c : cases){
         CAPTURE(c.line);
         std::string path = settingsPath("views.txt");
-        std::ofstream(path, std::ios::binary) << "version 1\n" << c.line << "\n";
+        std::ofstream(path, std::ios::binary) << "version 1\nhighway_direction falling\n" << c.line << "\n";
         std::vector<std::string> warnings;
         Settings settings = loadSettings(path, warnings);
         CHECK(settings.noteViews.staff == c.staff);
-        CHECK(settings.noteViews.tab == c.tab);
-        CHECK(settings.noteViews.highway == c.highway);
-        CHECK(warnings.size() == c.warnings);
+        CHECK(settings.noteViews.neck == c.neck);
+        CHECK(warnings.size() == c.warnings); // an old highway_direction line is no trouble
     }
-}
-
-TEST_CASE("the neck view is kept, alone or with the others"){
-    for (const char* line : { "note_view neck", "note_view highway neck" }){
-        CAPTURE(line);
-        std::string path = settingsPath("neck.txt");
-        std::ofstream(path, std::ios::binary) << "version 1\n" << line << "\n";
-        std::vector<std::string> warnings;
-        Settings settings = loadSettings(path, warnings);
-        CHECK(warnings.empty());
-        CHECK(settings.noteViews.neck);
-        std::string error;
-        REQUIRE(saveSettings(path, settings, error));
-        CHECK(loadSettings(path, warnings).noteViews.neck); // written back and read again
-    }
-    CHECK_FALSE(Settings{}.noteViews.neck);
-}
-
-TEST_CASE("notes say their fret, their name or both: both unless the player chooses"){
-    CHECK(Settings{}.noteViews.label == NoteLabel::Both);
-    for (NoteLabel label : { NoteLabel::Fret, NoteLabel::Name, NoteLabel::Both }){
-        std::string path = settingsPath("label.txt");
-        Settings settings;
-        settings.noteViews.label = label;
-        std::string error;
-        REQUIRE(saveSettings(path, settings, error));
-        std::vector<std::string> warnings;
-        CHECK(loadSettings(path, warnings).noteViews.label == label);
-        CHECK(warnings.empty());
-    }
-}
-
-TEST_CASE("the neck view shows the whole neck unless the player keeps it to the song's frets"){
-    CHECK(Settings{}.noteViews.wholeNeck);
-    std::string path = settingsPath("neckrange.txt");
-    std::ofstream(path, std::ios::binary) << "version 1\nneck_range song\nnote_view neck\n";
-    std::vector<std::string> warnings;
-    Settings settings = loadSettings(path, warnings);
-    CHECK(warnings.empty());
-    CHECK_FALSE(settings.noteViews.wholeNeck); // reading note_view after it doesn't reset it
-    std::string error;
-    REQUIRE(saveSettings(path, settings, error));
-    CHECK_FALSE(loadSettings(path, warnings).noteViews.wholeNeck);
-}
-
-TEST_CASE("the highway's direction is kept whatever order the lines come in"){
-    std::string path = settingsPath("direction.txt");
-    std::ofstream(path, std::ios::binary) << "version 1\nhighway_direction falling\nnote_view tab highway\n";
-    std::vector<std::string> warnings;
-    Settings settings = loadSettings(path, warnings);
-    CHECK(warnings.empty());
-    CHECK(settings.noteViews.highwayFalls); // reading note_view after it doesn't reset it
-    CHECK(settings.noteViews.tab);
-    CHECK_FALSE(Settings{}.noteViews.highwayFalls);  // across by default
+    CHECK(Settings{}.noteViews.neck);
+    CHECK_FALSE(Settings{}.noteViews.staff);
 }
 
 TEST_CASE("each instrument's input, as the interface numbers them"){

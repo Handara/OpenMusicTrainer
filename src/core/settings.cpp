@@ -8,26 +8,22 @@
 
 const int SUPPORTED_SETTINGS_VERSION = 1;
 
-// The note views are stored as a list of words, "note_view staff tab highway neck", so the file stays readable.
-// "both" is how version 1 files first wrote sheet music plus the highway. Only the three switches are read: the
-// highway's direction is a line of its own.
+// The note views are stored as a list of words, "note_view staff neck", so the file stays readable. Files from
+// before kept the tab and the highway, gone since: the neck shows the notes in their place ("both" was sheet music
+// and the highway).
 static bool readNoteViews(const std::string& value, NoteViews& views){
     NoteViews read;
-    read.highway = false;
+    read.neck = false;
     std::istringstream words(value);
     std::string word;
     while (words >> word){
         if (word == "staff") read.staff = true;
-        else if (word == "tab") read.tab = true;
-        else if (word == "highway") read.highway = true;
-        else if (word == "neck") read.neck = true;
-        else if (word == "both") read.staff = read.highway = true;
+        else if (word == "neck" || word == "tab" || word == "highway") read.neck = true;
+        else if (word == "both") read.staff = read.neck = true;
         else return false;
     }
     if (!read.any()) return false;
     views.staff = read.staff;
-    views.tab = read.tab;
-    views.highway = read.highway;
     views.neck = read.neck;
     return true;
 }
@@ -94,11 +90,7 @@ Settings loadSettings(const std::string& path, std::vector<std::string>& warning
         else if (key == "note_view"){
             if (!readNoteViews(value, settings.noteViews)) warnings.push_back("line " + std::to_string(lineNumber) + ": unknown note view '" + value + "', keeping default");
         }
-        else if (key == "highway_direction"){
-            if (value == "across") settings.noteViews.highwayFalls = false;
-            else if (value == "falling") settings.noteViews.highwayFalls = true;
-            else warnings.push_back("line " + std::to_string(lineNumber) + ": highway_direction is across or falling, keeping default");
-        }
+        else if (key == "highway_direction"){} // the highway's, which is gone
         else if (key == "note_label"){
             if (value == "fret") settings.noteViews.label = NoteLabel::Fret;
             else if (value == "name") settings.noteViews.label = NoteLabel::Name;
@@ -153,11 +145,8 @@ bool saveSettings(const std::string& path, const Settings& settings, std::string
     out << "preview_sound " << settings.previewSound << "\n\n";
     out << "note_view";
     if (settings.noteViews.staff) out << " staff";
-    if (settings.noteViews.tab) out << " tab";
-    if (settings.noteViews.highway) out << " highway";
     if (settings.noteViews.neck) out << " neck";
     out << "\n";
-    out << "highway_direction " << (settings.noteViews.highwayFalls ? "falling" : "across") << "\n";
     const NoteLabel label = settings.noteViews.label;
     out << "note_label " << (label == NoteLabel::Fret ? "fret" : label == NoteLabel::Name ? "name" : "both") << "\n";
     out << "neck_range " << (settings.noteViews.wholeNeck ? "whole" : "song") << "\n";
