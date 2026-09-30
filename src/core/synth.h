@@ -16,6 +16,11 @@ void renderKeys(float* out, int count, float frequency, int sampleRate);
 // A water drop's "plip": a tone that glides quickly up into its pitch and dies away fast
 void renderDrop(float* out, int count, float frequency, int sampleRate);
 
+// A fingered electric bass: a round fundamental, a brief brighter attack as the finger leaves the string (the upper
+// harmonics dying away first), a soft thump, and a long decay. For hearing a bass played through the game as a clean
+// synth (the notes it heard, see input/synthmonitor).
+void renderBass(float* out, int count, float frequency, int sampleRate);
+
 // A metronome click: a high woodblock-like tone that dies within ~30 ms, plus a tiny burst of noise for the
 // "tick". The accented click (the first beat of a bar) is higher.
 void renderClick(float* out, int count, int sampleRate, bool accent);

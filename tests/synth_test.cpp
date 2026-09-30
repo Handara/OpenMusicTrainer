@@ -108,3 +108,23 @@ TEST_CASE("the drums: a deep don that rings a little, a ka that's gone at once")
         CHECK(samples.back() == 0.0f);
     }
 }
+
+TEST_CASE("the synth bass is in tune across a bass's range, round, and ends silent"){
+    const int sampleRate = 48000;
+    PitchDetector detector;
+    initPitchDetector(detector, sampleRate, 30.0f, 1400.0f);
+    const int window = pitchWindowSize(detector);
+    std::vector<float> samples(2 * sampleRate);
+    for (int midi : {28, 33, 40, 50, 60}){ // the low E up to the middle of the neck
+        float frequency = midiToFrequency((float)midi);
+        renderBass(samples.data(), (int)samples.size(), frequency, sampleRate);
+        PitchResult result = detectPitch(detector, samples.data() + sampleRate / 10, window); // once the thump is gone
+        float cents = 1200.0f * std::log2(result.frequency / frequency);
+        CHECK_MESSAGE(std::fabs(cents) < 3.0f, "MIDI " << midi << ": " << cents << " cents");
+        float peak = 0.0f;
+        for (float s : samples) peak = std::max(peak, std::fabs(s));
+        CHECK(peak > 0.1f);
+        CHECK(peak <= 0.5f);
+        CHECK(samples.back() == 0.0f);
+    }
+}

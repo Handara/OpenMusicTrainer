@@ -92,6 +92,28 @@ void renderKeys(float* out, int count, float frequency, int sampleRate){
     fadeEnd(out, count, sampleRate);
 }
 
+void renderBass(float* out, int count, float frequency, int sampleRate){
+    // Each harmonic decays at its own rate: the higher, the sooner, so the attack is bright and the note settles round
+    const float fundamentalDecay = decayPerSample(2.2f, sampleRate);
+    const float secondDecay = decayPerSample(0.6f, sampleRate);
+    const float thirdDecay = decayPerSample(0.25f, sampleRate);
+    const float thumpDecay = decayPerSample(0.015f, sampleRate);
+    const float attackSamples = 0.004f * sampleRate; // 4 ms: no click, still immediate
+    float fundamental = 1.0f, second = 0.45f, third = 0.25f, thump = 0.3f;
+    for (int i = 0; i < count; i++){
+        double w = TWO_PI * frequency * i / sampleRate;
+        float attack = std::min(1.0f, i / attackSamples);
+        float v = fundamental * (float)std::sin(w) + second * (float)std::sin(2.0 * w) + third * (float)std::sin(3.0 * w)
+                + thump * (float)std::sin(0.5 * w); // a low thump under the note, gone in a few cycles
+        out[i] = PEAK_LEVEL * 0.6f * v * attack;
+        fundamental *= fundamentalDecay;
+        second *= secondDecay;
+        third *= thirdDecay;
+        thump *= thumpDecay;
+    }
+    fadeEnd(out, count, sampleRate);
+}
+
 void renderDrop(float* out, int count, float frequency, int sampleRate){
     const float glideSamples = 0.025f * sampleRate; // reaches the note's pitch after 25 ms
     const float decay = decayPerSample(0.35f, sampleRate);
