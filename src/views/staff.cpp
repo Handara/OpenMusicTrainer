@@ -4,6 +4,7 @@
 #include "views/smooth.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <string>
 
@@ -209,19 +210,34 @@ static void drawTimeSignature(const Staff& staff, const TimeSignatureChange& tim
     drawTimeNumber(time.beatUnit, centerX, staff.yAt(2), staff.space); // the upper and lower halves of the staff
 }
 
-static void drawRest(const Staff& staff, const ScoreEvent& rest, float x, float barEndX){
+// Where a rest is drawn: a whole bar's rest in the middle of its bar, the others at their time
+static float restX(const ScoreEvent& rest, float x, float barEndX){
+    return rest.wholeBarRest ? (x + barEndX) / 2 : x;
+}
+
+static void drawRest(const Staff& staff, const ScoreEvent& rest, float x, float barEndX, Color color){
     int glyph = GLYPH_REST_WHOLE + (int)rest.value;
-    if (rest.wholeBarRest) x = (x + barEndX) / 2; // in the middle of its bar
+    x = restX(rest, x, barEndX);
     // A whole rest hangs from the second line down; the others sit on (or are centered on) the middle line
     int position = rest.value == NoteValue::Whole ? 6 : 4;
-    drawGlyphCentered(glyph, x, staff.yAt(position), staff.space, themeColor(UiColor::Ink));
-    if (rest.dots > 0) drawGlyph(GLYPH_AUGMENTATION_DOT, x + glyphWidth(glyph, staff.space) / 2 + 0.3f * staff.space, staff.yAt(5), staff.space, themeColor(UiColor::Ink));
+    drawGlyphCentered(glyph, x, staff.yAt(position), staff.space, color);
+    if (rest.dots > 0) drawGlyph(GLYPH_AUGMENTATION_DOT, x + glyphWidth(glyph, staff.space) / 2 + 0.3f * staff.space, staff.yAt(5), staff.space, color);
 }
 
 // Draws the chords of one beam group (or one lone chord): noteheads, accidentals, dots, stems, flags or beams, ties.
 // `bar` carries the accidentals already written in this bar. Returns the highest point drawn (for tuplet numbers).
+// Where each note was last drawn (the middle of its column, over its highest head), for judgements shown over it
+static std::vector<Vector2> drawnNotes;
+static double drawnAt = -100.0;
+
+// A note's color: lit while it's the one being played, then green if it was hit, red if it was missed
+static Color headColor(const PlayNote& note, bool current){
+    if (note.judged) return themeColor(note.hit ? UiColor::Good : UiColor::Bad);
+    return themeColor(current ? UiColor::Accent : UiColor::Ink);
+}
+
 static float drawGroup(const Staff& staff, const Score& score, size_t first, size_t last, const std::vector<PlayNote>& notes,
-                       BarAccidentals& bar, const TimeAxis& axis){
+                       BarAccidentals& bar, const TimeAxis& axis, size_t current){
     const float space = staff.space;
     const KeySignature& key = score.bars[score.events[first].bar].key;
     std::vector<Column> columns;
@@ -241,7 +257,7 @@ static float drawGroup(const Staff& staff, const Score& score, size_t first, siz
             Head head{};
             head.position = written.position;
             head.accidental = tiedOver ? Accidental::None : accidentalFor(written, key, bar);
-            head.color = note.hitFlash > 0.0f ? (note.wasPerfect ? themeColor(UiColor::Good) : themeColor(UiColor::Accent)) : themeColor(UiColor::Ink);
+            head.color = headColor(note, e == current);
             column.heads.push_back(head);
         }
         std::sort(column.heads.begin(), column.heads.end(), [](const Head& a, const Head& b){ return a.position < b.position; });
@@ -288,6 +304,10 @@ static float drawGroup(const Staff& staff, const Score& score, size_t first, siz
         for (const Head& head : column.heads){
             headsLeft = std::min(headsLeft, head.x);
             headsRight = std::max(headsRight, head.x + column.width);
+        }
+        float columnX = axis.xAt(event.time), columnTop = staff.yAt(column.heads.back().position) - 1.2f * space;
+        for (int n = event.firstNote; n < event.firstNote + event.noteCount; n++){
+            if (n >= 0 && n < (int)drawnNotes.size()) drawnNotes[n] = { columnX, std::min(columnTop, staff.yAt(STAFF_TOP_LINE) - space) };
         }
         for (const Head& head : column.heads){
             // Ledger lines, a little wider than the notehead, on every line between the staff and the note
@@ -367,71 +387,40 @@ static float drawGroup(const Staff& staff, const Score& score, size_t first, siz
     return top;
 }
 
-// --- The staff -------------------------------------------------------------------------------------------------
+// --- The staff ---------------------------------------------------------------------------------------------------
+// One bar at a time: the bar being played fills most of the page, the next one waits beside it, small and faded, to
+// read ahead. At each bar line the page turns: both slide a place left. In the bar being played the note (or chord,
+// or rest) of the moment is lit, with a line under it that fills as it lasts; played notes stay green, or red.
 
-void drawStaff(Rectangle area, const std::vector<PlayNote>& notes, const Score& score, const TimeAxis& axis){
-    Staff staff;
-    staff.area = area;
-    staff.space = area.height / STAFF_SPACES_TALL;
-    staff.bottomLineY = area.y + area.height - 5.0f * staff.space; // leaves room for the low E's three ledger lines
-    staff.thickness = std::max(1.0f, LINE_THICKNESS * staff.space);
-    const float space = staff.space;
-    const float right = area.x + area.width;
+const float MAIN_SHARE = 0.7f;      // of the page, for the bar being played; the next one gets the rest
+const float PREVIEW_FADE = 0.55f;   // how faded the next bar is
+const float TURN_S = 0.22f;         // the page turn, ending on the new bar's downbeat
+const float BAR_PAD = 1.6f;         // spaces inside each end of a bar: room for a downbeat's accidental, and air
+const float LIGHT_AHEAD_S = 0.03f;  // a note lights a moment early, so it's lit when it's played
 
-    BeginScissorMode((int)area.x, (int)area.y, (int)area.width, (int)area.height); // nothing drawn outside the area
-    DrawRectangleRec(area, themeColor(UiColor::Card));
-    auto drawStaffLines = [&](float fromX, float toX){
-        for (int line = 0; line <= STAFF_TOP_LINE; line += 2) DrawLineEx({fromX, staff.yAt(line)}, {toX, staff.yAt(line)}, staff.thickness, themeColor(UiColor::Ink));
-    };
-    drawStaffLines(area.x, right);
-
-    // Bar lines, the last one doubled to close the music. A key or time change goes just before its bar line: after
-    // it would sit on the downbeat's note, since nothing makes room for it.
-    for (size_t b = 1; b < score.bars.size(); b++){
-        const ScoreBar& bar = score.bars[b];
-        float x = axis.xAt(bar.time) - axis.barLineGap;
-        if (x < area.x - 10 * space || x > right + 10 * space) continue;
-        bool closing = b + 1 == score.bars.size();
-        DrawLineEx({x, staff.yAt(STAFF_TOP_LINE)}, {x, staff.yAt(0)}, staff.thickness * (closing ? 4.0f : 1.4f), themeColor(UiColor::Ink));
-        if (closing) DrawLineEx({x - 0.6f * space, staff.yAt(STAFF_TOP_LINE)}, {x - 0.6f * space, staff.yAt(0)}, staff.thickness * 1.4f, themeColor(UiColor::Ink));
-        if (closing) continue;
-        float before = x - 0.5f * space;
-        if (bar.showTimeSignature){
-            drawTimeSignature(staff, bar.timeSignature, before - TIME_SIGNATURE_WIDTH * space / 2);
-            before -= TIME_SIGNATURE_WIDTH * space;
-        }
-        if (bar.showKey) drawKeySignature(staff, bar.key, score.clef, before - std::abs(bar.key.fifths) * KEY_ACCIDENTAL_WIDTH * space);
-    }
-    DrawLineEx({axis.hitLineX, area.y + space}, {axis.hitLineX, area.y + area.height - space}, 2.0f, themeColor(UiColor::Accent));
-
-    // The events: from the start of the bar of the first one on screen (accidentals depend on what came before it
-    // in its bar), to the first one past the right edge
+// The events of one bar, placed on `axis`: rests, beam groups, triplet numbers. `current` is the event being
+// played (lit), or events.size() for none.
+static void drawBarEvents(const Staff& staff, const Score& score, const std::vector<PlayNote>& notes, int barIndex,
+                          const TimeAxis& axis, size_t current){
     const std::vector<ScoreEvent>& events = score.events;
-    size_t start = std::lower_bound(events.begin(), events.end(), axis.timeAt(area.x),
-                                    [](const ScoreEvent& event, float time){ return event.time < time; }) - events.begin();
-    while (start > 0 && start < events.size() && events[start - 1].bar == events[start].bar) start--;
-    if (start == events.size() && start > 0) start--;
+    const float space = staff.space;
+    size_t start = std::lower_bound(events.begin(), events.end(), barIndex, [](const ScoreEvent& event, int bar){ return event.bar < bar; }) - events.begin();
     BarAccidentals barAccidentals;
-    int currentBar = -1;
     std::vector<std::pair<size_t, float>> tupletTops; // triplet events drawn, with the top of what was drawn for them
-    for (size_t i = start; i < events.size();){
+    const float barEndX = axis.xAt(score.bars[barIndex + 1].time);
+    for (size_t i = start; i < events.size() && events[i].bar == barIndex;){
         const ScoreEvent& event = events[i];
-        float x = axis.xAt(event.time);
-        if (x > right + 4 * space) break;
-        if (event.bar != currentBar){
-            barAccidentals = {};
-            currentBar = event.bar;
-        }
         if (event.rest){
-            float barEndX = axis.xAt(score.bars[event.bar + 1].time);
-            drawRest(staff, event, x, barEndX);
+            bool played = event.time + 0.001f < axis.songTime && i != current;
+            Color color = i == current ? themeColor(UiColor::Accent) : played ? themeColor(UiColor::Dim) : themeColor(UiColor::Ink);
+            drawRest(staff, event, axis.xAt(event.time), barEndX, color);
             if (event.tuplet) tupletTops.push_back({i, staff.yAt(STAFF_TOP_LINE) - space});
             i++;
             continue;
         }
         size_t last = i + 1;
         if (event.beamGroup >= 0) while (last < events.size() && events[last].beamGroup == event.beamGroup) last++;
-        float top = drawGroup(staff, score, i, last, notes, barAccidentals, axis);
+        float top = drawGroup(staff, score, i, last, notes, barAccidentals, axis, current);
         for (size_t e = i; e < last; e++) if (events[e].tuplet) tupletTops.push_back({e, top});
         i = last;
     }
@@ -452,22 +441,114 @@ void drawStaff(Rectangle area, const std::vector<PlayNote>& notes, const Score& 
         drawGlyphCentered(GLYPH_TUPLET_3, (fromX + toX) / 2, std::min(top, staff.yAt(STAFF_TOP_LINE + 2)) - 0.3f * space, space, themeColor(UiColor::Ink));
         k = j;
     }
+}
 
-    // The clef, key and time signature of the bar being played sit on their own strip of paper, drawn last, so
-    // notes that have been played slide underneath them
-    size_t barNow = 0;
-    while (barNow + 1 < score.bars.size() && score.bars[barNow + 1].time <= axis.songTime) barNow++;
-    float leadRight = area.x + staffLeadWidth(area.height, score) - LEAD_MARGIN * space;
-    DrawRectangleRec({area.x, area.y, leadRight - area.x, area.height}, themeColor(UiColor::Card));
-    drawStaffLines(area.x, leadRight);
-    // A G clef curls around the G line; an F clef's dots sit either side of the F line
-    drawGlyph(clefGlyph(score), area.x + CLEF_MARGIN * space, staff.yAt(score.clef == Clef::Bass ? 6 : 2), space,
-              themeColor(UiColor::Ink));
-    if (!score.bars.empty()){
-        const ScoreBar& bar = score.bars[barNow];
-        float keyX = area.x + clefWidth(score, space) * space;
-        drawKeySignature(staff, bar.key, score.clef, keyX);
-        drawTimeSignature(staff, bar.timeSignature, leadRight - TIME_SIGNATURE_WIDTH * space / 2);
+// The glow behind the event being played, and under the staff the line that fills as it lasts, to the next event
+static void drawLit(const Staff& staff, const Score& score, size_t current, const TimeAxis& axis){
+    const ScoreEvent& event = score.events[current];
+    const float space = staff.space;
+    float endTime = current + 1 < score.events.size() ? score.events[current + 1].time : score.bars[event.bar + 1].time;
+    float x = axis.xAt(event.time);
+    if (event.rest) x = restX(event, x, axis.xAt(score.bars[event.bar + 1].time));
+    float progress = std::clamp((axis.songTime - event.time) / std::max(0.01f, endTime - event.time), 0.0f, 1.0f);
+    float pop = std::max(0.0f, 1.0f - (axis.songTime - event.time) / 0.18f); // it swells as it starts
+    float half = (1.5f + 0.35f * pop) * space;
+    Rectangle glow = { x - half, staff.yAt(STAFF_TOP_LINE + 5) - pop * 0.5f * space, 2 * half, staff.yAt(-5) - staff.yAt(STAFF_TOP_LINE + 5) + pop * space };
+    smoothRoundedRect(glow, 0.9f * space, Fade(themeColor(UiColor::Accent), 0.13f + 0.12f * pop));
+    // The line: from this event to the next, filling as it lasts (a rest's too: silence is played as well)
+    float from = axis.xAt(event.time) - 0.6f * space, to = std::max(from + space, axis.xAt(endTime) - 1.2f * space);
+    float y = staff.yAt(-6), thickness = 0.35f * space;
+    smoothRoundedRect({ from, y - thickness / 2, to - from, thickness }, thickness / 2, Fade(themeColor(UiColor::Accent), 0.22f));
+    smoothRoundedRect({ from, y - thickness / 2, (to - from) * progress, thickness }, thickness / 2, themeColor(UiColor::Accent));
+}
+
+void drawStaff(Rectangle area, const std::vector<PlayNote>& notes, const Score& score, const TimeAxis& axis){
+    Staff staff;
+    staff.area = area;
+    staff.space = area.height / STAFF_SPACES_TALL;
+    staff.bottomLineY = area.y + area.height - 5.0f * staff.space; // leaves room for the low E's three ledger lines
+    staff.thickness = std::max(1.0f, LINE_THICKNESS * staff.space);
+    const float space = staff.space;
+    const float right = area.x + area.width;
+    drawnNotes.assign(notes.size(), Vector2{ -1.0f, -1.0f });
+    drawnAt = GetTime();
+
+    DrawRectangleRec(area, themeColor(UiColor::Card));
+    auto drawStaffLines = [&](float fromX, float toX){
+        for (int line = 0; line <= STAFF_TOP_LINE; line += 2) DrawLineEx({fromX, staff.yAt(line)}, {toX, staff.yAt(line)}, staff.thickness, themeColor(UiColor::Ink));
+    };
+    const int barCount = (int)score.bars.size() - 1; // the last bar line only closes the music
+    if (barCount <= 0){
+        drawStaffLines(area.x, right);
+        return;
     }
-    EndScissorMode();
+
+    // The bar being played, and how far the page has turned toward the next (the turn ends on its downbeat)
+    const float now = axis.songTime + LIGHT_AHEAD_S;
+    int barNow = 0;
+    while (barNow + 1 < barCount && score.bars[barNow + 1].time <= now) barNow++;
+    float turn = 0.0f;
+    if (barNow + 1 < barCount){
+        float t = std::clamp((now - (score.bars[barNow + 1].time - TURN_S)) / TURN_S, 0.0f, 1.0f);
+        turn = t * t * (3.0f - 2.0f * t);
+    }
+    const float page = barNow + turn;
+
+    // The clef, key and time signature at the left, for the bar in front
+    const ScoreBar& front = score.bars[std::min(barCount - 1, (int)std::lround(page))];
+    const float leadRight = area.x + staffLeadWidth(area.height, score) - LEAD_MARGIN * space;
+    drawStaffLines(area.x, right - 0.8f * space);
+    drawGlyph(clefGlyph(score), area.x + CLEF_MARGIN * space, staff.yAt(score.clef == Clef::Bass ? 6 : 2), space, themeColor(UiColor::Ink));
+    drawKeySignature(staff, front.key, score.clef, area.x + clefWidth(score, space) * space);
+    drawTimeSignature(staff, front.timeSignature, leadRight - TIME_SIGNATURE_WIDTH * space / 2);
+
+    // Each bar's place on the page by how far it is from the front: 0 in front, 1 waiting beside it, -1 gone left
+    const float pageLeft = leadRight + 0.6f * space, pageRight = right - 0.8f * space, pageWidth = pageRight - pageLeft;
+    const float mainWidth = pageWidth * MAIN_SHARE, previewWidth = pageWidth - mainWidth;
+    auto placeAt = [&](float d, float& x, float& width, float& alpha){
+        if (d <= 0.0f){ // front, sliding out to the left
+            x = pageLeft + d * mainWidth; width = mainWidth; alpha = 1.0f + d;
+        } else if (d <= 1.0f){ // from beside it to the front
+            x = pageLeft + d * mainWidth; width = mainWidth + (previewWidth - mainWidth) * d; alpha = 1.0f - (1.0f - PREVIEW_FADE) * d;
+        } else { // coming in from the right
+            x = pageLeft + mainWidth + (d - 1.0f) * previewWidth; width = previewWidth; alpha = PREVIEW_FADE * (2.0f - d);
+        }
+    };
+
+    for (int k = std::max(0, barNow - 1); k <= std::min(barCount - 1, barNow + 2); k++){
+        float d = k - page, x, width, alpha;
+        if (d <= -1.0f || d >= 2.0f) continue;
+        placeAt(d, x, width, alpha);
+        if (alpha <= 0.01f) continue;
+        float barStart = score.bars[k].time, barEnd = score.bars[k + 1].time;
+        TimeAxis barAxis;
+        barAxis.songTime = axis.songTime;
+        barAxis.noteSpeed = (width - 2 * BAR_PAD * space) / std::max(0.01f, barEnd - barStart);
+        barAxis.hitLineX = x + BAR_PAD * space + (axis.songTime - barStart) * barAxis.noteSpeed; // xAt(barStart) = x + pad
+        float clipLeft = std::max(x, pageLeft - 0.2f * space), clipRight = std::min(x + width, pageRight);
+        if (clipRight <= clipLeft) continue;
+        BeginScissorMode((int)clipLeft, (int)area.y, (int)(clipRight - clipLeft + 1), (int)area.height);
+        // The event being played, in the bar being played
+        size_t current = score.events.size();
+        if (k == barNow && now >= barStart){
+            for (size_t e = 0; e < score.events.size() && score.events[e].time <= now; e++) if (score.events[e].bar == k) current = e;
+        }
+        if (current < score.events.size()) drawLit(staff, score, current, barAxis);
+        drawBarEvents(staff, score, notes, k, barAxis, current);
+        // Its closing bar line (the song's last, doubled)
+        bool closing = k + 1 == barCount;
+        float lineX = x + width;
+        DrawLineEx({lineX, staff.yAt(STAFF_TOP_LINE)}, {lineX, staff.yAt(0)}, staff.thickness * (closing ? 4.0f : 1.4f), themeColor(UiColor::Ink));
+        if (closing) DrawLineEx({lineX - 0.6f * space, staff.yAt(STAFF_TOP_LINE)}, {lineX - 0.6f * space, staff.yAt(0)}, staff.thickness * 1.4f, themeColor(UiColor::Ink));
+        // Faded as it waits (or leaves): the paper laid thinly over it
+        if (alpha < 1.0f) DrawRectangleRec({x, area.y, width, area.height}, Fade(themeColor(UiColor::Card), 1.0f - alpha));
+        EndScissorMode();
+    }
+}
+
+bool staffNoteAt(int noteIndex, float& x, float& y){
+    if (GetTime() - drawnAt > 0.25 || noteIndex < 0 || noteIndex >= (int)drawnNotes.size() || drawnNotes[noteIndex].x < 0.0f) return false;
+    x = drawnNotes[noteIndex].x;
+    y = drawnNotes[noteIndex].y;
+    return true;
 }

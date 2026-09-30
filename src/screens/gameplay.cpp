@@ -20,6 +20,7 @@
 #include "ui/theme.h"
 #include "views/neckview.h"
 #include "views/noteviews.h"
+#include "views/staff.h"
 #include "views/rhythmlane.h"
 
 #include <algorithm>
@@ -54,11 +55,14 @@ const double RESUME_RUNUP_S = 1.5; // resuming, the song picks up this long befo
 static HitFeedback feedback; // the judgements, timing bar and combo shown over the play screen
 static bool instrumentHitSounds = false; // a drop on each hit: playing an instrument, which gives no sound of its own to the game
 
-// Where a judgement is shown: over its note on the neck, when the neck is drawn; else at the hit line (x < 0)
+// Where a judgement is shown: over its note on the neck, when the neck is drawn, else over it in the sheet music;
+// else at the hit line (x < 0)
 static ImVec2 judgementAnchor(const std::vector<PlayNote>& notes, int index){
     float x, y, radius;
-    if (index < 0 || index >= (int)notes.size() || !neckNoteAt(notes[index], x, y, radius)) return ImVec2(-1.0f, -1.0f);
-    return ImVec2(x, y - radius - 24.0f * GetScreenHeight() / 720.0f);
+    if (index < 0 || index >= (int)notes.size()) return ImVec2(-1.0f, -1.0f);
+    if (neckNoteAt(notes[index], x, y, radius)) return ImVec2(x, y - radius - 24.0f * GetScreenHeight() / 720.0f);
+    if (staffNoteAt(index, x, y)) return ImVec2(x, y - 12.0f * GetScreenHeight() / 720.0f);
+    return ImVec2(-1.0f, -1.0f);
 }
 
 static void scoreMisses(GameState& state, int count, ImVec2 anchor = ImVec2(-1.0f, -1.0f)){
@@ -551,10 +555,9 @@ void drawGameplay(){
         game.hitLineX = drawNoteViews(viewsArea, game.options.noteViews, game.notes, game.score, game.chart.frettedTracks[0].tuning,
                                       game.options.lowStringOnTop, axis);
     }
-    // Only where there's an upright hit line to light: the rhythm lane, the sheet music, the tab, a highway scrolling
-    // across. The neck, a falling highway and the piano have none (their "hit line" x is only their middle).
-    const NoteViews& views = game.options.noteViews;
-    bool uprightHitLine = game.options.rhythmMode || (!game.keys && views.staff);
+    // Only where there's an upright hit line to light: the rhythm lane. The sheet music (a page), the neck and the piano
+    // have none (their "hit line" x is only their middle).
+    bool uprightHitLine = game.options.rhythmMode;
     if (noteInputActive() && uprightHitLine) drawAttackFlash(viewsArea, game.hitLineX);
 }
 

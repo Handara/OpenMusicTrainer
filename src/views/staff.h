@@ -7,9 +7,9 @@
 #include <string>
 #include <vector>
 
-// Sheet music that scrolls like the highway: the engraved score (core/score) on a treble staff, each event at its
-// time. Written the guitar way (an octave above how it sounds). The clef, key and time signature of the bar being
-// played stay on the left, over the notes that have gone past.
+// Sheet music, a bar at a time: the engraved score (core/score) on a staff, the bar being played filling most of it
+// and the next one waiting beside it; the page turns at each bar line. The note, chord or rest being played is lit,
+// played notes stay green or red. Written the guitar way (an octave above how it sounds).
 
 // The music font (Bravura, a SMuFL font). Without it the staff still works, drawn with plain shapes.
 bool loadStaffFont(const std::string& path);
@@ -22,5 +22,8 @@ float staffLeadWidth(float areaHeight, const Score& score);
 // Room a downbeat note needs before it, sharp or flat included, for a staff this tall (see TimeAxis::barLineGap)
 float staffBarLineGap(float areaHeight);
 
-// `notes` are the track's notes in the score's order (for pitches and hit colors)
+// `notes` are the track's notes in the score's order (for pitches and hit colors). Only the axis's song time is used.
 void drawStaff(Rectangle area, const std::vector<PlayNote>& notes, const Score& score, const TimeAxis& axis);
+// Where a note is in the staff as it was last drawn (over it), for showing its judgement there. False when the staff
+// isn't being drawn, or the note isn't on the page.
+bool staffNoteAt(int noteIndex, float& x, float& y);
