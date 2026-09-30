@@ -155,6 +155,7 @@ add_library(lahn_core STATIC
     src/core/rhythmmode.cpp
     src/core/routine.cpp
     src/core/sampleformat.cpp
+    src/core/tone.cpp
     src/core/score.cpp
     src/core/scales.cpp
     src/core/settings.cpp
@@ -270,6 +271,7 @@ if(BUILD_TESTING)
         tests/sampleformat_test.cpp
         tests/songpackage_test.cpp
         tests/synth_test.cpp
+        tests/tone_test.cpp
         tests/today_test.cpp
     )
     target_link_libraries(lahn_tests PRIVATE lahn_core doctest::doctest miniz) # miniz: to make broken packages

@@ -54,6 +54,7 @@ static struct {
     double detectStarted = 0.0;
     std::vector<double> loudSince; // per input: since when it's been clearly sounding, while detecting
     std::string status;   // result of the last change, e.g. a device that failed to open
+    std::string monitorError; // why the instrument can't be heard, if it can't
     bool statusIsError = false;
 } screen;
 
@@ -72,6 +73,16 @@ static void hint(const char* format, ...){
     ImGui::PopStyleColor();
     ImGui::PopTextWrapPos();
     va_end(args);
+}
+
+void applyMonitor(const Settings& settings, std::string& error){
+    std::vector<int> inputs;
+    for (int channel : { settings.guitarChannel, settings.bassChannel }){
+        if (channel >= 0 && std::count(inputs.begin(), inputs.end(), channel) == 0) inputs.push_back(channel);
+    }
+    setMonitorTone(settings.monitorVolume, settings.monitorDrive, settings.monitorTone);
+    error.clear();
+    setMonitor(settings.monitorOn, settings.inputDevice, inputs, settings.voiceChannel, error);
 }
 
 void openSettingsScreen(const std::string& soundsDir){
@@ -167,10 +178,24 @@ static void audioTab(Settings& settings, const std::string& soundsDir){
         if (setOutputDevice(settings.outputDevice, error)) setStatus(std::string("Playing through ") + outputDeviceName(), false);
         else setStatus(error, true);
     }
-    // The input device is opened when something listens (the tuner), so choosing it here is enough
-    deviceCombo("Input", settings.inputDevice, screen.inputDevices);
+    // The input device: opened by whatever listens (the monitor, the tuner, a song), so choosing it here is enough
+    if (deviceCombo("Input", settings.inputDevice, screen.inputDevices)) applyMonitor(settings, screen.monitorError);
     ImGui::TextDisabled("Audio system: %s", audioBackendName());
     midiSection(settings);
+
+    // Hearing the instrument through lahn, wherever the player is: its inputs to the speakers, through a small amp
+    ImGui::SeparatorText("Hear my instrument");
+    bool changed = ImGui::Checkbox("Through lahn, everywhere in the game", &settings.monitorOn);
+    if (changed) applyMonitor(settings, screen.monitorError);
+    ImGui::BeginDisabled(!settings.monitorOn);
+    bool tone = ImGui::SliderFloat("Instrument volume", &settings.monitorVolume, 0.0f, 1.0f, "%.2f");
+    tone |= ImGui::SliderFloat("Drive", &settings.monitorDrive, 0.0f, 1.0f, "%.2f");
+    tone |= ImGui::SliderFloat("Tone", &settings.monitorTone, 0.0f, 1.0f, "%.2f");
+    if (tone) setMonitorTone(settings.monitorVolume, settings.monitorDrive, settings.monitorTone);
+    ImGui::EndDisabled();
+    if (!screen.monitorError.empty()) ImGui::TextColored(uiColorVec(UiColor::Bad), "%s", screen.monitorError.c_str());
+    hint("Drive warms and roughens the sound, Tone goes from dark to bright. Your interface's own direct monitoring is "
+         "heard with no delay at all but no amp: with both on you'd hear it twice.");
 
     ImGui::SeparatorText("Volume");
     if (ImGui::SliderFloat("Master", &settings.masterVolume, 0.0f, 1.0f, "%.2f")) setMasterVolume(settings.masterVolume);
@@ -347,6 +372,9 @@ static int& roleChannel(Settings& settings, InputRole role){
 // found by playing it (Detect) or chosen by hand
 static void instrumentsTab(Settings& settings){
     screen.shownFrame = (int)ImGui::GetFrameCount();
+    // Whatever changes here which inputs are the instruments', the monitor hears the new ones (checked at the end)
+    const int guitarBefore = settings.guitarChannel, bassBefore = settings.bassChannel, voiceBefore = settings.voiceChannel;
+    const bool exclusiveBefore = settings.exclusiveInput;
     listenToInputs(settings);
     ImGui::SeparatorText("Inputs");
     ImGui::TextDisabled("%s", settings.inputDevice.empty() ? "The system's default input device (Audio tab to change it)"
@@ -466,6 +494,10 @@ static void instrumentsTab(Settings& settings){
         ImGui::PopID();
     }
     ImGui::TextDisabled("Each instrument is judged from its own input, so they're never mixed together.");
+    if (settings.guitarChannel != guitarBefore || settings.bassChannel != bassBefore || settings.voiceChannel != voiceBefore ||
+        settings.exclusiveInput != exclusiveBefore){
+        applyMonitor(settings, screen.monitorError);
+    }
 }
 
 static void gameplayTab(Settings& settings, SettingsChoice& choice){

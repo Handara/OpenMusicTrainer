@@ -74,6 +74,15 @@ void playHitSound(bool perfect);
 // between startCapture and stopCapture.
 bool startCapture(const std::string& inputDevice, std::string& error);
 void stopCapture();
+// Hearing the instrument through lahn, wherever the player is in the game: its inputs, straight from the input device,
+// through a small amp (core/tone: volume, drive, tone), to the speakers. `inputs`: which of the device's inputs (the
+// guitar's and bass's); empty for every one but `excluded` (the voice's: a microphone in the speakers would howl).
+// While it's on, the input device stays open between screens, and the screens that listen share it. It adds the
+// input's and the output's buffering: an interface's own direct monitoring has none, but no amp.
+bool setMonitor(bool on, const std::string& inputDevice, const std::vector<int>& inputs, int excluded, std::string& error);
+void setMonitorTone(float volume, float drive, float tone); // each 0..1
+bool monitorActive();
+
 // Windows: take the input device for lahn alone (WASAPI exclusive mode), past the effects Windows puts on
 // microphones. Its noise suppression lets an instrument through only while someone speaks: on a Scarlett Solo, a
 // bass alone came through near silent, and at full strength the moment someone sang. Other programs can't use the

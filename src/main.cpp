@@ -133,6 +133,8 @@ static void saveAppSettings(){
 
 static void leaveSettings(){
     closeSettingsScreen();
+    std::string monitorError;
+    applyMonitor(app.settings, monitorError); // its inputs and amp as the settings now say
     saveAppSettings();
     app.screen = Screen::MainMenu;
 }
@@ -442,6 +444,9 @@ int main(void){
     setMasterVolume(app.settings.masterVolume);
     setExclusiveCapture(app.settings.exclusiveInput);
     setHitSoundVolume(app.settings.hitSoundVolume);
+    std::string monitorError;
+    applyMonitor(app.settings, monitorError); // the instrument heard from the start
+    if (!monitorError.empty()) TraceLog(LOG_WARNING, "Hearing the instrument: %s", monitorError.c_str());
     setPreviewVolume(app.settings.previewVolume);
     if (!setPreviewSound(app.settings.previewSound, app.soundsDir, error)){
         TraceLog(LOG_WARNING, "Preview sound: %s (using the drop)", error.c_str());

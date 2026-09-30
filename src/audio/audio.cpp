@@ -5,6 +5,7 @@
 #include "core/pitch.h"
 #include "core/settings.h"
 #include "core/synth.h"
+#include "core/tone.h"
 #include "miniaudio.h"
 
 #include <algorithm>
@@ -27,6 +28,11 @@ const double SONG_START_LEAD_S = 0.1;
 
 // Captured audio waiting for the main thread. At 48 kHz this is ~0.34 s: room for several slow frames.
 const ma_uint32 CAPTURE_BUFFER_FRAMES = 16384;
+// Hearing the instrument (setMonitor): at most this many of an interface's inputs are mixed, this many frames wait for
+// the output at most (~170 ms at 48 kHz: only when something stalls), and the capture thread mixes this many at a time
+const int MAX_MONITOR_INPUTS = 32;
+const ma_uint32 MONITOR_BUFFER_FRAMES = 8192;
+const ma_uint32 MONITOR_CHUNK = 1024;
 // How an ASIO driver is named among the input devices: "ASIO: Focusrite USB ASIO"
 const char* const ASIO_PREFIX = "ASIO: ";
 
@@ -61,6 +67,14 @@ struct ReaderSource {
     ma_uint32 channels = 0;
     ma_uint64 length = 0;
     std::atomic<ma_uint64> cursor{0}; // frames read so far: written by the audio thread, read by songPosition()
+};
+
+// The instrument being heard (setMonitor), as a data source the engine plays: it reads what the capture thread mixed
+// into the monitor buffer and puts it through the amp. It never ends: with nothing played it gives silence.
+struct MonitorSource {
+    ma_data_source_base base; // must come first, as for ReaderSource
+    ToneState tone;           // only the engine's audio thread touches it
+    ma_uint32 sampleRate = 48000;
 };
 
 // All audio state lives here, like raylib's internal AUDIO struct. miniaudio objects keep
@@ -100,6 +114,26 @@ static struct {
     bool exclusiveWanted = true;  // see setExclusiveCapture
     bool captureExclusive = false;
     std::string asioDevice;        // the capture runs on this ASIO driver ("ASIO: ..."), "" when on Windows' own
+    std::string captureOpenedFor;  // the input device asked for when the capture was opened
+    bool captureReader = false;    // a screen is reading the capture (startCapture); the monitor may keep it open without
+    bool captureStale = false;     // opened the way it no longer should be (exclusive mode was switched): reopen
+
+    // Hearing the instrument (setMonitor). The capture thread mixes the instrument's inputs into monitorBuffer (mono);
+    // the engine plays it through monitorSource and monitorSound.
+    bool monitorWanted = false;
+    std::string monitorDevice;
+    std::vector<int> monitorInputs;  // empty: every input but monitorExcluded
+    int monitorExcluded = -1;
+    std::atomic<float> monitorWeights[MAX_MONITOR_INPUTS] = {}; // per input, read by the capture thread
+    std::atomic<bool> monitorGate{false};
+    std::atomic<ma_uint32> captureBurst{0}; // the most frames the input has handed over at once lately
+    ma_pcm_rb monitorBuffer;
+    bool monitorBufferReady = false;
+    float monitorScratch[MONITOR_CHUNK] = {}; // the capture thread's: one chunk mixed down, before it goes in
+    MonitorSource monitorSource;
+    ma_sound monitorSound;
+    bool monitorSoundReady = false;
+    std::atomic<float> toneVolume{0.8f}, toneDrive{0.0f}, toneBrightness{0.7f}; // set by the main thread
     std::atomic<bool> asioGate{false}; // ASIO calls as soon as it starts: its samples go in once the buffer exists
 
     Voice voices[VOICE_COUNT];
@@ -160,6 +194,10 @@ std::vector<std::string> inputDeviceNames(){
 static void releaseVoice(Voice& voice);
 static void startVoice(Voice& voice, const float* data, size_t frames, float pitchRatio, float volume, unsigned long long startFrame);
 static void startPreview(float frequency, ma_uint64 startFrame, const char* builtIn = nullptr);
+static void startMonitorSound();
+static void stopMonitorSound();
+static bool openCapture(const std::string& inputDevice, std::string& error);
+static void closeCapture();
 
 // On some systems (PulseAudio under WSL, at least) the engine's clock doesn't start until the first sound plays,
 // and anything timed on it (the metronome, drills) would wait forever. A moment of silence gets it running for good.
@@ -181,6 +219,7 @@ static bool startEngine(const std::string& outputDevice, std::string& error){
     audio.engineReady = true;
     audio.engineClockStarted = false; // a new engine counts from zero again
     wakeEngineClock();
+    if (audio.monitorWanted) startMonitorSound(); // a new output: the instrument is heard on it too
     return true;
 }
 
@@ -202,6 +241,7 @@ static void releaseVoice(Voice& voice){
 }
 
 static void stopEngine(){
+    stopMonitorSound(); // before the engine it plays on
     for (Voice& voice : audio.voices) releaseVoice(voice);
     releaseVoice(audio.wake);
     unloadSong();
@@ -210,7 +250,11 @@ static void stopEngine(){
 }
 
 void closeAudio(){
-    stopCapture();
+    audio.monitorWanted = false;
+    audio.monitorGate = false;
+    closeCapture();
+    if (audio.monitorBufferReady) ma_pcm_rb_uninit(&audio.monitorBuffer);
+    audio.monitorBufferReady = false;
     stopEngine();
     if (audio.contextReady) ma_context_uninit(&audio.context);
     audio.contextReady = false;
@@ -449,6 +493,31 @@ static void writeCapture(const float* samples, ma_uint32 frameCount){
         written += chunk;
     }
     // If the buffer was full, the rest is dropped: the main thread stopped reading, old audio is useless anyway
+
+    // The instrument being heard: its inputs mixed down into the monitor buffer, a chunk at a time
+    if (!audio.monitorGate) return;
+    // How much the input hands over at once: the monitor keeps that much waiting, and no more (see monitorRead)
+    ma_uint32 burst = audio.captureBurst.load(std::memory_order_relaxed);
+    audio.captureBurst.store(frameCount > burst ? frameCount : burst - (burst - frameCount) / 64, std::memory_order_relaxed);
+    const ma_uint32 mixed = std::min<ma_uint32>(channels, MAX_MONITOR_INPUTS);
+    for (ma_uint32 done = 0; done < frameCount;){
+        ma_uint32 chunk = std::min(frameCount - done, MONITOR_CHUNK);
+        for (ma_uint32 i = 0; i < chunk; i++){
+            const float* frame = samples + (size_t)(done + i) * channels;
+            float sum = 0.0f;
+            for (ma_uint32 c = 0; c < mixed; c++) sum += frame[c] * audio.monitorWeights[c].load(std::memory_order_relaxed);
+            audio.monitorScratch[i] = sum;
+        }
+        for (ma_uint32 put = 0; put < chunk;){
+            ma_uint32 space = chunk - put;
+            void* destination;
+            if (ma_pcm_rb_acquire_write(&audio.monitorBuffer, &space, &destination) != MA_SUCCESS || space == 0) break;
+            memcpy(destination, audio.monitorScratch + put, space * sizeof(float));
+            ma_pcm_rb_commit_write(&audio.monitorBuffer, space);
+            put += space;
+        }
+        done += chunk;
+    }
 }
 
 static void captureCallback(ma_device* device, void* output, const void* input, ma_uint32 frameCount){
@@ -481,13 +550,153 @@ static bool startAsioCapture(const std::string& device, std::string& error){
     return true;
 }
 
-bool startCapture(const std::string& inputDevice, std::string& error){
-    stopCapture();
+// --- Hearing the instrument ---
+
+// The engine's audio thread asks for the instrument's sound: whatever the capture thread put in, through the amp.
+// The input hands over its samples in bursts (a few ms apart through ASIO, tens through Windows' shared mode), so
+// what waits must bridge one burst and one read, or reads come up short and it crackles. Anything waiting beyond that
+// is old (the devices' clocks drift apart, something stalled) and is skipped rather than heard late. So the delay is
+// the least the input allows, on any device. With nothing waiting, silence.
+static ma_result monitorRead(ma_data_source* source, void* out, ma_uint64 frameCount, ma_uint64* framesRead){
+    MonitorSource* self = (MonitorSource*)source;
+    float* samples = (float*)out;
+    const ma_uint32 wanted = (ma_uint32)frameCount;
+    ma_uint32 waiting = ma_pcm_rb_available_read(&audio.monitorBuffer);
+    const ma_uint32 cushion = audio.captureBurst.load(std::memory_order_relaxed) + wanted;
+    if (waiting > cushion + wanted) ma_pcm_rb_seek_read(&audio.monitorBuffer, waiting - cushion);
+    ma_uint32 done = 0;
+    while (done < wanted){
+        ma_uint32 chunk = wanted - done;
+        void* from;
+        if (ma_pcm_rb_acquire_read(&audio.monitorBuffer, &chunk, &from) != MA_SUCCESS || chunk == 0) break;
+        memcpy(samples + done, from, chunk * sizeof(float));
+        ma_pcm_rb_commit_read(&audio.monitorBuffer, chunk);
+        done += chunk;
+    }
+    std::fill(samples + done, samples + wanted, 0.0f);
+    ToneSettings tone{ audio.toneVolume.load(std::memory_order_relaxed), audio.toneDrive.load(std::memory_order_relaxed),
+                       audio.toneBrightness.load(std::memory_order_relaxed) };
+    processTone(self->tone, tone, samples, (int)wanted, (int)self->sampleRate);
+    *framesRead = frameCount;
+    return MA_SUCCESS;
+}
+
+static ma_result monitorSeek(ma_data_source*, ma_uint64){ return MA_SUCCESS; } // live: there's nowhere else to be
+
+static ma_result monitorFormat(ma_data_source* source, ma_format* format, ma_uint32* channels, ma_uint32* sampleRate,
+                               ma_channel* channelMap, size_t channelMapCapacity){
+    *format = ma_format_f32;
+    *channels = 1;
+    *sampleRate = ((MonitorSource*)source)->sampleRate;
+    ma_channel_map_init_standard(ma_standard_channel_map_default, channelMap, channelMapCapacity, 1);
+    return MA_SUCCESS;
+}
+
+static ma_result monitorCursor(ma_data_source*, ma_uint64* cursor){
+    *cursor = 0;
+    return MA_SUCCESS;
+}
+
+static ma_result monitorLength(ma_data_source*, ma_uint64*){ return MA_NOT_IMPLEMENTED; } // it never ends
+
+static ma_data_source_vtable MONITOR_VTABLE = { monitorRead, monitorSeek, monitorFormat, monitorCursor, monitorLength, nullptr, 0 };
+
+static ma_uint32 openCaptureRate(){
+    if (!audio.captureReady) return 0;
+    return audio.asioDevice.empty() ? audio.captureDevice.sampleRate : (ma_uint32)asioInputSampleRate();
+}
+
+// Which of the capture's inputs are heard: the ones asked for, or every one but the excluded (the voice's mic)
+static void updateMonitorWeights(){
+    for (int c = 0; c < MAX_MONITOR_INPUTS; c++){
+        bool heard = audio.monitorInputs.empty() ? c != audio.monitorExcluded
+                                                 : std::count(audio.monitorInputs.begin(), audio.monitorInputs.end(), c) > 0;
+        audio.monitorWeights[c].store(heard && c < (int)audio.captureChannels ? 1.0f : 0.0f, std::memory_order_relaxed);
+    }
+}
+
+static void startMonitorSound(){
+    if (audio.monitorSoundReady || !audio.engineReady || !audio.monitorBufferReady || !audio.captureReady) return;
+    ma_data_source_config config = ma_data_source_config_init();
+    config.vtable = &MONITOR_VTABLE;
+    if (ma_data_source_init(&config, &audio.monitorSource.base) != MA_SUCCESS) return;
+    audio.monitorSource.sampleRate = openCaptureRate(); // the engine resamples if its own rate differs
+    audio.monitorSource.tone = ToneState{};
+    if (ma_sound_init_from_data_source(&audio.engine, &audio.monitorSource, MA_SOUND_FLAG_NO_SPATIALIZATION, nullptr, &audio.monitorSound) != MA_SUCCESS){
+        ma_data_source_uninit(&audio.monitorSource.base);
+        return;
+    }
+    ma_sound_start(&audio.monitorSound);
+    audio.monitorSoundReady = true;
+}
+
+static void stopMonitorSound(){
+    if (!audio.monitorSoundReady) return;
+    ma_sound_uninit(&audio.monitorSound); // stops the engine reading from it first
+    ma_data_source_uninit(&audio.monitorSource.base);
+    audio.monitorSoundReady = false;
+}
+
+// The capture was just opened (maybe with other inputs, at another rate): the monitor follows it
+static void monitorFollowCapture(){
+    if (!audio.monitorWanted) return;
+    updateMonitorWeights();
+    if (audio.monitorSoundReady && audio.monitorSource.sampleRate != openCaptureRate()) stopMonitorSound();
+    startMonitorSound();
+    audio.monitorGate = true;
+}
+
+bool setMonitor(bool on, const std::string& inputDevice, const std::vector<int>& inputs, int excluded, std::string& error){
+    audio.monitorWanted = on;
+    audio.monitorDevice = inputDevice;
+    audio.monitorInputs = inputs;
+    audio.monitorExcluded = excluded;
+    if (!on){
+        audio.monitorGate = false;
+        stopMonitorSound();
+        if (!audio.captureReader) closeCapture();
+        return true;
+    }
     if (!audio.contextReady){
         error = "audio is not running";
         return false;
     }
-    if (inputDevice.rfind(ASIO_PREFIX, 0) == 0) return startAsioCapture(inputDevice, error);
+    if (!audio.monitorBufferReady){
+        if (ma_pcm_rb_init(ma_format_f32, 1, MONITOR_BUFFER_FRAMES, nullptr, nullptr, &audio.monitorBuffer) != MA_SUCCESS){
+            error = "could not create the monitor's buffer";
+            return false;
+        }
+        audio.monitorBufferReady = true;
+    }
+    // Opened already for a screen reading it: heard from there (it goes back to the monitor's device when the screen
+    // stops: reopening under a reader could change its number of inputs)
+    if (!audio.captureReady || (!audio.captureReader && (audio.captureOpenedFor != inputDevice || audio.captureStale))){
+        closeCapture();
+        if (!openCapture(inputDevice, error)) return false;
+    }
+    monitorFollowCapture();
+    return true;
+}
+
+void setMonitorTone(float volume, float drive, float tone){
+    audio.toneVolume = volume;
+    audio.toneDrive = drive;
+    audio.toneBrightness = tone;
+}
+
+bool monitorActive(){
+    return audio.monitorWanted && audio.monitorSoundReady && audio.monitorGate;
+}
+
+// Opens the input device and starts it filling the capture buffer (and the monitor's): nothing may be open
+static bool openCapture(const std::string& inputDevice, std::string& error){
+    audio.captureOpenedFor = inputDevice;
+    audio.captureStale = false;
+    if (inputDevice.rfind(ASIO_PREFIX, 0) == 0){
+        if (!startAsioCapture(inputDevice, error)) return false;
+        monitorFollowCapture();
+        return true;
+    }
 
     // Every input the device has, as its own channel: an audio interface's guitar and microphone stay apart
     ma_device_config config = ma_device_config_init(ma_device_type_capture);
@@ -529,10 +738,12 @@ bool startCapture(const std::string& inputDevice, std::string& error){
         return false;
     }
     audio.captureReady = true;
+    monitorFollowCapture();
     return true;
 }
 
 void setExclusiveCapture(bool on){
+    if (on != audio.exclusiveWanted) audio.captureStale = true; // opened the other way: the next start reopens it
     audio.exclusiveWanted = on;
 }
 
@@ -540,7 +751,7 @@ bool captureIsExclusive(){
     return audio.captureReady && audio.captureExclusive;
 }
 
-void stopCapture(){
+static void closeCapture(){
     if (!audio.captureReady) return;
     // The thread writing to the buffer is stopped before the buffer goes away
     if (!audio.asioDevice.empty()){
@@ -554,6 +765,42 @@ void stopCapture(){
     audio.captureReady = false;
 }
 
+// Throws away what waited in the capture buffer with nobody reading: a screen starts from now
+static void skipCaptureBacklog(){
+    ma_uint32 waiting = ma_pcm_rb_available_read(&audio.captureBuffer);
+    if (waiting > 0) ma_pcm_rb_seek_read(&audio.captureBuffer, waiting);
+}
+
+bool startCapture(const std::string& inputDevice, std::string& error){
+    if (!audio.contextReady){
+        error = "audio is not running";
+        return false;
+    }
+    // Already open on this device (the monitor keeps it open): the screen reads from here on
+    if (audio.captureReady && audio.captureOpenedFor == inputDevice && !audio.captureStale){
+        skipCaptureBacklog();
+        audio.captureReader = true;
+        return true;
+    }
+    closeCapture();
+    if (!openCapture(inputDevice, error)) return false;
+    audio.captureReader = true;
+    return true;
+}
+
+void stopCapture(){
+    audio.captureReader = false;
+    if (!audio.monitorWanted){
+        closeCapture();
+        return;
+    }
+    // The monitor keeps listening: on its own device, the way it should be opened
+    if (audio.captureReady && audio.captureOpenedFor == audio.monitorDevice && !audio.captureStale) return;
+    closeCapture();
+    std::string error;
+    openCapture(audio.monitorDevice, error);
+}
+
 // An ASIO driver whose settings changed (its buffer size, in its control panel) asks to be started again. Readers
 // sized their buffers for its inputs, so if the number of inputs came back different it stays stopped rather than
 // overrun them: they see no input, and whoever opens it again sizes for the new count.
@@ -561,8 +808,8 @@ static void restartAsioIfAsked(){
     if (audio.asioDevice.empty() || !asioRestartRequested()) return;
     std::string device = audio.asioDevice, error;
     ma_uint32 channels = audio.captureChannels;
-    stopCapture();
-    if (startCapture(device, error) && audio.captureChannels != channels) stopCapture();
+    closeCapture();
+    if (openCapture(device, error) && audio.captureReader && audio.captureChannels != channels) closeCapture();
 }
 
 int captureSampleRate(){

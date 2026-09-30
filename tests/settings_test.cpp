@@ -161,3 +161,19 @@ TEST_CASE("the input is kept to lahn alone unless the player shares it"){
     CHECK_FALSE(loadSettings(path.string(), warnings).exclusiveInput);
     CHECK(warnings.empty());
 }
+
+TEST_CASE("hearing the instrument: on by default, its amp kept"){
+    Settings settings;
+    CHECK(settings.monitorOn);
+    settings.monitorOn = false;
+    settings.monitorDrive = 0.4f;
+    settings.monitorTone = 0.25f;
+    std::string path = settingsPath("monitor.txt"), error;
+    REQUIRE(saveSettings(path, settings, error));
+    std::vector<std::string> warnings;
+    Settings loaded = loadSettings(path, warnings);
+    CHECK(warnings.empty());
+    CHECK_FALSE(loaded.monitorOn);
+    CHECK(loaded.monitorDrive == doctest::Approx(0.4f));
+    CHECK(loaded.monitorTone == doctest::Approx(0.25f));
+}
