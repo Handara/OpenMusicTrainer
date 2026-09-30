@@ -138,7 +138,6 @@ CalibrationChoice calibrationScreen(){
         }
         if (menuButton("Try again")) restart();
     }
-    if (menuButton("Back")) choice.back = true;
     ImGui::End();
     return choice;
 }

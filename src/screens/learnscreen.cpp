@@ -225,7 +225,7 @@ bool learnBack(){
 
 // What a row of the Learn menu stands for
 struct LearnRow {
-    enum Kind { Heading, Lesson, Exercise, OpenExercises, OpenLessons, Back } kind;
+    enum Kind { Heading, Lesson, Exercise, OpenExercises, OpenLessons } kind;
     int index; // into learn.lessons or learn.exercises
 };
 
@@ -280,11 +280,11 @@ static void drawAbout(const LearnRow& row, float s){
     if (!progress.empty()) draw->AddText(fonts.bold, 18 * s, ImVec2(x, y), uiColor(UiColor::Accent), progress.c_str());
 }
 
-static void exerciseMenu(bool& leave){
+static void exerciseMenu(){
     float s = menuScale();
     menuScreenTitle("Learn", s);
 
-    // The rows: lessons first (where a beginner starts), then each category of exercises, then the folders and Back
+    // The rows: lessons first (where a beginner starts), then each category of exercises, then the folders
     std::vector<MenuRow> rows;
     std::vector<LearnRow> targets;
     auto heading = [&](const std::string& text){
@@ -327,8 +327,6 @@ static void exerciseMenu(bool& leave){
     targets.push_back({LearnRow::OpenExercises, -1});
     rows.push_back(actionRow("Open lessons folder"));
     targets.push_back({LearnRow::OpenLessons, -1});
-    rows.push_back(actionRow("Back", "Esc"));
-    targets.push_back({LearnRow::Back, -1});
 
     float width = ImGui::GetWindowWidth(), height = ImGui::GetWindowHeight();
     int confirmed = menuList(learn.list, rows, {ImVec2(width * 0.07f, height * 0.2f), width * 0.48f, height * 0.72f - 20 * s, s});
@@ -341,21 +339,18 @@ static void exerciseMenu(bool& leave){
         case LearnRow::Exercise:      learn.exercise = createExercise(learn.exercises[target.index]); break;
         case LearnRow::OpenExercises: openFolder(learn.setup.userExercises); break;
         case LearnRow::OpenLessons:   openFolder(learn.setup.userLessons); break;
-        case LearnRow::Back:          leave = true; break;
         case LearnRow::Heading:       break;
     }
 }
 
-bool learnScreen(){
+void learnScreen(){
     beginMenu("Learn");
-    bool leave = false;
     if (learn.exercise){
         learn.exercise->update();
         learn.exercise->draw();
         if (learn.exercise->wantsToLeave()) endExercise();
     } else {
-        exerciseMenu(leave);
+        exerciseMenu();
     }
     ImGui::End();
-    return leave;
 }

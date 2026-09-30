@@ -86,7 +86,7 @@ static const char* instrumentName(InstrumentType type){
     }
 }
 
-// The song's parts, one level down from the songs: "Melody  guitar, 6 strings", "Bass  bass, 4 strings", Back
+// The song's parts, one level down from the songs: "Melody  guitar, 6 strings", "Bass  bass, 4 strings"
 static void partList(const SongEntry& song, SongSelectChoice& choice){
     static MenuList list;
     float s = menuScale();
@@ -100,17 +100,14 @@ static void partList(const SongEntry& song, SongSelectChoice& choice){
                                                        : TextFormat("%s, %d strings", instrumentName(part.type), part.stringCount);
         rows.push_back(row);
     }
-    const int back = (int)rows.size();
-    rows.push_back(actionRow("Back", "Esc"));
     int confirmed = menuList(list, rows, listArea(0.45f));
     drawSongCard(song, s);
-    if (confirmed >= 0 && confirmed < back){
+    if (confirmed >= 0){
         choice.rhythmMode = rhythmMode;
         choice.songIndex = choosingPartOf;
         choice.part = confirmed;
         choosingPartOf = -1;
     }
-    if (confirmed == back) choosingPartOf = -1;
     menuScreenHint("Up/Down  choose    Enter  play    Esc  back to songs", s);
 }
 
@@ -173,7 +170,7 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
         }
     }
 
-    // The songs, then the data folder and Back
+    // The songs, then the data folder
     std::vector<MenuRow> rows;
     for (const SongEntry& song : songs){
         MenuRow row;
@@ -194,9 +191,8 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
     // Editing, a new song can be made too, from the player's own audio
     const int newSong = forEditing ? (int)rows.size() : -2;
     if (forEditing) rows.push_back(actionRow("New song from audio"));
-    const int openFolder = (int)rows.size(), back = openFolder + 1;
+    const int openFolder = (int)rows.size();
     rows.push_back(actionRow("Open data folder"));
-    rows.push_back(actionRow("Back", "Esc"));
 
     int confirmed = menuList(list, rows, listArea(0.45f));
     if (list.selected >= 0 && list.selected < (int)songs.size() && songs[list.selected].error.empty()) drawSongCard(songs[list.selected], s);
@@ -210,7 +206,6 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
     }
     if (confirmed == newSong) choice.newSong = true;
     if (confirmed == openFolder) choice.openDataFolder = true;
-    if (confirmed == back) choice.back = true;
 
     if (!error.empty() || !notice.empty()){
         ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() * 0.07f, ImGui::GetWindowHeight() * 0.17f + 20 * s));
@@ -343,13 +338,9 @@ ResultsChoice resultsScreen(const GameResult& result){
     return choice;
 }
 
-bool tunerScreen(){
+void tunerScreen(){
     beginMenu("Tuner");
     menuTitle("Tuner");
     drawTuner();
-    ImGui::Dummy(ImVec2(0, 20));
-    focusNextWhenMenuAppears();
-    bool back = menuButton("Back");
     ImGui::End();
-    return back;
 }

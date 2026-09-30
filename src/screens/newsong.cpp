@@ -103,8 +103,6 @@ NewSongChoice newSongScreen(){
     ImGui::Dummy(ImVec2(0, 16 * s));
     ImGui::SetCursorPosX(left);
     if ((ImGui::Button("Create") || enter) && create()) choice = NewSongChoice::Created;
-    ImGui::SameLine();
-    if (ImGui::Button("Back")) choice = NewSongChoice::Back;
     if (!form.error.empty()){
         ImGui::SetCursorPosX(left);
         ImGui::PushTextWrapPos(left + fieldWidth);

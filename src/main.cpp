@@ -18,6 +18,7 @@
 #include "screens/newsong.h"
 #include "screens/settingsscreen.h"
 #include "screens/tuner.h"
+#include "ui/menulist.h"
 #include "ui/transition.h"
 #include "ui/ui.h"
 #include "views/staff.h"
@@ -252,9 +253,20 @@ static void leaveInstrument(){
     app.screen = Screen::MainMenu;
 }
 
-// Esc always means "back". Handled in one place so a single press can't trigger two transitions in one frame.
-static void handleBackKey(){
-    if (!IsKeyPressed(KEY_ESCAPE)) return;
+// The screens with a way back show the Back button at their top left: all but the main menu, the play screen (Esc
+// pauses it, and the pause menu has Resume) and the editors (they warn about unsaved changes first)
+static bool hasBackButton(Screen screen){
+    switch (screen){
+        case Screen::MainMenu: case Screen::Playing: case Screen::Editor: case Screen::LessonEditor: return false;
+        default: return true;
+    }
+}
+
+// Esc always means "back", and so do the Back button and the mouse's back button. Handled in one place so a single
+// press can't trigger two transitions in one frame.
+static void handleBackKey(bool backClicked){
+    bool mouseBack = hasBackButton(app.screen) && (IsMouseButtonPressed(MOUSE_BUTTON_SIDE) || IsMouseButtonPressed(MOUSE_BUTTON_BACK));
+    if (!IsKeyPressed(KEY_ESCAPE) && !backClicked && !mouseBack) return;
     switch (app.screen){
         case Screen::MainMenu: break;
         case Screen::SongSelect: if (!songSelectBack()) app.screen = Screen::MainMenu; break;
@@ -268,7 +280,12 @@ static void handleBackKey(){
         case Screen::Instrument: leaveInstrument(); break;
         case Screen::Settings: if (!settingsUsedEscape()) leaveSettings(); break;
         case Screen::Calibration: leaveCalibration(); break;
-        case Screen::Learn: if (learnBack()) app.screen = Screen::MainMenu; break;
+        case Screen::Learn:
+            if (learnBack()){
+                closeLearnScreen();
+                app.screen = Screen::MainMenu;
+            }
+            break;
         case Screen::EditorSelect: app.screen = Screen::MainMenu; break;
         case Screen::NewSong: if (!ImGui::GetIO().WantTextInput) goToSongList(Screen::EditorSelect); break;
         case Screen::Editor: break;       // the editors handle Esc themselves, to warn about unsaved changes
@@ -361,7 +378,7 @@ static void runMenus(){
             }
             break;
         case Screen::Tuner:
-            if (tunerScreen()) leaveTuner();
+            tunerScreen();
             break;
         case Screen::Instrument: instrumentScreen(); break;
         case Screen::Settings:
@@ -378,14 +395,11 @@ static void runMenus(){
                 if (app.calibrationMode == CalibrationMode::Tap) app.settings.globalOffsetMs = choice.offsetMs;
                 else app.settings.inputOffsetMs = choice.offsetMs;
             }
-            if (choice.apply || choice.back) leaveCalibration();
+            if (choice.apply) leaveCalibration();
             break;
         }
         case Screen::Learn:
-            if (learnScreen()){
-                closeLearnScreen();
-                app.screen = Screen::MainMenu;
-            }
+            learnScreen();
             break;
         case Screen::Playing: // the note views are drawn before the UI, with raylib
             if (!gameplayPaused()) drawGameplayHud(); // paused, the menu takes over the screen
@@ -478,11 +492,12 @@ int main(void){
 
         beginUiFrame();
         runMenus();
+        bool backClicked = app.screen == shown && hasBackButton(shown) && menuBackButton(menuScale());
         endUiFrame();
 
         // Changes of screen from outside the menus come after drawing, so this frame still shows the old screen and
         // the transition starts from it. Esc only counts if the menus didn't already use it to change screens.
-        if (app.screen == shown) handleBackKey();
+        if (app.screen == shown) handleBackKey(backClicked);
         if (songOver && app.screen == Screen::Playing && app.testPlaying) backToEditor();
         else if (songOver && app.screen == Screen::Playing){
             app.lastResult = gameplayResult();

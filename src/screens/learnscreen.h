@@ -16,6 +16,6 @@ struct LearnSetup {
 };
 
 void openLearnScreen(const LearnSetup& setup); // scans both exercise folders
-bool learnScreen();  // draws the menu or the running exercise; true when the player leaves learn mode
+void learnScreen();  // draws the menu or the running exercise
 bool learnBack();    // Esc: ends the running exercise, or (from the menu) returns true to leave learn mode
 void closeLearnScreen();

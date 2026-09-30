@@ -199,3 +199,35 @@ void menuScreenHint(const char* hint, float s){
     float left = ImGui::GetWindowWidth() * 0.07f;
     draw->AddText(uiFonts().mono, HINT_SIZE * s, ImVec2(left, ImGui::GetWindowHeight() - 40 * s), uiColor(UiColor::Dim), hint);
 }
+
+bool menuBackButton(float s){
+    ImDrawList* draw = ImGui::GetForegroundDrawList();
+    const UiFonts& fonts = uiFonts();
+    const float textSize = 16 * s, keySize = 12 * s, height = 30 * s, padding = 12 * s, chevron = 5 * s;
+    const char* key = "Esc";
+    float textWidth = fonts.bold ? fonts.bold->CalcTextSizeA(textSize, FLT_MAX, 0.0f, "Back").x : 40 * s;
+    float keyWidth = fonts.mono ? fonts.mono->CalcTextSizeA(keySize, FLT_MAX, 0.0f, key).x : 24 * s;
+    // Its text lines up with the title under it; the chevron hangs out to the left
+    float left = ImGui::GetIO().DisplaySize.x * 0.07f - padding - chevron - 10 * s, top = 21 * s;
+    ImVec2 min(left, top), max(left + padding + chevron + 10 * s + textWidth + 12 * s + keyWidth + padding, top + height);
+
+    // Eased in and out of its hover look, like the lists' rows
+    static float hover = 0.0f;
+    ImVec2 mouse = ImGui::GetMousePos();
+    bool over = mouse.x >= min.x && mouse.x < max.x && mouse.y >= min.y && mouse.y < max.y && !ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopup);
+    hover += ((over ? 1.0f : 0.0f) - hover) * std::min(1.0f, std::min(GetFrameTime(), 0.05f) * GLIDE_SPEED);
+    if (over) ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+
+    draw->AddRectFilled(min, max, uiColor(UiColor::Card, 0.55f + 0.45f * hover), height / 2);
+    draw->AddRect(min, max, uiColor(UiColor::StaffLine, 1.0f - hover), height / 2, 0, std::max(1.0f, s));
+    ImU32 ink = uiColor(UiColor::Ink, 0.62f + 0.38f * hover);
+    float x = min.x + padding, midY = top + height / 2;
+    float nudge = -2 * s * hover; // the chevron leans the way it points
+    ImVec2 arrow[3] = { ImVec2(x + chevron + nudge, midY - chevron), ImVec2(x + nudge, midY), ImVec2(x + chevron + nudge, midY + chevron) };
+    draw->AddPolyline(arrow, 3, hover > 0.5f ? uiColor(UiColor::Accent) : ink, ImDrawFlags_None, std::max(1.5f, 1.8f * s));
+    x += chevron + 10 * s;
+    draw->AddText(fonts.bold, textSize, ImVec2(x, midY - textSize / 2 - 1 * s), ink, "Back");
+    x += textWidth + 12 * s;
+    draw->AddText(fonts.mono, keySize, ImVec2(x, midY - keySize / 2), uiColor(UiColor::Dim, 0.8f), key);
+    return over && ImGui::IsMouseClicked(ImGuiMouseButton_Left);
+}

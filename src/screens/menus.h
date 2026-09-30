@@ -39,4 +39,4 @@ PauseChoice pauseScreen(const std::string& song);
 enum class ResultsChoice { None, Retry, BackToSongs };
 ResultsChoice resultsScreen(const GameResult& result);
 
-bool tunerScreen(); // true when the player pressed Back
+void tunerScreen();

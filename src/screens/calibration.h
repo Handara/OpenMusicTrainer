@@ -14,7 +14,6 @@ enum class CalibrationMode { Tap, Instrument };
 bool startCalibration(CalibrationMode mode, const Settings& settings, std::string& error);
 
 struct CalibrationChoice {
-    bool back = false;
     bool apply = false;
     int offsetMs = 0; // when applying: the new global offset (Tap) or input offset (Instrument)
 };

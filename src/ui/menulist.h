@@ -58,3 +58,7 @@ void menuListSelect(MenuList& list, const std::vector<MenuRow>& rows, int row, b
 void menuScreenTitle(const char* title, float scale);
 void menuScreenHint(const char* hint, float scale);
 float menuScale(); // the window's height against 720 pixels, the size the menus are designed at
+
+// The way back, at the top left of every screen that has one, above its title: for the mouse. Esc and the mouse's
+// own back button do the same (see main.cpp). Drawn over everything; true when clicked.
+bool menuBackButton(float scale);
