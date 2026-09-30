@@ -157,6 +157,7 @@ add_library(lahn_core STATIC
     src/core/sampleformat.cpp
     src/core/tone.cpp
     src/core/tonechain.cpp
+    src/core/tonelibrary.cpp
     src/core/tuningcheck.cpp
     src/core/score.cpp
     src/core/scales.cpp

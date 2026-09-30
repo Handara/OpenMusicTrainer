@@ -1,8 +1,11 @@
 #include "doctest/doctest.h"
 
 #include "core/tonechain.h"
+#include "core/tonelibrary.h"
 
 #include <cmath>
+#include <filesystem>
+#include <fstream>
 #include <random>
 #include <vector>
 
@@ -143,4 +146,43 @@ TEST_CASE("a knob turned while playing keeps the effect's memory: the echo alrea
     float echo = 0.0f;
     for (int i = rate / 10 - 50; i < rate / 10 + 50; i++) echo = std::max(echo, std::fabs(samples[i]));
     CHECK(echo > 0.2f);
+}
+
+TEST_CASE("the player's tones: saved, found, named apart, imported, deleted"){
+    namespace fs = std::filesystem;
+    fs::path folder = fs::temp_directory_path() / "lahn_tests" / "tones";
+    fs::remove_all(folder);
+    std::vector<std::string> problems;
+    CHECK(loadUserTones(folder.string(), problems).empty()); // no folder yet: no tones, no trouble
+    CHECK(problems.empty());
+
+    Tone mine = *findBuiltInTone("Growl");
+    mine.name = "Sunday: growl";
+    std::string error;
+    REQUIRE_MESSAGE(saveUserTone(folder.string(), mine, error), error);
+    std::ofstream(folder / "broken.tone") << "hello";
+    std::vector<Tone> tones = loadUserTones(folder.string(), problems);
+    REQUIRE(tones.size() == 1);
+    CHECK(tones[0].name == "Sunday: growl");
+    CHECK(problems.size() == 1); // the broken file, said why
+
+    CHECK(freeToneName("Clean", tones) == "Clean 2");  // a built-in's name is taken
+    CHECK(freeToneName("Sunday: growl", tones) == "Sunday: growl 2");
+    CHECK(freeToneName("Fresh", tones) == "Fresh");
+    CHECK(findTone("Sunday: growl", tones).effects.size() == mine.effects.size());
+    CHECK(findTone("Dub", tones).name == "Dub");
+    CHECK(findTone("gone", tones).name == "Clean");
+
+    // A friend's tone of the same name comes in beside it
+    fs::path shared = fs::temp_directory_path() / "lahn_tests" / "shared.tone";
+    { std::ofstream(shared) << writeTone(mine); }
+    Tone imported;
+    REQUIRE_MESSAGE(importTone(shared.string(), folder.string(), tones, imported, error), error);
+    CHECK(imported.name == "Sunday: growl 2");
+    CHECK(loadUserTones(folder.string(), problems).size() == 2);
+
+    REQUIRE(deleteUserTone(folder.string(), "Sunday: growl", error));
+    std::vector<Tone> left = loadUserTones(folder.string(), problems);
+    REQUIRE(left.size() == 1);
+    CHECK(left[0].name == "Sunday: growl 2");
 }
