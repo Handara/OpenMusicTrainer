@@ -52,3 +52,30 @@ TEST_CASE("sizes of each format"){
     CHECK(sampleBytes(SampleFormat::Int32In20) == 4);
     CHECK(sampleBytes(SampleFormat::Float64) == 8);
 }
+
+TEST_CASE("floats go out in an interface's format, and come back the same"){
+    // Every format, there and back: what goes out to the interface is what would come back in
+    const float frames[] = { 0.5f, -0.25f, 0.0f, -1.0f, 0.75f }; // one channel, at a stride of 1
+    for (SampleFormat format : { SampleFormat::Int16, SampleFormat::Int24, SampleFormat::Int32, SampleFormat::Float32,
+                                 SampleFormat::Float64, SampleFormat::Int32In16, SampleFormat::Int32In20, SampleFormat::Int32In24 }){
+        std::vector<unsigned char> device(5 * sampleBytes(format));
+        convertToFormat(frames, 1, format, 5, device.data());
+        std::vector<float> back(5);
+        convertSamples(device.data(), format, 5, back.data(), 1);
+        for (int i = 0; i < 5; i++) CHECK(back[i] == doctest::Approx(frames[i]).epsilon(0.0001));
+    }
+}
+
+TEST_CASE("going out: one channel picked from interleaved frames, and too loud is clipped, not wrapped"){
+    const float stereo[] = { 0.5f, -0.5f, 2.0f, -3.0f }; // left, right, left, right: the second frame far too loud
+    unsigned char left[4], right[4];
+    convertToFormat(stereo, 2, SampleFormat::Int16, 2, left);
+    convertToFormat(stereo + 1, 2, SampleFormat::Int16, 2, right);
+    std::vector<float> l(2), r(2);
+    convertSamples(left, SampleFormat::Int16, 2, l.data(), 1);
+    convertSamples(right, SampleFormat::Int16, 2, r.data(), 1);
+    CHECK(l[0] == doctest::Approx(0.5f).epsilon(0.001));
+    CHECK(r[0] == doctest::Approx(-0.5f).epsilon(0.001));
+    CHECK(l[1] > 0.99f);  // clipped at full scale
+    CHECK(r[1] == -1.0f); // not wrapped round to a positive value
+}

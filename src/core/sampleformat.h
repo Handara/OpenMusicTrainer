@@ -21,3 +21,7 @@ int sampleBytes(SampleFormat format);
 // Converts `count` samples of one channel into floats, writing every `stride`th float of `out`: one input's buffer
 // into its place in interleaved frames (stride = the number of inputs)
 void convertSamples(const void* in, SampleFormat format, int count, float* out, int stride);
+
+// The other way, for an interface's outputs: `count` floats, every `stride`th from `in` (one output's channel out of
+// interleaved frames), into the interface's format. Out of range is clipped, never wrapped round.
+void convertToFormat(const float* in, int stride, SampleFormat format, int count, void* out);
