@@ -129,6 +129,7 @@ endfunction()
 # It deliberately does NOT link raylib, miniaudio or imgui: including one of them here fails to compile,
 # which keeps this layer reusable (editor, tests, a future server) and testable on its own.
 add_library(lahn_core STATIC
+    src/core/backing.cpp
     src/core/calibration.cpp
     src/core/chart.cpp
     src/core/chords.cpp

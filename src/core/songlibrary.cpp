@@ -1,5 +1,6 @@
 #include "core/songlibrary.h"
 
+#include "core/backing.h"
 #include "core/chart.h"
 #include "core/files.h"
 
@@ -76,6 +77,38 @@ void loadBestRuns(std::vector<SongEntry>& songs, const std::string& recordsDir){
             info.historyRhythm = loadHistory(historyPath(rhythmPath), rhythm);
         }
     }
+}
+
+bool createImportedSong(const std::string& songsDir, Chart chart, const std::string& audioPath, int sampleRate,
+                        std::string& chartPath, std::string& error){
+    std::string base = safeFolderName(chart.title);
+    if (base.empty()) base = "Imported song";
+    std::error_code ec;
+    fs::path folder = fs::path(songsDir) / base;
+    for (int n = 2; fs::exists(folder, ec); n++) folder = fs::path(songsDir) / (base + " " + std::to_string(n));
+    fs::create_directories(folder, ec);
+    if (ec){
+        error = "Could not make the song's folder: " + ec.message();
+        return false;
+    }
+    if (chart.title.empty()) chart.title = base;
+    if (!audioPath.empty()){
+        std::string extension = fs::path(audioPath).extension().string();
+        for (char& c : extension) c = (char)std::tolower((unsigned char)c);
+        chart.audioFile = "audio" + extension;
+        fs::copy_file(audioPath, folder / chart.audioFile, ec);
+        if (ec) error = "Could not copy the audio: " + ec.message();
+    } else {
+        chart.audioFile = "backing.wav";
+        chart.offset = 0.0;
+        writeWav((folder / chart.audioFile).string(), renderBacking(chart, sampleRate), sampleRate, error);
+    }
+    chartPath = (folder / "song.chart").string();
+    if (!error.empty() || !saveChart(chartPath, chart, error)){
+        fs::remove_all(folder, ec);
+        return false;
+    }
+    return true;
 }
 
 bool createSong(const std::string& songsDir, const NewSong& song, std::string& chartPath, std::string& error){

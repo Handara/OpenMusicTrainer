@@ -1,0 +1,14 @@
+#pragma once
+
+#include "core/chart.h"
+
+#include <string>
+#include <vector>
+
+// A backing for a chart with no audio of its own (a tab imported from Guitar Pro): every part played on lahn's
+// synths (a plucked string for guitars, the synth bass for basses), and a soft click on every beat, the bar's first
+// louder, standing in for the drums. Mono, from tick 0, with a moment after the last note. Pure logic.
+std::vector<float> renderBacking(const Chart& chart, int sampleRate);
+
+// A mono WAV file (16-bit), replaced whole
+bool writeWav(const std::string& path, const std::vector<float>& samples, int sampleRate, std::string& error);

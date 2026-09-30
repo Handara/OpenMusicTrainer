@@ -52,3 +52,9 @@ struct NewSong {
 // one guitar track in standard tuning, 4/4 in C major at the given tempo, long enough for the whole audio, no notes.
 // Returns the chart's path in `chartPath`; nothing is left behind if it fails.
 bool createSong(const std::string& songsDir, const NewSong& song, std::string& chartPath, std::string& error);
+
+// A song from a chart made elsewhere (a Guitar Pro tab): a folder of its own in songsDir, named after its title (with
+// a number when that's taken), and its audio: the song's recording copied in when there's one (`audioPath`; lined up
+// in the editor), else lahn's backing rendered at `sampleRate` (core/backing), in time from the start
+bool createImportedSong(const std::string& songsDir, Chart chart, const std::string& audioPath, int sampleRate,
+                        std::string& chartPath, std::string& error);

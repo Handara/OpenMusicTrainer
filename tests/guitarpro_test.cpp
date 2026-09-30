@@ -1,7 +1,14 @@
 #include "doctest/doctest.h"
 
+#include "core/backing.h"
 #include "core/guitarpro.h"
+#include "core/songlibrary.h"
 #include "core/xml.h"
+
+#include <algorithm>
+#include <cmath>
+#include <filesystem>
+#include <fstream>
 
 TEST_CASE("xml: elements, attributes, text, CDATA and entities"){
     XmlNode root;
@@ -203,4 +210,43 @@ TEST_CASE("what isn't a Guitar Pro score, or has nothing to play, says so"){
     CHECK_FALSE(readGpif("<Score/>", import, error));
     CHECK_FALSE(readGpif("<GPIF><MasterBars/></GPIF>", import, error));
     CHECK_FALSE(importGuitarPro("/nonexistent/song.gp", import, error));
+}
+
+TEST_CASE("an imported tab becomes a song: its chart and a backing of lahn's own, or its recording"){
+    namespace fs = std::filesystem;
+    GuitarProImport import;
+    std::string error;
+    REQUIRE_MESSAGE(readGpif(SCORE, import, error), error);
+
+    // The backing: as long as the chart, with a moment after; not silent where the first note is
+    const int rate = 22050;
+    std::vector<float> backing = renderBacking(import.chart, rate);
+    double seconds = tickToSeconds(import.chart, import.chart.endTick);
+    CHECK(backing.size() >= (size_t)(seconds * rate));
+    float first = 0.0f;
+    for (int i = 0; i < rate / 10; i++) first = std::max(first, std::fabs(backing[i]));
+    CHECK(first > 0.05f);
+    float loudest = 0.0f;
+    for (float sample : backing) loudest = std::max(loudest, std::fabs(sample));
+    CHECK(loudest <= 0.9f + 1e-4f);
+
+    fs::path songs = fs::temp_directory_path() / "lahn_tests" / "imported";
+    fs::remove_all(songs);
+    std::string chartPath;
+    REQUIRE_MESSAGE(createImportedSong(songs.string(), import.chart, "", rate, chartPath, error), error);
+    CHECK(fs::path(chartPath).parent_path().filename() == "Test Song");
+    CHECK(fs::file_size(fs::path(chartPath).parent_path() / "backing.wav") == 44 + backing.size() * 2);
+    Chart loaded;
+    REQUIRE_MESSAGE(loadChart(chartPath, loaded, error), error);
+    CHECK(loaded.audioFile == "backing.wav");
+    CHECK(loaded.frettedTracks.size() == 2);
+    CHECK(loaded.frettedTracks[0].notes.size() == import.chart.frettedTracks[0].notes.size());
+
+    // The same song again, with a recording: a folder of its own beside the first, the audio copied in
+    fs::path recording = fs::temp_directory_path() / "lahn_tests" / "Recording.MP3";
+    { std::ofstream(recording) << "not really audio"; }
+    std::string second;
+    REQUIRE_MESSAGE(createImportedSong(songs.string(), import.chart, recording.string(), rate, second, error), error);
+    CHECK(fs::path(second).parent_path().filename() == "Test Song 2");
+    CHECK(fs::exists(fs::path(second).parent_path() / "audio.mp3"));
 }
