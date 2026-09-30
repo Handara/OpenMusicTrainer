@@ -10,8 +10,11 @@
 void initTones(const std::string& tonesFolder);
 Tone toneNamed(const std::string& name);  // the player's or built in; Clean if there's none of that name
 std::vector<std::string> toneNames();     // built in first, then the player's
-// The instrument's own sound heard through the settings' tone, at the settings' volume (audio.h: setMonitorTone)
+// The instrument's own sound heard through the tone of the instrument played now (settings.heardInstrument), at the
+// settings' volume (audio.h: setMonitorTone)
 void applyTone(const Settings& settings);
+// Now playing this instrument (a song's part, the Instrument screen's tab): its tone is heard
+void hearInstrument(Settings& settings, InputRole instrument);
 
 // The tone wizard: the chain of effects the instrument's sound goes through, laid out like pedals on a board, each
 // with its knobs. Played while it's changed, every change heard at once. A built-in tone changed becomes the player's

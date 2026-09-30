@@ -171,10 +171,13 @@ TEST_CASE("hearing the instrument: on by default, its own sound through a tone, 
     Settings settings;
     CHECK(settings.monitorOn);
     CHECK_FALSE(settings.monitorSynth); // its own sound: no delay, unlike the synth
-    CHECK(settings.monitorToneName == "Clean");
+    CHECK(settings.bassTone == "Clean");
+    CHECK(settings.guitarTone == "Clean");
     settings.monitorOn = false;
     settings.monitorSynth = true;
-    settings.monitorToneName = "Sunday growl 2";
+    settings.bassTone = "Sunday growl 2";
+    settings.guitarTone = "Space";
+    settings.heardInstrument = InputRole::Guitar;
     std::string path = settingsPath("monitor.txt"), error;
     REQUIRE(saveSettings(path, settings, error));
     std::vector<std::string> warnings;
@@ -182,7 +185,16 @@ TEST_CASE("hearing the instrument: on by default, its own sound through a tone, 
     CHECK(warnings.empty());
     CHECK_FALSE(loaded.monitorOn);
     CHECK(loaded.monitorSynth);
-    CHECK(loaded.monitorToneName == "Sunday growl 2"); // spaces and all
+    CHECK(loaded.bassTone == "Sunday growl 2"); // spaces and all
+    CHECK(loaded.guitarTone == "Space");        // each instrument its own
+    CHECK(loaded.heardInstrument == InputRole::Guitar);
+    CHECK(loaded.toneFor(InputRole::Bass) == "Sunday growl 2");
+
+    // One tone for both, from before: both instruments keep it
+    std::ofstream(path, std::ios::binary) << "version 1\nmonitor_tone_name Dub\n";
+    Settings older = loadSettings(path, warnings);
+    CHECK(older.bassTone == "Dub");
+    CHECK(older.guitarTone == "Dub");
 
     // The small amp's settings, from before tones, are no trouble
     std::ofstream(path, std::ios::binary) << "version 1\nmonitor_drive 0.4\nmonitor_tone 0.25\n";

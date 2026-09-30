@@ -18,6 +18,7 @@ struct ParameterInfo {
     const char* name;    // shown: "Drive"
     float min, max, standard;
     const char* unit;    // "dB", "ms", "Hz", "%" (0..1 shown as a percentage), "" for none
+    const char* description; // what turning it does, for the player
 };
 
 struct EffectInfo {

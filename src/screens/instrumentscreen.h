@@ -8,6 +8,6 @@
 // it, so a scale shows its shape. Each listens on the input the Instruments settings gave it.
 // Piano: the keys held down light up and sound, from a MIDI keyboard or the computer keys.
 
-void openInstrumentScreen(const Settings& settings);
+void openInstrumentScreen(Settings& settings); // the instrument chosen on it is heard through its own tone
 void closeInstrumentScreen(); // stops listening; safe to call more than once
 void instrumentScreen();      // draws and listens, once per frame; the caller leaves on Esc

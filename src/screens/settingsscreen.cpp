@@ -205,21 +205,32 @@ static void audioSection(Settings& settings, const std::string& soundsDir, Setti
         setMonitorSynth(settings.monitorSynth);
     }
     if (percentSlider("Volume", nullptr, &settings.monitorVolume)) applyTone(settings);
-    // The tone: chosen here, made in the tone wizard. It shapes the instrument's own sound only.
-    ImGui::BeginDisabled(settings.monitorSynth);
-    SettingControl toneRow = settingRow("Tone", "Pedals, an amp and a room: your sound, shaped", settingsControlHeight());
+    ImGui::EndDisabled();
+    // The tones, one per instrument: chosen here, made in the tone wizard. They shape the instrument's own sound only.
     std::vector<std::string> toneList = toneNames();
-    int toneChosen = 0;
-    for (int i = 0; i < (int)toneList.size(); i++) if (toneList[i] == settings.monitorToneName) toneChosen = i;
     const float wizardWidth = 130.0f * menuScale();
-    if (settingsDropdownAt("tone", toneRow.min, ImVec2(toneRow.max.x - wizardWidth - 10.0f * menuScale(), toneRow.max.y), &toneChosen, toneList)){
-        settings.monitorToneName = toneList[toneChosen];
-        applyTone(settings);
+    for (InputRole role : { InputRole::Bass, InputRole::Guitar }){
+        bool bass = role == InputRole::Bass;
+        ImGui::PushID(bass ? "bass" : "guitar");
+        SettingControl toneRow = settingRow(bass ? "Bass tone" : "Guitar tone", bass ? "Pedals, an amp and a room: your bass, shaped"
+                                                                                      : "Your guitar's own, apart from the bass's",
+                                            settingsControlHeight());
+        std::string& name = settings.toneFor(role);
+        int toneChosen = 0;
+        for (int i = 0; i < (int)toneList.size(); i++) if (toneList[i] == name) toneChosen = i;
+        ImGui::BeginDisabled(settings.monitorSynth || !settings.monitorOn);
+        if (settingsDropdownAt("tone", toneRow.min, ImVec2(toneRow.max.x - wizardWidth - 10.0f * menuScale(), toneRow.max.y), &toneChosen, toneList)){
+            name = toneList[toneChosen];
+            hearInstrument(settings, role); // heard as it's chosen
+        }
+        ImGui::EndDisabled();
+        // The wizard opens either way: it offers to switch to the instrument's own sound
+        if (settingsButtonAt("wizard", ImVec2(toneRow.max.x - wizardWidth, toneRow.min.y), toneRow.max, "Tone wizard")){
+            settings.heardInstrument = role;
+            choice = SettingsChoice::ToneWizard;
+        }
+        ImGui::PopID();
     }
-    ImGui::EndDisabled();
-    ImGui::EndDisabled();
-    // The wizard opens either way: it offers to switch to the instrument's own sound
-    if (settingsButtonAt("wizard", ImVec2(toneRow.max.x - wizardWidth, toneRow.min.y), toneRow.max, "Tone wizard")) choice = SettingsChoice::ToneWizard;
     if (!screen.monitorError.empty()) settingNote(screen.monitorError.c_str(), UiColor::Bad);
 
     settingsGroup("VOLUME");

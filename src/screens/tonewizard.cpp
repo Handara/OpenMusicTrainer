@@ -38,6 +38,7 @@ static struct {
     std::string status;
     bool statusBad = false;
     int hovered = -1;         // the card the mouse is over, for its description
+    const ParameterInfo* hoveredKnob = nullptr; // the knob under the mouse (or turned): explained instead
 } tones;
 
 // --- The library ----------------------------------------------------------------------------------------------
@@ -70,8 +71,14 @@ static void playTone(const Tone& tone, float volume){
     setMonitorTone(parameters);
 }
 
+void hearInstrument(Settings& settings, InputRole instrument){
+    if (instrument != InputRole::Guitar && instrument != InputRole::Bass) return;
+    settings.heardInstrument = instrument;
+    applyTone(settings);
+}
+
 void applyTone(const Settings& settings){
-    playTone(toneNamed(settings.monitorToneName), settings.monitorVolume);
+    playTone(toneNamed(settings.toneFor(settings.heardInstrument)), settings.monitorVolume);
 }
 
 // --- Editing ------------------------------------------------------------------------------------------------
@@ -99,7 +106,7 @@ static void show(Settings& settings, const Tone& tone){
     tones.nameField = tone.name;
     tones.dirty = false;
     tones.scroll = 0.0f;
-    settings.monitorToneName = tone.name;
+    settings.toneFor(settings.heardInstrument) = tone.name;
     applyTone(settings);
 }
 
@@ -110,7 +117,7 @@ static void changed(Settings& settings){
         tones.userTones.push_back(tones.editing);
         tones.builtIn = false;
         tones.nameField = tones.editing.name;
-        settings.monitorToneName = tones.editing.name;
+        settings.toneFor(settings.heardInstrument) = tones.editing.name;
         setStatus("Saved as your own tone: " + tones.editing.name, false);
     }
     tones.dirty = true;
@@ -120,7 +127,7 @@ static void changed(Settings& settings){
 
 void openToneWizard(Settings& settings){
     initTones(tones.folder); // files may have been added while away
-    show(settings, toneNamed(settings.monitorToneName));
+    show(settings, toneNamed(settings.toneFor(settings.heardInstrument)));
     setStatus(tones.problems.empty() ? "" : "Couldn't read " + tones.problems.front(), !tones.problems.empty());
 }
 
@@ -170,6 +177,7 @@ static bool knob(const char* id, const ParameterInfo& info, float* value, ImVec2
     ImGui::SetCursorScreenPos(ImVec2(center.x - radius, center.y - radius));
     ImGui::InvisibleButton(id, ImVec2(2 * radius, 2 * radius));
     bool hovered = ImGui::IsItemHovered(), active = ImGui::IsItemActive();
+    if (hovered || active) tones.hoveredKnob = &info;
     ImGuiIO& io = ImGui::GetIO();
     const float range = info.max - info.min;
     float before = *value;
@@ -259,6 +267,31 @@ void toneWizardScreen(Settings& settings){
     const UiFonts& fonts = uiFonts();
     const float left = width * 0.07f, right = width * 0.93f;
     menuScreenTitle("Tone wizard", s);
+    // Whose tone: the bass's or the guitar's, each its own. The one shown is the one heard.
+    {
+        const InputRole roles[2] = { InputRole::Bass, InputRole::Guitar };
+        const char* names[2] = { "BASS", "GUITAR" };
+        float x = width * 0.55f, y = height * 0.09f + 14 * s;
+        draw->AddText(fonts.mono, 13 * s, ImVec2(x, y + 4 * s), uiColor(UiColor::Dim), "TONE FOR");
+        x += 100 * s;
+        for (int i = 0; i < 2; i++){
+            bool on = settings.heardInstrument == roles[i];
+            ImVec2 size = fonts.bold ? fonts.bold->CalcTextSizeA(20 * s, FLT_MAX, 0.0f, names[i]) : ImVec2(60 * s, 20 * s);
+            ImGui::SetCursorScreenPos(ImVec2(x, y));
+            bool clicked = ImGui::InvisibleButton(names[i], size);
+            bool hovered = ImGui::IsItemHovered();
+            if (hovered && !on) ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+            draw->AddText(fonts.bold, 20 * s, ImVec2(x, y), uiColor(on || hovered ? UiColor::Ink : UiColor::Dim), names[i]);
+            if (on) draw->AddRectFilled(ImVec2(x, y + size.y + 3 * s), ImVec2(x + size.x, y + size.y + 5 * s), uiColor(UiColor::Accent));
+            if (clicked && !on){
+                save();
+                settings.heardInstrument = roles[i];
+                show(settings, toneNamed(settings.toneFor(roles[i])));
+                setStatus("", false);
+            }
+            x += size.x + 22 * s;
+        }
+    }
     draw->AddText(fonts.text, 18 * s, ImVec2(left, height * 0.09f + 52 * s), uiColor(UiColor::Dim),
                   "Your sound goes through these, left to right. Play while you turn the knobs.");
 
@@ -307,7 +340,7 @@ void toneWizardScreen(Settings& settings){
             tones.builtIn = false;
             tones.dirty = true;
             save();
-            settings.monitorToneName = tones.editing.name;
+            settings.toneFor(settings.heardInstrument) = tones.editing.name;
             setStatus(wasBuiltIn ? "Saved as your own tone: " + tones.editing.name : "Renamed", false);
         }
         tones.nameField = tones.editing.name;
@@ -402,6 +435,7 @@ void toneWizardScreen(Settings& settings){
     int actionAt = -1;
     bool edited = false;
     tones.hovered = -1;
+    tones.hoveredKnob = nullptr;
     for (int i = 0; i < count; i++){
         Effect& effect = tones.editing.effects[i];
         const EffectInfo& info = effectInfo(effect.type);
@@ -482,9 +516,30 @@ void toneWizardScreen(Settings& settings){
 
     // Out: the tone's volume, as a knob
     endCap("OUT", "", x);
-    static const ParameterInfo VOLUME = { "volume", "Volume", 0.0f, 1.0f, 0.8f, "%" };
+    static const ParameterInfo VOLUME = { "volume", "Volume", 0.0f, 1.0f, 0.8f, "%",
+                                          "How loud the whole tone is, after every effect" };
     if (knob("volume", VOLUME, &tones.editing.volume, ImVec2(x + 26 * s, middleY + 30 * s), s, 1.0f)) edited = true;
     draw->PopClipRect();
+
+    // The scroll bar, when the board is wider than the screen: its thumb dragged, or the track clicked to jump
+    if (maxScroll > 8 * s){
+        const float trackY = boardTop + cardHeight + 16 * s, trackWidth = right - left, thickness = 6 * s;
+        const float view = right - left, thumbWidth = std::max(40 * s, trackWidth * view / contentWidth);
+        float thumbX = left + (trackWidth - thumbWidth) * tones.scroll / maxScroll;
+        ImGui::SetCursorScreenPos(ImVec2(left, trackY - 6 * s));
+        ImGui::InvisibleButton("scrollbar", ImVec2(trackWidth, thickness + 12 * s));
+        bool hovered = ImGui::IsItemHovered(), active = ImGui::IsItemActive();
+        if (ImGui::IsItemActivated()){
+            float at = ImGui::GetMousePos().x;
+            if (at < thumbX || at > thumbX + thumbWidth) tones.scroll = (at - left - thumbWidth / 2) / (trackWidth - thumbWidth) * maxScroll; // jump there
+        }
+        if (active) tones.scroll += ImGui::GetIO().MouseDelta.x * maxScroll / (trackWidth - thumbWidth);
+        tones.scroll = std::clamp(tones.scroll, 0.0f, maxScroll);
+        thumbX = left + (trackWidth - thumbWidth) * tones.scroll / maxScroll;
+        draw->AddRectFilled(ImVec2(left, trackY), ImVec2(right, trackY + thickness), uiColor(UiColor::StaffLine, 0.8f), thickness / 2);
+        draw->AddRectFilled(ImVec2(thumbX, trackY), ImVec2(thumbX + thumbWidth, trackY + thickness),
+                            uiColor(active ? UiColor::Accent : UiColor::Dim, active || hovered ? 1.0f : 0.6f), thickness / 2);
+    }
 
     // The move or removal clicked, now the cards are drawn
     std::vector<Effect>& effects = tones.editing.effects;
@@ -493,10 +548,19 @@ void toneWizardScreen(Settings& settings){
     if (action == Action::Remove) effects.erase(effects.begin() + actionAt);
     if (edited || action != Action::None) changed(settings);
 
-    // Under the board: what the card under the mouse does
-    if (tones.hovered >= 0 && tones.hovered < (int)tones.editing.effects.size()){
+    // Under the board: what the knob under the mouse does, else the card's effect
+    if (tones.hoveredKnob){
+        const char* effectName = tones.hovered >= 0 && tones.hovered < (int)tones.editing.effects.size()
+                               ? effectInfo(tones.editing.effects[tones.hovered].type).name : "Out";
+        float y = boardTop + cardHeight + 34 * s;
+        const char* title = TextFormat("%s  ·  %s", effectName, tones.hoveredKnob->name);
+        draw->AddText(fonts.bold, 16 * s, ImVec2(left, y), uiColor(UiColor::Ink), title);
+        float titleWidth = fonts.bold ? fonts.bold->CalcTextSizeA(16 * s, FLT_MAX, 0.0f, title).x : 160 * s;
+        draw->AddText(fonts.text, 16 * s, ImVec2(left + titleWidth + 12 * s, y), uiColor(UiColor::Dim),
+                      tones.hoveredKnob->description, nullptr, right - left - titleWidth - 12 * s);
+    } else if (tones.hovered >= 0 && tones.hovered < (int)tones.editing.effects.size()){
         const EffectInfo& info = effectInfo(tones.editing.effects[tones.hovered].type);
-        draw->AddText(fonts.text, 16 * s, ImVec2(left, boardTop + cardHeight + 20 * s), uiColor(UiColor::Dim),
+        draw->AddText(fonts.text, 16 * s, ImVec2(left, boardTop + cardHeight + 34 * s), uiColor(UiColor::Dim),
                       TextFormat("%s: %s", info.name, info.description));
     }
 

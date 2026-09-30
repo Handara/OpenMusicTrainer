@@ -44,7 +44,13 @@ struct Settings {
     bool monitorOn = true;
     bool monitorSynth = false;         // heard as a synth bass playing the notes found (input/synthmonitor), not its own sound
     float monitorVolume = 0.8f;
-    std::string monitorToneName = "Clean"; // the tone its own sound goes through (core/tonelibrary): the player's or built in
+    // The tone its own sound goes through (core/tonelibrary), one per instrument: the player's or built in. The one heard
+    // is the instrument played last (a song's part, the Instrument screen's tab, the tone wizard's).
+    std::string bassTone = "Clean";
+    std::string guitarTone = "Clean";
+    InputRole heardInstrument = InputRole::Bass;
+    std::string& toneFor(InputRole role){ return role == InputRole::Guitar ? guitarTone : bassTone; }
+    const std::string& toneFor(InputRole role) const { return role == InputRole::Guitar ? guitarTone : bassTone; }
 
     // Display
     NoteViews noteViews;

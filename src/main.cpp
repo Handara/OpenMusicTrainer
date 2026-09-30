@@ -250,6 +250,7 @@ static void startSong(const SongEntry& song, int part, bool rhythmMode){
     // On its own instrument; in rhythm mode, on the keyboard's drums when the instrument isn't there
     InputRole role;
     if (partInstrument(song, part, role) && statusOf(role).ready){
+        hearInstrument(app.settings, role); // through its own tone
         options.playWithInstrument = true;
         options.instrument = role;
         options.hitSounds = false;
@@ -272,6 +273,7 @@ static bool goToTuningCheck(const SongEntry& song, int part, bool rhythmMode, co
     if (!partInstrument(song, part, role)) return false;
     std::string error;
     int channel = role == InputRole::Bass ? app.settings.bassChannel : app.settings.guitarChannel;
+    hearInstrument(app.settings, role);
     if (!openTuningScreen(song.parts[part].tuning, role, app.settings.inputDevice, channel, reason, error)){
         TraceLog(LOG_WARNING, "Tuning check: %s", error.c_str());
         return false;
@@ -640,6 +642,7 @@ int main(void){
         EndDrawing();
     }
 
+    saveAppSettings(); // what changed outside the settings screen too (the instrument played last)
     stopGameplay();
     stopTuner();
     closeInstrumentScreen();

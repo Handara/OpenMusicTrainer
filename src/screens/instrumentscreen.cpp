@@ -1,5 +1,7 @@
 #include "screens/instrumentscreen.h"
 
+#include "screens/tonewizard.h"
+
 #include "audio/audio.h"
 #include "core/chords.h"
 #include "core/music.h"
@@ -41,6 +43,7 @@ struct PlayedPlace {
 // structs named alike would share one constructor (the Settings screen's crashed on Windows when this was `screen`)
 static struct {
     Settings settings;
+    Settings* heard = nullptr; // the app's: the instrument chosen here is the one whose tone is heard
     Instrument instrument = Instrument::Guitar; // kept between visits
     bool listening = false;
     std::string error;
@@ -83,12 +86,14 @@ static void startListening(){
         return;
     }
     InputRole role = instrumentView.instrument == Instrument::Bass ? InputRole::Bass : InputRole::Guitar;
+    if (instrumentView.heard) hearInstrument(*instrumentView.heard, role); // its own tone
     float lowest = midiToFrequency((float)tuning().front()) * 0.9f;
     instrumentView.listening = startNoteInput(instrumentView.settings.inputDevice, lowest, instrumentView.error, channelFor(instrumentView.settings, role));
 }
 
-void openInstrumentScreen(const Settings& settings){
+void openInstrumentScreen(Settings& settings){
     instrumentView.settings = settings;
+    instrumentView.heard = &settings;
     startListening();
 }
 
