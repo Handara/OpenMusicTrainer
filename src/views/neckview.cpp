@@ -25,6 +25,7 @@ const float WHOLE_NOTE_BEATS = 4.0f;    // one loop of a slider: a whole note (a
 const float MIN_SLIDER_BEATS = 0.75f;   // shorter than a dotted eighth: a plain hit, no slider
 const float SLIDER_WIDTH = 3.5f;        // at a 720-pixel-tall window
 const float TRACK_ALPHA = 0.35f;        // a slider's track before it's played
+const float HELD_FLASH_S = 0.15f;       // a held note's solid flash at the hit, before it goes hollow
 
 // An arc on a note's rim, clockwise from the top, `from` to `to` in loops (0 to 1)
 static void drawRimArc(Vector2 at, float rim, float from, float to, float width, Color color){
@@ -165,15 +166,22 @@ void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std:
         const float rim = radius + 4.5f * s, share = std::min(1.0f, note.beats / WHOLE_NOTE_BEATS);
         const bool slider = note.beats >= MIN_SLIDER_BEATS && note.writtenLength > 0.0f;
         if (note.hit && slider && now < note.time + note.writtenLength){
-            // Held: the ring has become a slider, its track lit and eaten clockwise by the ball as the note rings
+            // Held: not a note to play any more, so it can't look like one. After the hit's flash it's hollow, and it
+            // greys, shrinks and fades as it rings, while the slider's ball eats its track until the note is over.
             Color lit = themeColor(note.wasPerfect ? UiColor::Good : UiColor::Accent);
-            float played = share * std::clamp((now - note.time) / note.writtenLength, 0.0f, 1.0f);
-            smoothCircle(at, radius + 1.5f * s, card);
-            smoothCircle(at, radius, lit);
-            drawRimArc(at, rim, played, share, SLIDER_WIDTH * s, lit);
+            float held = std::max(0.0f, now - note.time);
+            float progress = std::clamp(held / note.writtenLength, 0.0f, 1.0f);
+            float flash = std::max(0.0f, 1.0f - held / HELD_FLASH_S);
+            float fade = 1.0f - 0.75f * progress;
+            float size = radius * (0.85f - 0.3f * progress);
+            Color grey = ColorLerp(lit, themeColor(UiColor::Dim), 0.4f + 0.6f * progress);
+            if (flash > 0.0f) smoothCircle(at, size, Fade(lit, flash));
+            smoothRing(at, size - 2.0f * s, size, 0.0f, 360.0f, Fade(grey, fade));
+            drawViewText(TextFormat("%d", note.fret), at.x, at.y, size * 1.1f, Fade(grey, fade));
+            float played = share * progress;
+            drawRimArc(at, rim, played, share, SLIDER_WIDTH * s, Fade(lit, 0.85f * fade));
             float angle = (-90.0f + 360.0f * played) * DEG2RAD;
-            smoothCircle({ at.x + rim * std::cos(angle), at.y + rim * std::sin(angle) }, SLIDER_WIDTH * 1.4f * s, lit); // the ball
-            drawViewText(TextFormat("%d", note.fret), at.x, at.y, radius * 1.1f, WHITE);
+            smoothCircle({ at.x + rim * std::cos(angle), at.y + rim * std::sin(angle) }, SLIDER_WIDTH * 1.4f * s, Fade(lit, fade)); // the ball
             continue;
         }
         if (note.hit){
