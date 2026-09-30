@@ -12,14 +12,15 @@
 // hold no audio: the chart has none. Pure logic, but for reading the file.
 //
 // Guitar Pro 7 and 8 (.gp) keep the score as XML (score.gpif) in a zip; Guitar Pro 6 (.gpx) keeps the same XML in a
-// small file system of its own ("BCFS"), usually compressed ("BCFZ").
+// small file system of its own ("BCFS"), usually compressed ("BCFZ"); Guitar Pro 3 to 5 (.gp3, .gp4, .gp5) have a
+// binary layout of their own. All of them come to the same chart.
 
 struct GuitarProImport {
     Chart chart;
     std::vector<std::string> leftOut; // what couldn't come in, for the player: "Drums (a drum track)"
 };
 
-// A .gp file, read and turned into a chart
+// A Guitar Pro file of any version, read and turned into a chart
 bool importGuitarPro(const std::string& path, GuitarProImport& out, std::string& error);
 // The score itself (score.gpif's text)
 bool readGpif(const std::string& xml, GuitarProImport& out, std::string& error);

@@ -9,6 +9,7 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <tuple>
 
 TEST_CASE("xml: elements, attributes, text, CDATA and entities"){
     XmlNode root;
@@ -321,4 +322,96 @@ TEST_CASE("Guitar Pro 6: its compression and its little file system"){
     REQUIRE_MESSAGE(importGuitarPro(path.string(), import, error), error);
     CHECK(import.chart.title == "Test Song");
     CHECK(import.chart.frettedTracks.size() == 2);
+}
+
+// A Guitar Pro 3 file, written byte by byte the way Guitar Pro lays it out
+struct Gp3Writer {
+    std::string bytes;
+    void u8(int value){ bytes += (char)(value & 0xFF); }
+    void i32(int value){ for (int i = 0; i < 4; i++) bytes += (char)((value >> (8 * i)) & 0xFF); }
+    void text(const std::string& value){ i32((int)value.size() + 1); u8((int)value.size()); bytes += value; } // a size, a length, the text
+    void fixed(const std::string& value, int size){ u8((int)value.size()); bytes += value; bytes += std::string(size - value.size(), '\0'); }
+    // A beat: its value (0 a quarter, 1 an eighth, -1 a half), dotted or in a tuplet, maybe changing the tempo, and its
+    // notes as (the string as the file counts it, highest first; fret; tied on)
+    void beat(int value, bool dotted, int tuplet, int tempo, std::vector<std::tuple<int, int, bool>> notes){
+        u8((dotted ? 0x01 : 0) | (tuplet ? 0x20 : 0) | (tempo > 0 ? 0x10 : 0));
+        u8(value);
+        if (tuplet) i32(tuplet);
+        if (tempo > 0){
+            for (int i = 0; i < 7; i++) u8(-1); // no instrument, volume, balance, chorus, reverb, phaser, tremolo change
+            i32(tempo);
+            u8(0);                              // over no beats
+        }
+        int bits = 0;
+        for (const auto& [string, fret, tie] : notes) bits |= 1 << (6 - string);
+        u8(bits);
+        std::sort(notes.begin(), notes.end()); // in the order of their strings
+        for (const auto& [string, fret, tie] : notes){ u8(0x20); u8(tie ? 2 : 1); u8(fret); }
+    }
+};
+
+TEST_CASE("Guitar Pro 3 to 5: the binary files, a Guitar Pro 3 one written by hand"){
+    Gp3Writer gp;
+    gp.fixed("FICHIER GUITAR PRO v3.00", 30);
+    for (const char* info : { "Binary Song", "", "Band", "", "", "", "", "" }) gp.text(info); // title, subtitle, artist...
+    gp.i32(0);            // notice lines
+    gp.u8(0);             // triplet feel
+    gp.i32(90);           // tempo
+    gp.i32(0);            // key
+    for (int channel = 0; channel < 64; channel++){ gp.i32(channel == 0 ? 33 : 0); for (int i = 0; i < 8; i++) gp.u8(0); } // channel 1: a bass
+    gp.i32(2);            // bars
+    gp.i32(1);            // tracks
+    gp.u8(0x01 | 0x02 | 0x04); gp.u8(4); gp.u8(4); // bar 1: 4/4, a repeat starts
+    gp.u8(0x01 | 0x08); gp.u8(3); gp.u8(1);        // bar 2: 3/4, the repeat ends: played twice
+    gp.u8(0);                                      // the track: a 4-string bass on channel 1
+    gp.fixed("Bass", 40);
+    gp.i32(4);
+    for (int pitch : { 43, 38, 33, 28, 0, 0, 0 }) gp.i32(pitch); // G D A E: the highest string first
+    for (int value : { 1, 1, 2, 24, 0, 0 }) gp.i32(value);        // port, channel, effect channel, frets, capo, color
+    // Bar 1: the A string's 3rd fret; a triplet of eighths on the low E; the D string's 2nd fret held, the tempo up to 120
+    gp.i32(5);
+    gp.beat(0, false, 0, 0, { { 2, 3, false } });
+    for (int i = 0; i < 3; i++) gp.beat(1, false, 3, 0, { { 3, 0, false } });
+    gp.beat(-1, false, 0, 120, { { 1, 2, false } });
+    // Bar 2: tied on, a dotted half
+    gp.i32(1);
+    gp.beat(-1, true, 0, 0, { { 1, 2, true } });
+
+    namespace fs = std::filesystem;
+    fs::path path = fs::temp_directory_path() / "lahn_tests" / "binary.gp3";
+    { std::ofstream(path, std::ios::binary) << gp.bytes; }
+    GuitarProImport import;
+    std::string error;
+    REQUIRE_MESSAGE(importGuitarPro(path.string(), import, error), error);
+    const Chart& chart = import.chart;
+    CHECK(chart.title == "Binary Song");
+    CHECK(chart.artist == "Band");
+    REQUIRE(chart.frettedTracks.size() == 1);
+    const FrettedTrack& bass = chart.frettedTracks[0];
+    CHECK(bass.type == InstrumentType::Bass); // by its channel's instrument
+    CHECK(bass.tuning == std::vector<int>{ 28, 33, 38, 43 });
+    CHECK(chart.endTick == 2 * (1920 + 1440));
+
+    // Each time through: the A, the triplet, the D held into the next bar; 90 from the top, 120 halfway, 90 again
+    std::vector<FrettedNote> expected = {
+        { 0, 1, 3, 480 }, { 480, 0, 0, 160 }, { 640, 0, 0, 160 }, { 800, 0, 0, 160 }, { 960, 2, 2, 960 + 1440 },
+        { 3360, 1, 3, 480 }, { 3840, 0, 0, 160 }, { 4000, 0, 0, 160 }, { 4160, 0, 0, 160 }, { 4320, 2, 2, 960 + 1440 },
+    };
+    REQUIRE(bass.notes.size() == expected.size());
+    for (size_t i = 0; i < expected.size(); i++){
+        CAPTURE(i);
+        CHECK(bass.notes[i].tick == expected[i].tick);
+        CHECK(bass.notes[i].stringIndex == expected[i].stringIndex);
+        CHECK(bass.notes[i].fret == expected[i].fret);
+        CHECK(bass.notes[i].duration == expected[i].duration);
+    }
+    REQUIRE(chart.tempoMap.size() == 4);
+    CHECK(chart.tempoMap[1].tick == 960);
+    CHECK(chart.tempoMap[1].bpm == doctest::Approx(120.0));
+    CHECK(chart.tempoMap[2].tick == 3360);
+    CHECK(chart.tempoMap[2].bpm == doctest::Approx(90.0));
+
+    // Cut short, it says so rather than making something up
+    { std::ofstream(path, std::ios::binary) << gp.bytes.substr(0, gp.bytes.size() - 10); }
+    CHECK_FALSE(importGuitarPro(path.string(), import, error));
 }
