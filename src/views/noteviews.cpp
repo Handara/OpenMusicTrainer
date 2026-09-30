@@ -27,7 +27,7 @@ float drawNoteViews(Rectangle area, const NoteViews& views, const std::vector<Pl
     // column of its own, on the right beside the others, or centered alone. The others stack in what's left.
     // The neck alone: it has no time axis, so it takes the whole area, and judgements go over its middle
     if (views.neck && !views.staff && !views.tab && !views.highway){
-        drawNeckView(area, notes, tuning, lowStringOnTop, axis);
+        drawNeckView(area, notes, tuning, lowStringOnTop, views.wholeNeck, axis);
         return area.x + area.width / 2;
     }
     if (views.highway && views.highwayFalls){
@@ -73,7 +73,7 @@ float drawNoteViews(Rectangle area, const NoteViews& views, const std::vector<Pl
             case View::Staff:   drawStaff(viewArea, notes, score, axis); break;
             case View::Tab:     drawTab(viewArea, notes, score, (int)tuning.size(), axis); break;
             case View::Highway: drawHighway(viewArea, notes, score, tuning, lowStringOnTop, false, axis); break;
-            case View::Neck:    drawNeckView(viewArea, notes, tuning, lowStringOnTop, axis); break;
+            case View::Neck:    drawNeckView(viewArea, notes, tuning, lowStringOnTop, views.wholeNeck, axis); break;
         }
         y += shownView.height + VIEW_GAP;
     }

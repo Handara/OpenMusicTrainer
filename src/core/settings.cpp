@@ -99,6 +99,11 @@ Settings loadSettings(const std::string& path, std::vector<std::string>& warning
             else if (value == "falling") settings.noteViews.highwayFalls = true;
             else warnings.push_back("line " + std::to_string(lineNumber) + ": highway_direction is across or falling, keeping default");
         }
+        else if (key == "neck_range"){
+            if (value == "whole") settings.noteViews.wholeNeck = true;
+            else if (value == "song") settings.noteViews.wholeNeck = false;
+            else warnings.push_back("line " + std::to_string(lineNumber) + ": neck_range is whole or song, keeping default");
+        }
         else if (key == "low_string_on_top") settings.lowStringOnTop = value == "1";
         else if (key == "fullscreen") settings.fullscreen = value == "1";
         else if (key == "theme"){
@@ -147,6 +152,7 @@ bool saveSettings(const std::string& path, const Settings& settings, std::string
     if (settings.noteViews.neck) out << " neck";
     out << "\n";
     out << "highway_direction " << (settings.noteViews.highwayFalls ? "falling" : "across") << "\n";
+    out << "neck_range " << (settings.noteViews.wholeNeck ? "whole" : "song") << "\n";
     out << "low_string_on_top " << (settings.lowStringOnTop ? 1 : 0) << "\n";
     out << "theme " << (settings.darkTheme ? "dark" : "light") << "\n";
     out << "fullscreen " << (settings.fullscreen ? 1 : 0) << "\n";

@@ -19,6 +19,7 @@ struct NoteViews {
     bool highway = true;
     bool highwayFalls = false; // the highway's notes fall down columns (strings side by side) instead of scrolling across
     bool neck = false;    // osu!-style: rings closing onto the notes' places on a drawn fretboard (views/neckview)
+    bool wholeNeck = true; // the neck view shows the whole neck, from the nut up; else just the frets the song uses
     bool any() const { return staff || tab || highway || neck; }
 };
 

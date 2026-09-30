@@ -10,6 +10,8 @@
 
 const int MIN_FRETS = 7;                // the neck shown is never narrower: fewer frets would look like a zoom
 const int LAST_FRET = 24;
+const int GUITAR_FRETS = 22, BASS_FRETS = 20; // the whole neck, as the Instrument screen shows it
+const int BASS_BELOW = 40;              // an instrument whose lowest string is under E2 is a bass
 const float MAX_STRING_SPACING = 64.0f; // at a 720-pixel-tall window: past it, strings only drift apart
 const float OPEN_COLUMN_SHARE = 0.9f;   // the open strings' column, against a fret's
 // A ring closes in the time a note takes to travel this far at the note speed: 1.2 s at the default 300 px/s, so a
@@ -37,6 +39,7 @@ static void drawRimArc(Vector2 at, float rim, float from, float to, float width,
 // longest note is held (a held note stays drawn until it's over, so the notes drawn reach back that far)
 struct SongShape {
     FretSpan span = { 0, MIN_FRETS };
+    int highest = 0; // fret
     float longest = 0.0f;
 };
 
@@ -56,6 +59,7 @@ static const SongShape& shapeOf(const std::vector<PlayNote>& notes){
             shape.longest = std::max(shape.longest, note.writtenLength);
         }
         shape.span = fretSpanFor(frets, MIN_FRETS, LAST_FRET);
+        shape.highest = frets.empty() ? 0 : *std::max_element(frets.begin(), frets.end());
         data = notes.data();
         size = notes.size();
         first = notes.empty() ? 0.0f : notes.front().time;
@@ -82,12 +86,16 @@ bool neckNoteAt(const PlayNote& note, float& x, float& y, float& radius){
 }
 
 void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std::vector<int>& tuning, bool lowStringOnTop,
-                  const TimeAxis& axis){
+                  bool wholeNeck, const TimeAxis& axis){
     const int strings = (int)tuning.size();
     if (strings == 0) return;
     const float s = GetScreenHeight() / 720.0f;
     const SongShape& shape = shapeOf(notes);
-    const FretSpan span = shape.span;
+    FretSpan span = shape.span;
+    if (wholeNeck){
+        bool bass = *std::min_element(tuning.begin(), tuning.end()) < BASS_BELOW;
+        span = { 0, std::min(LAST_FRET, std::max(bass ? BASS_FRETS : GUITAR_FRETS, shape.highest)) };
+    }
     const bool open = span.first == 0;
     const int firstFretted = std::max(span.first, 1);
     const int fretted = span.last - firstFretted + 1;

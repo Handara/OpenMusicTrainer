@@ -251,6 +251,11 @@ static void displaySection(Settings& settings){
     int direction = views.highwayFalls ? 1 : 0;
     if (settingSegments("Highway direction", nullptr, &direction, { "Across", "Falling" })) views.highwayFalls = direction == 1;
     ImGui::EndDisabled();
+    ImGui::BeginDisabled(!views.neck);
+    int range = views.wholeNeck ? 0 : 1;
+    if (settingSegments("Neck shown", "The whole neck, as on your instrument, or only the frets the song uses", &range,
+                        { "Whole neck", "The song's frets" })) views.wholeNeck = range == 0;
+    ImGui::EndDisabled();
     int order = settings.lowStringOnTop ? 0 : 1;
     if (settingSegments("Lowest string", "On the highway and in the editor (left when falling)", &order, { "On top", "At the bottom" })){
         settings.lowStringOnTop = order == 0;

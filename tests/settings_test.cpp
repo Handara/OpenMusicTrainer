@@ -122,6 +122,19 @@ TEST_CASE("the neck view is kept, alone or with the others"){
     CHECK_FALSE(Settings{}.noteViews.neck);
 }
 
+TEST_CASE("the neck view shows the whole neck unless the player keeps it to the song's frets"){
+    CHECK(Settings{}.noteViews.wholeNeck);
+    std::string path = settingsPath("neckrange.txt");
+    std::ofstream(path, std::ios::binary) << "version 1\nneck_range song\nnote_view neck\n";
+    std::vector<std::string> warnings;
+    Settings settings = loadSettings(path, warnings);
+    CHECK(warnings.empty());
+    CHECK_FALSE(settings.noteViews.wholeNeck); // reading note_view after it doesn't reset it
+    std::string error;
+    REQUIRE(saveSettings(path, settings, error));
+    CHECK_FALSE(loadSettings(path, warnings).noteViews.wholeNeck);
+}
+
 TEST_CASE("the highway's direction is kept whatever order the lines come in"){
     std::string path = settingsPath("direction.txt");
     std::ofstream(path, std::ios::binary) << "version 1\nhighway_direction falling\nnote_view tab highway\n";
