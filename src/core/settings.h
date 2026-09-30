@@ -54,6 +54,7 @@ struct Settings {
 
     // Gameplay
     bool playWithInstrument = false;   // judge notes from the input device instead of the number keys
+    InputRole playInstrument = InputRole::Guitar; // which instrument, playing with one: its input, its range
     float noteSpeed = 300.0f;          // how fast notes scroll, pixels per second
     int globalOffsetMs = 0;            // output latency compensation: positive = notes are judged and drawn later
     int inputOffsetMs = 0;             // the input device's own delay, on top: positive = played notes arrive late

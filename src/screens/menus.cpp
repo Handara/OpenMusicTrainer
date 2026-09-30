@@ -137,7 +137,7 @@ static bool switchRow(const char* label, const char* const* names, int count, in
 }
 
 SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry>& songs, const std::string& error,
-                                  const std::string& notice, bool forEditing, bool* withInstrument){
+                                  const std::string& notice, bool forEditing, bool* withInstrument, InputRole* instrument){
     static MenuList playList, editList; // each list keeps its selection
     MenuList& list = forEditing ? editList : playList;
     SongSelectChoice choice;
@@ -156,12 +156,18 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
         const char* const modes[] = { "NOTES", "RHYTHM" };
         int mode = rhythmMode ? 1 : 0;
         if (switchRow("MODE", modes, 2, mode, x, y, s) || ImGui::IsKeyPressed(ImGuiKey_Tab)) rhythmMode = !rhythmMode;
-        if (withInstrument){
-            const char* const inputs[] = { "KEYBOARD", "INSTRUMENT" };
-            int input = *withInstrument ? 1 : 0;
-            bool changed = switchRow("PLAY WITH", inputs, 2, input, x, y + 32 * s, s) || ImGui::IsKeyPressed(ImGuiKey_I);
-            if (changed){
-                *withInstrument = !*withInstrument;
+        if (withInstrument && instrument){
+            // Any part on any of them: a guitar melody on a bass counts its notes in any octave
+            const char* const inputs[] = { "KEYBOARD", "GUITAR", "BASS" };
+            int input = !*withInstrument ? 0 : *instrument == InputRole::Bass ? 2 : 1;
+            bool clicked = switchRow("PLAY WITH", inputs, 3, input, x, y + 32 * s, s);
+            if (!clicked && ImGui::IsKeyPressed(ImGuiKey_I)){
+                input = (input + 1) % 3;
+                clicked = true;
+            }
+            if (clicked){
+                *withInstrument = input != 0;
+                if (input != 0) *instrument = input == 2 ? InputRole::Bass : InputRole::Guitar;
                 choice.withInstrumentChanged = true;
             }
         }
@@ -212,7 +218,7 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
         else ImGui::TextColored(uiColorVec(UiColor::Good), "%s", notice.c_str());
     }
     menuScreenHint(forEditing ? "Up/Down  choose    Enter  edit    Esc  back    Drop a .lahn file to add a song"
-                              : "Up/Down  choose    Enter  play    Tab  notes or rhythm    I  keyboard or instrument    Esc  back", s);
+                              : "Up/Down  choose    Enter  play    Tab  notes or rhythm    I  keyboard, guitar or bass    Esc  back", s);
     ImGui::End();
     return choice;
 }

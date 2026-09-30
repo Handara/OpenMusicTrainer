@@ -114,7 +114,7 @@ const float HINT_AHEAD_S = 0.6f;
 // input device's delay) and judged by its pitch. Rhythm mode needs no pitch: each attack is judged the moment it's
 // heard. Either way every attack is noted, for the hit line's flash.
 static void handleInstrument(std::vector<PlayNote>& notes, GameState& state, float songTime, float inputOffset,
-                             int& lastPlayedPitch, bool rhythmMode, double& lastAttackAt){
+                             int& lastPlayedPitch, bool rhythmMode, double& lastAttackAt, bool anyOctave){
     // The note due nearest now, for the synth heard in place of the instrument to start at the pluck
     const PlayNote* nearest = nullptr;
     int lowestDue = -1;
@@ -124,8 +124,9 @@ static void handleInstrument(std::vector<PlayNote>& notes, GameState& state, flo
         if (!due->judged && (lowestDue < 0 || due->pitch < lowestDue)) lowestDue = due->pitch;
         if (!due->judged && (!nearest || std::fabs(due->time - songTime) < std::fabs(nearest->time - songTime))) nearest = &*due;
     }
-    expectSynthNote(nearest && std::fabs(nearest->time - songTime) <= NEAR_WINDOW_S ? nearest->pitch : -1);
-    expectLowestNote(lowestDue >= 0 ? midiToFrequency((float)lowestDue) : 0.0f);
+    expectSynthNote(nearest && !anyOctave && std::fabs(nearest->time - songTime) <= NEAR_WINDOW_S ? nearest->pitch : -1);
+    // On another instrument the octave played isn't known: no hint, the detector looks down to the instrument's lowest
+    expectLowestNote(lowestDue >= 0 && !anyOctave ? midiToFrequency((float)lowestDue) : 0.0f);
 
     const std::vector<PlayedNote>& played = updateNoteInput();
     for (double age : noteInputAttacks()){
@@ -143,6 +144,7 @@ static void handleInstrument(std::vector<PlayNote>& notes, GameState& state, flo
         PlayerInput input;
         input.time = songTime - note.age - inputOffset;
         input.pitch = note.pitch;
+        input.anyOctave = anyOctave;
         JudgeResult result = judgeInput(notes, input);
         if (result.judgement != Judgement::Ignored) scoreHit(state, result, judgementAnchor(notes, result.noteIndex));
     }
@@ -158,6 +160,7 @@ static struct {
     float songTime = 0.0f;
     int lastPlayedPitch = -1; // the latest note heard from the instrument, shown so the player can trust the input
     double lastAttackAt = -10.0; // when the instrument was last plucked (GetTime): the hit line flashes with it
+    bool anyOctave = false;      // the part is played on another instrument than its own: notes count in any octave
     float hitLineX = 180.0f;  // where the views put the hit line, for the judgements drawn at it
     bool paused = false;
     bool keys = false;            // playing a keys part, on a MIDI keyboard
@@ -281,6 +284,7 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
     game.state.multiplier = 1;
     game.options = options;
     game.lastPlayedPitch = -1;
+    game.anyOctave = false; // set below when the part is played on another instrument than its own
     // A keys part is played on a MIDI keyboard if one is connected, else on the computer keyboard, laid out from
     // the C at or below the part's lowest note
     if (game.keys && !options.rhythmMode){
@@ -297,9 +301,14 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
     }
     instrumentHitSounds = options.playWithInstrument && !game.keys;
     if (options.playWithInstrument && !game.keys){
-        // Listen down to just below the track's lowest string: a bass or a drop tuning gets its own range
-        float lowest = midiToFrequency((float)*std::min_element(track.tuning.begin(), track.tuning.end())) * 0.9f;
-        int channel = track.type == InstrumentType::Bass ? options.bassChannel : options.guitarChannel; // its own input
+        // The instrument played, on its own input. On the part's own instrument, listen down to just below the part's
+        // lowest string (a drop tuning gets its range); on another (a guitar melody on a bass), down to that instrument's
+        // low E, and the notes count in any octave.
+        const bool bassPlayed = options.instrument == InputRole::Bass;
+        game.anyOctave = bassPlayed != (track.type == InstrumentType::Bass);
+        int lowestPitch = game.anyOctave ? (bassPlayed ? 28 : 40) : *std::min_element(track.tuning.begin(), track.tuning.end());
+        float lowest = midiToFrequency((float)lowestPitch) * 0.9f;
+        int channel = bassPlayed ? options.bassChannel : options.guitarChannel;
         if (!startNoteInput(options.inputDevice, lowest, error, channel)){
             error = "Playing with your instrument: " + error + " (Settings > Gameplay switches to the keyboard)";
             unloadSong();
@@ -354,7 +363,7 @@ bool updateGameplay(){
     if (game.options.rhythmMode) handleDrumKeys();
     else handleKeyboard(game.notes, game.state, game.songTime, (int)track.tuning.size(), game.options.hitSounds);
     if (noteInputActive()) handleInstrument(game.notes, game.state, game.songTime, game.options.inputOffsetSeconds, game.lastPlayedPitch,
-                                            game.options.rhythmMode, game.lastAttackAt);
+                                            game.options.rhythmMode, game.lastAttackAt, game.anyOctave);
     if (midiInputActive() || pianoKeysActive()){
         // Each key on its own: pressing one note of a chord doesn't play the rest. Every key sounds, hit or not:
         // it's an instrument being played.

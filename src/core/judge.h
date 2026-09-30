@@ -34,6 +34,9 @@ struct PlayerInput {
     // is heard. A MIDI keyboard sends every key, so there each note of a chord has to be played: false.
     bool completesChord = true;
     bool anyNote = false; // rhythm mode, played on an instrument: whatever note is played counts for the next hit
+    // A part played on another instrument than its own (a guitar melody on a bass, an octave or two down): the note
+    // counts in any octave
+    bool anyOctave = false;
 };
 
 enum class Judgement { Ignored, Perfect, Near };

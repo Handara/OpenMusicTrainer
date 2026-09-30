@@ -40,6 +40,7 @@ TEST_CASE("settings survive a save and load"){
     original.globalOffsetMs = -35;
     original.inputOffsetMs = 22;
     original.playWithInstrument = true;
+    original.playInstrument = InputRole::Bass;
 
     std::string path = settingsPath("settings.txt");
     std::string error;
@@ -64,6 +65,7 @@ TEST_CASE("settings survive a save and load"){
     CHECK(loaded.globalOffsetMs == -35);
     CHECK(loaded.inputOffsetMs == 22);
     CHECK(loaded.playWithInstrument);
+    CHECK(loaded.playInstrument == InputRole::Bass);
 }
 
 TEST_CASE("bad lines are reported but don't lose the rest"){

@@ -60,3 +60,18 @@ TEST_CASE("notes left behind are missed"){
     CHECK(notes[0].hit);                  // the hit one stays hit
     CHECK(markMisses(notes, 1.7) == 0);   // each miss is counted once
 }
+
+TEST_CASE("a part played on another instrument counts its notes in any octave"){
+    // A guitar melody (E3, G3) played on a bass, an octave and two octaves down
+    std::vector<PlayNote> notes = notesAt({{1.0f, 0, 0, 52}, {2.0f, 0, 3, 55}});
+    PlayerInput low{1.0, -1, 40};
+    CHECK(judgeInput(notes, low).judgement == Judgement::Ignored); // an octave down, on its own instrument: wrong
+    low.anyOctave = true;
+    CHECK(judgeInput(notes, low).judgement == Judgement::Perfect);
+    PlayerInput wrong{2.0, -1, 30};                                 // not the note, in any octave
+    wrong.anyOctave = true;
+    CHECK(judgeInput(notes, wrong).judgement == Judgement::Ignored);
+    PlayerInput lower{2.0, -1, 31};                                 // two octaves down
+    lower.anyOctave = true;
+    CHECK(judgeInput(notes, lower).judgement == Judgement::Perfect);
+}

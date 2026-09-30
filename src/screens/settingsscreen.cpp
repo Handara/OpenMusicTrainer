@@ -516,11 +516,14 @@ static void instrumentsTab(Settings& settings){
 
 static void gameplayTab(Settings& settings, SettingsChoice& choice){
     ImGui::SeparatorText("Playing");
-    int input = settings.playWithInstrument ? 1 : 0;
+    int input = !settings.playWithInstrument ? 0 : settings.playInstrument == InputRole::Bass ? 2 : 1;
     ImGui::RadioButton("Keyboard (keys 1 to 6)", &input, 0);
     ImGui::SameLine();
-    ImGui::RadioButton("My instrument (input device)", &input, 1);
-    settings.playWithInstrument = input == 1;
+    ImGui::RadioButton("Guitar", &input, 1);
+    ImGui::SameLine();
+    ImGui::RadioButton("Bass", &input, 2);
+    settings.playWithInstrument = input != 0;
+    if (input != 0) settings.playInstrument = input == 2 ? InputRole::Bass : InputRole::Guitar;
     ImGui::SliderFloat("Note speed", &settings.noteSpeed, 100.0f, 1500.0f, "%.0f px/s");
     ImGui::TextDisabled("Faster notes are spread further apart. Timing is judged the same at any speed.");
 

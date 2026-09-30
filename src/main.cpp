@@ -183,6 +183,7 @@ static GameplayOptions gameplayOptions(){
     options.lowStringOnTop = app.settings.lowStringOnTop;
     options.noteViews = app.settings.noteViews;
     options.playWithInstrument = app.settings.playWithInstrument;
+    options.instrument = app.settings.playInstrument;
     options.inputDevice = app.settings.inputDevice;
     options.guitarChannel = app.settings.guitarChannel;
     options.bassChannel = app.settings.bassChannel;
@@ -305,7 +306,7 @@ static void runMenus(){
         case Screen::SongSelect: {
             installDroppedPackages();
             SongSelectChoice choice = songSelectScreen("Select a song", app.songs, app.songSelectError, app.songSelectNotice, false,
-                                                       &app.settings.playWithInstrument);
+                                                       &app.settings.playWithInstrument, &app.settings.playInstrument);
             if (choice.withInstrumentChanged) saveAppSettings();
             if (choice.back) app.screen = Screen::MainMenu;
             else if (choice.openDataFolder) openDataFolder();

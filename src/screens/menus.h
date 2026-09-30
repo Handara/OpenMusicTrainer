@@ -19,15 +19,16 @@ struct SongSelectChoice {
     int songIndex = -1; // index into the songs list, -1 if nothing was picked this frame
     int part = 0;       // which of the song's parts to play
     bool rhythmMode = false; // taiko-style, only the rhythm (Tab switches it on the song list)
-    bool withInstrumentChanged = false; // the player switched between the keyboard and their instrument (I): save it
+    bool withInstrumentChanged = false; // the player switched between the keyboard, a guitar and a bass (I): save it
 };
 // forEditing marks built-in songs, since editing one creates a copy
 // Playing a song with several parts (guitar, bass), confirming it lists its parts to choose from first.
 // `notice` is good news to show (a song just added), `error` bad news.
-// withInstrument: played with the instrument rather than the keyboard, shown and switched on the list (nullptr when
-// editing, where nothing is played)
+// withInstrument, instrument: played with the keyboard, a guitar or a bass, shown and switched on the list (nullptr
+// when editing, where nothing is played)
 SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry>& songs, const std::string& error,
-                                  const std::string& notice, bool forEditing, bool* withInstrument = nullptr);
+                                  const std::string& notice, bool forEditing, bool* withInstrument = nullptr,
+                                  InputRole* instrument = nullptr);
 // Esc on the song list: closes the list of parts if it's open (true: it was, the screen stays)
 bool songSelectBack();
 

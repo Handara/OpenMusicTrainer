@@ -107,6 +107,10 @@ Settings loadSettings(const std::string& path, std::vector<std::string>& warning
         }
         else if (key == "frame_rate_limit") number(settings.frameRateLimit, 0, 1000);
         else if (key == "play_with_instrument") settings.playWithInstrument = value == "1";
+        else if (key == "play_instrument"){
+            if (value == "guitar" || value == "bass") settings.playInstrument = value == "bass" ? InputRole::Bass : InputRole::Guitar;
+            else warnings.push_back("line " + std::to_string(lineNumber) + ": play_instrument is guitar or bass, keeping default");
+        }
         else if (key == "note_speed") number(settings.noteSpeed, 100.0f, 1500.0f);
         else if (key == "global_offset_ms") number(settings.globalOffsetMs, -500, 500);
         else if (key == "input_offset_ms") number(settings.inputOffsetMs, -500, 500);
@@ -148,6 +152,7 @@ bool saveSettings(const std::string& path, const Settings& settings, std::string
     out << "fullscreen " << (settings.fullscreen ? 1 : 0) << "\n";
     out << "frame_rate_limit " << settings.frameRateLimit << "\n\n";
     out << "play_with_instrument " << (settings.playWithInstrument ? 1 : 0) << "\n";
+    out << "play_instrument " << (settings.playInstrument == InputRole::Bass ? "bass" : "guitar") << "\n";
     out << "note_speed " << settings.noteSpeed << "\n";
     out << "global_offset_ms " << settings.globalOffsetMs << "\n";
     out << "piano_keys";
