@@ -35,7 +35,8 @@ struct Settings {
     std::string midiDevice;            // a MIDI keyboard or controller, by name; empty = the first one connected
     float masterVolume = 1.0f;         // 0..1
     float previewVolume = 0.6f;        // sounds the game makes itself (editor note previews, later ear training)
-    std::string previewSound = "pluck"; // a built-in sound, or a file name in the user's sounds folder
+    std::string previewSound = "drop";  // a built-in sound, or a file name in the user's sounds folder
+    float hitSoundVolume = 0.5f;       // the drop on each note hit with an instrument (0 for none)
 
     // Display
     NoteViews noteViews;

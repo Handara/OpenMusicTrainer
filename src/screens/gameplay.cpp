@@ -48,6 +48,7 @@ const double LEAD_IN_S = 2.0; // starting part-way into a song, it plays this lo
 const double RESUME_RUNUP_S = 1.5; // resuming, the song picks up this long before where it was paused
 
 static HitFeedback feedback; // the judgements, timing bar and combo shown over the play screen
+static bool instrumentHitSounds = false; // a drop on each hit: playing an instrument, which gives no sound of its own to the game
 
 // Where a judgement is shown: over its note on the neck, when the neck is drawn; else at the hit line (x < 0)
 static ImVec2 judgementAnchor(const std::vector<PlayNote>& notes, int index){
@@ -86,6 +87,7 @@ static void scoreHit(GameState& state, const JudgeResult& result, ImVec2 anchor)
     }
     state.maxCombo = std::max(state.maxCombo, state.combo);
     feedbackHit(feedback, judgement, error, state.combo, anchor);
+    if (instrumentHitSounds) playHitSound(judgement == Judgement::Perfect);
 }
 
 // Number keys 1 to 6 stand for the strings, lowest first
@@ -288,6 +290,7 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
         std::string midiError;
         startMidiInput(options.midiDevice, midiError); // any key on it counts; without one, the drum keys do
     }
+    instrumentHitSounds = options.playWithInstrument && !game.keys;
     if (options.playWithInstrument && !game.keys){
         // Listen down to just below the track's lowest string: a bass or a drop tuning gets its own range
         float lowest = midiToFrequency((float)*std::min_element(track.tuning.begin(), track.tuning.end())) * 0.9f;

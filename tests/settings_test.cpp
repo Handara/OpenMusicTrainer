@@ -17,7 +17,7 @@ TEST_CASE("a missing settings file gives defaults without warnings"){
     std::vector<std::string> warnings;
     Settings settings = loadSettings(settingsPath("does_not_exist.txt"), warnings);
     CHECK(warnings.empty());
-    CHECK(settings.previewSound == "pluck");
+    CHECK(settings.previewSound == "drop");
     CHECK(settings.frameRateLimit == 60);
     CHECK(settings.outputDevice.empty());
 }

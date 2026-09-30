@@ -65,6 +65,10 @@ double audioTime();
 // A metronome click at a time on that clock (now, if the time has passed); accent = the first beat of a bar
 void playClickAt(double time, bool accent);
 void stopPreviews();
+// The hit sound, osu!-style: a short drop on each note hit while playing an instrument, brighter for a perfect. Its
+// own volume (0..1, 0 for none), since it plays over the player's own instrument.
+void setHitSoundVolume(float volume);
+void playHitSound(bool perfect);
 
 // Input from a microphone, an instrument or an audio interface, every input the device has kept apart. Only runs
 // between startCapture and stopCapture.

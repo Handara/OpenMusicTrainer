@@ -81,6 +81,7 @@ Settings loadSettings(const std::string& path, std::vector<std::string>& warning
         }
         else if (key == "master_volume") number(settings.masterVolume, 0.0f, 1.0f);
         else if (key == "preview_volume") number(settings.previewVolume, 0.0f, 1.0f);
+        else if (key == "hit_sound_volume") number(settings.hitSoundVolume, 0.0f, 1.0f);
         else if (key == "preview_sound"){ if (!value.empty()) settings.previewSound = value; }
         else if (key == "note_view"){
             if (!readNoteViews(value, settings.noteViews)) warnings.push_back("line " + std::to_string(lineNumber) + ": unknown note view '" + value + "', keeping default");
@@ -120,6 +121,7 @@ bool saveSettings(const std::string& path, const Settings& settings, std::string
     out << "exclusive_input " << (settings.exclusiveInput ? 1 : 0) << "\n";
     out << "master_volume " << settings.masterVolume << "\n";
     out << "preview_volume " << settings.previewVolume << "\n";
+    out << "hit_sound_volume " << settings.hitSoundVolume << "\n";
     out << "preview_sound " << settings.previewSound << "\n\n";
     out << "note_view";
     if (settings.noteViews.staff) out << " staff";

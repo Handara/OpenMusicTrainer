@@ -107,6 +107,7 @@ static struct {
                 // so nothing that stops the preview voices can cut it
     unsigned long long previewCount = 0;
     float previewVolume = 0.6f;
+    float hitSoundVolume = 0.5f; // see setHitSoundVolume
     std::string previewSoundName = "pluck";
     std::string soundsDir;
     std::vector<float> customSound;   // the decoded file, at the engine's sample rate; empty for built-in sounds
@@ -802,6 +803,24 @@ static void startPreview(float frequency, ma_uint64 startFrame, const char* buil
 void playKeysNote(float frequency){
     if (!audio.engineReady) return;
     startPreview(frequency, ma_engine_get_time_in_pcm_frames(&audio.engine), "keys");
+}
+
+void setHitSoundVolume(float volume){
+    audio.hitSoundVolume = std::clamp(volume, 0.0f, 1.0f);
+}
+
+// The hit sound: the built-in drop, high above anything played, so it reads as "got it" rather than as a note
+const float HIT_SOUND_PERFECT_HZ = 1318.5f; // E6
+const float HIT_SOUND_GOOD_HZ = 1046.5f;    // C6: a little duller
+
+void playHitSound(bool perfect){
+    if (!audio.engineReady || audio.hitSoundVolume <= 0.0f) return;
+    Voice& voice = takeVoice();
+    ma_uint32 sampleRate = ma_engine_get_sample_rate(&audio.engine);
+    voice.samples.resize((size_t)(0.25 * sampleRate)); // keeps its memory between hits
+    renderBuiltInSound("drop", voice.samples.data(), (int)voice.samples.size(), perfect ? HIT_SOUND_PERFECT_HZ : HIT_SOUND_GOOD_HZ,
+                       (int)sampleRate, (unsigned)audio.previewCount++);
+    startVoice(voice, voice.samples.data(), voice.samples.size(), 1.0f, audio.hitSoundVolume, ma_engine_get_time_in_pcm_frames(&audio.engine));
 }
 
 void playDrum(bool high){

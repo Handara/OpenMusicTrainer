@@ -175,6 +175,9 @@ static void audioTab(Settings& settings, const std::string& soundsDir){
     ImGui::SeparatorText("Volume");
     if (ImGui::SliderFloat("Master", &settings.masterVolume, 0.0f, 1.0f, "%.2f")) setMasterVolume(settings.masterVolume);
     if (ImGui::SliderFloat("Preview sounds", &settings.previewVolume, 0.0f, 1.0f, "%.2f")) setPreviewVolume(settings.previewVolume);
+    if (ImGui::SliderFloat("Hit sound", &settings.hitSoundVolume, 0.0f, 1.0f, "%.2f")) setHitSoundVolume(settings.hitSoundVolume);
+    if (ImGui::IsItemDeactivatedAfterEdit()) playHitSound(true); // hear it at the level just set
+    hint("A drop on every note you hit with your instrument, brighter for a perfect. 0 for none.");
 
     ImGui::SeparatorText("Preview sound");
     if (ImGui::BeginCombo("Sound", settings.previewSound.c_str())){

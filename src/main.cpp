@@ -441,11 +441,12 @@ int main(void){
     TraceLog(LOG_INFO, "Audio: using %s backend, output '%s'", audioBackendName(), outputDeviceName());
     setMasterVolume(app.settings.masterVolume);
     setExclusiveCapture(app.settings.exclusiveInput);
+    setHitSoundVolume(app.settings.hitSoundVolume);
     setPreviewVolume(app.settings.previewVolume);
     if (!setPreviewSound(app.settings.previewSound, app.soundsDir, error)){
-        TraceLog(LOG_WARNING, "Preview sound: %s (using the pluck)", error.c_str());
-        app.settings.previewSound = "pluck";
-        setPreviewSound("pluck", app.soundsDir, error);
+        TraceLog(LOG_WARNING, "Preview sound: %s (using the drop)", error.c_str());
+        app.settings.previewSound = "drop";
+        setPreviewSound("drop", app.soundsDir, error);
     }
 
     // Multisampled: every edge the notes, rings and lines have is smoothed by the graphics card, where it would
