@@ -8,3 +8,8 @@
 
 // Once a frame, from the main loop. `on`: the settings want it; `volume`: 0..1
 void updateSynthMonitor(bool on, float volume);
+
+// In a song, the note due now (-1 for none), each frame before updateSynthMonitor: a pluck then plays it at once,
+// at the attack, instead of waiting the time a pitch takes to find. If what was played turns out to be another note,
+// that one takes over as soon as it's known.
+void expectSynthNote(int pitch);

@@ -11,6 +11,7 @@
 #include "input/midi.h"
 #include "input/noteinput.h"
 #include "input/pianokeys.h"
+#include "input/synthmonitor.h"
 #include "raylib.h"
 #include "ui/hitfeedback.h"
 #include "ui/menulist.h"
@@ -114,12 +115,16 @@ const float HINT_AHEAD_S = 0.6f;
 // heard. Either way every attack is noted, for the hit line's flash.
 static void handleInstrument(std::vector<PlayNote>& notes, GameState& state, float songTime, float inputOffset,
                              int& lastPlayedPitch, bool rhythmMode, double& lastAttackAt){
+    // The note due nearest now, for the synth heard in place of the instrument to start at the pluck
+    const PlayNote* nearest = nullptr;
     int lowestDue = -1;
     auto due = std::lower_bound(notes.begin(), notes.end(), songTime - HINT_BEHIND_S,
                                 [](const PlayNote& note, float time){ return note.time < time; }); // sorted by time
     for (; due != notes.end() && due->time <= songTime + HINT_AHEAD_S; ++due){
         if (!due->judged && (lowestDue < 0 || due->pitch < lowestDue)) lowestDue = due->pitch;
+        if (!due->judged && (!nearest || std::fabs(due->time - songTime) < std::fabs(nearest->time - songTime))) nearest = &*due;
     }
+    expectSynthNote(nearest && std::fabs(nearest->time - songTime) <= NEAR_WINDOW_S ? nearest->pitch : -1);
     expectLowestNote(lowestDue >= 0 ? midiToFrequency((float)lowestDue) : 0.0f);
 
     const std::vector<PlayedNote>& played = updateNoteInput();

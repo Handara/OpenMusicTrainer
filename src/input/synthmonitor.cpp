@@ -14,7 +14,13 @@ static struct {
     std::vector<float> buffer;
     std::vector<DetectedNote> notes; // reused every frame
     bool playing = false;
+    int expected = -1;     // the note a song has due now (expectSynthNote), for this frame
+    int startedEarly = -1; // a note started at its attack, from the song, not yet confirmed by its pitch
 } synth;
+
+void expectSynthNote(int pitch){
+    synth.expected = pitch;
+}
 
 void updateSynthMonitor(bool on, float volume){
     const int rate = on ? monitorSampleRate() : 0;
@@ -37,13 +43,24 @@ void updateSynthMonitor(bool on, float volume){
     while ((got = readMonitor(synth.buffer.data(), (int)synth.buffer.size())) > 0){
         feedNoteDetector(synth.detector, synth.buffer.data(), got, synth.notes);
     }
-    synth.detector.attacks.clear(); // not used here: a note plays once its pitch is known
+    // A pluck, with a song saying which note is due: it plays at once, at the attack
+    if (!synth.detector.attacks.empty() && synth.expected >= 0){
+        playSynthNote(midiToFrequency((float)synth.expected), volume);
+        synth.playing = true;
+        synth.startedEarly = synth.expected;
+    }
+    synth.detector.attacks.clear();
+    // Each note found: played, unless it's the one already started at its attack
     for (const DetectedNote& note : synth.notes){
+        bool alreadyPlaying = note.pitch == synth.startedEarly;
+        synth.startedEarly = -1;
+        if (alreadyPlaying) continue;
         playSynthNote(midiToFrequency((float)note.pitch), volume);
         synth.playing = true;
     }
+    synth.expected = -1; // good for this frame only
     // The string muted (the sound died away, with no new note on its way): the synth note fades too
-    if (synth.playing && !synth.detector.sounding && !synth.detector.pitchPending){
+    if (synth.playing && !synth.detector.sounding && !synth.detector.pitchPending && synth.startedEarly < 0){
         releaseSynthNote();
         synth.playing = false;
     }
