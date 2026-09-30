@@ -105,6 +105,37 @@ TEST_CASE("note views: sheet music, the neck or both, and the older forms"){
     CHECK_FALSE(Settings{}.noteViews.staff);
 }
 
+TEST_CASE("notes say their fret, their name or both: both unless the player chooses"){
+    CHECK(Settings{}.noteViews.label == NoteLabel::Both);
+    for (NoteLabel label : { NoteLabel::Fret, NoteLabel::Name, NoteLabel::Both }){
+        std::string path = settingsPath("label.txt");
+        Settings settings;
+        settings.noteViews.label = label;
+        std::string error;
+        REQUIRE(saveSettings(path, settings, error));
+        std::vector<std::string> warnings;
+        CHECK(loadSettings(path, warnings).noteViews.label == label);
+        CHECK(warnings.empty());
+    }
+}
+
+TEST_CASE("the neck: whole and in 3D unless the player keeps it to the song's frets, or flat"){
+    CHECK(Settings{}.noteViews.wholeNeck);
+    CHECK(Settings{}.noteViews.neck3d);
+    std::string path = settingsPath("neckrange.txt");
+    std::ofstream(path, std::ios::binary) << "version 1\nneck_range song\nneck_style flat\nnote_view neck\n";
+    std::vector<std::string> warnings;
+    Settings settings = loadSettings(path, warnings);
+    CHECK(warnings.empty());
+    CHECK_FALSE(settings.noteViews.wholeNeck); // reading note_view after them doesn't reset them
+    CHECK_FALSE(settings.noteViews.neck3d);
+    std::string error;
+    REQUIRE(saveSettings(path, settings, error));
+    Settings again = loadSettings(path, warnings);
+    CHECK_FALSE(again.noteViews.wholeNeck);
+    CHECK_FALSE(again.noteViews.neck3d);
+}
+
 TEST_CASE("each instrument's input, as the interface numbers them"){
     Settings settings;
     CHECK(settings.guitarChannel == -1);            // all inputs mixed until told otherwise
