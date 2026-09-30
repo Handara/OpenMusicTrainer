@@ -1,6 +1,7 @@
 #include "views/pianohighway.h"
 
 #include "ui/theme.h"
+#include "views/smooth.h"
 #include "views/viewfont.h"
 
 #include <algorithm>
@@ -67,7 +68,7 @@ void drawPianoHighway(Rectangle area, const std::vector<PlayNote>& notes, const 
         float alpha = note.judged && !note.hit ? 0.3f : 1.0f;             // a missed note: its ghost
         if (note.hit) bottom = std::min(bottom, keyboardTop);             // a held note is eaten by its key as it plays
         if (bottom <= top) continue;
-        DrawRectangleRounded({x, top, width, bottom - top}, 0.35f, 6, Fade(color, alpha));
+        smoothRoundedRect({x, top, width, bottom - top}, 0.35f * std::min(width, bottom - top) / 2, Fade(color, alpha));
     }
     EndScissorMode();
 
@@ -107,6 +108,7 @@ void drawPianoHighway(Rectangle area, const std::vector<PlayNote>& notes, const 
         float t = note.hitFlash / HIT_FLASH_DURATION; // 1 at the hit, fading
         Color lit = themeColor(note.wasPerfect ? UiColor::Good : UiColor::Accent);
         float width = keyW(note.pitch), grow = (1.0f - t) * keyWidth * 0.6f;
-        DrawRectangleRounded({keyX(note.pitch) - grow, keyboardTop - 6.0f - grow, width + 2 * grow, 6.0f + 2 * grow}, 0.5f, 6, Fade(lit, t));
+        Rectangle burst = {keyX(note.pitch) - grow, keyboardTop - 6.0f - grow, width + 2 * grow, 6.0f + 2 * grow};
+        smoothRoundedRect(burst, 0.5f * std::min(burst.width, burst.height) / 2, Fade(lit, t));
     }
 }

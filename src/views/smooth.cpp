@@ -96,3 +96,43 @@ void smoothLine(Vector2 from, Vector2 to, float thickness, Color color){
     }
     rlEnd();
 }
+
+// A piece of a disc, from `start` to `end` degrees, its round edge fading out
+static void sector(Vector2 center, float radius, float start, float end, Color color){
+    const float solid = std::max(0.0f, radius - FEATHER / 2);
+    const int segments = segmentsFor(radius, end - start);
+    const float step = (end - start) / segments;
+    rlCheckRenderBatchLimit(3 * segments);
+    rlBegin(RL_TRIANGLES);
+    rlColor4ub(color.r, color.g, color.b, color.a);
+    for (int i = 0; i < segments; i++){
+        float a0 = DEG2RAD * (start + step * i), a1 = DEG2RAD * (start + step * (i + 1));
+        rlVertex2f(center.x, center.y);
+        rlVertex2f(center.x + std::cos(a1) * solid, center.y + std::sin(a1) * solid);
+        rlVertex2f(center.x + std::cos(a0) * solid, center.y + std::sin(a0) * solid);
+    }
+    rlEnd();
+    band(center, solid, radius + FEATHER / 2, start, end, color, clear(color));
+}
+
+void smoothRoundedRect(Rectangle rect, float radius, Color color){
+    if (rect.width <= 0.0f || rect.height <= 0.0f || color.a == 0) return;
+    const float r = std::clamp(radius, FEATHER, std::min(rect.width, rect.height) / 2);
+    const float half = FEATHER / 2, x = rect.x, y = rect.y, w = rect.width, h = rect.height;
+    const Color none = clear(color);
+    // The solid body, as three bands that don't overlap: the middle column, then the left and right ones between
+    // the corners. Its outer edges stop half a pixel in, where each side's fade takes over.
+    DrawRectangleRec({ x + r, y + half, w - 2 * r, h - 2 * half }, color);
+    DrawRectangleRec({ x + half, y + r, r - half, h - 2 * r }, color);
+    DrawRectangleRec({ x + w - r, y + r, r - half, h - 2 * r }, color);
+    // The straight sides fading out over a pixel
+    DrawRectangleGradientEx({ x + r, y - half, w - 2 * r, FEATHER }, none, color, none, color);                 // top
+    DrawRectangleGradientEx({ x + r, y + h - half, w - 2 * r, FEATHER }, color, none, color, none);             // bottom
+    DrawRectangleGradientEx({ x - half, y + r, FEATHER, h - 2 * r }, none, none, color, color);                 // left
+    DrawRectangleGradientEx({ x + w - half, y + r, FEATHER, h - 2 * r }, color, color, none, none);             // right
+    // The corners (0 degrees points right, angles run clockwise on screen)
+    sector({ x + w - r, y + r }, r, 270.0f, 360.0f, color);
+    sector({ x + w - r, y + h - r }, r, 0.0f, 90.0f, color);
+    sector({ x + r, y + h - r }, r, 90.0f, 180.0f, color);
+    sector({ x + r, y + r }, r, 180.0f, 270.0f, color);
+}

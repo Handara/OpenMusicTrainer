@@ -10,3 +10,5 @@ void smoothCircle(Vector2 center, float radius, Color color);
 // A ring, or an arc of one from `startAngle` to `endAngle` (degrees, 0 pointing right, clockwise)
 void smoothRing(Vector2 center, float innerRadius, float outerRadius, float startAngle, float endAngle, Color color);
 void smoothLine(Vector2 from, Vector2 to, float thickness, Color color);
+// A rectangle with rounded corners of `radius` pixels, as one shape (so a see-through one has no darker overlaps)
+void smoothRoundedRect(Rectangle rect, float radius, Color color);

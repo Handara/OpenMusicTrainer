@@ -108,7 +108,7 @@ void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std:
     };
 
     BeginScissorMode((int)area.x, (int)area.y, (int)area.width, (int)area.height);
-    DrawRectangleRounded({ boardLeft - 6 * s, top, boardRight - boardLeft + 12 * s, boardHeight }, 0.08f, 8, themeColor(UiColor::Card));
+    smoothRoundedRect({ boardLeft - 6 * s, top, boardRight - boardLeft + 12 * s, boardHeight }, 10 * s, themeColor(UiColor::Card));
     const float middle = top + boardHeight / 2;
     const Color line = themeColor(UiColor::StaffLine);
     for (int fret = firstFretted; fret <= span.last; fret++){
