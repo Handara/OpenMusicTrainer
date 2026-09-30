@@ -136,6 +136,7 @@ add_library(lahn_core STATIC
     src/core/exercisefile.cpp
     src/core/files.cpp
     src/core/fretboard.cpp
+    src/core/guitarpro.cpp
     src/core/inputs.cpp
     src/core/intervals.cpp
     src/core/judge.cpp
@@ -157,6 +158,7 @@ add_library(lahn_core STATIC
     src/core/sampleformat.cpp
     src/core/tonechain.cpp
     src/core/tonelibrary.cpp
+    src/core/xml.cpp
     src/core/tuningcheck.cpp
     src/core/score.cpp
     src/core/scales.cpp
@@ -250,6 +252,7 @@ if(BUILD_TESTING)
         tests/chart_test.cpp
         tests/chords_test.cpp
         tests/drill_test.cpp
+        tests/guitarpro_test.cpp
         tests/exercisefile_test.cpp
         tests/fretboard_test.cpp
         tests/inputs_test.cpp

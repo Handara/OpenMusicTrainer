@@ -1,0 +1,206 @@
+#include "doctest/doctest.h"
+
+#include "core/guitarpro.h"
+#include "core/xml.h"
+
+TEST_CASE("xml: elements, attributes, text, CDATA and entities"){
+    XmlNode root;
+    std::string error;
+    REQUIRE_MESSAGE(parseXml("\xEF\xBB\xBF<?xml version=\"1.0\"?>\n<!-- a comment -->\n"
+                             "<Score kind='test' size=\"2\">\n"
+                             "  <Title><![CDATA[Rock & <Roll>]]></Title>\n"
+                             "  <Artist>Tom &amp; Jerry &#233;</Artist>\n"
+                             "  <Empty/>\n"
+                             "  <Note id=\"3\"><Fret>5</Fret></Note><Note id=\"4\"/>\n"
+                             "</Score>\n", root, error), error);
+    CHECK(root.name == "Score");
+    CHECK(root.attribute("kind") == "test");
+    CHECK(root.attribute("missing") == "");
+    CHECK(root.childText("Title") == "Rock & <Roll>");
+    CHECK(root.childText("Artist") == "Tom & Jerry \xC3\xA9");
+    REQUIRE(root.child("Empty") != nullptr);
+    CHECK(root.childrenNamed("Note").size() == 2);
+    CHECK(root.childrenNamed("Note")[0]->childText("Fret") == "5");
+
+    CHECK_FALSE(parseXml("<a><b></a>", root, error));
+    CHECK(error.find("closes") != std::string::npos);
+    CHECK_FALSE(parseXml("<a>", root, error));
+    CHECK_FALSE(parseXml("not xml", root, error));
+}
+
+// A small score: a guitar, a bass and drums; a repeated first part (4/4, then 3/4); triplets, a chord, a tie over the
+// bar line, a grace note, and a tempo change halfway through the last bar, counted in eighths
+static const char* SCORE = R"(<?xml version="1.0" encoding="utf-8"?>
+<GPIF>
+  <Score><Title><![CDATA[Test Song]]></Title><Artist>Someone</Artist></Score>
+  <MasterTrack>
+    <Tracks>0 1 2</Tracks>
+    <Automations>
+      <Automation><Type>Tempo</Type><Bar>0</Bar><Position>0</Position><Value>100 2</Value></Automation>
+      <Automation><Type>Tempo</Type><Bar>2</Bar><Position>0.5</Position><Value>60 1</Value></Automation>
+    </Automations>
+  </MasterTrack>
+  <Tracks>
+    <Track id="0"><Name>Lead</Name>
+      <Staves><Staff><Properties><Property name="Tuning"><Pitches>40 45 50 55 59 64</Pitches></Property></Properties></Staff></Staves>
+    </Track>
+    <Track id="1"><Name>Low end</Name><Properties><Property name="Tuning"><Pitches>28 33 38 43</Pitches></Property></Properties></Track>
+    <Track id="2"><Name>Drums</Name><InstrumentSet><Type>drumKit</Type></InstrumentSet></Track>
+  </Tracks>
+  <MasterBars>
+    <MasterBar><Key><AccidentalCount>1</AccidentalCount><Mode>Major</Mode></Key><Time>4/4</Time><Bars>0 1 2</Bars>
+      <Repeat start="true" end="false" count="0"/></MasterBar>
+    <MasterBar><Key><AccidentalCount>1</AccidentalCount><Mode>Major</Mode></Key><Time>3/4</Time><Bars>3 4 5</Bars>
+      <Repeat start="false" end="true" count="2"/></MasterBar>
+    <MasterBar><Key><AccidentalCount>-3</AccidentalCount><Mode>Minor</Mode></Key><Time>4/4</Time><Bars>6 7 8</Bars></MasterBar>
+  </MasterBars>
+  <Bars>
+    <Bar id="0"><Voices>0 -1 -1 -1</Voices></Bar>
+    <Bar id="1"><Voices>1 -1 -1 -1</Voices></Bar>
+    <Bar id="2"><Voices>-1 -1 -1 -1</Voices></Bar>
+    <Bar id="3"><Voices>2 -1 -1 -1</Voices></Bar>
+    <Bar id="4"><Voices>-1 -1 -1 -1</Voices></Bar>
+    <Bar id="5"><Voices>-1 -1 -1 -1</Voices></Bar>
+    <Bar id="6"><Voices>3 -1 -1 -1</Voices></Bar>
+    <Bar id="7"><Voices>4 -1 -1 -1</Voices></Bar>
+    <Bar id="8"><Voices>-1 -1 -1 -1</Voices></Bar>
+  </Bars>
+  <Voices>
+    <Voice id="0"><Beats>0 1 2</Beats></Voice>
+    <Voice id="1"><Beats>3</Beats></Voice>
+    <Voice id="2"><Beats>9 4 5 6 7</Beats></Voice>
+    <Voice id="3"><Beats>8</Beats></Voice>
+    <Voice id="4"><Beats>10</Beats></Voice>
+  </Voices>
+  <Beats>
+    <Beat id="0"><Rhythm ref="0"/><Notes>0</Notes></Beat>
+    <Beat id="1"><Rhythm ref="0"/><Notes>1 2</Notes></Beat>
+    <Beat id="2"><Rhythm ref="1"/></Beat>
+    <Beat id="3"><Rhythm ref="2"/><Notes>3</Notes></Beat>
+    <Beat id="4"><Rhythm ref="3"/><Notes>4</Notes></Beat>
+    <Beat id="5"><Rhythm ref="3"/><Notes>4</Notes></Beat>
+    <Beat id="6"><Rhythm ref="3"/><Notes>4</Notes></Beat>
+    <Beat id="7"><Rhythm ref="1"/><Notes>5</Notes></Beat>
+    <Beat id="8"><Rhythm ref="2"/><Notes>6</Notes></Beat>
+    <Beat id="9"><GraceNotes>BeforeBeat</GraceNotes><Rhythm ref="4"/><Notes>4</Notes></Beat>
+    <Beat id="10"><Rhythm ref="2"/><Notes>7</Notes></Beat>
+  </Beats>
+  <Notes>
+    <Note id="0"><Properties><Property name="String"><String>5</String></Property><Property name="Fret"><Fret>3</Fret></Property></Properties></Note>
+    <Note id="1"><Properties><Property name="String"><String>0</String></Property><Property name="Fret"><Fret>3</Fret></Property></Properties></Note>
+    <Note id="2"><Properties><Property name="String"><String>1</String></Property><Property name="Fret"><Fret>2</Fret></Property></Properties></Note>
+    <Note id="3"><Properties><Property name="String"><String>0</String></Property><Property name="Fret"><Fret>5</Fret></Property></Properties></Note>
+    <Note id="4"><Properties><Property name="String"><String>2</String></Property><Property name="Fret"><Fret>5</Fret></Property></Properties></Note>
+    <Note id="5"><Tie origin="true" destination="false"/><Properties><Property name="String"><String>3</String></Property><Property name="Fret"><Fret>0</Fret></Property></Properties></Note>
+    <Note id="6"><Tie origin="false" destination="true"/><Properties><Property name="String"><String>3</String></Property><Property name="Fret"><Fret>0</Fret></Property></Properties></Note>
+    <Note id="7"><Properties><Property name="String"><String>3</String></Property><Property name="Fret"><Fret>2</Fret></Property></Properties></Note>
+  </Notes>
+  <Rhythms>
+    <Rhythm id="0"><NoteValue>Quarter</NoteValue></Rhythm>
+    <Rhythm id="1"><NoteValue>Half</NoteValue></Rhythm>
+    <Rhythm id="2"><NoteValue>Whole</NoteValue></Rhythm>
+    <Rhythm id="3"><NoteValue>Eighth</NoteValue><PrimaryTuplet num="3" den="2"/></Rhythm>
+    <Rhythm id="4"><NoteValue>16th</NoteValue></Rhythm>
+  </Rhythms>
+</GPIF>)";
+
+TEST_CASE("a Guitar Pro score becomes a chart: its guitar and bass, repeats played out"){
+    GuitarProImport import;
+    std::string error;
+    REQUIRE_MESSAGE(readGpif(SCORE, import, error), error);
+    const Chart& chart = import.chart;
+    CHECK(chart.title == "Test Song");
+    CHECK(chart.artist == "Someone");
+    CHECK(chart.resolution == 480);
+
+    // The bars as played: the first two twice (the repeat), then the last. 4/4 is 1920 ticks, 3/4 is 1440.
+    CHECK(chart.endTick == 1920 + 1440 + 1920 + 1440 + 1920);
+    REQUIRE(chart.timeSignatures.size() == 5);
+    CHECK(chart.timeSignatures[1].tick == 1920);
+    CHECK(chart.timeSignatures[1].beats == 3);
+    CHECK(chart.timeSignatures[4].tick == 6720);
+    REQUIRE(chart.keys.size() == 2);
+    CHECK(chart.keys[0].key.fifths == 1);
+    CHECK(chart.keys[1].tick == 6720);
+    CHECK(chart.keys[1].key.fifths == -3);
+    CHECK(chart.keys[1].key.minor);
+
+    // 100 quarters a minute from the top; halfway through the last bar, 60 eighths: 30 quarters
+    REQUIRE(chart.tempoMap.size() == 2);
+    CHECK(chart.tempoMap[0].bpm == doctest::Approx(100.0));
+    CHECK(chart.tempoMap[1].tick == 6720 + 960);
+    CHECK(chart.tempoMap[1].bpm == doctest::Approx(30.0));
+
+    // The drums are left out, and the grace note; the rest come in
+    REQUIRE(chart.frettedTracks.size() == 2);
+    CHECK(import.leftOut.size() == 2);
+    const FrettedTrack& guitar = chart.frettedTracks[0];
+    const FrettedTrack& bass = chart.frettedTracks[1];
+    CHECK(guitar.type == InstrumentType::Guitar);
+    CHECK(guitar.name == "Lead");
+    CHECK(bass.type == InstrumentType::Bass); // by its low tuning: its name doesn't say
+    CHECK(bass.tuning == std::vector<int>{ 28, 33, 38, 43 });
+
+    // The guitar, first time through: a note on the high E, a chord, a rest; triplets; a half note tied on
+    std::vector<FrettedNote> expected = {
+        { 0, 5, 3, 480 }, { 480, 0, 3, 480 }, { 480, 1, 2, 480 },
+        { 1920, 2, 5, 160 }, { 2080, 2, 5, 160 }, { 2240, 2, 5, 160 }, { 2400, 3, 0, 960 },
+        { 3360, 5, 3, 480 }, { 3840, 0, 3, 480 }, { 3840, 1, 2, 480 },
+        { 5280, 2, 5, 160 }, { 5440, 2, 5, 160 }, { 5600, 2, 5, 160 },
+        { 5760, 3, 0, 960 + 1920 }, // the second time, tied into the last bar: one note, ringing on
+    };
+    REQUIRE(guitar.notes.size() == expected.size());
+    for (size_t i = 0; i < expected.size(); i++){
+        CAPTURE(i);
+        CHECK(guitar.notes[i].tick == expected[i].tick);
+        CHECK(guitar.notes[i].stringIndex == expected[i].stringIndex);
+        CHECK(guitar.notes[i].fret == expected[i].fret);
+        CHECK(guitar.notes[i].duration == expected[i].duration);
+    }
+    // The bass: a whole note each time through the first bar, and one in the last
+    REQUIRE(bass.notes.size() == 3);
+    CHECK(bass.notes[0].tick == 0);
+    CHECK(bass.notes[0].fret == 5);
+    CHECK(bass.notes[1].tick == 3360);
+    CHECK(bass.notes[2].tick == 6720);
+    CHECK(bass.notes[2].stringIndex == 3);
+}
+
+TEST_CASE("alternate endings: each pass plays its own"){
+    // |: A | B (1st time) :| C (2nd time) | D
+    const char* score = R"(<GPIF><MasterTrack><Tracks>0</Tracks></MasterTrack>
+      <Tracks><Track id="0"><Name>Bass</Name><Properties><Property name="Tuning"><Pitches>28 33 38 43</Pitches></Property></Properties></Track></Tracks>
+      <MasterBars>
+        <MasterBar><Time>4/4</Time><Bars>0</Bars><Repeat start="true" end="false" count="0"/></MasterBar>
+        <MasterBar><Time>4/4</Time><Bars>1</Bars><AlternateEndings>1</AlternateEndings><Repeat start="false" end="true" count="2"/></MasterBar>
+        <MasterBar><Time>4/4</Time><Bars>2</Bars><AlternateEndings>2</AlternateEndings></MasterBar>
+        <MasterBar><Time>4/4</Time><Bars>3</Bars></MasterBar>
+      </MasterBars>
+      <Bars><Bar id="0"><Voices>0</Voices></Bar><Bar id="1"><Voices>1</Voices></Bar><Bar id="2"><Voices>2</Voices></Bar><Bar id="3"><Voices>3</Voices></Bar></Bars>
+      <Voices><Voice id="0"><Beats>0</Beats></Voice><Voice id="1"><Beats>1</Beats></Voice><Voice id="2"><Beats>2</Beats></Voice><Voice id="3"><Beats>3</Beats></Voice></Voices>
+      <Beats><Beat id="0"><Rhythm ref="0"/><Notes>0</Notes></Beat><Beat id="1"><Rhythm ref="0"/><Notes>1</Notes></Beat>
+             <Beat id="2"><Rhythm ref="0"/><Notes>2</Notes></Beat><Beat id="3"><Rhythm ref="0"/><Notes>3</Notes></Beat></Beats>
+      <Notes>
+        <Note id="0"><Properties><Property name="String"><String>0</String></Property><Property name="Fret"><Fret>1</Fret></Property></Properties></Note>
+        <Note id="1"><Properties><Property name="String"><String>0</String></Property><Property name="Fret"><Fret>2</Fret></Property></Properties></Note>
+        <Note id="2"><Properties><Property name="String"><String>0</String></Property><Property name="Fret"><Fret>3</Fret></Property></Properties></Note>
+        <Note id="3"><Properties><Property name="String"><String>0</String></Property><Property name="Fret"><Fret>4</Fret></Property></Properties></Note>
+      </Notes>
+      <Rhythms><Rhythm id="0"><NoteValue>Whole</NoteValue></Rhythm></Rhythms></GPIF>)";
+    GuitarProImport import;
+    std::string error;
+    REQUIRE_MESSAGE(readGpif(score, import, error), error);
+    std::vector<int> frets;
+    for (const FrettedNote& note : import.chart.frettedTracks[0].notes) frets.push_back(note.fret);
+    CHECK(frets == std::vector<int>{ 1, 2, 1, 3, 4 }); // A B A C D
+    CHECK(import.chart.frettedTracks[0].type == InstrumentType::Bass);
+    CHECK(import.chart.tempoMap.front().bpm == doctest::Approx(120.0)); // no tempo in the file: 120
+}
+
+TEST_CASE("what isn't a Guitar Pro score, or has nothing to play, says so"){
+    GuitarProImport import;
+    std::string error;
+    CHECK_FALSE(readGpif("<Score/>", import, error));
+    CHECK_FALSE(readGpif("<GPIF><MasterBars/></GPIF>", import, error));
+    CHECK_FALSE(importGuitarPro("/nonexistent/song.gp", import, error));
+}
