@@ -46,6 +46,7 @@ const int laneKeys[MAX_LANES] = { KEY_ONE, KEY_TWO, KEY_THREE, KEY_FOUR, KEY_FIV
 
 const int MAX_MULTIPLIER = 4;
 const double LEAD_IN_S = 2.0; // starting part-way into a song, it plays this long before the first note
+const double MIN_COUNT_IN_S = 1.5; // from the top, a bar is counted in; two when one is shorter than this (fast songs)
 const double RESUME_RUNUP_S = 1.5; // resuming, the song picks up this long before where it was paused
 
 static HitFeedback feedback; // the judgements, timing bar and combo shown over the play screen
@@ -167,6 +168,8 @@ static struct {
     std::string partName;
     Rectangle distribution = {}; // where the HUD's timing distribution is: the results screen grows it from there
     float resumeAt = -1.0f;   // after a resume: the song time it was paused at (GET READY shows until then)
+    float countInBeat = 0.0f; // from the top: the count-in's beat (seconds), before the song's time 0; 0 for none
+    int countInBeats = 0;
     std::string fingerprint;  // of the part being played
     bool active = false;
 } game;
@@ -184,6 +187,24 @@ static void handleDrumKeys(){
         JudgeResult result = judgeInput(game.notes, press);
         if (result.judgement != Judgement::Ignored) scoreHit(game.state, result, judgementAnchor(game.notes, result.noteIndex));
     }
+}
+
+// From the top, a bar is counted in (two for a fast song), clicking on each beat with the count on screen: a note on
+// the very first beat isn't a surprise, and the first notes' rings are already closing in while it counts. The song
+// is started that long before its time 0 (its clock counts up from below it).
+static void startWithCountIn(){
+    const TimeSignatureChange& time = timeSignatureAt(game.chart, 0);
+    const double bar = tickToSeconds(game.chart, ticksPerBar(game.chart, time));
+    const int bars = bar < MIN_COUNT_IN_S ? 2 : 1;
+    const double countIn = bar * bars, beat = bar / std::max(1, time.beats);
+    double begins = playSongFrom(-countIn); // on the engine's clock, when the count starts
+    if (begins < 0.0){
+        playSong(false); // a song that can't be started ahead (read as it plays): from the top at once
+        return;
+    }
+    game.countInBeat = (float)beat;
+    game.countInBeats = time.beats * bars;
+    for (int k = 0; k < game.countInBeats; k++) playClickAt(begins + k * beat, k % time.beats == 0);
 }
 
 bool startGameplay(const std::string& chartPath, const GameplayOptions& options, std::string& error){
@@ -317,8 +338,9 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
     }
     game.songTime = 0.0f;
     game.active = true;
+    game.countInBeats = 0;
     if (fromTick > 0) playSongFrom(tickToSeconds(game.chart, fromTick) - LEAD_IN_S);
-    else playSong(false);
+    else startWithCountIn();
     return true;
 }
 
@@ -473,6 +495,17 @@ void drawGameplayHud(){
         float keysWidth = textWidth(fonts.mono, 14 * s, keys);
         draw->AddText(fonts.mono, 14 * s, ImVec2(width / 2 - keysWidth / 2, ImGui::GetIO().DisplaySize.y * 0.5f + 100 * s),
                       uiColor(UiColor::Dim), keys);
+    }
+    // The count-in, over where the notes arrive: the beats left, each popping in on its click and settling
+    if (game.countInBeats > 0 && game.songTime < 0.0f && !game.paused){
+        float beatsLeft = -game.songTime / game.countInBeat;
+        int count = std::min(game.countInBeats, (int)std::ceil(beatsLeft - 0.001f));
+        float intoBeat = 1.0f - (beatsLeft - std::floor(beatsLeft - 0.001f)); // 0 on the click, towards 1 before the next
+        const char* number = TextFormat("%d", std::max(1, count));
+        float size = 56 * s * (1.0f + 0.35f * std::max(0.0f, 1.0f - intoBeat * 4.0f));
+        float numberWidth = textWidth(fonts.heavy, size, number);
+        draw->AddText(fonts.heavy, size, ImVec2(game.hitLineX - numberWidth / 2, ImGui::GetIO().DisplaySize.y * 0.14f - size * 0.75f),
+                      uiColor(UiColor::Accent, 1.0f - 0.5f * intoBeat), number);
     }
     // Back from a pause, the song plays its run-up: nothing counts against the player until it's back where it was
     if (game.resumeAt >= 0.0f && game.songTime < game.resumeAt){
