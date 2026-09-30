@@ -26,6 +26,7 @@ struct GameResult {
     // and the part's best runs to show beside it
     int place = -1;
     std::vector<RunRecord> records;
+    std::vector<RunRecord> history; // every run of the part, as played: this one last
 };
 
 struct GameplayOptions {

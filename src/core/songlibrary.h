@@ -16,6 +16,7 @@ struct SongPart {
     RunRecord best;
     bool playedRhythm = false; // ...and its best in rhythm mode
     RunRecord bestRhythm;
+    std::vector<RunRecord> history, historyRhythm; // every run, in the order played
 };
 
 struct SongEntry {

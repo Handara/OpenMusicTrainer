@@ -99,8 +99,9 @@ int addRun(std::vector<RunRecord>& records, const RunRecord& run){
     return place;
 }
 
-std::vector<RunRecord> loadRuns(const std::string& path){
-    std::vector<RunRecord> records;
+// The "run" lines of a records or history file, in the file's order
+static std::vector<RunRecord> readRunLines(const std::string& path){
+    std::vector<RunRecord> runs;
     std::ifstream file(path);
     std::string line;
     while (std::getline(file, line)){
@@ -112,19 +113,53 @@ std::vector<RunRecord> loadRuns(const std::string& path){
         if (!(ss >> run.score >> run.accuracy >> run.maxCombo >> run.perfect >> run.good >> run.miss >> run.unstableRate
                  >> instrument >> run.date)) continue;
         run.withInstrument = instrument != 0;
-        addRun(records, run); // sorted and trimmed, whatever order the file is in
+        runs.push_back(run);
     }
-    return records;
+    return runs;
 }
 
-bool saveRuns(const std::string& path, const std::vector<RunRecord>& records, std::string& error){
+static bool writeRunLines(const std::string& path, const char* what, const std::vector<RunRecord>& runs, std::string& error){
     std::ostringstream out;
-    out << "# lahn records: the best runs of one part of one song\n";
+    out << "# lahn records: " << what << "\n";
     out << "version 1\n";
     out << "# run <score> <accuracy> <max combo> <perfect> <good> <miss> <unstable rate> <instrument 0/1> <date>\n";
-    for (const RunRecord& run : records){
+    for (const RunRecord& run : runs){
         out << "run " << run.score << " " << run.accuracy << " " << run.maxCombo << " " << run.perfect << " " << run.good << " "
             << run.miss << " " << run.unstableRate << " " << (run.withInstrument ? 1 : 0) << " " << run.date << "\n";
     }
     return writeFileAtomically(path, out.str(), error);
+}
+
+std::vector<RunRecord> loadRuns(const std::string& path){
+    std::vector<RunRecord> records;
+    for (const RunRecord& run : readRunLines(path)) addRun(records, run); // sorted and trimmed, whatever order the file is in
+    return records;
+}
+
+bool saveRuns(const std::string& path, const std::vector<RunRecord>& records, std::string& error){
+    return writeRunLines(path, "the best runs of one part of one song", records, error);
+}
+
+std::string historyPath(const std::string& recordsPath){
+    std::filesystem::path path(recordsPath);
+    return (path.parent_path() / (path.stem().string() + "-history" + path.extension().string())).string();
+}
+
+std::vector<RunRecord> loadHistory(const std::string& historyPath, const std::vector<RunRecord>& records){
+    std::error_code ec;
+    if (std::filesystem::exists(historyPath, ec)){
+        std::vector<RunRecord> history = readRunLines(historyPath);
+        if ((int)history.size() > KEPT_HISTORY) history.erase(history.begin(), history.end() - KEPT_HISTORY);
+        return history;
+    }
+    // Dates are YYYY-MM-DD, so they sort as text; a stable sort keeps a day's runs in the records' order
+    std::vector<RunRecord> seeded = records;
+    std::stable_sort(seeded.begin(), seeded.end(), [](const RunRecord& a, const RunRecord& b){ return a.date < b.date; });
+    return seeded;
+}
+
+bool addToHistory(const std::string& historyPath, std::vector<RunRecord>& history, const RunRecord& run, std::string& error){
+    history.push_back(run);
+    if ((int)history.size() > KEPT_HISTORY) history.erase(history.begin(), history.end() - KEPT_HISTORY);
+    return writeRunLines(historyPath, "every run of one part of one song, oldest first", history, error);
 }

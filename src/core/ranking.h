@@ -52,3 +52,12 @@ std::string recordsPath(const std::string& recordsDir, const std::string& songId
 // Records files load leniently, like the progress files: they're the player's own
 std::vector<RunRecord> loadRuns(const std::string& path);
 bool saveRuns(const std::string& path, const std::vector<RunRecord>& records, std::string& error);
+
+// Every run of a part, in the order they were played, for showing progress: beside its records file, with
+// "-history" in its name. The oldest go once there are more than KEPT_HISTORY.
+const int KEPT_HISTORY = 200;
+std::string historyPath(const std::string& recordsPath);
+// Records kept before there was a history seed it: their runs, oldest date first
+std::vector<RunRecord> loadHistory(const std::string& historyPath, const std::vector<RunRecord>& records);
+// Adds a run at the end and saves; `history` is as loadHistory gave it
+bool addToHistory(const std::string& historyPath, std::vector<RunRecord>& history, const RunRecord& run, std::string& error);

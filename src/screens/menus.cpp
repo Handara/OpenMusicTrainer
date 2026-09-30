@@ -4,6 +4,7 @@
 #include "screens/tuner.h"
 #include "ui/hitfeedback.h"
 #include "ui/menulist.h"
+#include "ui/rungraph.h"
 #include "ui/theme.h"
 #include "ui/ui.h"
 
@@ -16,15 +17,6 @@
 static MenuListArea listArea(float widthShare){
     float width = ImGui::GetWindowWidth(), height = ImGui::GetWindowHeight(), s = menuScale();
     return { ImVec2(width * 0.07f, height * 0.25f), width * widthShare, height * 0.66f - 20 * s, s };
-}
-
-static UiColor gradeColor(Grade grade){
-    switch (grade){
-        case Grade::SS: case Grade::S: return UiColor::Accent; // brass: the best there is
-        case Grade::A:                 return UiColor::Good;
-        case Grade::D:                 return UiColor::Bad;
-        default:                       return UiColor::Ink;
-    }
 }
 
 // The selected song on a card beside the list: its parts, and the best run on each
@@ -64,6 +56,13 @@ static void drawSongCard(const SongEntry& song, float s){
                           TextFormat("%.2f%%   %d", best.accuracy, best.score));
             if (best.fullCombo()){
                 draw->AddText(fonts.mono, 13 * s, ImVec2(x + inner - 30 * s, rowY + 9 * s), uiColor(UiColor::Accent), "FC");
+            }
+            // How the runs went, oldest first: a small line of their scores
+            const std::vector<RunRecord>& history = rhythmMode ? part.historyRhythm : part.history;
+            if (history.size() >= 2){
+                RunGraphLook small;
+                small.labels = false;
+                drawRunHistory(draw, history, ImVec2(x + 236 * s, rowY), ImVec2(inner - 236 * s - 48 * s, 28 * s), s, small);
             }
         }
         y += partHeight;
@@ -320,7 +319,7 @@ ResultsChoice resultsScreen(const GameResult& result){
         float boardY = listTop + 2 * 48 * s + 36 * s;
         draw->AddText(fonts.mono, 13 * s, ImVec2(left, boardY), uiColor(UiColor::Dim), "YOUR BEST RUNS");
         boardY += 13 * s + 12 * s;
-        for (int i = 0; i < (int)result.records.size() && i < 6; i++){
+        for (int i = 0; i < (int)result.records.size() && i < 5; i++){
             const RunRecord& run = result.records[i];
             bool thisRun = i == result.place;
             ImU32 ink = uiColor(thisRun ? UiColor::Accent : UiColor::Ink), dim = uiColor(thisRun ? UiColor::Accent : UiColor::Dim);
@@ -331,6 +330,17 @@ ResultsChoice resultsScreen(const GameResult& result){
                           TextFormat("%.2f%%  ·  %s%s  ·  %s", run.accuracy, run.fullCombo() ? "FC" : TextFormat("%dx", run.maxCombo),
                                      run.withInstrument ? "" : "  ·  keys", run.date.c_str()));
             boardY += 30 * s;
+        }
+        // Every run of the part as it was played, this one marked: traced in once the card has arrived
+        float graphTop = boardY + 22 * s + 13 * s + 26 * s, graphBottom = height - 64 * s - 18 * s;
+        if (result.history.size() >= 2 && graphBottom - graphTop > 40 * s){
+            draw->AddText(fonts.mono, 13 * s, ImVec2(left, boardY + 22 * s), uiColor(UiColor::Dim),
+                          TextFormat("PROGRESS  ·  %d RUNS", (int)result.history.size()));
+            RunGraphLook look;
+            look.marked = (int)result.history.size() - 1;
+            look.reveal = std::clamp((since - 0.9f) / 0.8f, 0.0f, 1.0f);
+            look.reveal = 1.0f - (1.0f - look.reveal) * (1.0f - look.reveal);
+            drawRunHistory(draw, result.history, ImVec2(left, graphTop), ImVec2(width * 0.4f, graphBottom - graphTop), s, look);
         }
     }
     menuScreenHint("Enter  choose    Esc  back to songs", s);

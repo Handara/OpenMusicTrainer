@@ -171,10 +171,13 @@ static void recordRun(GameResult& result){
     dateFromDays(today(), year, month, day);
     run.date = TextFormat("%04d-%02d-%02d", year, month, day);
     std::vector<RunRecord> records = loadRuns(path);
+    std::vector<RunRecord> history = loadHistory(historyPath(path), records); // before this run: records may start it
     result.place = addRun(records, run);
     std::string error;
     if (result.place >= 0 && !saveRuns(path, records, error)) TraceLog(LOG_WARNING, "Records: %s", error.c_str());
+    if (!addToHistory(historyPath(path), history, run, error)) TraceLog(LOG_WARNING, "Records: %s", error.c_str());
     result.records = records;
+    result.history = history;
 }
 
 static GameplayOptions gameplayOptions(){

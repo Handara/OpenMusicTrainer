@@ -63,12 +63,16 @@ void loadBestRuns(std::vector<SongEntry>& songs, const std::string& recordsDir){
     for (SongEntry& song : songs){
         for (int part = 0; part < (int)song.parts.size(); part++){
             SongPart& info = song.parts[part];
-            std::vector<RunRecord> records = loadRuns(recordsPath(recordsDir, songId(song), part, info.fingerprint));
+            std::string path = recordsPath(recordsDir, songId(song), part, info.fingerprint);
+            std::vector<RunRecord> records = loadRuns(path);
             info.played = !records.empty();
             if (info.played) info.best = records.front();
-            std::vector<RunRecord> rhythm = loadRuns(recordsPath(recordsDir, songId(song), part, info.fingerprint + "-rhythm"));
+            info.history = loadHistory(historyPath(path), records);
+            std::string rhythmPath = recordsPath(recordsDir, songId(song), part, info.fingerprint + "-rhythm");
+            std::vector<RunRecord> rhythm = loadRuns(rhythmPath);
             info.playedRhythm = !rhythm.empty();
             if (info.playedRhythm) info.bestRhythm = rhythm.front();
+            info.historyRhythm = loadHistory(historyPath(rhythmPath), rhythm);
         }
     }
 }
