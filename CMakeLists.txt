@@ -183,6 +183,7 @@ add_executable(lahn
     src/ui/menulist.cpp
     src/ui/fretboardview.cpp
     src/ui/pianoview.cpp
+    src/ui/settingsui.cpp
     src/ui/theme.cpp
     src/ui/transition.cpp
     src/ui/ui.cpp

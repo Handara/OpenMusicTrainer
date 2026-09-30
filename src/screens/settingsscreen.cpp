@@ -7,9 +7,12 @@
 #include "input/midi.h"
 #include "input/pianokeys.h"
 #include "imgui.h"
+#include "imgui_internal.h"
 #include "raylib.h"
 #include "ui/ui.h"
+#include "ui/menulist.h"
 #include "ui/pianoview.h"
+#include "ui/settingsui.h"
 #include "ui/theme.h"
 
 #include <algorithm>
@@ -19,10 +22,14 @@
 #include <cstring>
 #include <vector>
 
-const float PANEL_WIDTH = 760.0f;
 const int FRAME_RATE_CHOICES[] = { 60, 120, 144, 240, 0 };
-const char* const FRAME_RATE_LABELS[] = { "60", "120", "144", "240", "Unlimited" };
 const int FRAME_RATE_CHOICE_COUNT = 5;
+
+// The sections, listed on the left; the one chosen is shown on the card on the right
+enum class Section { Audio, Instruments, Gameplay, Display, PianoKeys };
+const char* const SECTION_NAMES[] = { "Audio", "Instruments", "Gameplay", "Display", "Piano keys" };
+const int SECTION_COUNT = 5;
+const float SECTION_ROW = 46.0f; // at a 720-pixel-tall window
 
 // Asking the system for devices can take a moment, so the lists are fetched when the screen opens
 static struct {
@@ -56,23 +63,13 @@ static struct {
     std::string status;   // result of the last change, e.g. a device that failed to open
     std::string monitorError; // why the instrument can't be heard, if it can't
     bool statusIsError = false;
+    Section section = Section::Audio;
+    bool popupWasOpen = false;   // a dropdown was open: Esc closed it, it doesn't leave the screen
 } screen;
 
 void applyDisplaySettings(const Settings& settings){
     if (settings.fullscreen != IsWindowState(FLAG_BORDERLESS_WINDOWED_MODE)) ToggleBorderlessWindowed();
     SetTargetFPS(settings.frameRateLimit);
-}
-
-// A dim line of explanation that wraps inside the panel instead of running off its edge
-static void hint(const char* format, ...){
-    va_list args;
-    va_start(args, format);
-    ImGui::PushTextWrapPos(0.0f);
-    ImGui::PushStyleColor(ImGuiCol_Text, uiColorVec(UiColor::Dim));
-    ImGui::TextWrappedV(format, args);
-    ImGui::PopStyleColor();
-    ImGui::PopTextWrapPos();
-    va_end(args);
 }
 
 void applyMonitor(const Settings& settings, std::string& error){
@@ -108,61 +105,31 @@ void closeSettingsScreen(){
     screen.choosingKeyFor = -1;
 }
 
-// MIDI: the device, and the keys it's heard pressing right now, so the player can see it's connected and working
-static void midiSection(Settings& settings){
-    ImGui::SeparatorText("MIDI keyboard");
-    if (ImGui::BeginCombo("MIDI", settings.midiDevice.empty() ? "The first one connected" : settings.midiDevice.c_str())){
-        if (ImGui::Selectable("The first one connected", settings.midiDevice.empty())) settings.midiDevice.clear();
-        for (const std::string& device : screen.midiDevices){
-            if (ImGui::Selectable(device.c_str(), device == settings.midiDevice)) settings.midiDevice = device;
-        }
-        ImGui::EndCombo();
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Refresh")){
-        screen.midiDevices = midiDeviceNames();
-        screen.midiListening = "\x01";
-    }
-    if (screen.midiListening != settings.midiDevice){
-        screen.midiListening = settings.midiDevice;
-        screen.midiError.clear();
-        if (!startMidiInput(settings.midiDevice, screen.midiError)) stopMidiInput();
-    }
-    if (!midiInputActive()){
-        std::string why = screen.midiError.empty() ? "no MIDI device" : screen.midiError;
-        why[0] = (char)std::toupper((unsigned char)why[0]);
-        ImGui::TextDisabled("%s", why.c_str());
-        return;
-    }
-    updateMidiInput();
-    std::string held;
-    const bool* down = midiKeysDown();
-    for (int pitch = 0; pitch < 128; pitch++) if (down[pitch]) held += TextFormat("%s%s%d", held.empty() ? "" : " ", pitchClassName(pitch), pitchOctave(pitch));
-    ImGui::TextDisabled("%s: %s", midiDeviceName(), held.empty() ? "play a few keys to check it" : held.c_str());
-}
-
 static void setStatus(const std::string& text, bool isError){
     screen.status = text;
     screen.statusIsError = isError;
 }
 
-// A dropdown of device names with "System default" first; returns true when the choice changed
-static bool deviceCombo(const char* label, std::string& current, const std::vector<std::string>& devices){
-    bool changed = false;
-    if (ImGui::BeginCombo(label, current.empty() ? "System default" : current.c_str())){
-        if (ImGui::Selectable("System default", current.empty())){
-            changed = !current.empty();
-            current.clear();
-        }
-        for (const std::string& device : devices){
-            if (ImGui::Selectable(device.c_str(), device == current)){
-                changed = device != current;
-                current = device;
-            }
-        }
-        ImGui::EndCombo();
+// A device list for a dropdown: `first` (the system's default, or any), then the devices; one set but not found is
+// kept, marked, so the setting isn't silently replaced
+static std::vector<std::string> deviceOptions(const char* first, const std::vector<std::string>& devices, const std::string& current, int& chosen){
+    std::vector<std::string> options = { first };
+    options.insert(options.end(), devices.begin(), devices.end());
+    chosen = 0;
+    if (current.empty()) return options;
+    for (int i = 1; i < (int)options.size(); i++) if (options[i] == current) chosen = i;
+    if (chosen == 0){
+        options.push_back(current + "  (not connected)");
+        chosen = (int)options.size() - 1;
     }
-    return changed;
+    return options;
+}
+
+// What a chosen option names: "" for the first (the default), the device otherwise
+static std::string deviceChosen(const std::vector<std::string>& options, int chosen, const std::string& current){
+    if (chosen <= 0) return "";
+    const std::string& option = options[chosen];
+    return option.size() > current.size() && option.compare(0, current.size(), current) == 0 && option.find("  (not connected)") != std::string::npos ? current : option;
 }
 
 // Plays an A major chord: three notes at once, to hear the sound and that notes can overlap
@@ -172,139 +139,153 @@ static void playTestChord(){
     playPreview(329.63f);
 }
 
-static void audioTab(Settings& settings, const std::string& soundsDir){
-    ImGui::SeparatorText("Devices");
-    if (deviceCombo("Output", settings.outputDevice, screen.outputDevices)){
+// A 0..1 volume as a percent slider
+static bool percentSlider(const char* label, const char* hint, float* value){
+    float percent = *value * 100.0f;
+    if (!settingSlider(label, hint, &percent, 0.0f, 100.0f, "%.0f%%")) return false;
+    *value = percent / 100.0f;
+    return true;
+}
+
+static void audioSection(Settings& settings, const std::string& soundsDir){
+    settingsGroup("DEVICES");
+    int chosen = 0;
+    std::vector<std::string> outputs = deviceOptions("System default", screen.outputDevices, settings.outputDevice, chosen);
+    if (outputIsAsio()){
+        settingInfo("Output", "Everything plays through the ASIO driver your input is on", outputDeviceName());
+    } else if (settingDropdown("Output", "Where lahn's sound comes out", &chosen, outputs, []{ screen.outputDevices = outputDeviceNames(); })){
+        settings.outputDevice = deviceChosen(outputs, chosen, settings.outputDevice);
         std::string error;
-        if (setOutputDevice(settings.outputDevice, error)) setStatus(std::string("Playing through ") + outputDeviceName(), false);
+        if (setOutputDevice(settings.outputDevice, error)) setStatus("", false);
         else setStatus(error, true);
     }
-    // The input device: opened by whatever listens (the monitor, the tuner, a song), so choosing it here is enough
-    if (deviceCombo("Input", settings.inputDevice, screen.inputDevices)) applyMonitor(settings, screen.monitorError);
-    ImGui::TextDisabled("Audio system: %s", audioBackendName());
-    midiSection(settings);
+    std::vector<std::string> inputs = deviceOptions("System default", screen.inputDevices, settings.inputDevice, chosen);
+    if (settingDropdown("Input", "Your audio interface or microphone. An ASIO driver (\"ASIO: ...\") is the fastest.", &chosen, inputs,
+                        []{ screen.inputDevices = inputDeviceNames(); })){
+        settings.inputDevice = deviceChosen(inputs, chosen, settings.inputDevice);
+        applyMonitor(settings, screen.monitorError);
+    }
+    settingInfo("Audio system", nullptr, audioBackendName());
 
-    // Hearing the instrument through lahn, wherever the player is: its inputs to the speakers, through a small amp
-    ImGui::SeparatorText("Hear my instrument");
-    bool changed = ImGui::Checkbox("Through lahn, everywhere in the game", &settings.monitorOn);
-    if (changed) applyMonitor(settings, screen.monitorError);
+    // MIDI: the device, and the keys it's heard pressing right now, so the player can see it's connected and working
+    settingsGroup("MIDI KEYBOARD");
+    std::vector<std::string> midis = deviceOptions("The first one connected", screen.midiDevices, settings.midiDevice, chosen);
+    if (settingDropdown("MIDI keyboard", "For playing piano parts", &chosen, midis, []{ screen.midiDevices = midiDeviceNames(); })){
+        settings.midiDevice = deviceChosen(midis, chosen, settings.midiDevice);
+    }
+    if (screen.midiListening != settings.midiDevice){
+        screen.midiListening = settings.midiDevice;
+        screen.midiError.clear();
+        if (!startMidiInput(settings.midiDevice, screen.midiError)) stopMidiInput();
+    }
+    if (!midiInputActive()){
+        std::string why = screen.midiError.empty() ? "no MIDI keyboard" : screen.midiError;
+        why[0] = (char)std::toupper((unsigned char)why[0]);
+        settingInfo("Heard", nullptr, why.c_str());
+    } else {
+        updateMidiInput();
+        std::string held;
+        const bool* down = midiKeysDown();
+        for (int pitch = 0; pitch < 128; pitch++) if (down[pitch]) held += TextFormat("%s%s%d", held.empty() ? "" : " ", pitchClassName(pitch), pitchOctave(pitch));
+        settingInfo("Heard", midiDeviceName(), held.empty() ? "Play a few keys to check it" : held.c_str(), held.empty() ? UiColor::Dim : UiColor::Accent);
+    }
+
+    // Hearing the instrument through lahn, wherever the player is
+    settingsGroup("HEAR MY INSTRUMENT");
+    if (settingToggle("Hear my instrument", "Through lahn's speakers, wherever you are in the game", &settings.monitorOn)){
+        applyMonitor(settings, screen.monitorError);
+    }
     ImGui::BeginDisabled(!settings.monitorOn);
     int sound = settings.monitorSynth ? 0 : 1;
-    ImGui::RadioButton("As a synth bass", &sound, 0);
-    ImGui::SameLine();
-    ImGui::RadioButton("My real instrument, through an amp", &sound, 1);
-    if ((sound == 0) != settings.monitorSynth){
+    if (settingSegments("Sound", settings.monitorSynth ? "The notes lahn hears, played on a clean synth bass. A little later than your real sound."
+                                                       : "Your real sound through a small amp: the fastest, with ASIO or Windows' fast mode",
+                        &sound, { "Synth bass", "My real sound" })){
         settings.monitorSynth = sound == 0;
         setMonitorSynth(settings.monitorSynth);
     }
-    bool tone = ImGui::SliderFloat("Instrument volume", &settings.monitorVolume, 0.0f, 1.0f, "%.2f");
+    bool tone = percentSlider("Volume", nullptr, &settings.monitorVolume);
     ImGui::BeginDisabled(settings.monitorSynth); // the amp shapes the real sound only
-    tone |= ImGui::SliderFloat("Drive", &settings.monitorDrive, 0.0f, 1.0f, "%.2f");
-    tone |= ImGui::SliderFloat("Tone", &settings.monitorTone, 0.0f, 1.0f, "%.2f");
+    tone |= percentSlider("Drive", "From clean to warm and rough", &settings.monitorDrive);
+    tone |= percentSlider("Tone", "From dark to bright", &settings.monitorTone);
     ImGui::EndDisabled();
     if (tone) setMonitorTone(settings.monitorVolume, settings.monitorDrive, settings.monitorTone);
     ImGui::EndDisabled();
-    if (!screen.monitorError.empty()) ImGui::TextColored(uiColorVec(UiColor::Bad), "%s", screen.monitorError.c_str());
-    hint(settings.monitorSynth
-         ? "The notes lahn hears, played clean on a synth bass: no hum, no noise, and each note heard is one the game understood. "
-           "A little later than your real sound."
-         : "Drive warms and roughens the sound, Tone goes from dark to bright. Your interface's own direct monitoring is heard "
-           "with no delay at all but no amp: with both on you'd hear it twice.");
+    if (!screen.monitorError.empty()) settingNote(screen.monitorError.c_str(), UiColor::Bad);
 
-    ImGui::SeparatorText("Volume");
-    if (ImGui::SliderFloat("Master", &settings.masterVolume, 0.0f, 1.0f, "%.2f")) setMasterVolume(settings.masterVolume);
-    if (ImGui::SliderFloat("Preview sounds", &settings.previewVolume, 0.0f, 1.0f, "%.2f")) setPreviewVolume(settings.previewVolume);
-    if (ImGui::SliderFloat("Hit sound", &settings.hitSoundVolume, 0.0f, 1.0f, "%.2f")) setHitSoundVolume(settings.hitSoundVolume);
-    if (ImGui::IsItemDeactivatedAfterEdit()) playHitSound(true); // hear it at the level just set
-    hint("A drop on every note you hit with your instrument, brighter for a perfect. 0 for none.");
+    settingsGroup("VOLUME");
+    if (percentSlider("Everything", nullptr, &settings.masterVolume)) setMasterVolume(settings.masterVolume);
+    if (percentSlider("Preview sounds", "Notes you place in the editor or play on the keyboard", &settings.previewVolume)) setPreviewVolume(settings.previewVolume);
+    if (percentSlider("Hit sound", "A drop on every note you hit with your instrument", &settings.hitSoundVolume)) setHitSoundVolume(settings.hitSoundVolume);
+    if (ImGui::IsItemDeactivatedAfterEdit()) playHitSound(true); // heard at the level just set
 
-    ImGui::SeparatorText("Preview sound");
-    if (ImGui::BeginCombo("Sound", settings.previewSound.c_str())){
-        for (const std::string& name : screen.previewSounds){
-            if (ImGui::Selectable(name.c_str(), name == settings.previewSound)){
-                std::string error;
-                if (setPreviewSound(name, soundsDir, error)){
-                    settings.previewSound = name;
-                    setStatus(previewSoundHasPitch() ? "" : "This sound has no clear pitch: it plays the same for every note", false);
-                    playTestChord();
-                } else {
-                    setStatus(error, true);
-                }
-            }
+    settingsGroup("PREVIEW SOUND");
+    chosen = 0;
+    for (int i = 0; i < (int)screen.previewSounds.size(); i++) if (screen.previewSounds[i] == settings.previewSound) chosen = i;
+    if (settingDropdown("Sound", "Pitched sounds are tuned to each note", &chosen, screen.previewSounds,
+                        [soundsDir]{ screen.previewSounds = previewSoundNames(soundsDir); })){
+        std::string error;
+        if (setPreviewSound(screen.previewSounds[chosen], soundsDir, error)){
+            settings.previewSound = screen.previewSounds[chosen];
+            setStatus(previewSoundHasPitch() ? "" : "This sound has no clear pitch: it plays the same for every note", false);
+            playTestChord();
+        } else {
+            setStatus(error, true);
         }
-        ImGui::EndCombo();
     }
-    if (ImGui::Button("Test")) playTestChord();
-    ImGui::SameLine();
-    if (ImGui::Button("Open sounds folder")) openFolder(soundsDir);
-    ImGui::SameLine();
-    if (ImGui::Button("Refresh")) openSettingsScreen(soundsDir);
-    ImGui::TextWrapped("Add your own: put .wav or .flac files in the sounds folder (mp3 works, but usually starts late). "
-                       "Sounds with a clear pitch are tuned to each note.");
+    switch (settingButtons("Your own sounds", "Put .wav or .flac files in the sounds folder", { "Test", "Open folder" })){
+        case 0: playTestChord(); break;
+        case 1: openFolder(soundsDir); break;
+        default: break;
+    }
 }
 
-static void displayTab(Settings& settings){
-    ImGui::SeparatorText("Notes");
-    // Any mix, stacked; unticking the last one ticks it straight back, since something must show the notes
+static void displaySection(Settings& settings){
+    // Any mix, stacked; turning the last one off turns it straight back on, since something must show the notes
+    settingsGroup("SHOW NOTES AS");
     NoteViews& views = settings.noteViews;
-    ImGui::TextUnformatted("Show notes as (any mix, stacked)");
-    if (ImGui::Checkbox("Sheet music", &views.staff) && !views.any()) views.staff = true;
-    ImGui::SameLine();
-    if (ImGui::Checkbox("Tab", &views.tab) && !views.any()) views.tab = true;
-    ImGui::SameLine();
-    if (ImGui::Checkbox("Highway", &views.highway) && !views.any()) views.highway = true;
-    ImGui::SameLine();
-    if (ImGui::Checkbox("Neck (rings closing in)", &views.neck) && !views.any()) views.neck = true;
-
+    if (settingToggle("Sheet music", nullptr, &views.staff) && !views.any()) views.staff = true;
+    if (settingToggle("Tab", nullptr, &views.tab) && !views.any()) views.tab = true;
+    if (settingToggle("Highway", "Notes flying at a line, one lane per string", &views.highway) && !views.any()) views.highway = true;
+    if (settingToggle("Neck", "Rings closing onto each note's place on the fretboard", &views.neck) && !views.any()) views.neck = true;
     ImGui::BeginDisabled(!views.highway);
-    ImGui::TextUnformatted("The highway");
     int direction = views.highwayFalls ? 1 : 0;
-    ImGui::RadioButton("Scrolls across", &direction, 0);
-    ImGui::SameLine();
-    ImGui::RadioButton("Falls down (strings side by side)", &direction, 1);
-    views.highwayFalls = direction == 1;
+    if (settingSegments("Highway direction", nullptr, &direction, { "Across", "Falling" })) views.highwayFalls = direction == 1;
     ImGui::EndDisabled();
+    int order = settings.lowStringOnTop ? 0 : 1;
+    if (settingSegments("Lowest string", "On the highway and in the editor (left when falling)", &order, { "On top", "At the bottom" })){
+        settings.lowStringOnTop = order == 0;
+    }
 
-    ImGui::TextUnformatted("String order on the highway and in the editor");
-    int stringOrder = settings.lowStringOnTop ? 0 : 1;
-    ImGui::RadioButton("Low E at the top (left when falling)", &stringOrder, 0);
-    ImGui::SameLine();
-    ImGui::RadioButton("Low E at the bottom (right when falling)", &stringOrder, 1);
-    settings.lowStringOnTop = stringOrder == 0;
-
-    ImGui::SeparatorText("Colors");
+    settingsGroup("LOOK");
     int colors = settings.darkTheme ? 1 : 0;
-    ImGui::RadioButton("Light", &colors, 0);
-    ImGui::SameLine();
-    ImGui::RadioButton("Dark", &colors, 1);
-    if ((colors == 1) != settings.darkTheme){
+    if (settingSegments("Theme", nullptr, &colors, { "Light", "Dark" })){
         settings.darkTheme = colors == 1;
         setTheme(settings.darkTheme ? ThemeMode::Dark : ThemeMode::Light); // at once, so the choice can be seen
     }
 
-    ImGui::SeparatorText("Window");
-    if (ImGui::Checkbox("Fullscreen", &settings.fullscreen)) applyDisplaySettings(settings);
-
-    int choice = FRAME_RATE_CHOICE_COUNT - 1;
-    for (int i = 0; i < FRAME_RATE_CHOICE_COUNT; i++) if (FRAME_RATE_CHOICES[i] == settings.frameRateLimit) choice = i;
-    if (ImGui::Combo("Frame rate limit", &choice, FRAME_RATE_LABELS, FRAME_RATE_CHOICE_COUNT)){
-        settings.frameRateLimit = FRAME_RATE_CHOICES[choice];
+    settingsGroup("WINDOW");
+    if (settingToggle("Fullscreen", nullptr, &settings.fullscreen)) applyDisplaySettings(settings);
+    int rate = FRAME_RATE_CHOICE_COUNT - 1;
+    for (int i = 0; i < FRAME_RATE_CHOICE_COUNT; i++) if (FRAME_RATE_CHOICES[i] == settings.frameRateLimit) rate = i;
+    if (settingSegments("Frame rate", "Higher is smoother, if your screen can show it", &rate, { "60", "120", "144", "240", "Any" })){
+        settings.frameRateLimit = FRAME_RATE_CHOICES[rate];
         applyDisplaySettings(settings);
     }
-    ImGui::TextDisabled("Higher frame rates make notes move more smoothly, if your screen can show them.");
 }
 
 bool settingsUsedEscape(){
-    return screen.usedEscape;
+    return screen.usedEscape || screen.popupWasOpen; // Esc cancelled choosing a key, or closed a dropdown
 }
 
 // The computer keyboard's piano: a small keyboard, each note with its key. Click a note, then press its new key
 // (Backspace leaves it without one, Esc cancels).
 static void pianoKeysSection(Settings& settings){
-    ImGui::SeparatorText("Piano on the computer keyboard");
-    ImGui::TextDisabled(screen.choosingKeyFor >= 0 ? "Press the key for this note. Backspace: no key. Esc: cancel."
-                                                   : "Click a note to choose its key. Up and Down move it an octave in play.");
-    float keyWidth = std::min(40.0f, ImGui::GetContentRegionAvail().x / pianoWhiteKeys(PIANO_KEY_SLOTS)), keyHeight = 96.0f;
+    const float s = menuScale();
+    settingsGroup("PIANO ON THE COMPUTER KEYBOARD");
+    settingNote(screen.choosingKeyFor >= 0 ? "Press the key for this note. Backspace: no key. Esc: cancel."
+                                           : "Click a note to choose its key. In a song, Up and Down move the keys an octave.",
+                screen.choosingKeyFor >= 0 ? UiColor::Accent : UiColor::Dim);
+    float keyWidth = std::min(40.0f * s, ImGui::GetContentRegionAvail().x / pianoWhiteKeys(PIANO_KEY_SLOTS)), keyHeight = 110.0f * s;
     ImVec2 origin = ImGui::GetCursorScreenPos();
     ImGui::InvisibleButton("pianokeys", ImVec2(keyWidth * pianoWhiteKeys(PIANO_KEY_SLOTS), keyHeight));
     bool clicked = ImGui::IsItemClicked();
@@ -318,6 +299,7 @@ static void pianoKeysSection(Settings& settings){
         return look;
     });
     if (clicked && hovered >= 0) screen.choosingKeyFor = hovered;
+    ImGui::Dummy(ImVec2(0, 12 * s));
     // Waiting for a key: the first one pressed that can play a note
     screen.usedEscape = false;
     if (screen.choosingKeyFor >= 0){
@@ -332,7 +314,7 @@ static void pianoKeysSection(Settings& settings){
             screen.choosingKeyFor = -1;
         }
     }
-    if (ImGui::Button("Reset to the default keys")){
+    if (settingButton("Default keys", "Every note back on the key it started on", "Reset")){
         settings.pianoKeys = defaultPianoKeys();
         screen.choosingKeyFor = -1;
     }
@@ -384,67 +366,67 @@ static int& roleChannel(Settings& settings, InputRole role){
 
 // The inputs, and which instrument is on which: a meter and what each one hears, then each instrument's input,
 // found by playing it (Detect) or chosen by hand
-static void instrumentsTab(Settings& settings){
+static void instrumentsSection(Settings& settings){
+    const float s = menuScale();
     screen.shownFrame = (int)ImGui::GetFrameCount();
     // Whatever changes here which inputs are the instruments', the monitor hears the new ones (checked at the end)
     const int guitarBefore = settings.guitarChannel, bassBefore = settings.bassChannel, voiceBefore = settings.voiceChannel;
     const bool exclusiveBefore = settings.exclusiveInput;
     listenToInputs(settings);
-    ImGui::SeparatorText("Inputs");
-    ImGui::TextDisabled("%s", settings.inputDevice.empty() ? "The system's default input device (Audio tab to change it)"
-                                                           : ("On " + settings.inputDevice + " (Audio tab to change it)").c_str());
+
+    settingsGroup("INPUT");
+    settingInfo("Input device", "Changed in Audio", settings.inputDevice.empty() ? "System default" : settings.inputDevice.c_str());
 #ifdef _WIN32
     if (screen.listening && captureIsAsio()){
         // ASIO: straight to the interface. Its buffer size is the latency to play with, in the driver's own window.
-        hint("ASIO, straight to the interface: %.1f ms of input latency.", captureLatencySeconds() * 1000.0);
-        if (ImGui::Button("Driver settings")) openInputDriverSettings();
-        ImGui::SameLine();
-        ImGui::TextDisabled("A smaller buffer is faster; too small and the sound crackles.");
+        std::string latency = TextFormat("%.1f ms of input latency. A smaller buffer is faster; too small and it crackles.", captureLatencySeconds() * 1000.0);
+        if (settingButton("ASIO driver", latency.c_str(), "Driver settings")) openInputDriverSettings();
     } else {
         // Windows' own effects on microphones (noise suppression) let an instrument through only while someone speaks
-        if (ImGui::Checkbox("Keep the input to lahn alone", &settings.exclusiveInput)){
+        const char* how = !screen.listening ? "Skips Windows' effects, which can cut an instrument"
+                        : captureIsExclusive() ? "Windows' effects are skipped; other programs can't use this input meanwhile"
+                        : settings.exclusiveInput ? "Another program has this input, so it's shared: Windows' effects may cut your instrument"
+                        : "Shared: Windows' effects may cut your instrument";
+        if (settingToggle("Keep the input to lahn alone", how, &settings.exclusiveInput)){
             setExclusiveCapture(settings.exclusiveInput);
             stopListening(); // opened again, the new way, next frame
-        }
-        if (screen.listening){
-            const char* how = captureIsExclusive() ? "Windows' effects are skipped; other programs can't use this input meanwhile."
-                            : settings.exclusiveInput ? "Another program has this input, so it's shared: Windows' effects may cut your instrument."
-                            : "Shared: Windows' effects (noise suppression) may cut your instrument.";
-            hint("%s %.0f ms of input latency.", how, captureLatencySeconds() * 1000.0);
         }
     }
 #endif
     if (!screen.listening){
-        ImGui::TextColored(uiColorVec(UiColor::Bad), "Can't listen: %s", screen.listenError.c_str());
+        settingNote(("Can't listen: " + screen.listenError).c_str(), UiColor::Bad);
         return;
     }
-    // From a pluck to the screen: the input's buffering, the attack found (one 2.7 ms step), one frame. A note's
-    // name takes longer: two periods of the lowest note that can come (core/notedetector), less in a song.
-    {
-        double inputMs = captureLatencySeconds() * 1000.0, frameMs = GetFrameTime() * 1000.0;
-        hint("From your pluck to the screen: about %.0f ms (input %.0f, finding the attack 3, one frame %.0f). Naming the note "
-             "takes 10 to 60 ms more, the lowest notes longest. Timing is judged from the pluck itself.",
-             inputMs + 3.0 + frameMs, inputMs, frameMs);
-    }
+    // From a pluck to the screen: the input's buffering, the attack found (one 2.7 ms step), one frame
+    double inputMs = captureLatencySeconds() * 1000.0, frameMs = GetFrameTime() * 1000.0;
+    settingInfo("From pluck to screen", "Timing is judged from the pluck itself. Naming the note takes 10 to 60 ms more.",
+                TextFormat("about %.0f ms", inputMs + 3.0 + frameMs));
+
+    settingsGroup("WHAT EACH INPUT HEARS");
     ImDrawList* draw = ImGui::GetWindowDrawList();
+    const UiFonts& fonts = uiFonts();
     for (int c = 0; c < (int)screen.inputs.size(); c++){
         const auto& input = screen.inputs[c];
-        ImGui::Text("Input %d", c + 1);
-        ImGui::SameLine(90);
-        ImVec2 at = ImGui::GetCursorScreenPos();
-        float meterWidth = 200.0f, fill = std::clamp((input.levelDb + 60.0f) / 60.0f, 0.0f, 1.0f);
-        draw->AddRectFilled(ImVec2(at.x, at.y + 6), ImVec2(at.x + meterWidth, at.y + 14), uiColor(UiColor::StaffLine), 3.0f);
-        if (fill > 0.02f) draw->AddRectFilled(ImVec2(at.x, at.y + 6), ImVec2(at.x + meterWidth * fill, at.y + 14), uiColor(UiColor::Good), 3.0f);
-        ImGui::Dummy(ImVec2(meterWidth + 12, 18));
-        ImGui::SameLine();
-        std::string now = input.heardMidi >= 0.0f ? TextFormat("%s%d", pitchClassName((int)std::lround(input.heardMidi)), pitchOctave((int)std::lround(input.heardMidi))) : "-";
         std::string lowest = input.lowestHz > 0.0f
-            ? TextFormat("lowest %s%d: %s", pitchClassName((int)std::lround(frequencyToMidi(input.lowestHz))),
+            ? TextFormat("Lowest note %s%d: %s", pitchClassName((int)std::lround(frequencyToMidi(input.lowestHz))),
                          pitchOctave((int)std::lround(frequencyToMidi(input.lowestHz))), guessInstrument(input.lowestHz).c_str())
-            : "play its lowest string";
-        ImGui::TextDisabled("%-4s  %s", now.c_str(), lowest.c_str());
+            : "Play its lowest string";
+        SettingControl row = settingRow(TextFormat("Input %d", c + 1), lowest.c_str(), 26 * s);
+        // Its level (green while it's played) and the note it hears now
+        float meterRight = row.max.x - 60 * s, middle = (row.min.y + row.max.y) / 2;
+        float fill = std::clamp((input.levelDb + 60.0f) / 60.0f, 0.0f, 1.0f);
+        draw->AddRectFilled(ImVec2(row.min.x, middle - 3 * s), ImVec2(meterRight, middle + 3 * s), uiColor(UiColor::StaffLine), 3 * s);
+        if (fill > 0.02f){
+            UiColor color = isSounding(input.floor, input.levelDb) ? UiColor::Good : UiColor::Dim;
+            draw->AddRectFilled(ImVec2(row.min.x, middle - 3 * s), ImVec2(row.min.x + (meterRight - row.min.x) * fill, middle + 3 * s), uiColor(color), 3 * s);
+        }
+        std::string now = input.heardMidi >= 0.0f ? TextFormat("%s%d", pitchClassName((int)std::lround(input.heardMidi)), pitchOctave((int)std::lround(input.heardMidi))) : "-";
+        float noteWidth = fonts.bold ? fonts.bold->CalcTextSizeA(17 * s, FLT_MAX, 0.0f, now.c_str()).x : 20 * s;
+        draw->AddText(fonts.bold, 17 * s, ImVec2(row.max.x - noteWidth, middle - 9 * s), uiColor(input.heardMidi >= 0.0f ? UiColor::Accent : UiColor::Dim), now.c_str());
     }
-    if (ImGui::Button("Listen again")) for (auto& input : screen.inputs) input.lowestHz = 0.0f;
+    if (settingButton("Listen again", "Forget the lowest notes heard, to check an instrument again", "Listen again")){
+        for (auto& input : screen.inputs) input.lowestHz = 0.0f;
+    }
 
     // Detecting: the input that's clearly sounding, for half a second, while the player plays the instrument. Each
     // against its own floor, and the one risen most wins (core/inputs: playedInput), the inputs other instruments are
@@ -480,93 +462,113 @@ static void instrumentsTab(Settings& settings){
         }
     }
 
-    ImGui::SeparatorText("Instruments");
+    // Each instrument's input: chosen, or found by playing it (Detect). A warning if what's heard there doesn't fit.
+    settingsGroup("EACH INSTRUMENT'S INPUT");
+    std::vector<std::string> choices = { "All inputs mixed" };
+    for (int c = 0; c < (int)screen.inputs.size(); c++) choices.push_back(TextFormat("Input %d", c + 1));
     for (InputRole role : { InputRole::Guitar, InputRole::Bass, InputRole::Voice }){
-        ImGui::PushID((int)role);
         int& channel = roleChannel(settings, role);
-        std::string current = channel < 0 ? "All inputs mixed" : TextFormat("Input %d", channel + 1);
-        ImGui::SetNextItemWidth(220);
-        if (ImGui::BeginCombo(inputRoleName(role), current.c_str())){
-            if (ImGui::Selectable("All inputs mixed", channel < 0)) channel = -1;
-            for (int c = 0; c < (int)screen.inputs.size(); c++){
-                if (ImGui::Selectable(TextFormat("Input %d", c + 1), channel == c)) channel = c;
-            }
-            ImGui::EndCombo();
-        }
-        ImGui::SameLine();
-        if (screen.detecting == (int)role) ImGui::TextColored(uiColorVec(UiColor::Accent), "Play your %s...", inputRoleName(role));
-        else if (ImGui::Button("Detect")){
+        bool detectingThis = screen.detecting == (int)role;
+        bool misfit = channel >= 0 && channel < (int)screen.inputs.size() && !fitsRole(role, screen.inputs[channel].lowestHz);
+        std::string hint = detectingThis ? TextFormat("Play your %s...", inputRoleName(role))
+                         : misfit ? TextFormat("This input sounds like %s", guessInstrument(screen.inputs[channel].lowestHz).c_str())
+                         : "Judged from its own input, never mixed with the others";
+        SettingControl row = settingRow(inputRoleName(role), hint.c_str(), settingsControlHeight());
+        ImGui::PushID((int)role);
+        const float buttonWidth = 90 * s;
+        int chosen = channel + 1;
+        if (settingsDropdownAt("input", row.min, ImVec2(row.max.x - buttonWidth - 8 * s, row.max.y), &chosen, choices)) channel = chosen - 1;
+        if (settingsButtonAt("detect", ImVec2(row.max.x - buttonWidth, row.min.y), row.max, detectingThis ? "Listening" : "Detect") && !detectingThis){
             screen.detecting = (int)role;
             screen.detectStarted = GetTime();
             screen.loudSince.assign(screen.inputs.size(), -1.0);
         }
-        // What that input has heard, against what it's meant to be
-        if (channel >= 0 && channel < (int)screen.inputs.size() && !fitsRole(role, screen.inputs[channel].lowestHz)){
-            ImGui::SameLine();
-            ImGui::TextColored(uiColorVec(UiColor::Bad), "sounds like %s", guessInstrument(screen.inputs[channel].lowestHz).c_str());
-        }
         ImGui::PopID();
     }
-    ImGui::TextDisabled("Each instrument is judged from its own input, so they're never mixed together.");
     if (settings.guitarChannel != guitarBefore || settings.bassChannel != bassBefore || settings.voiceChannel != voiceBefore ||
         settings.exclusiveInput != exclusiveBefore){
         applyMonitor(settings, screen.monitorError);
     }
 }
 
-static void gameplayTab(Settings& settings, SettingsChoice& choice){
-    ImGui::SeparatorText("Playing");
+static void gameplaySection(Settings& settings, SettingsChoice& choice){
+    settingsGroup("PLAYING");
     int input = !settings.playWithInstrument ? 0 : settings.playInstrument == InputRole::Bass ? 2 : 1;
-    ImGui::RadioButton("Keyboard (keys 1 to 6)", &input, 0);
-    ImGui::SameLine();
-    ImGui::RadioButton("Guitar", &input, 1);
-    ImGui::SameLine();
-    ImGui::RadioButton("Bass", &input, 2);
-    settings.playWithInstrument = input != 0;
-    if (input != 0) settings.playInstrument = input == 2 ? InputRole::Bass : InputRole::Guitar;
-    ImGui::SliderFloat("Note speed", &settings.noteSpeed, 100.0f, 1500.0f, "%.0f px/s");
-    ImGui::TextDisabled("Faster notes are spread further apart. Timing is judged the same at any speed.");
+    if (settingSegments("Play with", "Also switched on the song list, with I", &input, { "Keyboard", "Guitar", "Bass" })){
+        settings.playWithInstrument = input != 0;
+        if (input != 0) settings.playInstrument = input == 2 ? InputRole::Bass : InputRole::Guitar;
+    }
+    settingSlider("Note speed", "Faster spreads the notes further apart. Timing is judged the same.", &settings.noteSpeed, 100.0f, 1500.0f, "%.0f px/s");
 
-    ImGui::SeparatorText("Latency");
-    hint("Sound leaves lahn %.0f ms after it's made, on %s; the global offset covers that and the rest.",
-         outputLatencySeconds() * 1000.0, outputDeviceName());
-    ImGui::SliderInt("Global offset", &settings.globalOffsetMs, -500, 500, "%d ms");
-    if (ImGui::Button("Calibrate by tapping")) choice = SettingsChoice::CalibrateTapping;
-    ImGui::SameLine();
-    ImGui::TextDisabled("How late sound reaches you (Bluetooth, slow drivers)");
-    ImGui::SliderInt("Input offset", &settings.inputOffsetMs, -500, 500, "%d ms");
-    if (ImGui::Button("Calibrate my instrument")) choice = SettingsChoice::CalibrateInstrument;
-    ImGui::SameLine();
-    ImGui::TextDisabled("Your input device's own delay. Tap first");
+    settingsGroup("LATENCY");
+    settingInfo("Sound out", outputDeviceName(), TextFormat("%.0f ms", outputLatencySeconds() * 1000.0));
+    settingSliderInt("Global offset", "How late sound reaches you (Bluetooth, slow drivers)", &settings.globalOffsetMs, -500, 500, "%d ms");
+    if (settingButton("Measure it", "Tap along to clicks", "Tap along")) choice = SettingsChoice::CalibrateTapping;
+    settingSliderInt("Input offset", "Your input device's own delay", &settings.inputOffsetMs, -500, 500, "%d ms");
+    if (settingButton("Measure your instrument", "Play along to clicks. Measure by tapping first.", "Play along")) choice = SettingsChoice::CalibrateInstrument;
+}
+
+// The sections, a list on the left: Tab and Shift+Tab move through them, a click picks one
+static void sectionList(float s){
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    const UiFonts& fonts = uiFonts();
+    const float left = ImGui::GetWindowWidth() * 0.07f, top = ImGui::GetWindowHeight() * 0.22f;
+    const ImVec2 mouse = ImGui::GetMousePos();
+    for (int i = 0; i < SECTION_COUNT; i++){
+        const bool on = (int)screen.section == i;
+        const float y = top + i * SECTION_ROW * s;
+        const float width = fonts.bold ? fonts.bold->CalcTextSizeA(21 * s, FLT_MAX, 0.0f, SECTION_NAMES[i]).x : 100 * s;
+        const bool hovered = mouse.x >= left - 16 * s && mouse.x <= left + width + 16 * s && mouse.y >= y - 6 * s && mouse.y <= y + 30 * s;
+        if (on) draw->AddRectFilled(ImVec2(left - 16 * s, y + 3 * s), ImVec2(left - 13 * s, y + 25 * s), uiColor(UiColor::Accent), 1.5f * s);
+        draw->AddText(fonts.bold, 21 * s, ImVec2(left, y), uiColor(on ? UiColor::Ink : hovered ? UiColor::Ink : UiColor::Dim, on || hovered ? 1.0f : 0.9f),
+                      SECTION_NAMES[i]);
+        if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) screen.section = (Section)i;
+    }
+    // Tab is the sections' own, not ImGui's (which would move between controls)
+    const ImGuiID owner = ImGui::GetID("SettingsSections");
+    ImGui::SetKeyOwner(ImGuiKey_Tab, owner);
+    if (ImGui::IsKeyPressed(ImGuiKey_Tab, ImGuiInputFlags_Repeat, owner)){
+        int step = ImGui::GetIO().KeyShift ? SECTION_COUNT - 1 : 1;
+        screen.section = (Section)(((int)screen.section + step) % SECTION_COUNT);
+    }
 }
 
 SettingsChoice settingsScreen(Settings& settings, const std::string& soundsDir, const std::string& error){
     SettingsChoice choice = SettingsChoice::None;
     beginMenu("Settings");
-    menuTitle("Settings");
+    const float s = menuScale(), width = ImGui::GetWindowWidth(), height = ImGui::GetWindowHeight();
+    menuScreenTitle("Settings", s);
+    sectionList(s);
 
-    ImGui::SetCursorPosX((ImGui::GetWindowWidth() - PANEL_WIDTH) / 2);
-    ImGui::BeginChild("SettingsPanel", ImVec2(PANEL_WIDTH, ImGui::GetContentRegionAvail().y - 110));
-    ImGui::PushItemWidth(-220); // room for the labels on the right
-    if (ImGui::BeginTabBar("SettingsTabs")){
-        if (ImGui::BeginTabItem("Audio")){ audioTab(settings, soundsDir); ImGui::EndTabItem(); }
-        if (ImGui::BeginTabItem("Display")){ displayTab(settings); ImGui::EndTabItem(); }
-        if (ImGui::BeginTabItem("Gameplay")){ gameplayTab(settings, choice); ImGui::EndTabItem(); }
-        if (ImGui::BeginTabItem("Piano keys")){ pianoKeysSection(settings); ImGui::EndTabItem(); }
-        if (ImGui::BeginTabItem("Instruments")){ instrumentsTab(settings); ImGui::EndTabItem(); }
-        ImGui::EndTabBar();
-        if (screen.listening && screen.shownFrame != (int)ImGui::GetFrameCount()) stopListening(); // left the Instruments tab
+    // The chosen section, on a card that scrolls
+    const float cardLeft = width * 0.30f, cardTop = height * 0.17f, cardRight = width * 0.93f, cardBottom = height - 64 * s;
+    ImGui::SetCursorScreenPos(ImVec2(cardLeft, cardTop));
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, uiColorVec(UiColor::Card));
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 14 * s);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(32 * s, 10 * s));
+    ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, 6 * s);
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+    // NavFlattened: Up and Down go straight to the card's controls, not to the card as a whole first
+    // One card per section, so each keeps its own scroll position
+    ImGui::BeginChild(TextFormat("SettingsCard%d", (int)screen.section), ImVec2(cardRight - cardLeft, cardBottom - cardTop),
+                      ImGuiChildFlags_AlwaysUseWindowPadding | ImGuiChildFlags_NavFlattened);
+    if (!screen.status.empty()) settingNote(screen.status.c_str(), screen.statusIsError ? UiColor::Bad : UiColor::Dim);
+    if (!error.empty()) settingNote(error.c_str(), UiColor::Bad);
+    switch (screen.section){
+        case Section::Audio:       audioSection(settings, soundsDir); break;
+        case Section::Instruments: instrumentsSection(settings); break;
+        case Section::Gameplay:    gameplaySection(settings, choice); break;
+        case Section::Display:     displaySection(settings); break;
+        case Section::PianoKeys:   pianoKeysSection(settings); break;
     }
-    ImGui::PopItemWidth();
-    if (!screen.status.empty()){
-        ImGui::Dummy(ImVec2(0, 6));
-        if (screen.statusIsError) ImGui::TextColored(uiColorVec(UiColor::Bad), "%s", screen.status.c_str());
-        else ImGui::TextWrapped("%s", screen.status.c_str());
-    }
-    if (!error.empty()) ImGui::TextColored(uiColorVec(UiColor::Bad), "%s", error.c_str());
+    ImGui::Dummy(ImVec2(0, 16 * s));
     ImGui::EndChild();
+    ImGui::PopStyleVar(4);
+    ImGui::PopStyleColor();
+    if (screen.listening && screen.shownFrame != (int)ImGui::GetFrameCount()) stopListening(); // left the Instruments section
 
-    if (menuButton("Back")) choice = SettingsChoice::Back;
+    menuScreenHint("Tab  section    Up/Down  setting    Left/Right  adjust    Enter  choose    Esc  back", s);
+    screen.popupWasOpen = ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId);
     ImGui::End();
     return choice;
 }
