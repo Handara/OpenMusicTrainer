@@ -19,6 +19,7 @@
 #include "screens/settingsscreen.h"
 #include "screens/tuner.h"
 #include "screens/tuningscreen.h"
+#include "screens/tonewizard.h"
 #include "ui/menulist.h"
 #include "ui/transition.h"
 #include "ui/ui.h"
@@ -34,7 +35,7 @@
 namespace fs = std::filesystem;
 
 enum class Screen { MainMenu, SongSelect, Playing, Results, Tuner, Instrument, EditorSelect, NewSong, Editor, LessonEditor, Settings, Learn, Calibration,
-                    TuningCheck };
+                    TuningCheck, ToneWizard };
 
 // App-wide state shared between screens
 static struct {
@@ -369,6 +370,13 @@ static void handleBackKey(bool backClicked){
         case Screen::Settings: if (!settingsUsedEscape()) leaveSettings(); break;
         case Screen::Calibration: leaveCalibration(); break;
         case Screen::TuningCheck: leaveTuningCheck(false); break;
+        case Screen::ToneWizard:
+            if (!ImGui::GetIO().WantTextInput){ // Esc in the name field stops typing, it doesn't leave
+                closeToneWizard(app.settings);
+                saveAppSettings();
+                app.screen = Screen::Settings;
+            }
+            break;
         case Screen::Learn:
             if (learnBack()){
                 closeLearnScreen();
@@ -475,6 +483,10 @@ static void runMenus(){
                 case SettingsChoice::Back: leaveSettings(); break;
                 case SettingsChoice::CalibrateTapping: goToCalibration(CalibrationMode::Tap); break;
                 case SettingsChoice::CalibrateInstrument: goToCalibration(CalibrationMode::Instrument); break;
+                case SettingsChoice::ToneWizard:
+                    openToneWizard(app.settings);
+                    app.screen = Screen::ToneWizard;
+                    break;
                 case SettingsChoice::None: break;
             }
             break;
@@ -487,6 +499,7 @@ static void runMenus(){
             if (choice.apply) leaveCalibration();
             break;
         }
+        case Screen::ToneWizard: toneWizardScreen(app.settings); break;
         case Screen::TuningCheck:
             switch (tuningScreen()){
                 case TuningChoice::Tuned: case TuningChoice::Skipped: leaveTuningCheck(true); break;
@@ -571,6 +584,7 @@ int main(void){
     setMasterVolume(app.settings.masterVolume);
     setExclusiveCapture(app.settings.exclusiveInput);
     setHitSoundVolume(app.settings.hitSoundVolume);
+    initTones((fs::path(app.userDataDir) / "tones").string());
     std::string monitorError;
     applyMonitor(app.settings, monitorError); // the instrument heard from the start
     if (!monitorError.empty()) TraceLog(LOG_WARNING, "Hearing the instrument: %s", monitorError.c_str());

@@ -85,7 +85,8 @@ struct EffectState {
     float phase = 0.0f;                  // the chorus's
     std::vector<float> line;             // a delay line (delay, chorus)
     int write = 0;
-    std::vector<float> combs[8], allpasses[4]; // the reverb's
+    std::vector<float> combs[8], allpasses[4]; // the reverb's, sized for the highest rate
+    int combLength[8] = {}, allpassLength[4] = {}; // the part of each used at the rate now
     int combAt[8] = {}, allpassAt[4] = {};
     float combStore[8] = {};
 };
@@ -97,9 +98,15 @@ struct ToneChain {
     float dcIn = 0.0f, dcOut = 0.0f; // the DC blocker in front of it all
 };
 
-// Sizes every delay line for the sample rate: before the audio thread uses it (this allocates)
+// Sizes every delay line for any rate up to 96 kHz (or `sampleRate`, if higher): before the audio thread uses it
+// (this allocates)
 void initToneChain(ToneChain& chain, int sampleRate);
 // A new tone, or new settings: the effects' memory is kept where the effect in a slot is the same kind, so a knob
 // turned while playing doesn't click. Allocation-free: safe on the audio thread.
 void setToneChain(ToneChain& chain, const ToneParameters& parameters);
 void processToneChain(ToneChain& chain, float* samples, int count);
+// Silence in every effect's memory, as new (not while an audio thread runs it: it clears whole delay lines)
+void clearToneChain(ToneChain& chain);
+// Another sample rate (the device changed): the filters are worked out again, the delay lines stay as sized.
+// Allocation-free.
+void setToneChainRate(ToneChain& chain, int sampleRate);

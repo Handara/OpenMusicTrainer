@@ -6,6 +6,7 @@
 #include "core/music.h"
 #include "input/midi.h"
 #include "input/pianokeys.h"
+#include "screens/tonewizard.h"
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "raylib.h"
@@ -77,7 +78,7 @@ void applyMonitor(const Settings& settings, std::string& error){
     for (int channel : { settings.guitarChannel, settings.bassChannel }){
         if (channel >= 0 && std::count(inputs.begin(), inputs.end(), channel) == 0) inputs.push_back(channel);
     }
-    setMonitorTone(settings.monitorVolume, settings.monitorDrive, settings.monitorTone);
+    applyTone(settings);
     setMonitorSynth(settings.monitorSynth);
     error.clear();
     setMonitor(settings.monitorOn, settings.inputDevice, inputs, settings.voiceChannel, error);
@@ -147,7 +148,7 @@ static bool percentSlider(const char* label, const char* hint, float* value){
     return true;
 }
 
-static void audioSection(Settings& settings, const std::string& soundsDir){
+static void audioSection(Settings& settings, const std::string& soundsDir, SettingsChoice& choice){
     settingsGroup("DEVICES");
     int chosen = 0;
     std::vector<std::string> outputs = deviceOptions("System default", screen.outputDevices, settings.outputDevice, chosen);
@@ -196,20 +197,29 @@ static void audioSection(Settings& settings, const std::string& soundsDir){
         applyMonitor(settings, screen.monitorError);
     }
     ImGui::BeginDisabled(!settings.monitorOn);
-    int sound = settings.monitorSynth ? 0 : 1;
-    if (settingSegments("Sound", settings.monitorSynth ? "The notes lahn hears, played on a clean synth bass. A little later than your real sound."
-                                                       : "Your real sound through a small amp: the fastest, with ASIO or Windows' fast mode",
-                        &sound, { "Synth bass", "My real sound" })){
-        settings.monitorSynth = sound == 0;
+    int sound = settings.monitorSynth ? 1 : 0;
+    if (settingSegments("Sound", settings.monitorSynth ? "The notes lahn hears, played on a synth bass: a little later than your own sound"
+                                                       : "Your own sound through your tone: no delay, with ASIO or Windows' fast mode",
+                        &sound, { "My sound", "Synth bass" })){
+        settings.monitorSynth = sound == 1;
         setMonitorSynth(settings.monitorSynth);
     }
-    bool tone = percentSlider("Volume", nullptr, &settings.monitorVolume);
-    ImGui::BeginDisabled(settings.monitorSynth); // the amp shapes the real sound only
-    tone |= percentSlider("Drive", "From clean to warm and rough", &settings.monitorDrive);
-    tone |= percentSlider("Tone", "From dark to bright", &settings.monitorTone);
+    if (percentSlider("Volume", nullptr, &settings.monitorVolume)) applyTone(settings);
+    // The tone: chosen here, made in the tone wizard. It shapes the instrument's own sound only.
+    ImGui::BeginDisabled(settings.monitorSynth);
+    SettingControl toneRow = settingRow("Tone", "Pedals, an amp and a room: your sound, shaped", settingsControlHeight());
+    std::vector<std::string> toneList = toneNames();
+    int toneChosen = 0;
+    for (int i = 0; i < (int)toneList.size(); i++) if (toneList[i] == settings.monitorToneName) toneChosen = i;
+    const float wizardWidth = 130.0f * menuScale();
+    if (settingsDropdownAt("tone", toneRow.min, ImVec2(toneRow.max.x - wizardWidth - 10.0f * menuScale(), toneRow.max.y), &toneChosen, toneList)){
+        settings.monitorToneName = toneList[toneChosen];
+        applyTone(settings);
+    }
     ImGui::EndDisabled();
-    if (tone) setMonitorTone(settings.monitorVolume, settings.monitorDrive, settings.monitorTone);
     ImGui::EndDisabled();
+    // The wizard opens either way: it offers to switch to the instrument's own sound
+    if (settingsButtonAt("wizard", ImVec2(toneRow.max.x - wizardWidth, toneRow.min.y), toneRow.max, "Tone wizard")) choice = SettingsChoice::ToneWizard;
     if (!screen.monitorError.empty()) settingNote(screen.monitorError.c_str(), UiColor::Bad);
 
     settingsGroup("VOLUME");
@@ -561,7 +571,7 @@ SettingsChoice settingsScreen(Settings& settings, const std::string& soundsDir, 
     if (!screen.status.empty()) settingNote(screen.status.c_str(), screen.statusIsError ? UiColor::Bad : UiColor::Dim);
     if (!error.empty()) settingNote(error.c_str(), UiColor::Bad);
     switch (screen.section){
-        case Section::Audio:       audioSection(settings, soundsDir); break;
+        case Section::Audio:       audioSection(settings, soundsDir, choice); break;
         case Section::Instruments: instrumentsSection(settings); break;
         case Section::Gameplay:    gameplaySection(settings, choice); break;
         case Section::Display:     displaySection(settings); break;

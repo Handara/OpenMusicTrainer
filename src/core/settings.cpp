@@ -84,8 +84,8 @@ Settings loadSettings(const std::string& path, std::vector<std::string>& warning
             else warnings.push_back("line " + std::to_string(lineNumber) + ": monitor_sound is synth or instrument, keeping default");
         }
         else if (key == "monitor_volume") number(settings.monitorVolume, 0.0f, 1.0f);
-        else if (key == "monitor_drive") number(settings.monitorDrive, 0.0f, 1.0f);
-        else if (key == "monitor_tone") number(settings.monitorTone, 0.0f, 1.0f);
+        else if (key == "monitor_tone_name"){ if (!value.empty()) settings.monitorToneName = value; }
+        else if (key == "monitor_drive" || key == "monitor_tone"){} // the small amp's, before tones
         else if (key == "preview_sound"){ if (!value.empty()) settings.previewSound = value; }
         else if (key == "note_view"){
             if (!readNoteViews(value, settings.noteViews)) warnings.push_back("line " + std::to_string(lineNumber) + ": unknown note view '" + value + "', keeping default");
@@ -145,8 +145,7 @@ bool saveSettings(const std::string& path, const Settings& settings, std::string
     out << "monitor " << (settings.monitorOn ? 1 : 0) << "\n";
     out << "monitor_sound " << (settings.monitorSynth ? "synth" : "instrument") << "\n";
     out << "monitor_volume " << settings.monitorVolume << "\n";
-    out << "monitor_drive " << settings.monitorDrive << "\n";
-    out << "monitor_tone " << settings.monitorTone << "\n";
+    out << "monitor_tone_name " << settings.monitorToneName << "\n";
     out << "preview_sound " << settings.previewSound << "\n\n";
     out << "note_view";
     if (settings.noteViews.staff) out << " staff";

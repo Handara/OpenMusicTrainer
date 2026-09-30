@@ -155,7 +155,6 @@ add_library(lahn_core STATIC
     src/core/rhythmmode.cpp
     src/core/routine.cpp
     src/core/sampleformat.cpp
-    src/core/tone.cpp
     src/core/tonechain.cpp
     src/core/tonelibrary.cpp
     src/core/tuningcheck.cpp
@@ -212,6 +211,7 @@ add_executable(lahn
     src/screens/settingsscreen.cpp
     src/screens/tuner.cpp
     src/screens/tuningscreen.cpp
+    src/screens/tonewizard.cpp
     src/views/neckview.cpp
     src/views/noteviews.cpp
     src/views/pianohighway.cpp
@@ -276,7 +276,6 @@ if(BUILD_TESTING)
         tests/sampleformat_test.cpp
         tests/songpackage_test.cpp
         tests/synth_test.cpp
-        tests/tone_test.cpp
         tests/tonechain_test.cpp
         tests/tuningcheck_test.cpp
         tests/today_test.cpp

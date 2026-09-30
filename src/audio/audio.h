@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/tonechain.h"
+
 #include <atomic>
 #include <string>
 #include <vector>
@@ -83,7 +85,8 @@ void stopCapture();
 // While it's on, the input device stays open between screens, and the screens that listen share it. It adds the
 // input's and the output's buffering: an interface's own direct monitoring has none, but no amp.
 bool setMonitor(bool on, const std::string& inputDevice, const std::vector<int>& inputs, int excluded, std::string& error);
-void setMonitorTone(float volume, float drive, float tone); // each 0..1
+// The tone the real sound goes through (core/tonechain): taken up at once, while it plays, without a click
+void setMonitorTone(const ToneParameters& tone);
 bool monitorActive();
 // Heard as a synth instead (the default): the speakers don't play the input; the main thread reads it (readMonitor,
 // input/synthmonitor), finds the notes played, and plays them on the synth bass. Clean, a little later than the input.

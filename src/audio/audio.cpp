@@ -5,7 +5,7 @@
 #include "core/pitch.h"
 #include "core/settings.h"
 #include "core/synth.h"
-#include "core/tone.h"
+#include "core/tonechain.h"
 #include "miniaudio.h"
 
 #include <algorithm>
@@ -74,11 +74,17 @@ struct ReaderSource {
 };
 
 // The instrument being heard (setMonitor), as a data source the engine plays: it reads what the capture thread mixed
-// into the monitor buffer and puts it through the amp. It never ends: with nothing played it gives silence.
+// into the monitor buffer and puts it through the tone. It never ends: with nothing played it gives silence.
 struct MonitorSource {
     ma_data_source_base base; // must come first, as for ReaderSource
-    ToneState tone;           // only the engine's audio thread touches it
     ma_uint32 sampleRate = 48000;
+};
+
+// The tone the real sound goes through, as each audio thread that plays it has it: its own effects' memory, and the
+// version of the tone it took last (setMonitorTone)
+struct ToneRunner {
+    ToneChain chain;
+    unsigned seen = ~0u;
 };
 
 // All audio state lives here, like raylib's internal AUDIO struct. miniaudio objects keep
@@ -137,7 +143,11 @@ static struct {
     MonitorSource monitorSource;
     ma_sound monitorSound;
     bool monitorSoundReady = false;
-    std::atomic<float> toneVolume{0.8f}, toneDrive{0.0f}, toneBrightness{0.7f}; // set by the main thread
+    // The tone (setMonitorTone): written by the main thread, taken by the audio threads between buffers. Its version is
+    // odd while it's being written, and goes up each time.
+    ToneParameters toneShared;
+    std::atomic<unsigned> toneVersion{0};
+    ToneRunner engineTone;              // the engine's thread's (the monitor source)
     std::atomic<bool> asioGate{false}; // ASIO calls as soon as it starts: its samples go in once the buffer exists
     // The mixer driven by a callback of lahn's own instead of a device of its own: the ASIO driver's (startAsioCapture)
     // or a duplex device's (startDuplexCapture), both ways in one call, the instrument heard straight through. The
@@ -151,7 +161,7 @@ static struct {
     const float* directInput = nullptr; // the callback's latest input, for the same callback's direct monitor
     int directInputFrames = 0;
     std::atomic<ma_uint32> directRate{48000}; // the rate that callback runs at
-    ToneState directTone;               // the direct monitor's amp (that callback's only)
+    ToneRunner directTone;              // the direct monitor's (that callback's only)
 
     Voice voices[VOICE_COUNT];
     Voice synthVoices[2];  // the synth bass (playSynthNote): one playing, the last fading out while it starts
@@ -272,6 +282,8 @@ bool initAudio(const std::string& outputDevice, std::string& error){
         return false;
     }
     audio.contextReady = true;
+    initToneChain(audio.engineTone.chain, 48000); // their memory, once: the audio threads never allocate
+    initToneChain(audio.directTone.chain, 48000);
     return startEngine(outputDevice, error);
 }
 
@@ -601,6 +613,20 @@ static void asioCallback(const float* frames, int frameCount){
     if (audio.asioGate) writeCapture(frames, (ma_uint32)frameCount);
 }
 
+// The tone the main thread set last, taken up by an audio thread between two of its buffers. Never waits: a tone
+// being written just then is taken at the next buffer.
+static void takeTone(ToneRunner& runner, int sampleRate){
+    setToneChainRate(runner.chain, sampleRate);
+    unsigned version = audio.toneVersion.load(std::memory_order_acquire);
+    if (version == runner.seen || (version & 1u)) return;
+    ToneParameters parameters;
+    std::memcpy((void*)&parameters, (const void*)&audio.toneShared, sizeof parameters);
+    std::atomic_thread_fence(std::memory_order_acquire);
+    if (audio.toneVersion.load(std::memory_order_relaxed) != version) return; // rewritten while copied
+    setToneChain(runner.chain, parameters);
+    runner.seen = version;
+}
+
 // The outputs, in the same call as the inputs (the ASIO driver's or the duplex device's): everything lahn plays, and
 // the instrument heard straight through (the real sound, not the synth), from the input just handed over: one buffer
 // in, one out, as Ableton does
@@ -608,8 +634,7 @@ static void renderOutput(float* stereo, int frameCount){
     if (audio.engineExternal.load(std::memory_order_acquire)) ma_engine_read_pcm_frames(&audio.engine, stereo, (ma_uint64)frameCount, nullptr);
     if (!audio.monitorGate || audio.monitorSynth || !audio.directInput || audio.directInputFrames != frameCount) return;
     const ma_uint32 channels = audio.captureChannels, mixed = std::min<ma_uint32>(channels, MAX_MONITOR_INPUTS);
-    ToneSettings tone{ audio.toneVolume.load(std::memory_order_relaxed), audio.toneDrive.load(std::memory_order_relaxed),
-                       audio.toneBrightness.load(std::memory_order_relaxed) };
+    takeTone(audio.directTone, (int)audio.directRate.load(std::memory_order_relaxed));
     for (int done = 0; done < frameCount;){
         int chunk = std::min(frameCount - done, (int)MONITOR_CHUNK);
         for (int i = 0; i < chunk; i++){
@@ -618,7 +643,7 @@ static void renderOutput(float* stereo, int frameCount){
             for (ma_uint32 c = 0; c < mixed; c++) sum += frame[c] * audio.monitorWeights[c].load(std::memory_order_relaxed);
             audio.monitorScratch[i] = sum;
         }
-        processTone(audio.directTone, tone, audio.monitorScratch, chunk, (int)audio.directRate.load(std::memory_order_relaxed));
+        processToneChain(audio.directTone.chain, audio.monitorScratch, chunk);
         for (int i = 0; i < chunk; i++){
             stereo[2 * (done + i)] += audio.monitorScratch[i];
             stereo[2 * (done + i) + 1] += audio.monitorScratch[i];
@@ -641,7 +666,8 @@ static bool startAsioCapture(const std::string& device, std::string& error){
     double rate = audio.engineReady ? (double)ma_engine_get_sample_rate(&audio.engine) : 48000.0;
     if (duplex) stopEngine(); // the driver may need the device Windows' output has (ASIO4ALL does)
     audio.directInput = nullptr;
-    audio.directTone = ToneState{};
+    clearToneChain(audio.directTone.chain); // the callback isn't running yet
+    audio.directTone.seen = ~0u;
     if (!startAsio(driver, rate, asioCallback, duplex ? renderOutput : nullptr, error)){
         std::string ignored;
         if (duplex) startEngine(outputDevice, ignored);
@@ -728,7 +754,8 @@ static bool startDuplexCapture(const std::string& inputDevice, std::string& erro
     }
     std::string engineError;
     audio.directInput = nullptr;
-    audio.directTone = ToneState{};
+    clearToneChain(audio.directTone.chain); // the callback isn't running yet
+    audio.directTone.seen = ~0u;
     if (!startEngineExternal(audio.duplexDevice.sampleRate, engineError)){
         ma_device_uninit(&audio.duplexDevice);
         ma_pcm_rb_uninit(&audio.captureBuffer);
@@ -790,9 +817,8 @@ static ma_result monitorRead(ma_data_source* source, void* out, ma_uint64 frameC
         done += chunk;
     }
     std::fill(samples + done, samples + wanted, 0.0f);
-    ToneSettings tone{ audio.toneVolume.load(std::memory_order_relaxed), audio.toneDrive.load(std::memory_order_relaxed),
-                       audio.toneBrightness.load(std::memory_order_relaxed) };
-    processTone(self->tone, tone, samples, (int)wanted, (int)self->sampleRate);
+    takeTone(audio.engineTone, (int)self->sampleRate);
+    processToneChain(audio.engineTone.chain, samples, (int)wanted);
     *framesRead = frameCount;
     return MA_SUCCESS;
 }
@@ -838,7 +864,8 @@ static void startMonitorSound(){
     config.vtable = &MONITOR_VTABLE;
     if (ma_data_source_init(&config, &audio.monitorSource.base) != MA_SUCCESS) return;
     audio.monitorSource.sampleRate = openCaptureRate(); // the engine resamples if its own rate differs
-    audio.monitorSource.tone = ToneState{};
+    clearToneChain(audio.engineTone.chain); // the engine doesn't read the source yet
+    audio.engineTone.seen = ~0u;
     if (ma_sound_init_from_data_source(&audio.engine, &audio.monitorSource, MA_SOUND_FLAG_NO_SPATIALIZATION, nullptr, &audio.monitorSound) != MA_SUCCESS){
         ma_data_source_uninit(&audio.monitorSource.base);
         return;
@@ -895,10 +922,12 @@ bool setMonitor(bool on, const std::string& inputDevice, const std::vector<int>&
     return true;
 }
 
-void setMonitorTone(float volume, float drive, float tone){
-    audio.toneVolume = volume;
-    audio.toneDrive = drive;
-    audio.toneBrightness = tone;
+void setMonitorTone(const ToneParameters& tone){
+    unsigned version = audio.toneVersion.load(std::memory_order_relaxed);
+    audio.toneVersion.store(version + 1, std::memory_order_relaxed); // odd: being written
+    std::atomic_thread_fence(std::memory_order_release);
+    std::memcpy((void*)&audio.toneShared, (const void*)&tone, sizeof tone);
+    audio.toneVersion.store(version + 2, std::memory_order_release);
 }
 
 bool monitorActive(){

@@ -200,14 +200,31 @@ ToneParameters toneParameters(const Tone& tone){
     return parameters;
 }
 
+const int CAPACITY_RATE = 96000; // delay lines are sized for this rate, so another device never needs new memory
+
+// The reverb's lines, the length Freeverb's tunings have at this rate
+static void setReverbLengths(EffectState& state, int sampleRate){
+    const float scale = sampleRate / 44100.0f;
+    for (int c = 0; c < 8; c++){
+        state.combLength[c] = std::clamp((int)(REVERB_COMBS[c] * scale), 1, (int)state.combs[c].size());
+        state.combAt[c] %= state.combLength[c];
+    }
+    for (int a = 0; a < 4; a++){
+        state.allpassLength[a] = std::clamp((int)(REVERB_ALLPASSES[a] * scale), 1, (int)state.allpasses[a].size());
+        state.allpassAt[a] %= state.allpassLength[a];
+    }
+}
+
 void initToneChain(ToneChain& chain, int sampleRate){
     chain.sampleRate = std::max(8000, sampleRate);
-    const float scale = chain.sampleRate / 44100.0f;
+    const int capacity = std::max(CAPACITY_RATE, chain.sampleRate);
+    const float scale = capacity / 44100.0f;
     for (EffectState& state : chain.states){
         state = EffectState{};
-        state.line.assign((size_t)(MAX_DELAY_S * chain.sampleRate) + 4, 0.0f);
+        state.line.assign((size_t)(MAX_DELAY_S * capacity) + 4, 0.0f);
         for (int c = 0; c < 8; c++) state.combs[c].assign((size_t)(REVERB_COMBS[c] * scale) + 1, 0.0f);
         for (int a = 0; a < 4; a++) state.allpasses[a].assign((size_t)(REVERB_ALLPASSES[a] * scale) + 1, 0.0f);
+        setReverbLengths(state, chain.sampleRate);
     }
     chain.parameters = ToneParameters{};
     chain.dcIn = chain.dcOut = 0.0f;
@@ -310,6 +327,29 @@ void setToneChain(ToneChain& chain, const ToneParameters& parameters){
     }
 }
 
+void clearToneChain(ToneChain& chain){
+    for (EffectState& state : chain.states){
+        for (Biquad& f : state.filters) f.z1 = f.z2 = 0.0f;
+        state.envelope = 0.0f;
+        state.gain = 1.0f;
+        state.lowPass = 0.0f;
+        state.lastSign = state.flip = 1.0f;
+        state.phase = 0.0f;
+        std::fill(state.line.begin(), state.line.end(), 0.0f);
+        for (auto& comb : state.combs) std::fill(comb.begin(), comb.end(), 0.0f);
+        for (auto& allpass : state.allpasses) std::fill(allpass.begin(), allpass.end(), 0.0f);
+        for (float& store : state.combStore) store = 0.0f;
+    }
+    chain.dcIn = chain.dcOut = 0.0f;
+}
+
+void setToneChainRate(ToneChain& chain, int sampleRate){
+    if (sampleRate <= 0 || sampleRate == chain.sampleRate) return;
+    chain.sampleRate = sampleRate;
+    for (EffectState& state : chain.states) setReverbLengths(state, sampleRate);
+    for (int i = 0; i < chain.parameters.count; i++) setUp(chain.states[i], chain.parameters.effects[i], (float)sampleRate);
+}
+
 static float dbToGain(float db){ return std::pow(10.0f, db / 20.0f); }
 static float quiet(float x){ return std::fabs(x) < 1e-15f ? 0.0f : x; } // no denormals in feedback: they're slow
 
@@ -404,7 +444,7 @@ static float process(EffectState& state, const Effect& effect, float x, float ra
                 float out = comb[at];
                 state.combStore[c] = quiet(out * (1.0f - damp) + state.combStore[c] * damp);
                 comb[at] = input + state.combStore[c] * feedback;
-                at = (at + 1) % (int)comb.size();
+                at = (at + 1) % state.combLength[c];
                 wet += out;
             }
             for (int a = 0; a < 4; a++){
@@ -413,7 +453,7 @@ static float process(EffectState& state, const Effect& effect, float x, float ra
                 float held = allpass[at];
                 allpass[at] = quiet(wet + held * 0.5f);
                 wet = held - wet;
-                at = (at + 1) % (int)allpass.size();
+                at = (at + 1) % state.allpassLength[a];
             }
             return x * (1.0f - 0.3f * v[2]) + wet * 3.0f * v[2];
         }

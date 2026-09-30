@@ -167,21 +167,25 @@ TEST_CASE("the input is kept to lahn alone unless the player shares it"){
     CHECK(warnings.empty());
 }
 
-TEST_CASE("hearing the instrument: on by default, its amp kept"){
+TEST_CASE("hearing the instrument: on by default, its own sound through a tone, kept"){
     Settings settings;
     CHECK(settings.monitorOn);
-    CHECK(settings.monitorSynth); // a clean synth bass, unless the player wants their real sound
+    CHECK_FALSE(settings.monitorSynth); // its own sound: no delay, unlike the synth
+    CHECK(settings.monitorToneName == "Clean");
     settings.monitorOn = false;
-    settings.monitorSynth = false;
-    settings.monitorDrive = 0.4f;
-    settings.monitorTone = 0.25f;
+    settings.monitorSynth = true;
+    settings.monitorToneName = "Sunday growl 2";
     std::string path = settingsPath("monitor.txt"), error;
     REQUIRE(saveSettings(path, settings, error));
     std::vector<std::string> warnings;
     Settings loaded = loadSettings(path, warnings);
     CHECK(warnings.empty());
     CHECK_FALSE(loaded.monitorOn);
-    CHECK_FALSE(loaded.monitorSynth);
-    CHECK(loaded.monitorDrive == doctest::Approx(0.4f));
-    CHECK(loaded.monitorTone == doctest::Approx(0.25f));
+    CHECK(loaded.monitorSynth);
+    CHECK(loaded.monitorToneName == "Sunday growl 2"); // spaces and all
+
+    // The small amp's settings, from before tones, are no trouble
+    std::ofstream(path, std::ios::binary) << "version 1\nmonitor_drive 0.4\nmonitor_tone 0.25\n";
+    loadSettings(path, warnings);
+    CHECK(warnings.empty());
 }

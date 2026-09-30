@@ -40,12 +40,11 @@ struct Settings {
     float previewVolume = 0.6f;        // sounds the game makes itself (editor note previews, later ear training)
     std::string previewSound = "drop";  // a built-in sound, or a file name in the user's sounds folder
     float hitSoundVolume = 0.5f;       // the drop on each note hit with an instrument (0 for none)
-    // Hearing the instrument through lahn wherever the player is, through a small amp (audio.h: setMonitor)
+    // Hearing the instrument through lahn wherever the player is (audio.h: setMonitor)
     bool monitorOn = true;
-    bool monitorSynth = true;          // heard as a synth bass playing the notes found (input/synthmonitor), not raw
+    bool monitorSynth = false;         // heard as a synth bass playing the notes found (input/synthmonitor), not its own sound
     float monitorVolume = 0.8f;
-    float monitorDrive = 0.0f;         // 0 clean .. 1 driven
-    float monitorTone = 0.7f;          // 0 dark .. 1 bright
+    std::string monitorToneName = "Clean"; // the tone its own sound goes through (core/tonelibrary): the player's or built in
 
     // Display
     NoteViews noteViews;
