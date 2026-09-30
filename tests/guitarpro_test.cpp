@@ -140,7 +140,7 @@ TEST_CASE("a Guitar Pro score becomes a chart: its guitar and bass, repeats play
 
     // The drums are left out, and the grace note; the rest come in
     REQUIRE(chart.frettedTracks.size() == 2);
-    CHECK(import.leftOut.size() == 2);
+    CHECK(import.leftOut.size() == 2); // the drums, and a grace note
     const FrettedTrack& guitar = chart.frettedTracks[0];
     const FrettedTrack& bass = chart.frettedTracks[1];
     CHECK(guitar.type == InstrumentType::Guitar);

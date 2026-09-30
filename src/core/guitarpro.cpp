@@ -67,7 +67,7 @@ int rhythmTicks(const XmlNode* rhythm){
 struct GpTrack {
     std::string name;
     std::vector<int> pitches; // by the file's string numbers
-    bool drums = false;
+    std::string instrument;   // what the file calls it, lowercase: "electricbass" (7 and 8), "e-bass4" (6), "" if it doesn't say
 };
 
 struct MasterBar {
@@ -107,14 +107,17 @@ std::vector<int> playOrder(const std::vector<MasterBar>& masterBars){
     return order;
 }
 
-std::string typeWords(const XmlNode& track){
-    std::string words;
-    if (const XmlNode* set = track.child("InstrumentSet")) words += set->childText("Type") + " " + set->childText("Name") + " ";
-    if (const XmlNode* instrument = track.child("Instrument")) words += instrument->attribute("ref") + " ";
-    words += track.childText("Name");
-    std::transform(words.begin(), words.end(), words.begin(), [](unsigned char c){ return (char)std::tolower(c); });
-    return words;
+// The instrument a track is for, as the file names it: Guitar Pro 7 and 8 say "electricGuitar", "steelGuitar",
+// "electricBass", "violin", "drumKit"; Guitar Pro 6 "e-gtr6", "s-gtr6", "e-bass4", "vln", "drmkt"
+std::string instrumentOf(const XmlNode& track){
+    std::string kind;
+    if (const XmlNode* set = track.child("InstrumentSet")) kind = set->childText("Type");
+    if (kind.empty()) if (const XmlNode* instrument = track.child("Instrument")) kind = instrument->attribute("ref");
+    std::transform(kind.begin(), kind.end(), kind.begin(), [](unsigned char c){ return (char)std::tolower(c); });
+    return kind;
 }
+
+bool contains(const std::string& text, const char* part){ return text.find(part) != std::string::npos; }
 
 } // namespace
 
@@ -158,8 +161,7 @@ bool readGpif(const std::string& xml, GuitarProImport& out, std::string& error){
             }
         }
         if (tuning) track.pitches = numbers(tuning->childText("Pitches"));
-        std::string words = typeWords(node);
-        track.drums = words.find("drum") != std::string::npos || words.find("percussion") != std::string::npos;
+        track.instrument = instrumentOf(node);
         tracks.push_back(track);
     }
 
@@ -221,20 +223,23 @@ bool readGpif(const std::string& xml, GuitarProImport& out, std::string& error){
     std::map<int, const XmlNode*> beatNodes = byId(root, "Beats", "Beat"), noteNodes = byId(root, "Notes", "Note");
     std::map<int, const XmlNode*> rhythmNodes = byId(root, "Rhythms", "Rhythm");
 
-    // Which tracks come in: those with strings, not drums
+    // Which tracks come in: guitars and basses, by their instrument (every track has a tuning in a file, a flute's
+    // too); a file that doesn't name its instruments, by having strings
     std::vector<int> kept(tracks.size(), -1); // the chart track each file track became
     for (size_t t = 0; t < tracks.size(); t++){
         const GpTrack& track = tracks[t];
         std::string name = track.name.empty() ? "Track " + std::to_string(t + 1) : track.name;
-        if (track.drums){ out.leftOut.push_back(name + " (a drum track)"); continue; }
-        if (track.pitches.empty() || track.pitches.size() > 7){ out.leftOut.push_back(name + " (not a guitar or a bass)"); continue; }
+        const std::string& kind = track.instrument;
+        bool drums = contains(kind, "drum") || contains(kind, "drmkt") || contains(kind, "percussion");
+        bool bassNamed = contains(kind, "bass");
+        bool stringed = kind.empty() || bassNamed || contains(kind, "guitar") || contains(kind, "gtr");
+        if (drums){ out.leftOut.push_back(name + " (drums)"); continue; }
+        if (!stringed || track.pitches.empty() || track.pitches.size() > 7){ out.leftOut.push_back(name + " (not a guitar or a bass)"); continue; }
         FrettedTrack fretted;
         fretted.name = name;
         fretted.tuning = track.pitches;
         std::sort(fretted.tuning.begin(), fretted.tuning.end()); // lowest first, whatever order the file lists them in
-        std::string words = track.name;
-        std::transform(words.begin(), words.end(), words.begin(), [](unsigned char c){ return (char)std::tolower(c); });
-        bool bass = fretted.tuning.front() < BASS_BELOW || words.find("bass") != std::string::npos;
+        bool bass = bassNamed || (kind.empty() && fretted.tuning.front() < BASS_BELOW);
         fretted.type = bass ? InstrumentType::Bass : InstrumentType::Guitar;
         kept[t] = (int)chart.frettedTracks.size();
         chart.frettedTracks.push_back(fretted);
