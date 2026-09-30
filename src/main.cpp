@@ -448,6 +448,9 @@ int main(void){
         setPreviewSound("pluck", app.soundsDir, error);
     }
 
+    // Multisampled: every edge the notes, rings and lines have is smoothed by the graphics card, where it would
+    // otherwise step from pixel to pixel. A hint: a system without it just draws as before.
+    SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT, "lahn");
     SetExitKey(KEY_NULL); // Esc means "back" (handleBackKey), not "quit"
     applyDisplaySettings(app.settings);

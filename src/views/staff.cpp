@@ -1,6 +1,7 @@
 #include "views/staff.h"
 
 #include "core/notation.h"
+#include "views/smooth.h"
 
 #include <algorithm>
 #include <cstdlib>
@@ -75,7 +76,8 @@ bool loadStaffFont(const std::string& path){
         UnloadFont(font);
         return false;
     }
-    SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR); // smooth when drawn smaller than it was loaded
+    GenTextureMipmaps(&font.texture);                         // smaller copies of the symbols, for drawing small
+    SetTextureFilter(font.texture, TEXTURE_FILTER_TRILINEAR);  // smooth at any size, blending between them
 
     // A SMuFL notehead is centered on its baseline, so the middle of its image is where the baseline is
     int notehead = GetGlyphIndex(font, GLYPH_NOTEHEAD_BLACK);
@@ -107,7 +109,7 @@ static void drawGlyph(int glyph, float x, float y, float space, Color color){
         float w = glyphWidth(glyph, space);
         if (glyph == GLYPH_NOTEHEAD_BLACK) DrawEllipse((int)(x + w / 2), (int)y, w / 2, space * 0.45f, color);
         else if (isNotehead(glyph)) DrawEllipseLines((int)(x + w / 2), (int)y, w / 2, space * 0.45f, color);
-        else if (glyph == GLYPH_AUGMENTATION_DOT) DrawCircleV({x + 0.2f * space, y}, 0.2f * space, color);
+        else if (glyph == GLYPH_AUGMENTATION_DOT) smoothCircle({x + 0.2f * space, y}, 0.2f * space, color);
         else if (glyph >= GLYPH_REST_WHOLE && glyph <= GLYPH_REST_WHOLE + 5) DrawRectangleRec({x, y - 0.5f * space, w * 0.6f, space}, color);
         else if (glyph >= GLYPH_TIME_SIGNATURE_0 && glyph <= GLYPH_TIME_SIGNATURE_0 + 9) DrawText(TextFormat("%d", glyph - GLYPH_TIME_SIGNATURE_0), (int)x, (int)(y - space), (int)(2 * space), color);
         else if (glyph == GLYPH_SHARP) DrawText("#", (int)x, (int)(y - space), (int)(2 * space), color);

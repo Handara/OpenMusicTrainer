@@ -2,6 +2,7 @@
 
 #include "core/music.h"
 #include "core/positions.h"
+#include "views/smooth.h"
 #include "views/viewfont.h"
 
 #include <algorithm>
@@ -28,7 +29,7 @@ const float TRACK_ALPHA = 0.35f;        // a slider's track before it's played
 // An arc on a note's rim, clockwise from the top, `from` to `to` in loops (0 to 1)
 static void drawRimArc(Vector2 at, float rim, float from, float to, float width, Color color){
     if (to <= from) return;
-    DrawRing(at, rim - width / 2, rim + width / 2, -90.0f + 360.0f * from, -90.0f + 360.0f * to, 64, color);
+    smoothRing(at, rim - width / 2, rim + width / 2, -90.0f + 360.0f * from, -90.0f + 360.0f * to, color);
 }
 
 // What the song needs, worked out once per song rather than every frame: the part of the neck, and how long its
@@ -111,10 +112,10 @@ void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std:
     const float middle = top + boardHeight / 2;
     const Color line = themeColor(UiColor::StaffLine);
     for (int fret = firstFretted; fret <= span.last; fret++){
-        if (std::count(std::begin(SINGLE_DOTS), std::end(SINGLE_DOTS), fret)) DrawCircleV({ fretX(fret), middle }, 5 * s, line);
+        if (std::count(std::begin(SINGLE_DOTS), std::end(SINGLE_DOTS), fret)) smoothCircle({ fretX(fret), middle }, 5 * s, line);
         if (fret == 12 || fret == 24){
-            DrawCircleV({ fretX(fret), middle - spacing }, 5 * s, line);
-            DrawCircleV({ fretX(fret), middle + spacing }, 5 * s, line);
+            smoothCircle({ fretX(fret), middle - spacing }, 5 * s, line);
+            smoothCircle({ fretX(fret), middle + spacing }, 5 * s, line);
         }
         float wire = std::round(nut + (fret - firstFretted + 1) * fretWidth);
         if (fret < span.last) DrawRectangleRec({ wire - 0.75f * s, top + 4 * s, 1.5f * s, boardHeight - 8 * s }, Fade(themeColor(UiColor::Dim), 0.5f));
@@ -149,7 +150,7 @@ void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std:
             if (length > 2.5f * radius){
                 Vector2 step = { dx / length * radius * 1.2f, dy / length * radius * 1.2f };
                 float alpha = 0.4f * std::min(alphaOf(*previous), alphaOf(*it));
-                DrawLineEx({ a.x + step.x, a.y + step.y }, { b.x - step.x, b.y - step.y }, 2.0f * s, Fade(themeColor(UiColor::Dim), alpha));
+                smoothLine({ a.x + step.x, a.y + step.y }, { b.x - step.x, b.y - step.y }, 2.0f * s, Fade(themeColor(UiColor::Dim), alpha));
             }
         }
         previous = &*it;
@@ -167,11 +168,11 @@ void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std:
             // Held: the ring has become a slider, its track lit and eaten clockwise by the ball as the note rings
             Color lit = themeColor(note.wasPerfect ? UiColor::Good : UiColor::Accent);
             float played = share * std::clamp((now - note.time) / note.writtenLength, 0.0f, 1.0f);
-            DrawCircleV(at, radius + 1.5f * s, card);
-            DrawCircleV(at, radius, lit);
+            smoothCircle(at, radius + 1.5f * s, card);
+            smoothCircle(at, radius, lit);
             drawRimArc(at, rim, played, share, SLIDER_WIDTH * s, lit);
             float angle = (-90.0f + 360.0f * played) * DEG2RAD;
-            DrawCircleV({ at.x + rim * std::cos(angle), at.y + rim * std::sin(angle) }, SLIDER_WIDTH * 1.4f * s, lit); // the ball
+            smoothCircle({ at.x + rim * std::cos(angle), at.y + rim * std::sin(angle) }, SLIDER_WIDTH * 1.4f * s, lit); // the ball
             drawViewText(TextFormat("%d", note.fret), at.x, at.y, radius * 1.1f, WHITE);
             continue;
         }
@@ -181,25 +182,25 @@ void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std:
             float t = note.hitFlash / HIT_FLASH_DURATION; // 1 at the hit, 0 when it's over
             Color lit = themeColor(note.wasPerfect ? UiColor::Good : UiColor::Accent);
             float burst = radius + (1.0f - t) * 22 * s;
-            DrawCircleV(at, radius * (0.6f + 0.6f * t), Fade(lit, t));
-            DrawRing(at, burst - 2.5f * s, burst, 0.0f, 360.0f, 48, Fade(lit, t));
+            smoothCircle(at, radius * (0.6f + 0.6f * t), Fade(lit, t));
+            smoothRing(at, burst - 2.5f * s, burst, 0.0f, 360.0f, Fade(lit, t));
             continue;
         }
         if (note.judged){
             // Missed: it stays where it should have been played for a moment, faded, then goes
             float fade = 0.45f * (1.0f - (now - note.time) / MISS_FADE_S);
             if (fade <= 0.0f) continue;
-            DrawCircleV(at, radius * 0.8f, Fade(color, fade));
+            smoothCircle(at, radius * 0.8f, Fade(color, fade));
             continue;
         }
         float until = note.time - now, alpha = alphaOf(note);
         if (until > 0.0f){
             // The ring closes onto the note's rim: when it lands, play it (and a long note's slider begins)
             float ring = rim + (radius * RING_START - rim) * until / approach;
-            DrawRing(at, ring - 1.25f * s, ring + 1.25f * s, 0.0f, 360.0f, 64, Fade(color, 0.85f * alpha));
+            smoothRing(at, ring - 1.25f * s, ring + 1.25f * s, 0.0f, 360.0f, Fade(color, 0.85f * alpha));
         }
-        DrawCircleV(at, radius + 1.5f * s, Fade(card, alpha)); // a rim that keeps notes apart
-        DrawCircleV(at, radius, Fade(color, alpha));
+        smoothCircle(at, radius + 1.5f * s, Fade(card, alpha)); // a rim that keeps notes apart
+        smoothCircle(at, radius, Fade(color, alpha));
         if (slider) drawRimArc(at, rim, 0.0f, share, SLIDER_WIDTH * s, Fade(color, TRACK_ALPHA * alpha)); // how long it rings
         drawViewText(TextFormat("%d", note.fret), at.x, at.y, radius * 1.1f, Fade(WHITE, alpha));
     }

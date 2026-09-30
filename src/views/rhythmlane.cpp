@@ -1,6 +1,7 @@
 #include "views/rhythmlane.h"
 
 #include "ui/theme.h"
+#include "views/smooth.h"
 
 #include <algorithm>
 
@@ -25,8 +26,8 @@ void drawRhythmLane(Rectangle area, const std::vector<PlayNote>& notes, const Sc
     }
     // The target: where a hit lands
     Vector2 target = { axis.hitLineX, middle };
-    DrawRing(target, NOTE_RADIUS * s + 4 * s, NOTE_RADIUS * s + 7 * s, 0.0f, 360.0f, 64, line);
-    DrawCircleV(target, NOTE_RADIUS * s * 0.55f, Fade(line, 0.7f));
+    smoothRing(target, NOTE_RADIUS * s + 4 * s, NOTE_RADIUS * s + 7 * s, 0.0f, 360.0f, line);
+    smoothCircle(target, NOTE_RADIUS * s * 0.55f, Fade(line, 0.7f));
 
     // The notes, the latest drawn first so the next one to hit is always on top
     BeginScissorMode((int)area.x, (int)(middle - laneHeight / 2 - BIG_RADIUS * s), (int)area.width, (int)(laneHeight + 2 * BIG_RADIUS * s));
@@ -42,15 +43,15 @@ void drawRhythmLane(Rectangle area, const std::vector<PlayNote>& notes, const Sc
             float t = note.hitFlash / HIT_FLASH_DURATION;
             Color lit = themeColor(note.wasPerfect ? UiColor::Good : UiColor::Accent);
             float grown = radius + (1.0f - t) * 26 * s;
-            DrawCircleV(target, radius * (0.7f + 0.3f * t), Fade(colorOf(note), t));
-            DrawRing(target, grown - 3 * s, grown, 0.0f, 360.0f, 64, Fade(lit, t));
+            smoothCircle(target, radius * (0.7f + 0.3f * t), Fade(colorOf(note), t));
+            smoothRing(target, grown - 3 * s, grown, 0.0f, 360.0f, Fade(lit, t));
             continue;
         }
         Vector2 center = { axis.xAt(note.time), middle };
         float alpha = note.judged ? 0.3f : 1.0f; // a missed hit: its ghost
-        DrawCircleV(center, radius + 3 * s, Fade(card, alpha));
-        DrawCircleV(center, radius, Fade(colorOf(note), alpha));
-        DrawCircleV(center, radius * 0.38f, Fade(ColorBrightness(colorOf(note), 0.35f), alpha)); // a lighter centre, like a drum head
+        smoothCircle(center, radius + 3 * s, Fade(card, alpha));
+        smoothCircle(center, radius, Fade(colorOf(note), alpha));
+        smoothCircle(center, radius * 0.38f, Fade(ColorBrightness(colorOf(note), 0.35f), alpha)); // a lighter centre, like a drum head
     }
     EndScissorMode();
 }

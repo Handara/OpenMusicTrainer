@@ -1,6 +1,7 @@
 #include "views/highway.h"
 
 #include "core/music.h"
+#include "views/smooth.h"
 #include "views/viewfont.h"
 
 #include <algorithm>
@@ -54,7 +55,7 @@ void drawHighway(Rectangle area, const std::vector<PlayNote>& notes, const Score
     for (int i = 0; i < laneCount; i++){
         float across = laneAt(i);
         DrawLineEx(point(alongStart, across), point(alongEnd, across), 1.0f, line);
-        DrawRing(point(hitAlong, across), targetRadius - 2.0f * scale, targetRadius, 0.0f, 360.0f, 48, Fade(STRING_COLORS[i % 6], 0.7f));
+        smoothRing(point(hitAlong, across), targetRadius - 2.0f * scale, targetRadius, 0.0f, 360.0f, Fade(STRING_COLORS[i % 6], 0.7f));
         const char* label = TextFormat("%s%d [%d]", pitchClassName(tuning[i]), pitchOctave(tuning[i]), i + 1);
         Vector2 at = falls ? Vector2{across, hitAlong + targetRadius + 8 + fontSize / 2} // under each column's target
                            : Vector2{area.x + 10, across};                             // at the start of each lane
@@ -85,14 +86,14 @@ void drawHighway(Rectangle area, const std::vector<PlayNote>& notes, const Score
             Color lit = themeColor(note.wasPerfect ? UiColor::Good : UiColor::Accent);
             Vector2 target = point(hitAlong, laneAt(note.stringIndex));
             float radius = targetRadius + (1.0f - t) * 22 * scale;
-            DrawCircleV(target, noteRadius * (0.6f + 0.6f * t), Fade(lit, t));
-            DrawRing(target, radius - 2.5f * scale, radius, 0.0f, 360.0f, 48, Fade(lit, t));
+            smoothCircle(target, noteRadius * (0.6f + 0.6f * t), Fade(lit, t));
+            smoothRing(target, radius - 2.5f * scale, radius, 0.0f, 360.0f, Fade(lit, t));
             continue;
         }
         // A missed note goes on past the line, faded: what was missed stays visible for a moment, out of the way
         float alpha = note.judged ? 0.3f : 1.0f;
-        DrawCircleV(center, noteRadius + 1.5f * scale, Fade(themeColor(UiColor::Card), alpha)); // a rim that keeps notes apart
-        DrawCircleV(center, noteRadius, Fade(STRING_COLORS[note.stringIndex % 6], alpha));
+        smoothCircle(center, noteRadius + 1.5f * scale, Fade(themeColor(UiColor::Card), alpha)); // a rim that keeps notes apart
+        smoothCircle(center, noteRadius, Fade(STRING_COLORS[note.stringIndex % 6], alpha));
         drawViewText(TextFormat("%d", note.fret), center.x, center.y, fontSize, Fade(WHITE, alpha));
     }
     EndScissorMode();
