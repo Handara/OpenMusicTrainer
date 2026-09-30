@@ -178,6 +178,7 @@ add_executable(lahn
     src/input/midi.cpp
     src/input/noteinput.cpp
     src/input/pianokeys.cpp
+    src/input/synthmonitor.cpp
     src/ui/hitfeedback.cpp
     src/ui/menulist.cpp
     src/ui/fretboardview.cpp

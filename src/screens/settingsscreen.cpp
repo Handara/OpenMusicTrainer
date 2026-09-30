@@ -81,6 +81,7 @@ void applyMonitor(const Settings& settings, std::string& error){
         if (channel >= 0 && std::count(inputs.begin(), inputs.end(), channel) == 0) inputs.push_back(channel);
     }
     setMonitorTone(settings.monitorVolume, settings.monitorDrive, settings.monitorTone);
+    setMonitorSynth(settings.monitorSynth);
     error.clear();
     setMonitor(settings.monitorOn, settings.inputDevice, inputs, settings.voiceChannel, error);
 }
@@ -188,14 +189,27 @@ static void audioTab(Settings& settings, const std::string& soundsDir){
     bool changed = ImGui::Checkbox("Through lahn, everywhere in the game", &settings.monitorOn);
     if (changed) applyMonitor(settings, screen.monitorError);
     ImGui::BeginDisabled(!settings.monitorOn);
+    int sound = settings.monitorSynth ? 0 : 1;
+    ImGui::RadioButton("As a synth bass", &sound, 0);
+    ImGui::SameLine();
+    ImGui::RadioButton("My real instrument, through an amp", &sound, 1);
+    if ((sound == 0) != settings.monitorSynth){
+        settings.monitorSynth = sound == 0;
+        setMonitorSynth(settings.monitorSynth);
+    }
     bool tone = ImGui::SliderFloat("Instrument volume", &settings.monitorVolume, 0.0f, 1.0f, "%.2f");
+    ImGui::BeginDisabled(settings.monitorSynth); // the amp shapes the real sound only
     tone |= ImGui::SliderFloat("Drive", &settings.monitorDrive, 0.0f, 1.0f, "%.2f");
     tone |= ImGui::SliderFloat("Tone", &settings.monitorTone, 0.0f, 1.0f, "%.2f");
+    ImGui::EndDisabled();
     if (tone) setMonitorTone(settings.monitorVolume, settings.monitorDrive, settings.monitorTone);
     ImGui::EndDisabled();
     if (!screen.monitorError.empty()) ImGui::TextColored(uiColorVec(UiColor::Bad), "%s", screen.monitorError.c_str());
-    hint("Drive warms and roughens the sound, Tone goes from dark to bright. Your interface's own direct monitoring is "
-         "heard with no delay at all but no amp: with both on you'd hear it twice.");
+    hint(settings.monitorSynth
+         ? "The notes lahn hears, played clean on a synth bass: no hum, no noise, and each note heard is one the game understood. "
+           "A little later than your real sound."
+         : "Drive warms and roughens the sound, Tone goes from dark to bright. Your interface's own direct monitoring is heard "
+           "with no delay at all but no amp: with both on you'd hear it twice.");
 
     ImGui::SeparatorText("Volume");
     if (ImGui::SliderFloat("Master", &settings.masterVolume, 0.0f, 1.0f, "%.2f")) setMasterVolume(settings.masterVolume);

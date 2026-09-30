@@ -165,7 +165,9 @@ TEST_CASE("the input is kept to lahn alone unless the player shares it"){
 TEST_CASE("hearing the instrument: on by default, its amp kept"){
     Settings settings;
     CHECK(settings.monitorOn);
+    CHECK(settings.monitorSynth); // a clean synth bass, unless the player wants their real sound
     settings.monitorOn = false;
+    settings.monitorSynth = false;
     settings.monitorDrive = 0.4f;
     settings.monitorTone = 0.25f;
     std::string path = settingsPath("monitor.txt"), error;
@@ -174,6 +176,7 @@ TEST_CASE("hearing the instrument: on by default, its amp kept"){
     Settings loaded = loadSettings(path, warnings);
     CHECK(warnings.empty());
     CHECK_FALSE(loaded.monitorOn);
+    CHECK_FALSE(loaded.monitorSynth);
     CHECK(loaded.monitorDrive == doctest::Approx(0.4f));
     CHECK(loaded.monitorTone == doctest::Approx(0.25f));
 }

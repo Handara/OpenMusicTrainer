@@ -39,6 +39,7 @@ struct Settings {
     float hitSoundVolume = 0.5f;       // the drop on each note hit with an instrument (0 for none)
     // Hearing the instrument through lahn wherever the player is, through a small amp (audio.h: setMonitor)
     bool monitorOn = true;
+    bool monitorSynth = true;          // heard as a synth bass playing the notes found (input/synthmonitor), not raw
     float monitorVolume = 0.8f;
     float monitorDrive = 0.0f;         // 0 clean .. 1 driven
     float monitorTone = 0.7f;          // 0 dark .. 1 bright

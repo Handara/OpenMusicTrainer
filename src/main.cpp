@@ -6,6 +6,7 @@
 #include "core/settings.h"
 #include "core/songlibrary.h"
 #include "core/songpackage.h"
+#include "input/synthmonitor.h"
 #include "screens/calibration.h"
 #include "screens/editor.h"
 #include "screens/gameplay.h"
@@ -466,6 +467,7 @@ int main(void){
 
     while (!WindowShouldClose() && !app.quit){
         const Screen shown = app.screen; // the screen this frame draws
+        updateSynthMonitor(app.settings.monitorOn && app.settings.monitorSynth, app.settings.monitorVolume); // heard wherever the player is
         bool songOver = app.screen == Screen::Playing && !updateGameplay();
         if (app.screen == Screen::Tuner) updateTuner();
 

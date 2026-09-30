@@ -82,6 +82,14 @@ void stopCapture();
 bool setMonitor(bool on, const std::string& inputDevice, const std::vector<int>& inputs, int excluded, std::string& error);
 void setMonitorTone(float volume, float drive, float tone); // each 0..1
 bool monitorActive();
+// Heard as a synth instead (the default): the speakers don't play the input; the main thread reads it (readMonitor,
+// input/synthmonitor), finds the notes played, and plays them on the synth bass. Clean, a little later than the input.
+void setMonitorSynth(bool synth);
+int readMonitor(float* out, int maxFrames); // the input as the monitor mixed it (mono), since the last call
+int monitorSampleRate();                    // its rate, 0 while it isn't listening
+// The synth bass, one note at a time like the instrument: a new note fades the last one out as it starts
+void playSynthNote(float frequency, float volume);
+void releaseSynthNote(); // the string muted: the note fades out
 
 // Windows: take the input device for lahn alone (WASAPI exclusive mode), past the effects Windows puts on
 // microphones. Its noise suppression lets an instrument through only while someone speaks: on a Scarlett Solo, a

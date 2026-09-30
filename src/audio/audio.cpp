@@ -137,6 +137,9 @@ static struct {
     std::atomic<bool> asioGate{false}; // ASIO calls as soon as it starts: its samples go in once the buffer exists
 
     Voice voices[VOICE_COUNT];
+    Voice synthVoices[2];  // the synth bass (playSynthNote): one playing, the last fading out while it starts
+    int synthCurrent = 0;
+    std::atomic<bool> monitorSynth{true}; // the monitor plays notes on the synth (read by the main thread), not the input
     Voice wake; // plays a moment of silence when an engine starts (see wakeEngineClock): not part of the pool,
                 // so nothing that stops the preview voices can cut it
     unsigned long long previewCount = 0;
@@ -242,6 +245,7 @@ static void releaseVoice(Voice& voice){
 
 static void stopEngine(){
     stopMonitorSound(); // before the engine it plays on
+    for (Voice& voice : audio.synthVoices) releaseVoice(voice);
     for (Voice& voice : audio.voices) releaseVoice(voice);
     releaseVoice(audio.wake);
     unloadSong();
@@ -561,6 +565,12 @@ static ma_result monitorRead(ma_data_source* source, void* out, ma_uint64 frameC
     MonitorSource* self = (MonitorSource*)source;
     float* samples = (float*)out;
     const ma_uint32 wanted = (ma_uint32)frameCount;
+    if (audio.monitorSynth.load(std::memory_order_relaxed)){
+        // Heard as a synth: the main thread reads the input (readMonitor) and plays the notes it finds
+        std::fill(samples, samples + wanted, 0.0f);
+        *framesRead = frameCount;
+        return MA_SUCCESS;
+    }
     ma_uint32 waiting = ma_pcm_rb_available_read(&audio.monitorBuffer);
     const ma_uint32 cushion = audio.captureBurst.load(std::memory_order_relaxed) + wanted;
     if (waiting > cushion + wanted) ma_pcm_rb_seek_read(&audio.monitorBuffer, waiting - cushion);
@@ -686,6 +696,56 @@ void setMonitorTone(float volume, float drive, float tone){
 
 bool monitorActive(){
     return audio.monitorWanted && audio.monitorSoundReady && audio.monitorGate;
+}
+
+void setMonitorSynth(bool synth){
+    if (synth && !audio.monitorSynth && audio.monitorBufferReady){
+        // What waited for the speakers is old news for the note finder: it starts from now
+        ma_uint32 waiting = ma_pcm_rb_available_read(&audio.monitorBuffer);
+        if (waiting > 0) ma_pcm_rb_seek_read(&audio.monitorBuffer, waiting);
+    }
+    audio.monitorSynth = synth;
+    if (!synth) releaseSynthNote();
+}
+
+int readMonitor(float* out, int maxFrames){
+    if (!audio.monitorBufferReady || !audio.monitorSynth) return 0;
+    int total = 0;
+    while (total < maxFrames){
+        ma_uint32 chunk = (ma_uint32)(maxFrames - total);
+        void* from;
+        if (ma_pcm_rb_acquire_read(&audio.monitorBuffer, &chunk, &from) != MA_SUCCESS || chunk == 0) break;
+        memcpy(out + total, from, chunk * sizeof(float));
+        ma_pcm_rb_commit_read(&audio.monitorBuffer, chunk);
+        total += (int)chunk;
+    }
+    return total;
+}
+
+int monitorSampleRate(){
+    return audio.monitorGate ? (int)openCaptureRate() : 0;
+}
+
+const double SYNTH_NOTE_S = 4.0;        // rendered this long: a note held longer has died away by then anyway
+const ma_uint64 SYNTH_CROSSFADE_MS = 15; // the last note fading as the next starts: no click, no smear
+const ma_uint64 SYNTH_RELEASE_MS = 80;   // a string muted
+
+void playSynthNote(float frequency, float volume){
+    if (!audio.engineReady) return;
+    Voice& last = audio.synthVoices[audio.synthCurrent];
+    if (last.ready) ma_sound_stop_with_fade_in_milliseconds(&last.sound, SYNTH_CROSSFADE_MS);
+    audio.synthCurrent = 1 - audio.synthCurrent;
+    Voice& voice = audio.synthVoices[audio.synthCurrent];
+    releaseVoice(voice); // the note before last: long faded
+    ma_uint32 sampleRate = ma_engine_get_sample_rate(&audio.engine);
+    voice.samples.resize((size_t)(SYNTH_NOTE_S * sampleRate)); // keeps its memory: no allocation after the first notes
+    renderBass(voice.samples.data(), (int)voice.samples.size(), frequency, (int)sampleRate);
+    startVoice(voice, voice.samples.data(), voice.samples.size(), 1.0f, volume, ma_engine_get_time_in_pcm_frames(&audio.engine));
+}
+
+void releaseSynthNote(){
+    Voice& voice = audio.synthVoices[audio.synthCurrent];
+    if (voice.ready) ma_sound_stop_with_fade_in_milliseconds(&voice.sound, SYNTH_RELEASE_MS);
 }
 
 // Opens the input device and starts it filling the capture buffer (and the monitor's): nothing may be open
