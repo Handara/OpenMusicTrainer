@@ -148,7 +148,7 @@ ImportChoice importScreen(){
         const char* drop = "Drop a Guitar Pro file here";
         float dropWidth = fonts.bold ? fonts.bold->CalcTextSizeA(24 * s, FLT_MAX, 0.0f, drop).x : 300 * s;
         draw->AddText(fonts.bold, 24 * s, ImVec2((min.x + max.x - dropWidth) / 2, min.y + 60 * s), uiColor(UiColor::Ink), drop);
-        const char* kinds = ".gp from Guitar Pro 7 and 8, the most common now. Older ones (.gpx, .gp5) are on their way.";
+        const char* kinds = ".gp from Guitar Pro 7 and 8, .gpx from Guitar Pro 6. Older ones (.gp5, .gp4) are on their way.";
         float kindsWidth = fonts.text ? fonts.text->CalcTextSizeA(15 * s, FLT_MAX, 0.0f, kinds).x : 400 * s;
         draw->AddText(fonts.text, 15 * s, ImVec2((min.x + max.x - kindsWidth) / 2, min.y + 100 * s), uiColor(UiColor::Dim), kinds);
         float buttonWidth = 180 * s, buttonX = (min.x + max.x - buttonWidth) / 2;

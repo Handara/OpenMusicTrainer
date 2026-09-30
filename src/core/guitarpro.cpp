@@ -327,6 +327,92 @@ bool readGpif(const std::string& xml, GuitarProImport& out, std::string& error){
     return true;
 }
 
+// Guitar Pro 6's compression: a stream of bits, the high bit of each byte first. Each chunk starts with a flag: 1 for
+// a copy of bytes already out (a word size in 4 bits, then how far back and how many, each in that many bits, low
+// bit first), 0 for bytes as they are (how many in 2 bits, low bit first, then the bytes, 8 bits each).
+namespace {
+struct Bits {
+    const std::string& data;
+    size_t position = 8 * 8; // after "BCFZ" and the unpacked length
+    bool ended = false;
+    int bit(){
+        if (position >= data.size() * 8){ ended = true; return 0; }
+        int value = ((unsigned char)data[position / 8] >> (7 - position % 8)) & 1;
+        position++;
+        return value;
+    }
+    int read(int count){ int value = 0; for (int i = 0; i < count; i++) value = (value << 1) | bit(); return value; }
+    int readReversed(int count){ int value = 0; for (int i = 0; i < count; i++) value |= bit() << i; return value; }
+};
+
+int integerAt(const std::string& data, size_t at){
+    if (at + 4 > data.size()) return 0;
+    return (int)((unsigned char)data[at] | ((unsigned char)data[at + 1] << 8) | ((unsigned char)data[at + 2] << 16) | ((unsigned)(unsigned char)data[at + 3] << 24));
+}
+} // namespace
+
+bool unpackBcfz(const std::string& data, std::string& out, std::string& error){
+    if (data.compare(0, 4, "BCFZ") != 0 || data.size() < 8){
+        error = "not a compressed Guitar Pro 6 file";
+        return false;
+    }
+    const int expected = integerAt(data, 4);
+    if (expected <= 0 || expected > 256 * 1024 * 1024){
+        error = "the file is damaged (its size makes no sense)";
+        return false;
+    }
+    out.clear();
+    out.reserve(expected);
+    Bits bits{ data };
+    while ((int)out.size() < expected && !bits.ended){
+        if (bits.read(1) == 1){
+            int wordSize = bits.read(4);
+            int back = bits.readReversed(wordSize), size = bits.readReversed(wordSize);
+            if (back <= 0 || back > (int)out.size()){
+                error = "the file is damaged (a copy from before its start)";
+                return false;
+            }
+            size_t from = out.size() - back;
+            int count = std::min(back, size);
+            for (int i = 0; i < count; i++) out += out[from + i];
+        } else {
+            int size = bits.readReversed(2);
+            for (int i = 0; i < size && !bits.ended; i++) out += (char)bits.read(8);
+        }
+    }
+    if ((int)out.size() > expected) out.resize(expected);
+    return true;
+}
+
+// A "BCFS" file system: 4096-byte sectors, the first left empty; a file's entry is a sector starting with 2, its
+// name at 4, its size at 0x8C, and from 0x94 the numbers of the sectors its data is in, up to a 0
+bool bcfsFile(const std::string& fileSystem, const std::string& name, std::string& out){
+    if (fileSystem.compare(0, 4, "BCFS") != 0) return false;
+    const std::string data = fileSystem.substr(4);
+    const size_t SECTOR = 0x1000;
+    for (size_t at = SECTOR; at + 3 < data.size(); at += SECTOR){
+        if (integerAt(data, at) != 2) continue;
+        std::string entryName;
+        for (size_t i = at + 4; i < at + 4 + 127 && i < data.size() && data[i] != 0; i++) entryName += data[i];
+        int size = integerAt(data, at + 0x8C);
+        std::string content;
+        size_t pointer = at + 0x94, last = at;
+        for (int count = 0; count < 100000; count++, pointer += 4){
+            int sector = integerAt(data, pointer);
+            if (sector <= 0) break;
+            last = (size_t)sector * SECTOR;
+            if (last >= data.size()) break;
+            content += data.substr(last, SECTOR);
+        }
+        if (entryName == name){
+            out = content.substr(0, std::max(0, std::min(size, (int)content.size())));
+            return true;
+        }
+        at = std::max(at, last); // past this file's data, which isn't an entry however it starts
+    }
+    return false;
+}
+
 bool importGuitarPro(const std::string& path, GuitarProImport& out, std::string& error){
     std::ifstream file(path, std::ios::binary);
     if (!file){
@@ -353,8 +439,18 @@ bool importGuitarPro(const std::string& path, GuitarProImport& out, std::string&
         return readGpif(xml, out, error);
     }
     if (data.compare(0, 4, "BCFZ") == 0 || data.compare(0, 4, "BCFS") == 0){
-        error = "a Guitar Pro 6 file (.gpx): not yet, save it as .gp from Guitar Pro 7 or later, or as .gp5";
-        return false;
+        // Guitar Pro 6: the score in a file system of its own, usually compressed
+        std::string fileSystem, score;
+        if (data.compare(0, 4, "BCFZ") == 0){
+            if (!unpackBcfz(data, fileSystem, error)) return false;
+        } else {
+            fileSystem = data;
+        }
+        if (!bcfsFile(fileSystem, "score.gpif", score)){
+            error = "no score inside it (score.gpif)";
+            return false;
+        }
+        return readGpif(score, out, error);
     }
     if (data.size() > 1 && data.compare(1, 18, "FICHIER GUITAR PRO") == 0){
         error = "a Guitar Pro 3 to 5 file: not yet";

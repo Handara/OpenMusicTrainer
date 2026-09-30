@@ -11,7 +11,8 @@
 // left out, and so are grace notes and dead notes, for now; bends and slides come in as plain notes. Guitar Pro files
 // hold no audio: the chart has none. Pure logic, but for reading the file.
 //
-// Guitar Pro 7 and 8 (.gp) keep the score as XML (score.gpif) in a zip.
+// Guitar Pro 7 and 8 (.gp) keep the score as XML (score.gpif) in a zip; Guitar Pro 6 (.gpx) keeps the same XML in a
+// small file system of its own ("BCFS"), usually compressed ("BCFZ").
 
 struct GuitarProImport {
     Chart chart;
@@ -22,3 +23,8 @@ struct GuitarProImport {
 bool importGuitarPro(const std::string& path, GuitarProImport& out, std::string& error);
 // The score itself (score.gpif's text)
 bool readGpif(const std::string& xml, GuitarProImport& out, std::string& error);
+
+// Guitar Pro 6's containers: "BCFZ" data unpacked (to the "BCFS" file system it holds), and a file taken out of a
+// "BCFS" file system by name
+bool unpackBcfz(const std::string& data, std::string& out, std::string& error);
+bool bcfsFile(const std::string& fileSystem, const std::string& name, std::string& out);

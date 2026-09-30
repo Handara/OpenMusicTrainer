@@ -250,3 +250,75 @@ TEST_CASE("an imported tab becomes a song: its chart and a backing of lahn's own
     CHECK(fs::path(second).parent_path().filename() == "Test Song 2");
     CHECK(fs::exists(fs::path(second).parent_path() / "audio.mp3"));
 }
+
+// Guitar Pro 6's compression, written the way it's read: bits, the high bit of each byte first
+struct BitWriter {
+    std::string bytes;
+    int used = 8;
+    void bit(int value){
+        if (used == 8){ bytes += '\0'; used = 0; }
+        if (value) bytes.back() = (char)(bytes.back() | (1 << (7 - used)));
+        used++;
+    }
+    void write(int value, int count){ for (int i = count - 1; i >= 0; i--) bit((value >> i) & 1); }
+    void writeReversed(int value, int count){ for (int i = 0; i < count; i++) bit((value >> i) & 1); }
+};
+
+static std::string bcfz(const std::string& unpacked, const std::vector<std::pair<int, int>>& copies = {}){
+    std::string out = "BCFZ";
+    for (int i = 0; i < 4; i++) out += (char)((unpacked.size() >> (8 * i)) & 0xFF);
+    BitWriter bits;
+    for (const auto& [back, size] : copies){ // copies first (the test's own data), then everything as it is
+        bits.write(1, 1); bits.write(4, 4); bits.writeReversed(back, 4); bits.writeReversed(size, 4);
+    }
+    size_t at = 0;
+    while (at < unpacked.size()){
+        int size = (int)std::min<size_t>(3, unpacked.size() - at);
+        bits.write(0, 1);
+        bits.writeReversed(size, 2);
+        for (int i = 0; i < size; i++) bits.write((unsigned char)unpacked[at + i], 8);
+        at += size;
+    }
+    return out + bits.bytes;
+}
+
+TEST_CASE("Guitar Pro 6: its compression and its little file system"){
+    std::string out, error;
+    // Bytes as they are, then a copy of what's out already
+    std::string stream = "BCFZ";
+    stream += std::string("\x06\x00\x00\x00", 4); // six bytes unpacked
+    BitWriter bits;
+    bits.write(0, 1); bits.writeReversed(3, 2); bits.write('a', 8); bits.write('b', 8); bits.write('c', 8);
+    bits.write(1, 1); bits.write(4, 4); bits.writeReversed(3, 4); bits.writeReversed(3, 4); // 3 back, 3 long
+    REQUIRE_MESSAGE(unpackBcfz(stream + bits.bytes, out, error), error);
+    CHECK(out == "abcabc");
+    CHECK_FALSE(unpackBcfz("PK..", out, error));
+
+    // A file system holding the score, packed: the same chart as the .gp
+    const size_t SECTOR = 0x1000;
+    std::string fileSystem(4 * SECTOR, '\0');
+    auto put32 = [&](size_t at, int value){ for (int i = 0; i < 4; i++) fileSystem[at + i] = (char)((value >> (8 * i)) & 0xFF); };
+    std::string xml = SCORE;
+    REQUIRE(xml.size() < 2 * SECTOR);
+    put32(SECTOR, 2);
+    std::string name = "score.gpif";
+    std::copy(name.begin(), name.end(), fileSystem.begin() + SECTOR + 4);
+    put32(SECTOR + 0x8C, (int)xml.size());
+    put32(SECTOR + 0x94, 2);
+    put32(SECTOR + 0x98, 3);
+    std::copy(xml.begin(), xml.end(), fileSystem.begin() + 2 * SECTOR);
+    std::string packed = bcfz("BCFS" + fileSystem);
+    std::string unpacked, score;
+    REQUIRE_MESSAGE(unpackBcfz(packed, unpacked, error), error);
+    REQUIRE(bcfsFile(unpacked, "score.gpif", score));
+    CHECK(score == xml);
+    CHECK_FALSE(bcfsFile(unpacked, "other.xml", score));
+
+    namespace fs = std::filesystem;
+    fs::path path = fs::temp_directory_path() / "lahn_tests" / "song.gpx";
+    { std::ofstream(path, std::ios::binary) << packed; }
+    GuitarProImport import;
+    REQUIRE_MESSAGE(importGuitarPro(path.string(), import, error), error);
+    CHECK(import.chart.title == "Test Song");
+    CHECK(import.chart.frettedTracks.size() == 2);
+}
