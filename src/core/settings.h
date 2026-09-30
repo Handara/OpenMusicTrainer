@@ -20,7 +20,8 @@ struct NoteViews {
     bool staff = false;   // sheet music
     bool neck = true;     // osu!-style: rings closing onto the notes' places on a drawn fretboard (views/neckview)
     NoteLabel label = NoteLabel::Both;
-    bool wholeNeck = true; // the neck view shows the whole neck, from the nut up; else just the frets the song uses
+    bool wholeNeck = true;
+    bool neck3d = true;    // the neck leaning back in perspective, the notes standing up off it; else flat, from above // the neck view shows the whole neck, from the nut up; else just the frets the song uses
     bool any() const { return staff || neck; }
 };
 

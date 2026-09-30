@@ -246,6 +246,10 @@ static void displaySection(Settings& settings){
     if (settingToggle("Sheet music", nullptr, &views.staff) && !views.any()) views.staff = true;
     if (settingToggle("Neck", "Rings closing onto each note's place on the fretboard", &views.neck) && !views.any()) views.neck = true;
     ImGui::BeginDisabled(!views.neck);
+    int style = views.neck3d ? 0 : 1;
+    if (settingSegments("Neck style", "Leaning back, the notes dropping onto it; or flat, seen from above", &style, { "3D", "Flat" })){
+        views.neck3d = style == 0;
+    }
     int label = (int)views.label;
     if (settingSegments("On each note", "The note's name helps you learn the neck", &label,
                         { "Fret", "Note name", "Both" })) views.label = (NoteLabel)label;

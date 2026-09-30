@@ -19,7 +19,7 @@ float drawNoteViews(Rectangle area, const NoteViews& views, const std::vector<Pl
                    const std::vector<int>& tuning, bool lowStringOnTop, TimeAxis axis){
     // The neck alone: it has no time axis, so it takes the whole area, and judgements go over its middle
     if (views.neck && !views.staff){
-        drawNeckView(area, notes, tuning, lowStringOnTop, views.wholeNeck, views.label, axis);
+        drawNeckView(area, notes, tuning, lowStringOnTop, views.wholeNeck, views.neck3d, views.label, axis);
         return area.x + area.width / 2;
     }
 
@@ -53,7 +53,7 @@ float drawNoteViews(Rectangle area, const NoteViews& views, const std::vector<Pl
         Rectangle viewArea = { area.x, y, area.width, shownView.height };
         switch (shownView.view){
             case View::Staff: drawStaff(viewArea, notes, score, axis); break;
-            case View::Neck:  drawNeckView(viewArea, notes, tuning, lowStringOnTop, views.wholeNeck, views.label, axis); break;
+            case View::Neck:  drawNeckView(viewArea, notes, tuning, lowStringOnTop, views.wholeNeck, views.neck3d, views.label, axis); break;
         }
         y += shownView.height + VIEW_GAP;
     }
