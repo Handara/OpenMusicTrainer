@@ -499,7 +499,7 @@ static void instrumentsSection(Settings& settings){
 static void gameplaySection(Settings& settings, SettingsChoice& choice){
     settingsGroup("PLAYING");
     int input = !settings.playWithInstrument ? 0 : settings.playInstrument == InputRole::Bass ? 2 : 1;
-    if (settingSegments("Play with", "Also switched on the song list, with I", &input, { "Keyboard", "Guitar", "Bass" })){
+    if (settingSegments("Learn's exercises: play with", "Songs are played on each part's own instrument", &input, { "Keyboard", "Guitar", "Bass" })){
         settings.playWithInstrument = input != 0;
         if (input != 0) settings.playInstrument = input == 2 ? InputRole::Bass : InputRole::Guitar;
     }

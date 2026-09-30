@@ -19,22 +19,31 @@ struct SongSelectChoice {
     int songIndex = -1; // index into the songs list, -1 if nothing was picked this frame
     int part = 0;       // which of the song's parts to play
     bool rhythmMode = false; // taiko-style, only the rhythm (Tab switches it on the song list)
-    bool withInstrumentChanged = false; // the player switched between the keyboard, a guitar and a bass (I): save it
+    bool partsOpened = false; // the instruments to play the song with were just listed: see whether they're connected
 };
-// forEditing marks built-in songs, since editing one creates a copy
-// Playing a song with several parts (guitar, bass), confirming it lists its parts to choose from first.
+// Whether an instrument can be played now: its input device is there. `problem` says why not, for the player.
+struct InstrumentStatus {
+    bool ready = true;
+    std::string problem;
+};
+// forEditing marks built-in songs, since editing one creates a copy.
+// Playing, confirming a song lists its parts by instrument (its guitar, its bass, its keys): each is played on its
+// own instrument, and one that isn't connected (`guitar`, `bass`) can't be chosen, with why. Rhythm mode needs none.
 // `notice` is good news to show (a song just added), `error` bad news.
-// withInstrument, instrument: played with the keyboard, a guitar or a bass, shown and switched on the list (nullptr
-// when editing, where nothing is played)
 SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry>& songs, const std::string& error,
-                                  const std::string& notice, bool forEditing, bool* withInstrument = nullptr,
-                                  InputRole* instrument = nullptr);
+                                  const std::string& notice, bool forEditing, const InstrumentStatus& guitar = {},
+                                  const InstrumentStatus& bass = {});
 // Esc on the song list: closes the list of parts if it's open (true: it was, the screen stays)
 bool songSelectBack();
 
 enum class PauseChoice { None, Resume, Retry, Quit };
 // Over the paused play screen: the song, and what to do
 PauseChoice pauseScreen(const std::string& song);
+
+// Over the play screen, paused because the instrument sounds out of tune (`cents` off, + sharp): tune it and start
+// the song over, or play on
+enum class OutOfTuneChoice { None, Retune, PlayOn, Quit };
+OutOfTuneChoice outOfTuneScreen(const std::string& song, const char* instrument, float cents);
 
 enum class ResultsChoice { None, Retry, BackToSongs };
 ResultsChoice resultsScreen(const GameResult& result);

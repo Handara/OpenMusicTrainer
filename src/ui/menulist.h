@@ -59,6 +59,11 @@ void menuScreenTitle(const char* title, float scale);
 void menuScreenHint(const char* hint, float scale);
 float menuScale(); // the window's height against 720 pixels, the size the menus are designed at
 
+// A small rounded button in the menus' style: its text, a chevron (`arrow` -1 before it pointing left, +1 after it
+// pointing right, 0 none) and its shortcut key shown dim beside it (null for none). `anchor` is its top left, or its
+// top right when `alignRight`. Drawn over everything; true when clicked.
+bool menuPill(const char* text, const char* key, ImVec2 anchor, bool alignRight, int arrow, float scale);
+
 // The way back, at the top left of every screen that has one, above its title: for the mouse. Esc and the mouse's
 // own back button do the same (see main.cpp). Drawn over everything; true when clicked.
 bool menuBackButton(float scale);

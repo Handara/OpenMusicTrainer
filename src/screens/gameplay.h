@@ -64,5 +64,8 @@ void drawGameplayHud(); // the song, the score and the meters over them, with Im
 void pauseGameplay();
 void resumeGameplay();
 bool gameplayPaused();
+// Paused because the instrument sounds out of tune: its notes kept coming off the same way (core/tuningcheck).
+// `cents`: by how much (+ sharp). Resuming plays on, out of tune, and isn't stopped for it again.
+bool gameplayOutOfTune(float& cents);
 void stopGameplay();   // stops and releases the song; safe to call more than once
 GameResult gameplayResult();

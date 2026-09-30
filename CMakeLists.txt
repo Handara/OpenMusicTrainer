@@ -156,6 +156,7 @@ add_library(lahn_core STATIC
     src/core/routine.cpp
     src/core/sampleformat.cpp
     src/core/tone.cpp
+    src/core/tuningcheck.cpp
     src/core/score.cpp
     src/core/scales.cpp
     src/core/settings.cpp
@@ -208,6 +209,7 @@ add_executable(lahn
     src/screens/newsong.cpp
     src/screens/settingsscreen.cpp
     src/screens/tuner.cpp
+    src/screens/tuningscreen.cpp
     src/views/highway.cpp
     src/views/neckview.cpp
     src/views/noteviews.cpp
@@ -275,6 +277,7 @@ if(BUILD_TESTING)
         tests/songpackage_test.cpp
         tests/synth_test.cpp
         tests/tone_test.cpp
+        tests/tuningcheck_test.cpp
         tests/today_test.cpp
     )
     target_link_libraries(lahn_tests PRIVATE lahn_core doctest::doctest miniz) # miniz: to make broken packages

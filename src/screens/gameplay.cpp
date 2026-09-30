@@ -7,6 +7,7 @@
 #include "core/pianokeys.h"
 #include "core/rhythmmode.h"
 #include "core/score.h"
+#include "core/tuningcheck.h"
 #include "imgui.h"
 #include "input/midi.h"
 #include "input/noteinput.h"
@@ -111,11 +112,24 @@ static void handleKeyboard(std::vector<PlayNote>& notes, GameState& state, float
 const float HINT_BEHIND_S = 0.25f; // wider than the judging window: a late note is still looked for
 const float HINT_AHEAD_S = 0.6f;
 
+// How far a note played was off the note due nearest it in pitch, around when it was played: the instrument's
+// tuning, as far as one note can tell (core/tuningcheck looks at several)
+static void watchNoteTuning(TuningWatch& watch, const std::vector<PlayNote>& notes, const PlayedNote& played, float time, bool anyOctave){
+    const float heard = played.pitch + played.cents / 100.0f;
+    float nearest = 1e9f;
+    auto due = std::lower_bound(notes.begin(), notes.end(), time - NEAR_WINDOW_S, [](const PlayNote& note, float t){ return note.time < t; });
+    for (; due != notes.end() && due->time <= time + NEAR_WINDOW_S; ++due){
+        float off = anyOctave ? centsOff(heard, due->pitch) : (heard - due->pitch) * 100.0f;
+        if (std::fabs(off) < std::fabs(nearest)) nearest = off;
+    }
+    if (nearest < 1e8f) watchTuning(watch, nearest);
+}
+
 // With an instrument: each played note is placed in song time (now, minus how long ago it started, minus the
 // input device's delay) and judged by its pitch. Rhythm mode needs no pitch: each attack is judged the moment it's
 // heard. Either way every attack is noted, for the hit line's flash.
 static void handleInstrument(std::vector<PlayNote>& notes, GameState& state, float songTime, float inputOffset,
-                             int& lastPlayedPitch, bool rhythmMode, double& lastAttackAt, bool anyOctave){
+                             int& lastPlayedPitch, bool rhythmMode, double& lastAttackAt, bool anyOctave, TuningWatch* tuning){
     // The note due nearest now, for the synth heard in place of the instrument to start at the pluck
     const PlayNote* nearest = nullptr;
     int lowestDue = -1;
@@ -142,6 +156,7 @@ static void handleInstrument(std::vector<PlayNote>& notes, GameState& state, flo
     for (const PlayedNote& note : played){
         lastPlayedPitch = note.pitch;
         if (rhythmMode) continue; // judged at its attack, above
+        if (tuning) watchNoteTuning(*tuning, notes, note, songTime - (float)note.age - inputOffset, anyOctave);
         PlayerInput input;
         input.time = songTime - note.age - inputOffset;
         input.pitch = note.pitch;
@@ -171,6 +186,10 @@ static struct {
     float countInBeat = 0.0f; // from the top: the count-in's beat (seconds), before the song's time 0; 0 for none
     int countInBeats = 0;
     std::string fingerprint;  // of the part being played
+    TuningWatch tuning;       // the notes played, for the instrument going out of tune
+    bool watchingTuning = false; // with a guitar or a bass, until the player chooses to play on out of tune
+    bool outOfTune = false;   // paused for it
+    float outOfTuneCents = 0.0f;
     bool active = false;
 } game;
 
@@ -331,12 +350,15 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
         float lowest = midiToFrequency((float)lowestPitch) * 0.9f;
         int channel = bassPlayed ? options.bassChannel : options.guitarChannel;
         if (!startNoteInput(options.inputDevice, lowest, error, channel)){
-            error = "Playing with your instrument: " + error + " (Settings > Gameplay switches to the keyboard)";
+            error = "Playing with your instrument: " + error + " (see Settings, Instruments)";
             unloadSong();
             return false;
         }
     }
     game.songTime = 0.0f;
+    game.tuning = {};
+    game.watchingTuning = options.playWithInstrument && !game.keys && !options.rhythmMode;
+    game.outOfTune = false;
     game.active = true;
     game.countInBeats = 0;
     if (fromTick > 0) playSongFrom(tickToSeconds(game.chart, fromTick) - LEAD_IN_S);
@@ -353,6 +375,8 @@ void pauseGameplay(){
 
 void resumeGameplay(){
     if (!game.active || !game.paused) return;
+    if (game.outOfTune) game.watchingTuning = false; // played on out of tune, by choice: not asked again this run
+    game.outOfTune = false;
     game.paused = false;
     game.resumeAt = game.songTime;
     playSongFrom(game.songTime + game.options.offsetSeconds - RESUME_RUNUP_S);
@@ -360,6 +384,11 @@ void resumeGameplay(){
 
 bool gameplayPaused(){
     return game.active && game.paused;
+}
+
+bool gameplayOutOfTune(float& cents){
+    cents = game.outOfTuneCents;
+    return game.active && game.paused && game.outOfTune;
 }
 
 bool updateGameplay(){
@@ -385,7 +414,14 @@ bool updateGameplay(){
     if (game.options.rhythmMode) handleDrumKeys();
     else handleKeyboard(game.notes, game.state, game.songTime, (int)track.tuning.size(), game.options.hitSounds);
     if (noteInputActive()) handleInstrument(game.notes, game.state, game.songTime, game.options.inputOffsetSeconds, game.lastPlayedPitch,
-                                            game.options.rhythmMode, game.lastAttackAt, game.anyOctave);
+                                            game.options.rhythmMode, game.lastAttackAt, game.anyOctave,
+                                            game.watchingTuning ? &game.tuning : nullptr);
+    // Out of tune, the notes can't be played right: stop, so the player can tune rather than fight it
+    if (game.watchingTuning && looksOutOfTune(game.tuning, game.outOfTuneCents)){
+        game.outOfTune = true;
+        pauseGameplay();
+        return true;
+    }
     if (midiInputActive() || pianoKeysActive()){
         // Each key on its own: pressing one note of a chord doesn't play the rest. Every key sounds, hit or not:
         // it's an instrument being played.

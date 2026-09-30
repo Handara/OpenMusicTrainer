@@ -9,6 +9,7 @@
 #include "ui/ui.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 
 // Immediate mode: these functions run every frame, drawing the widgets and reacting to clicks in the same call.
@@ -70,6 +71,7 @@ static void drawSongCard(const SongEntry& song, float s){
 }
 
 static int choosingPartOf = -1; // the song whose parts are listed, -1 when the songs are
+static bool partsJustOpened = false; // its first frame: the selection starts on the first part that can be played
 
 bool songSelectBack(){
     if (choosingPartOf < 0) return false;
@@ -85,18 +87,44 @@ static const char* instrumentName(InstrumentType type){
     }
 }
 
-// The song's parts, one level down from the songs: "Melody  guitar, 6 strings", "Bass  bass, 4 strings"
-static void partList(const SongEntry& song, SongSelectChoice& choice){
+static bool sameWords(const std::string& a, const std::string& b){
+    if (a.size() != b.size()) return false;
+    for (size_t i = 0; i < a.size(); i++) if (std::tolower((unsigned char)a[i]) != std::tolower((unsigned char)b[i])) return false;
+    return true;
+}
+
+// The song's parts by instrument, one level down from the songs: "Bass  4 strings", "Guitar  Melody · 6 strings",
+// "Keys". Each is played on its own instrument, so one that isn't connected is greyed, with why.
+static void partList(const SongEntry& song, SongSelectChoice& choice, const InstrumentStatus& guitar, const InstrumentStatus& bass){
     static MenuList list;
     float s = menuScale();
     menuScreenTitle(song.title.c_str(), s);
-    if (ImGui::IsWindowAppearing()) list.selected = 0;
+    ImGui::GetWindowDrawList()->AddText(uiFonts().text, 18 * s, ImVec2(ImGui::GetWindowWidth() * 0.07f, ImGui::GetWindowHeight() * 0.09f + 52 * s),
+                                        uiColor(UiColor::Dim), rhythmMode ? "Rhythm: choose a part" : "Choose your instrument");
+    if (partsJustOpened){
+        // The first one that can be played
+        partsJustOpened = false;
+        list.selected = 0;
+        for (int i = (int)song.parts.size() - 1; i >= 0; i--){
+            const SongPart& part = song.parts[i];
+            const InstrumentStatus* status = part.type == InstrumentType::Bass ? &bass : part.type == InstrumentType::Guitar ? &guitar : nullptr;
+            if (!status || status->ready || rhythmMode) list.selected = i;
+        }
+    }
     std::vector<MenuRow> rows;
     for (const SongPart& part : song.parts){
         MenuRow row;
-        row.label = part.name.empty() ? instrumentName(part.type) : part.name;
-        row.detail = part.type == InstrumentType::Keys ? "keys, on a MIDI keyboard"
-                                                       : TextFormat("%s, %d strings", instrumentName(part.type), part.stringCount);
+        std::string instrument = instrumentName(part.type);
+        instrument[0] = (char)std::toupper((unsigned char)instrument[0]);
+        row.label = instrument;
+        std::string name = part.name.empty() || sameWords(part.name, instrument) ? "" : part.name + "  ·  ";
+        row.detail = part.type == InstrumentType::Keys ? name + "a MIDI keyboard, or the computer's"
+                                                       : name + TextFormat("%d strings", part.stringCount);
+        const InstrumentStatus* status = part.type == InstrumentType::Bass ? &bass : part.type == InstrumentType::Guitar ? &guitar : nullptr;
+        if (status && !status->ready && !rhythmMode){
+            row.disabled = true;
+            row.note = status->problem;
+        }
         rows.push_back(row);
     }
     int confirmed = menuList(list, rows, listArea(0.45f));
@@ -133,40 +161,26 @@ static bool switchRow(const char* label, const char* const* names, int count, in
 }
 
 SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry>& songs, const std::string& error,
-                                  const std::string& notice, bool forEditing, bool* withInstrument, InputRole* instrument){
+                                  const std::string& notice, bool forEditing, const InstrumentStatus& guitar,
+                                  const InstrumentStatus& bass){
     static MenuList playList, editList; // each list keeps its selection
     MenuList& list = forEditing ? editList : playList;
     SongSelectChoice choice;
     beginMenu(title);
     float s = menuScale();
     if (!forEditing && choosingPartOf >= 0 && choosingPartOf < (int)songs.size()){
-        partList(songs[choosingPartOf], choice);
+        partList(songs[choosingPartOf], choice, guitar, bass);
         ImGui::End();
         return choice;
     }
     choosingPartOf = -1;
     menuScreenTitle(title, s);
     if (!forEditing){
-        // Beside the title, how the song is played: NOTES or RHYTHM (Tab), with the keyboard or an instrument (I)
+        // Beside the title, how the song is played: its notes, or only its rhythm (Tab)
         float x = ImGui::GetWindowWidth() * 0.55f, y = ImGui::GetWindowHeight() * 0.09f + 14 * s;
         const char* const modes[] = { "NOTES", "RHYTHM" };
         int mode = rhythmMode ? 1 : 0;
         if (switchRow("MODE", modes, 2, mode, x, y, s) || ImGui::IsKeyPressed(ImGuiKey_Tab)) rhythmMode = !rhythmMode;
-        if (withInstrument && instrument){
-            // Any part on any of them: a guitar melody on a bass counts its notes in any octave
-            const char* const inputs[] = { "KEYBOARD", "GUITAR", "BASS" };
-            int input = !*withInstrument ? 0 : *instrument == InputRole::Bass ? 2 : 1;
-            bool clicked = switchRow("PLAY WITH", inputs, 3, input, x, y + 32 * s, s);
-            if (!clicked && ImGui::IsKeyPressed(ImGuiKey_I)){
-                input = (input + 1) % 3;
-                clicked = true;
-            }
-            if (clicked){
-                *withInstrument = input != 0;
-                if (input != 0) *instrument = input == 2 ? InputRole::Bass : InputRole::Guitar;
-                choice.withInstrumentChanged = true;
-            }
-        }
     }
 
     // The songs, then the data folder
@@ -196,9 +210,12 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
     int confirmed = menuList(list, rows, listArea(0.45f));
     if (list.selected >= 0 && list.selected < (int)songs.size() && songs[list.selected].error.empty()) drawSongCard(songs[list.selected], s);
     if (confirmed >= 0 && confirmed < (int)songs.size()){
-        // Several parts to play: choose one first
-        if (!forEditing && songs[confirmed].parts.size() > 1) choosingPartOf = confirmed;
-        else {
+        // Playing: the instrument to play it with first
+        if (!forEditing && !songs[confirmed].parts.empty()){
+            choosingPartOf = confirmed;
+            partsJustOpened = true;
+            choice.partsOpened = true;
+        } else {
             choice.songIndex = confirmed;
             choice.rhythmMode = rhythmMode;
         }
@@ -212,7 +229,7 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
         else ImGui::TextColored(uiColorVec(UiColor::Good), "%s", notice.c_str());
     }
     menuScreenHint(forEditing ? "Up/Down  choose    Enter  edit    Esc  back    Drop a .lahn file to add a song"
-                              : "Up/Down  choose    Enter  play    Tab  notes or rhythm    I  keyboard, guitar or bass    Esc  back", s);
+                              : "Up/Down  choose    Enter  choose    Tab  notes or rhythm    Esc  back", s);
     ImGui::End();
     return choice;
 }
@@ -233,6 +250,29 @@ PauseChoice pauseScreen(const std::string& song){
     if (confirmed == 1) choice = PauseChoice::Retry;
     if (confirmed == 2) choice = PauseChoice::Quit;
     menuScreenHint("Enter  choose    Esc  resume", s);
+    ImGui::End();
+    return choice;
+}
+
+OutOfTuneChoice outOfTuneScreen(const std::string& song, const char* instrument, float cents){
+    static MenuList list;
+    static const std::vector<MenuRow> rows = { actionRow("Tune and start over"), actionRow("Play on", "Esc"), actionRow("Quit to songs") };
+    OutOfTuneChoice choice = OutOfTuneChoice::None;
+    beginMenu("Out of tune");
+    float s = menuScale(), width = ImGui::GetWindowWidth(), height = ImGui::GetWindowHeight();
+    if (ImGui::IsWindowAppearing()) list.selected = 0; // tuning first: it's why the song stopped
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    draw->AddRectFilled(ImVec2(0, 0), ImVec2(width, height), uiColor(UiColor::Background, 0.9f));
+    menuScreenTitle(TextFormat("Your %s is out of tune", instrument), s);
+    draw->AddText(uiFonts().text, 18 * s, ImVec2(width * 0.07f, height * 0.09f + 52 * s), uiColor(UiColor::Accent),
+                  TextFormat("Its notes keep coming out about %.0f cents %s. Tuning it takes a moment.", std::fabs(cents),
+                             cents > 0 ? "sharp (high)" : "flat (low)"));
+    draw->AddText(uiFonts().text, 18 * s, ImVec2(width * 0.07f, height * 0.09f + 76 * s), uiColor(UiColor::Dim), song.c_str());
+    int confirmed = menuList(list, rows, {ImVec2(width * 0.07f, height * 0.3f), width * 0.45f, 3 * 48 * s, s});
+    if (confirmed == 0) choice = OutOfTuneChoice::Retune;
+    if (confirmed == 1) choice = OutOfTuneChoice::PlayOn;
+    if (confirmed == 2) choice = OutOfTuneChoice::Quit;
+    menuScreenHint("Enter  choose    Esc  play on", s);
     ImGui::End();
     return choice;
 }

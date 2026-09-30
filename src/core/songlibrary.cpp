@@ -34,6 +34,7 @@ std::vector<SongEntry> scanSongs(const std::string& songsDir, bool builtIn){
                 info.name = track.name;
                 info.type = track.type;
                 info.stringCount = (int)track.tuning.size();
+                info.tuning = track.tuning;
                 info.fingerprint = partFingerprint(chart, part);
                 song.parts.push_back(info);
             }

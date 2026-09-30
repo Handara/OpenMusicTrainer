@@ -18,19 +18,23 @@
 #include "screens/newsong.h"
 #include "screens/settingsscreen.h"
 #include "screens/tuner.h"
+#include "screens/tuningscreen.h"
 #include "ui/menulist.h"
 #include "ui/transition.h"
 #include "ui/ui.h"
 #include "views/staff.h"
 #include "views/viewfont.h"
 
+#include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <string>
 #include <vector>
 
 namespace fs = std::filesystem;
 
-enum class Screen { MainMenu, SongSelect, Playing, Results, Tuner, Instrument, EditorSelect, NewSong, Editor, LessonEditor, Settings, Learn, Calibration };
+enum class Screen { MainMenu, SongSelect, Playing, Results, Tuner, Instrument, EditorSelect, NewSong, Editor, LessonEditor, Settings, Learn, Calibration,
+                    TuningCheck };
 
 // App-wide state shared between screens
 static struct {
@@ -58,6 +62,11 @@ static struct {
     bool testPlaying = false;     // playing the editor's chart: the end or Esc goes back to the editor
     CalibrationMode calibrationMode = CalibrationMode::Tap;
     std::string settingsError;    // why calibration couldn't start (e.g. no input device)
+    InstrumentStatus guitar, bass; // whether each can be played now: looked at as a song's instruments are listed
+    bool tuned[2] = {false, false}; // the guitar and the bass were checked in tune (or the player skipped it) this session
+    SongEntry tuningFor;          // the song, part and mode to start once the instrument is tuned
+    int tuningPart = 0;
+    bool tuningRhythm = false;
 } app;
 
 // --- Screen transitions -----------------------------------------------------------------------------
@@ -186,16 +195,49 @@ static GameplayOptions gameplayOptions(){
     options.offsetSeconds = app.settings.globalOffsetMs / 1000.0f;
     options.lowStringOnTop = app.settings.lowStringOnTop;
     options.noteViews = app.settings.noteViews;
-    options.playWithInstrument = app.settings.playWithInstrument;
-    options.instrument = app.settings.playInstrument;
+    options.playWithInstrument = false; // set by startSong, from the part: each is played on its own instrument
     options.inputDevice = app.settings.inputDevice;
     options.guitarChannel = app.settings.guitarChannel;
     options.bassChannel = app.settings.bassChannel;
     options.midiDevice = app.settings.midiDevice;
     options.pianoKeys = app.settings.pianoKeys;
     options.inputOffsetSeconds = app.settings.inputOffsetMs / 1000.0f;
-    options.hitSounds = !app.settings.playWithInstrument;
+    options.hitSounds = true;
     return options;
+}
+
+// The instrument a part is played on: its own (keys have none here: a MIDI keyboard or the computer's)
+static bool partInstrument(const SongEntry& song, int part, InputRole& role){
+    if (part < 0 || part >= (int)song.parts.size() || song.parts[part].type == InstrumentType::Keys) return false;
+    role = song.parts[part].type == InstrumentType::Bass ? InputRole::Bass : InputRole::Guitar;
+    return true;
+}
+
+static InstrumentStatus& statusOf(InputRole role){
+    return role == InputRole::Bass ? app.bass : app.guitar;
+}
+
+// Whether the guitar and the bass can be played now: the input device is there (a device chosen by name, not the
+// system default the audio falls back to without it), it opens, and it has the input each is set to. Asked as a
+// song's instruments are listed: looking for devices is too slow for every frame.
+static void checkInstruments(){
+    std::string error;
+    std::vector<std::string> devices = app.settings.inputDevice.empty() ? std::vector<std::string>{} : inputDeviceNames();
+    bool present = app.settings.inputDevice.empty()
+                || std::find(devices.begin(), devices.end(), app.settings.inputDevice) != devices.end();
+    bool open = present && startCapture(app.settings.inputDevice, error);
+    int channels = open ? captureChannels() : 0;
+    if (open) stopCapture();
+    std::string device = app.settings.inputDevice.empty() ? "your audio interface" : app.settings.inputDevice;
+    for (InputRole role : { InputRole::Guitar, InputRole::Bass }){
+        InstrumentStatus& status = statusOf(role);
+        int channel = role == InputRole::Bass ? app.settings.bassChannel : app.settings.guitarChannel;
+        const char* name = role == InputRole::Bass ? "bass" : "guitar";
+        status.ready = open && channel < channels;
+        if (!open) status.problem = TextFormat("Connect %s to play this on your %s", device.c_str(), name);
+        else if (!status.ready) status.problem = TextFormat("Your %s is set to input %d, which isn't there: see Settings, Instruments", name, channel + 1);
+        else status.problem.clear();
+    }
 }
 
 static void startSong(const SongEntry& song, int part, bool rhythmMode){
@@ -204,6 +246,13 @@ static void startSong(const SongEntry& song, int part, bool rhythmMode){
     GameplayOptions options = gameplayOptions();
     options.part = part;
     options.rhythmMode = rhythmMode;
+    // On its own instrument; in rhythm mode, on the keyboard's drums when the instrument isn't there
+    InputRole role;
+    if (partInstrument(song, part, role) && statusOf(role).ready){
+        options.playWithInstrument = true;
+        options.instrument = role;
+        options.hitSounds = false;
+    }
     if (startGameplay(song.chartPath, options, error)){
         app.currentRhythm = rhythmMode;
         app.currentSong = song;
@@ -214,6 +263,42 @@ static void startSong(const SongEntry& song, int part, bool rhythmMode){
         app.songSelectError = error;
         app.screen = Screen::SongSelect;
     }
+}
+
+// The tuning check for a part's instrument; `reason` says why when it isn't the first time (it went out of tune)
+static bool goToTuningCheck(const SongEntry& song, int part, bool rhythmMode, const std::string& reason){
+    InputRole role;
+    if (!partInstrument(song, part, role)) return false;
+    std::string error;
+    int channel = role == InputRole::Bass ? app.settings.bassChannel : app.settings.guitarChannel;
+    if (!openTuningScreen(song.parts[part].tuning, role, app.settings.inputDevice, channel, reason, error)){
+        TraceLog(LOG_WARNING, "Tuning check: %s", error.c_str());
+        return false;
+    }
+    app.tuningFor = song;
+    app.tuningPart = part;
+    app.tuningRhythm = rhythmMode;
+    app.screen = Screen::TuningCheck;
+    return true;
+}
+
+// A part chosen on the song list: the first time an instrument is played in a session, it's checked in tune first
+static void chooseSong(const SongEntry& song, int part, bool rhythmMode){
+    InputRole role;
+    if (!rhythmMode && partInstrument(song, part, role) && statusOf(role).ready && !app.tuned[(int)role]
+        && goToTuningCheck(song, part, rhythmMode, "")) return;
+    startSong(song, part, rhythmMode);
+}
+
+static void leaveTuningCheck(bool tuned){
+    closeTuningScreen();
+    InputRole role;
+    if (!tuned){
+        app.screen = Screen::SongSelect;
+        return;
+    }
+    if (partInstrument(app.tuningFor, app.tuningPart, role)) app.tuned[(int)role] = true;
+    startSong(app.tuningFor, app.tuningPart, app.tuningRhythm);
 }
 
 static void startTestPlay(){
@@ -283,6 +368,7 @@ static void handleBackKey(bool backClicked){
         case Screen::Instrument: leaveInstrument(); break;
         case Screen::Settings: if (!settingsUsedEscape()) leaveSettings(); break;
         case Screen::Calibration: leaveCalibration(); break;
+        case Screen::TuningCheck: leaveTuningCheck(false); break;
         case Screen::Learn:
             if (learnBack()){
                 closeLearnScreen();
@@ -326,11 +412,11 @@ static void runMenus(){
         case Screen::SongSelect: {
             installDroppedPackages();
             SongSelectChoice choice = songSelectScreen("Select a song", app.songs, app.songSelectError, app.songSelectNotice, false,
-                                                       &app.settings.playWithInstrument, &app.settings.playInstrument);
-            if (choice.withInstrumentChanged) saveAppSettings();
+                                                       app.guitar, app.bass);
+            if (choice.partsOpened) checkInstruments();
             if (choice.back) app.screen = Screen::MainMenu;
             else if (choice.openDataFolder) openDataFolder();
-            else if (choice.songIndex >= 0) startSong(app.songs[choice.songIndex], choice.part, choice.rhythmMode);
+            else if (choice.songIndex >= 0) chooseSong(app.songs[choice.songIndex], choice.part, choice.rhythmMode);
             break;
         }
         case Screen::EditorSelect: {
@@ -401,12 +487,34 @@ static void runMenus(){
             if (choice.apply) leaveCalibration();
             break;
         }
+        case Screen::TuningCheck:
+            switch (tuningScreen()){
+                case TuningChoice::Tuned: case TuningChoice::Skipped: leaveTuningCheck(true); break;
+                case TuningChoice::None: break;
+            }
+            break;
         case Screen::Learn:
             learnScreen();
             break;
         case Screen::Playing: // the note views are drawn before the UI, with raylib
+            float cents;
             if (!gameplayPaused()) drawGameplayHud(); // paused, the menu takes over the screen
-            else {
+            else if (gameplayOutOfTune(cents)){
+                InputRole role = InputRole::Guitar;
+                partInstrument(app.currentSong, app.currentPart, role);
+                switch (outOfTuneScreen(app.currentSong.title, role == InputRole::Bass ? "bass" : "guitar", cents)){
+                    case OutOfTuneChoice::Retune: {
+                        stopGameplay();
+                        std::string reason = TextFormat("It sounded about %.0f cents %s. Once it's in tune, the song starts over.",
+                                                        std::fabs(cents), cents > 0 ? "sharp" : "flat");
+                        if (!goToTuningCheck(app.currentSong, app.currentPart, app.currentRhythm, reason)) goToSongSelect();
+                        break;
+                    }
+                    case OutOfTuneChoice::PlayOn: resumeGameplay(); break;
+                    case OutOfTuneChoice::Quit: stopGameplay(); goToSongSelect(); break;
+                    case OutOfTuneChoice::None: break;
+                }
+            } else {
                 std::string song = app.currentSong.title;
                 switch (pauseScreen(song)){
                     case PauseChoice::Resume: resumeGameplay(); break;
@@ -525,6 +633,7 @@ int main(void){
     closeLearnScreen(); // before the UI and audio they use shut down
     closeLessonEditor();
     stopCalibration();
+    closeTuningScreen();
     unloadTransition();
     closeUi();
     unloadStaffFont();
