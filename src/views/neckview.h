@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/settings.h"
 #include "raylib.h"
 #include "views/playnote.h"
 
@@ -14,7 +15,7 @@
 // `wholeNeck`: the neck from the nut to the instrument's last fret (20 on a bass, 22 on a guitar, more if the song
 // goes higher); else only the part the song needs.
 void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std::vector<int>& tuning, bool lowStringOnTop,
-                  bool wholeNeck, const TimeAxis& axis);
+                  bool wholeNeck, NoteLabel label, const TimeAxis& axis);
 
 // Where a note is on the neck as it was last drawn (its middle, and its radius), for showing its judgement over it.
 // False when the neck isn't being drawn.

@@ -86,7 +86,7 @@ bool neckNoteAt(const PlayNote& note, float& x, float& y, float& radius){
 }
 
 void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std::vector<int>& tuning, bool lowStringOnTop,
-                  bool wholeNeck, const TimeAxis& axis){
+                  bool wholeNeck, NoteLabel label, const TimeAxis& axis){
     const int strings = (int)tuning.size();
     if (strings == 0) return;
     const float s = GetScreenHeight() / 720.0f;
@@ -223,7 +223,7 @@ void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std:
         smoothCircle(at, radius + 1.5f * s, Fade(card, alpha)); // a rim that keeps notes apart
         smoothCircle(at, radius, Fade(color, alpha));
         if (slider) drawRimArc(at, rim, 0.0f, share, SLIDER_WIDTH * s, Fade(color, TRACK_ALPHA * alpha)); // how long it rings
-        drawViewText(TextFormat("%d", note.fret), at.x, at.y, radius * 1.1f, Fade(WHITE, alpha));
+        drawNoteLabel(note.fret, note.pitch, label, at.x, at.y, radius * 1.1f, Fade(WHITE, alpha));
     }
     EndScissorMode();
 }

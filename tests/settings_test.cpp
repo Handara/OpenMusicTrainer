@@ -122,6 +122,20 @@ TEST_CASE("the neck view is kept, alone or with the others"){
     CHECK_FALSE(Settings{}.noteViews.neck);
 }
 
+TEST_CASE("notes say their fret, their name or both: both unless the player chooses"){
+    CHECK(Settings{}.noteViews.label == NoteLabel::Both);
+    for (NoteLabel label : { NoteLabel::Fret, NoteLabel::Name, NoteLabel::Both }){
+        std::string path = settingsPath("label.txt");
+        Settings settings;
+        settings.noteViews.label = label;
+        std::string error;
+        REQUIRE(saveSettings(path, settings, error));
+        std::vector<std::string> warnings;
+        CHECK(loadSettings(path, warnings).noteViews.label == label);
+        CHECK(warnings.empty());
+    }
+}
+
 TEST_CASE("the neck view shows the whole neck unless the player keeps it to the song's frets"){
     CHECK(Settings{}.noteViews.wholeNeck);
     std::string path = settingsPath("neckrange.txt");

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/settings.h"
 #include "raylib.h"
 
 #include <string>
@@ -13,3 +14,6 @@ void unloadViewFont();
 // `x`, 0.5 centers it there.
 void drawViewText(const char* text, float x, float y, float size, Color color, float anchor = 0.5f);
 float viewTextWidth(const char* text, float size);
+// What a note says (views/highway, views/neckview), centered at x, y: its fret, its name ("F#"), or the fret with the
+// name small under it. `size` is the fret number's size alone.
+void drawNoteLabel(int fret, int pitch, NoteLabel label, float x, float y, float size, Color color);

@@ -1,5 +1,7 @@
 #include "views/viewfont.h"
 
+#include "core/music.h"
+
 const int FONT_LOAD_SIZE = 64; // drawn smaller than this, through mipmaps, so it stays smooth
 
 static struct {
@@ -41,4 +43,16 @@ void drawViewText(const char* text, float x, float y, float size, Color color, f
     Font font = view.loaded ? view.font : GetFontDefault();
     float center = view.loaded ? view.digitCenter : 0.5f;
     DrawTextEx(font, text, {x - viewTextWidth(text, size) * anchor, y - center * size}, size, 0.0f, color);
+}
+
+void drawNoteLabel(int fret, int pitch, NoteLabel label, float x, float y, float size, Color color){
+    const char* number = TextFormat("%d", fret);
+    switch (label){
+        case NoteLabel::Fret: drawViewText(number, x, y, size, color); break;
+        case NoteLabel::Name: drawViewText(pitchClassName(pitch), x, y, size * 0.9f, color); break;
+        case NoteLabel::Both:
+            drawViewText(number, x, y - size * 0.2f, size * 0.8f, color);
+            drawViewText(pitchClassName(pitch), x, y + size * 0.42f, size * 0.46f, Fade(color, color.a / 255.0f * 0.85f));
+            break;
+    }
 }

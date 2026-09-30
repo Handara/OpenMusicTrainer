@@ -27,14 +27,14 @@ float drawNoteViews(Rectangle area, const NoteViews& views, const std::vector<Pl
     // column of its own, on the right beside the others, or centered alone. The others stack in what's left.
     // The neck alone: it has no time axis, so it takes the whole area, and judgements go over its middle
     if (views.neck && !views.staff && !views.tab && !views.highway){
-        drawNeckView(area, notes, tuning, lowStringOnTop, views.wholeNeck, axis);
+        drawNeckView(area, notes, tuning, lowStringOnTop, views.wholeNeck, views.label, axis);
         return area.x + area.width / 2;
     }
     if (views.highway && views.highwayFalls){
         bool alone = !views.staff && !views.tab && !views.neck;
         float width = std::min(tuning.size() * FALLING_LANE_WIDTH + 2 * FALLING_LANE_WIDTH, area.width * (alone ? 1.0f : FALLING_MAX_SHARE));
         Rectangle column = { alone ? area.x + (area.width - width) / 2 : area.x + area.width - width, area.y, width, area.height };
-        drawHighway(column, notes, score, tuning, lowStringOnTop, true, axis);
+        drawHighway(column, notes, score, tuning, lowStringOnTop, true, views.label, axis);
         if (alone) return column.x + column.width / 2; // falling, the hit line runs across: its middle
         area.width -= width + VIEW_GAP;
     }
@@ -72,8 +72,8 @@ float drawNoteViews(Rectangle area, const NoteViews& views, const std::vector<Pl
         switch (shownView.view){
             case View::Staff:   drawStaff(viewArea, notes, score, axis); break;
             case View::Tab:     drawTab(viewArea, notes, score, (int)tuning.size(), axis); break;
-            case View::Highway: drawHighway(viewArea, notes, score, tuning, lowStringOnTop, false, axis); break;
-            case View::Neck:    drawNeckView(viewArea, notes, tuning, lowStringOnTop, views.wholeNeck, axis); break;
+            case View::Highway: drawHighway(viewArea, notes, score, tuning, lowStringOnTop, false, views.label, axis); break;
+            case View::Neck:    drawNeckView(viewArea, notes, tuning, lowStringOnTop, views.wholeNeck, views.label, axis); break;
         }
         y += shownView.height + VIEW_GAP;
     }

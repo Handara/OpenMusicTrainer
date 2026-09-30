@@ -251,6 +251,11 @@ static void displaySection(Settings& settings){
     int direction = views.highwayFalls ? 1 : 0;
     if (settingSegments("Highway direction", nullptr, &direction, { "Across", "Falling" })) views.highwayFalls = direction == 1;
     ImGui::EndDisabled();
+    ImGui::BeginDisabled(!views.highway && !views.neck);
+    int label = (int)views.label;
+    if (settingSegments("On each note", "On the highway and the neck. The note's name helps you learn the neck.", &label,
+                        { "Fret", "Note name", "Both" })) views.label = (NoteLabel)label;
+    ImGui::EndDisabled();
     ImGui::BeginDisabled(!views.neck);
     int range = views.wholeNeck ? 0 : 1;
     if (settingSegments("Neck shown", "The whole neck, as on your instrument, or only the frets the song uses", &range,

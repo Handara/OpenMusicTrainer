@@ -17,7 +17,7 @@ Color stringColor(int stringIndex){ return STRING_COLORS[stringIndex % 6]; }
 // Both directions draw the same things; only which screen axis is time and which is the strings differs. Positions
 // are worked out as "along" (time) and "across" (the strings), then turned into x and y at the last moment.
 void drawHighway(Rectangle area, const std::vector<PlayNote>& notes, const Score& score, const std::vector<int>& tuning,
-                 bool lowStringFirst, bool falls, const TimeAxis& axis){
+                 bool lowStringFirst, bool falls, NoteLabel label, const TimeAxis& axis){
     const int laneCount = (int)tuning.size();
     const float acrossLength = falls ? area.width : area.height;
     const float spacing = std::min(MAX_LANE_SPACING, acrossLength / laneCount);
@@ -94,7 +94,14 @@ void drawHighway(Rectangle area, const std::vector<PlayNote>& notes, const Score
         float alpha = note.judged ? 0.3f : 1.0f;
         smoothCircle(center, noteRadius + 1.5f * scale, Fade(themeColor(UiColor::Card), alpha)); // a rim that keeps notes apart
         smoothCircle(center, noteRadius, Fade(STRING_COLORS[note.stringIndex % 6], alpha));
-        drawViewText(TextFormat("%d", note.fret), center.x, center.y, fontSize, Fade(WHITE, alpha));
+        if (label == NoteLabel::Both){
+            // Too small for two lines: the fret in the note, its name just after it
+            drawViewText(TextFormat("%d", note.fret), center.x, center.y, fontSize, Fade(WHITE, alpha));
+            drawViewText(pitchClassName(note.pitch), center.x + noteRadius + 4 * scale, center.y, fontSize * 0.9f,
+                         Fade(themeColor(UiColor::Dim), alpha), 0.0f);
+        } else {
+            drawNoteLabel(note.fret, note.pitch, label, center.x, center.y, fontSize, Fade(WHITE, alpha));
+        }
     }
     EndScissorMode();
 }

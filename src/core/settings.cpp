@@ -99,6 +99,12 @@ Settings loadSettings(const std::string& path, std::vector<std::string>& warning
             else if (value == "falling") settings.noteViews.highwayFalls = true;
             else warnings.push_back("line " + std::to_string(lineNumber) + ": highway_direction is across or falling, keeping default");
         }
+        else if (key == "note_label"){
+            if (value == "fret") settings.noteViews.label = NoteLabel::Fret;
+            else if (value == "name") settings.noteViews.label = NoteLabel::Name;
+            else if (value == "both") settings.noteViews.label = NoteLabel::Both;
+            else warnings.push_back("line " + std::to_string(lineNumber) + ": note_label is fret, name or both, keeping default");
+        }
         else if (key == "neck_range"){
             if (value == "whole") settings.noteViews.wholeNeck = true;
             else if (value == "song") settings.noteViews.wholeNeck = false;
@@ -152,6 +158,8 @@ bool saveSettings(const std::string& path, const Settings& settings, std::string
     if (settings.noteViews.neck) out << " neck";
     out << "\n";
     out << "highway_direction " << (settings.noteViews.highwayFalls ? "falling" : "across") << "\n";
+    const NoteLabel label = settings.noteViews.label;
+    out << "note_label " << (label == NoteLabel::Fret ? "fret" : label == NoteLabel::Name ? "name" : "both") << "\n";
     out << "neck_range " << (settings.noteViews.wholeNeck ? "whole" : "song") << "\n";
     out << "low_string_on_top " << (settings.lowStringOnTop ? 1 : 0) << "\n";
     out << "theme " << (settings.darkTheme ? "dark" : "light") << "\n";
