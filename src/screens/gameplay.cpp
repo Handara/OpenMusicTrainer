@@ -2,6 +2,7 @@
 
 #include "audio/audio.h"
 #include "core/chart.h"
+#include "core/chords.h"
 #include "core/judge.h"
 #include "core/music.h"
 #include "core/pianokeys.h"
@@ -125,11 +126,74 @@ static void watchNoteTuning(TuningWatch& watch, const std::vector<PlayNote>& not
     if (nearest < 1e8f) watchTuning(watch, nearest);
 }
 
+// Chords: a single-note detector hears two notes plucked together as a muddle (a fifth reads as the note an octave
+// under its root), so when a chord is due, each pluck near it is checked for the chord's notes in the sound itself
+// (core/chords). Its judgement waits for enough of the sound, but is timed at the pluck.
+struct ChordListening {
+    struct Pluck {
+        long long start; // in the samples heard so far
+        float time;      // song time
+    };
+    std::vector<float> sound;  // the latest second from the instrument
+    long long soundEnd = 0;    // samples heard so far: where `sound` ends
+    std::vector<Pluck> plucks; // waiting for enough sound after them
+    float lastChordAt = -100.0f; // song time of the last chord heard this way
+};
+const float SAME_PLUCK_S = 0.06f; // a note the detector finds this close to a chord heard is that chord's pluck
+
+// The unjudged chord (two notes or more at one time) due nearest `time`, within the near window: its notes' indices
+static std::vector<int> chordDueAt(const std::vector<PlayNote>& notes, float time){
+    std::vector<int> chord;
+    auto it = std::lower_bound(notes.begin(), notes.end(), time - NEAR_WINDOW_S, [](const PlayNote& note, float t){ return note.time < t; });
+    for (; it != notes.end() && it->time <= time + NEAR_WINDOW_S; ++it){
+        if (it->judged) continue;
+        std::vector<int> here;
+        for (auto same = it; same != notes.end() && same->time - it->time < 0.001f; ++same) if (!same->judged) here.push_back((int)(same - notes.begin()));
+        bool nearer = chord.empty() || std::fabs(it->time - time) < std::fabs(notes[chord[0]].time - time);
+        if (here.size() >= 2 && nearer) chord = here;
+        it += here.size() - 1;
+    }
+    return chord;
+}
+
+static void listenForChords(ChordListening& listening, std::vector<PlayNote>& notes, GameState& state, float songTime, float inputOffset){
+    const std::vector<float>& fresh = latestInputSamples();
+    const int rate = noteInputSampleRate();
+    if (rate <= 0) return;
+    listening.sound.insert(listening.sound.end(), fresh.begin(), fresh.end());
+    listening.soundEnd += (long long)fresh.size();
+    if ((int)listening.sound.size() > rate) listening.sound.erase(listening.sound.begin(), listening.sound.end() - rate);
+    for (double age : noteInputAttacks()){
+        float time = songTime - (float)age - inputOffset;
+        if (chordDueAt(notes, time).empty()) continue;
+        listening.plucks.push_back({ listening.soundEnd - (long long)(age * rate), time });
+    }
+    const long long length = (long long)(CHORD_LISTEN_S * rate), soundStart = listening.soundEnd - (long long)listening.sound.size();
+    for (size_t i = 0; i < listening.plucks.size();){
+        const ChordListening::Pluck pluck = listening.plucks[i];
+        if (pluck.start + length > listening.soundEnd){ i++; continue; } // not all of it heard yet
+        listening.plucks.erase(listening.plucks.begin() + i);
+        std::vector<int> chord = chordDueAt(notes, pluck.time);
+        if (chord.empty() || pluck.start < soundStart) continue; // the detector heard it first, or it's gone by
+        std::vector<int> pitches;
+        for (int index : chord) pitches.push_back(notes[index].pitch);
+        if (!soundHoldsNotes(listening.sound.data() + (pluck.start - soundStart), (int)length, rate, pitches)) continue;
+        PlayerInput input;
+        input.time = pluck.time;
+        input.pitch = pitches[0]; // one of its notes completes the chord
+        JudgeResult result = judgeInput(notes, input);
+        if (result.judgement == Judgement::Ignored) continue;
+        scoreHit(state, result, judgementAnchor(notes, result.noteIndex));
+        listening.lastChordAt = pluck.time;
+    }
+}
+
 // With an instrument: each played note is placed in song time (now, minus how long ago it started, minus the
 // input device's delay) and judged by its pitch. Rhythm mode needs no pitch: each attack is judged the moment it's
 // heard. Either way every attack is noted, for the hit line's flash.
 static void handleInstrument(std::vector<PlayNote>& notes, GameState& state, float songTime, float inputOffset,
-                             int& lastPlayedPitch, bool rhythmMode, double& lastAttackAt, bool anyOctave, TuningWatch* tuning){
+                             int& lastPlayedPitch, bool rhythmMode, double& lastAttackAt, bool anyOctave, TuningWatch* tuning,
+                             ChordListening& chords){
     // The note due nearest now, for the synth heard in place of the instrument to start at the pluck
     const PlayNote* nearest = nullptr;
     int lowestDue = -1;
@@ -144,6 +208,8 @@ static void handleInstrument(std::vector<PlayNote>& notes, GameState& state, flo
     expectLowestNote(lowestDue >= 0 && !anyOctave ? midiToFrequency((float)lowestDue) : 0.0f);
 
     const std::vector<PlayedNote>& played = updateNoteInput();
+    // On the part's own instrument, where the chord's notes are known to the octave
+    if (!rhythmMode && !anyOctave) listenForChords(chords, notes, state, songTime, inputOffset);
     for (double age : noteInputAttacks()){
         lastAttackAt = GetTime() - age;
         if (!rhythmMode) continue;
@@ -159,6 +225,7 @@ static void handleInstrument(std::vector<PlayNote>& notes, GameState& state, flo
         if (tuning) watchNoteTuning(*tuning, notes, note, songTime - (float)note.age - inputOffset, anyOctave);
         PlayerInput input;
         input.time = songTime - note.age - inputOffset;
+        if (std::fabs((float)input.time - chords.lastChordAt) < SAME_PLUCK_S) continue; // that chord's own pluck, counted
         input.pitch = note.pitch;
         input.anyOctave = anyOctave;
         JudgeResult result = judgeInput(notes, input);
@@ -186,6 +253,7 @@ static struct {
     float countInBeat = 0.0f; // from the top: the count-in's beat (seconds), before the song's time 0; 0 for none
     int countInBeats = 0;
     std::string fingerprint;  // of the part being played
+    ChordListening chords;    // plucks near a chord, checked for its notes
     TuningWatch tuning;       // the notes played, for the instrument going out of tune
     bool watchingTuning = false; // with a guitar or a bass, until the player chooses to play on out of tune
     bool outOfTune = false;   // paused for it
@@ -357,6 +425,7 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
     }
     game.songTime = 0.0f;
     game.tuning = {};
+    game.chords = {};
     game.watchingTuning = options.playWithInstrument && !game.keys && !options.rhythmMode;
     game.outOfTune = false;
     game.active = true;
@@ -415,7 +484,7 @@ bool updateGameplay(){
     else handleKeyboard(game.notes, game.state, game.songTime, (int)track.tuning.size(), game.options.hitSounds);
     if (noteInputActive()) handleInstrument(game.notes, game.state, game.songTime, game.options.inputOffsetSeconds, game.lastPlayedPitch,
                                             game.options.rhythmMode, game.lastAttackAt, game.anyOctave,
-                                            game.watchingTuning ? &game.tuning : nullptr);
+                                            game.watchingTuning ? &game.tuning : nullptr, game.chords);
     // Out of tune, the notes can't be played right: stop, so the player can tune rather than fight it
     if (game.watchingTuning && looksOutOfTune(game.tuning, game.outOfTuneCents)){
         game.outOfTune = true;

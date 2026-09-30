@@ -5,6 +5,7 @@
 #include "core/synth.h"
 #include "core/music.h"
 
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <vector>
@@ -131,4 +132,41 @@ TEST_CASE("what isn't a chord has no name"){
     CHECK(nameChord({60}) == "");
     CHECK(nameChord({60, 61, 62}) == "");
     CHECK(nameChord({60, 72}) == ""); // octaves: one note
+}
+
+// A plucked string, roughly: rich in harmonics, a weak fundamental (as a bass's pickups hear it), dying away
+static void pluck(std::vector<float>& out, int rate, int pitch, float gain){
+    float frequency = midiToFrequency((float)pitch);
+    for (size_t i = 0; i < out.size(); i++){
+        float t = (float)i / rate, sample = 0.0f;
+        for (int h = 1; h <= 12; h++){
+            float amplitude = (h == 1 ? 0.35f : 1.0f) / h;
+            sample += amplitude * std::sin(2.0f * 3.14159265f * frequency * h * t + h * 0.7f);
+        }
+        out[i] += gain * sample * std::exp(-t * 3.0f);
+    }
+}
+
+TEST_CASE("two notes plucked together are heard, low on a bass too"){
+    const int rate = 48000, count = (int)(CHORD_LISTEN_S * rate);
+    struct Case { std::vector<int> played, asked; bool heard; };
+    const Case cases[] = {
+        { {33, 40}, {33, 40}, true },  // A1 and E2: a bass's power chord
+        { {28, 35}, {28, 35}, true },  // E1 and B1, as low as a bass goes
+        { {38, 45}, {38, 45}, true },  // D2 and A2
+        { {33, 45}, {33, 45}, true },  // an octave
+        { {43, 47}, {43, 47}, true },  // a third, G2 and B2
+        { {40, 47, 52}, {40, 47, 52}, true }, // a guitar's E5
+        { {35, 42}, {33, 40}, false }, // a whole step off both
+        { {34, 41}, {33, 40}, false }, // a half step off both
+        { {33, 41}, {33, 40}, false }, // one right, one a half step off
+    };
+    for (const Case& c : cases){
+        CAPTURE(c.played[0]); CAPTURE(c.asked[0]); CAPTURE(c.asked[1]);
+        std::vector<float> sound(count, 0.0f);
+        for (size_t i = 0; i < c.played.size(); i++) pluck(sound, rate, c.played[i], 0.3f / (1.0f + i * 0.3f));
+        CHECK(soundHoldsNotes(sound.data(), count, rate, c.asked) == c.heard);
+    }
+    std::vector<float> silence(count, 0.0f);
+    CHECK_FALSE(soundHoldsNotes(silence.data(), count, rate, {33, 40}));
 }

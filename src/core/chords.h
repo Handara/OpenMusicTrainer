@@ -32,6 +32,13 @@ std::string nameChord(const std::vector<int>& pitches);
 // semitone from E2 to E6 (a Goertzel filter each, over a Hann window), folded into the 12 note names.
 std::array<float, 12> chroma(const float* samples, int count, int sampleRate);
 
+// Whether a sound holds each of some notes (MIDI pitches), octave and all: for checking that the chord a song had
+// due was played, bass double stops included, where a single-note detector hears a muddle. Each note's harmonics
+// (it and the seven above it) are measured and must stand out against those of the notes a half step either side.
+// Low notes need a longish sound to tell from their neighbours: from a pluck, CHORD_LISTEN_S.
+const float CHORD_LISTEN_S = 0.16f;
+bool soundHoldsNotes(const float* samples, int count, int sampleRate, const std::vector<int>& pitches);
+
 // How well a chroma fits a chord: the share of the sound on the chord's notes, less what falls outside them
 float chordFit(const std::array<float, 12>& notes, const ChordInfo& chord);
 

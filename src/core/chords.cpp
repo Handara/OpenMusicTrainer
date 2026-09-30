@@ -10,6 +10,7 @@ const int LOWEST_PITCH = 40;  // E2: a guitar's lowest note
 const int HIGHEST_PITCH = 88; // E6: above that, a guitar's harmonics more than its notes
 const float MIN_CHORD_SHARE = 0.5f; // at least half of the sound on the chord's notes
 const float PI_F = 3.14159265f;
+const float CHORD_NOTE_PEAK = 1.25f;   // a note held stands out this much against the half steps beside it
 const int STRUM_HISTORY_FRAMES = 8;    // 80 ms of what came before
 const float STRUM_JUMP = 2.5f;         // this much louder than it (about 8 dB)
 const float STRUM_FLOOR = 0.01f;       // and above this level (-40 dB): not the noise of a quiet room
@@ -99,6 +100,43 @@ std::array<float, 12> chroma(const float* samples, int count, int sampleRate){
     float total = std::accumulate(notes.begin(), notes.end(), 0.0f);
     if (total > 0.0f) for (float& share : notes) share /= total;
     return notes;
+}
+
+// The energy at a frequency (Goertzel, over samples already windowed)
+static float magnitudeAt(const std::vector<float>& windowed, int sampleRate, float frequency){
+    float coefficient = 2.0f * std::cos(2.0f * PI_F * frequency / sampleRate);
+    float previous = 0.0f, beforeThat = 0.0f;
+    for (float sample : windowed){
+        float current = sample + coefficient * previous - beforeThat;
+        beforeThat = previous;
+        previous = current;
+    }
+    return std::sqrt(std::max(0.0f, previous * previous + beforeThat * beforeThat - coefficient * previous * beforeThat));
+}
+
+// A note's harmonics together: a low string's fundamental is weak (a bass's pickups barely hear it), its harmonics
+// aren't, and the higher ones are further from the neighbours' in hertz, so they tell notes apart in a short sound
+static float harmonicStrength(const std::vector<float>& windowed, int sampleRate, float midi){
+    const int HARMONICS = 8;
+    const float highest = std::min(4000.0f, sampleRate * 0.45f);
+    float frequency = midiToFrequency(midi), sum = 0.0f;
+    for (int h = 1; h <= HARMONICS && frequency * h < highest; h++) sum += magnitudeAt(windowed, sampleRate, frequency * h);
+    return sum;
+}
+
+bool soundHoldsNotes(const float* samples, int count, int sampleRate, const std::vector<int>& pitches){
+    if (count <= 1 || pitches.empty()) return false;
+    std::vector<float> windowed(count);
+    for (int i = 0; i < count; i++) windowed[i] = samples[i] * 0.5f * (1.0f - std::cos(2.0f * PI_F * i / (count - 1)));
+    float energy = 0.0f;
+    for (float sample : windowed) energy += sample * sample;
+    if (energy <= 1e-9f) return false; // silence holds nothing
+    for (int pitch : pitches){
+        float strength = harmonicStrength(windowed, sampleRate, (float)pitch);
+        float below = harmonicStrength(windowed, sampleRate, pitch - 1.0f), above = harmonicStrength(windowed, sampleRate, pitch + 1.0f);
+        if (strength < CHORD_NOTE_PEAK * std::max(below, above)) return false;
+    }
+    return true;
 }
 
 float chordFit(const std::array<float, 12>& notes, const ChordInfo& chord){
