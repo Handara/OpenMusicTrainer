@@ -14,6 +14,7 @@
 #include <filesystem>
 #include <cmath>
 #include <cstring>
+#include <thread>
 #include <vector>
 
 // songPosition() runs a smooth clock on the wall clock and pulls it toward the audio position each call.
@@ -33,6 +34,9 @@ const ma_uint32 CAPTURE_BUFFER_FRAMES = 16384;
 const int MAX_MONITOR_INPUTS = 32;
 const ma_uint32 MONITOR_BUFFER_FRAMES = 8192;
 const ma_uint32 MONITOR_CHUNK = 1024;
+// The duplex device's period asked for (startDuplexCapture): ~3 ms at 48 kHz; Windows grants what the device can
+const ma_uint32 LOW_LATENCY_PERIOD_FRAMES = 128;
+const double DUPLEX_START_S = 0.3; // a duplex device that hasn't called by then isn't going to
 // How an ASIO driver is named among the input devices: "ASIO: Focusrite USB ASIO"
 const char* const ASIO_PREFIX = "ASIO: ";
 
@@ -135,14 +139,19 @@ static struct {
     bool monitorSoundReady = false;
     std::atomic<float> toneVolume{0.8f}, toneDrive{0.0f}, toneBrightness{0.7f}; // set by the main thread
     std::atomic<bool> asioGate{false}; // ASIO calls as soon as it starts: its samples go in once the buffer exists
-    // Playing through the ASIO driver too (see startAsioCapture): the engine has no device of its own, and the driver's
-    // callback reads it. The driver then stays open between screens, since everything heard depends on it.
-    std::atomic<bool> engineOnAsio{false};
+    // The mixer driven by a callback of lahn's own instead of a device of its own: the ASIO driver's (startAsioCapture)
+    // or a duplex device's (startDuplexCapture), both ways in one call, the instrument heard straight through. The
+    // input then stays open between screens, since everything heard depends on it.
+    std::atomic<bool> engineExternal{false};
     bool closing = false;               // closeAudio: nothing is started again on the way out
-    std::string outputDeviceWanted;     // Windows' output device the settings ask for, used again when ASIO closes
-    const float* asioInput = nullptr;   // the ASIO callback's latest input, for the same callback's direct monitor
-    int asioInputFrames = 0;
-    ToneState directTone;               // the direct monitor's amp (the ASIO thread's only)
+    std::string outputDeviceWanted;     // the output device the settings ask for, used again when that callback stops
+    ma_device duplexDevice;             // input and output as one device, in Windows' low-latency mode where it can
+    bool duplexReady = false;
+    std::atomic<long> duplexCalls{0};   // its callbacks so far: proof it's really running
+    const float* directInput = nullptr; // the callback's latest input, for the same callback's direct monitor
+    int directInputFrames = 0;
+    std::atomic<ma_uint32> directRate{48000}; // the rate that callback runs at
+    ToneState directTone;               // the direct monitor's amp (that callback's only)
 
     Voice voices[VOICE_COUNT];
     Voice synthVoices[2];  // the synth bass (playSynthNote): one playing, the last fading out while it starts
@@ -235,8 +244,8 @@ static bool startEngine(const std::string& outputDevice, std::string& error){
     return true;
 }
 
-// The engine with no device: the ASIO driver's callback reads it (asioRender), at the driver's rate, in stereo
-static bool startEngineOnAsio(ma_uint32 sampleRate, std::string& error){
+// The engine with no device: lahn's own callback reads it (renderOutput), at that callback's rate, in stereo
+static bool startEngineExternal(ma_uint32 sampleRate, std::string& error){
     ma_engine_config config = ma_engine_config_init();
     config.pContext = &audio.context;
     config.noDevice = MA_TRUE;
@@ -244,14 +253,15 @@ static bool startEngineOnAsio(ma_uint32 sampleRate, std::string& error){
     config.sampleRate = sampleRate;
     ma_result result = ma_engine_init(&config, &audio.engine);
     if (result != MA_SUCCESS){
-        error = std::string("could not start audio output through ASIO: ") + ma_result_description(result);
+        error = std::string("could not start audio output: ") + ma_result_description(result);
         return false;
     }
     audio.engineReady = true;
     audio.engineClockStarted = false;
     wakeEngineClock();
     if (audio.monitorWanted) startMonitorSound();
-    audio.engineOnAsio = true; // the driver's callback may read it from now on
+    audio.directRate = sampleRate;
+    audio.engineExternal = true; // the callback may read it from now on
     return true;
 }
 
@@ -295,9 +305,19 @@ void closeAudio(){
 }
 
 bool setOutputDevice(const std::string& outputDevice, std::string& error){
-    if (audio.engineOnAsio){
+    if (audio.engineExternal && !audio.duplexReady){
         audio.outputDeviceWanted = outputDevice; // lahn plays through the ASIO driver: this one's for when it closes
         return true;
+    }
+    if (audio.duplexReady){
+        // The duplex device plays through the output device: it's opened again with the new one
+        audio.outputDeviceWanted = outputDevice;
+        std::string input = audio.captureOpenedFor;
+        bool reader = audio.captureReader;
+        closeCapture();
+        bool opened = openCapture(input, error);
+        audio.captureReader = reader && opened;
+        return opened || audio.engineReady;
     }
     float volume = audio.engineReady ? ma_engine_get_volume(&audio.engine) : 1.0f;
     stopEngine();
@@ -310,17 +330,22 @@ bool setOutputDevice(const std::string& outputDevice, std::string& error){
 }
 
 const char* outputDeviceName(){
-    if (audio.engineOnAsio) return audio.asioDevice.c_str();
+    if (audio.duplexReady) return audio.duplexDevice.playback.name;
+    if (audio.engineExternal) return audio.asioDevice.c_str();
     return audio.engineReady ? ma_engine_get_device(&audio.engine)->playback.name : "none";
 }
 
 bool outputIsAsio(){
-    return audio.engineOnAsio;
+    return audio.engineExternal && !audio.duplexReady;
 }
 
 double outputLatencySeconds(){
     if (!audio.engineReady) return 0.0;
-    if (audio.engineOnAsio) return asioOutputLatencyFrames() / std::max(1.0, asioSampleRate());
+    if (audio.duplexReady){
+        const ma_device& device = audio.duplexDevice;
+        return (double)device.playback.internalPeriodSizeInFrames * device.playback.internalPeriods / std::max<ma_uint32>(1, device.playback.internalSampleRate);
+    }
+    if (audio.engineExternal) return asioOutputLatencyFrames() / std::max(1.0, asioSampleRate());
     const ma_device* device = ma_engine_get_device(&audio.engine);
     return (double)device->playback.internalPeriodSizeInFrames * device->playback.internalPeriods / std::max<ma_uint32>(1, device->playback.internalSampleRate);
 }
@@ -571,28 +596,29 @@ static void captureCallback(ma_device* device, void* output, const void* input, 
 }
 
 static void asioCallback(const float* frames, int frameCount){
-    audio.asioInput = frames; // for asioRender, next in the same call
-    audio.asioInputFrames = frameCount;
+    audio.directInput = frames; // for renderOutput, next in the same call
+    audio.directInputFrames = frameCount;
     if (audio.asioGate) writeCapture(frames, (ma_uint32)frameCount);
 }
 
-// The driver's outputs, in the same call as its inputs: everything lahn plays, and the instrument heard straight
-// through (the real sound, not the synth), from the input just handed over: one buffer in, one out, as Ableton does
-static void asioRender(float* stereo, int frameCount){
-    if (audio.engineOnAsio.load(std::memory_order_acquire)) ma_engine_read_pcm_frames(&audio.engine, stereo, (ma_uint64)frameCount, nullptr);
-    if (!audio.monitorGate || audio.monitorSynth || !audio.asioInput || audio.asioInputFrames != frameCount) return;
+// The outputs, in the same call as the inputs (the ASIO driver's or the duplex device's): everything lahn plays, and
+// the instrument heard straight through (the real sound, not the synth), from the input just handed over: one buffer
+// in, one out, as Ableton does
+static void renderOutput(float* stereo, int frameCount){
+    if (audio.engineExternal.load(std::memory_order_acquire)) ma_engine_read_pcm_frames(&audio.engine, stereo, (ma_uint64)frameCount, nullptr);
+    if (!audio.monitorGate || audio.monitorSynth || !audio.directInput || audio.directInputFrames != frameCount) return;
     const ma_uint32 channels = audio.captureChannels, mixed = std::min<ma_uint32>(channels, MAX_MONITOR_INPUTS);
     ToneSettings tone{ audio.toneVolume.load(std::memory_order_relaxed), audio.toneDrive.load(std::memory_order_relaxed),
                        audio.toneBrightness.load(std::memory_order_relaxed) };
     for (int done = 0; done < frameCount;){
         int chunk = std::min(frameCount - done, (int)MONITOR_CHUNK);
         for (int i = 0; i < chunk; i++){
-            const float* frame = audio.asioInput + (size_t)(done + i) * channels;
+            const float* frame = audio.directInput + (size_t)(done + i) * channels;
             float sum = 0.0f;
             for (ma_uint32 c = 0; c < mixed; c++) sum += frame[c] * audio.monitorWeights[c].load(std::memory_order_relaxed);
             audio.monitorScratch[i] = sum;
         }
-        processTone(audio.directTone, tone, audio.monitorScratch, chunk, (int)asioSampleRate());
+        processTone(audio.directTone, tone, audio.monitorScratch, chunk, (int)audio.directRate.load(std::memory_order_relaxed));
         for (int i = 0; i < chunk; i++){
             stereo[2 * (done + i)] += audio.monitorScratch[i];
             stereo[2 * (done + i) + 1] += audio.monitorScratch[i];
@@ -614,21 +640,21 @@ static bool startAsioCapture(const std::string& device, std::string& error){
     // At the output's rate: one interface asked for two rates at once would glitch or refuse
     double rate = audio.engineReady ? (double)ma_engine_get_sample_rate(&audio.engine) : 48000.0;
     if (duplex) stopEngine(); // the driver may need the device Windows' output has (ASIO4ALL does)
-    audio.asioInput = nullptr;
+    audio.directInput = nullptr;
     audio.directTone = ToneState{};
-    if (!startAsio(driver, rate, asioCallback, duplex ? asioRender : nullptr, error)){
+    if (!startAsio(driver, rate, asioCallback, duplex ? renderOutput : nullptr, error)){
         std::string ignored;
         if (duplex) startEngine(outputDevice, ignored);
         return false;
     }
     std::string engineError;
-    if (duplex && !(asioOutputChannels() > 0 && startEngineOnAsio((ma_uint32)asioSampleRate(), engineError))){
+    if (duplex && !(asioOutputChannels() > 0 && startEngineExternal((ma_uint32)asioSampleRate(), engineError))){
         startEngine(outputDevice, engineError); // no outputs to play through: Windows' again
     }
     if (audio.engineReady) ma_engine_set_volume(&audio.engine, volume);
     audio.captureChannels = (ma_uint32)std::max(1, asioInputChannels());
     if (ma_pcm_rb_init(ma_format_f32, audio.captureChannels, CAPTURE_BUFFER_FRAMES, nullptr, nullptr, &audio.captureBuffer) != MA_SUCCESS){
-        audio.engineOnAsio = false;
+        audio.engineExternal = false;
         stopAsio();
         stopEngine();
         std::string ignored;
@@ -643,6 +669,96 @@ static bool startAsioCapture(const std::string& device, std::string& error){
     return true;
 }
 
+#ifdef _WIN32
+// A duplex device's call: the input just heard, and the output to fill
+static void duplexCallback(ma_device* device, void* output, const void* input, ma_uint32 frameCount){
+    (void)device;
+    audio.duplexCalls.fetch_add(1, std::memory_order_relaxed);
+    audio.directInput = (const float*)input;
+    audio.directInputFrames = (int)frameCount;
+    if (audio.asioGate) writeCapture((const float*)input, frameCount);
+    renderOutput((float*)output, (int)frameCount);
+}
+
+// Windows' own devices, both ways at once: the input device and the output device as one duplex device, in
+// Windows' low-latency shared mode where the device allows it (periods of a few ms instead of 10), the engine read in
+// its callback, the instrument heard straight through, as with ASIO. The output stays shared (other programs still
+// play); the input is lahn's alone when that's asked (skipping Windows' effects). Not while a song is loaded: starting
+// the output again would stop it. False when it can't be opened: separate devices then, as before.
+static bool startDuplexCapture(const std::string& inputDevice, std::string& error){
+    const std::string outputDevice = audio.outputDeviceWanted;
+    const float volume = audio.engineReady ? ma_engine_get_volume(&audio.engine) : 1.0f;
+    stopEngine();
+    ma_device_config config = ma_device_config_init(ma_device_type_duplex);
+    config.capture.format = ma_format_f32;
+    config.capture.channels = 0;          // every input the device has
+    config.playback.format = ma_format_f32;
+    config.playback.channels = 2;
+    config.sampleRate = 0;                // the output's native rate
+    config.periodSizeInFrames = LOW_LATENCY_PERIOD_FRAMES;
+    config.performanceProfile = ma_performance_profile_low_latency;
+    config.wasapi.noAutoConvertSRC = MA_TRUE; // miniaudio converts rates itself, which Windows' low-latency mode needs
+    config.dataCallback = duplexCallback;
+    ma_device_id inputId, outputId;
+    if (findDevice(ma_device_type_capture, inputDevice, inputId)) config.capture.pDeviceID = &inputId;
+    if (findDevice(ma_device_type_playback, outputDevice, outputId)) config.playback.pDeviceID = &outputId;
+    ma_result result = MA_ERROR;
+    audio.captureExclusive = false;
+#ifdef _WIN32
+    if (audio.exclusiveWanted){
+        config.capture.shareMode = ma_share_mode_exclusive;
+        result = ma_device_init(&audio.context, &config, &audio.duplexDevice);
+        audio.captureExclusive = result == MA_SUCCESS;
+        config.capture.shareMode = ma_share_mode_shared;
+    }
+#endif
+    if (result != MA_SUCCESS) result = ma_device_init(&audio.context, &config, &audio.duplexDevice);
+    auto fallBack = [&](const std::string& why){
+        std::string ignored;
+        startEngine(outputDevice, ignored);
+        if (audio.engineReady) ma_engine_set_volume(&audio.engine, volume);
+        error = why;
+        return false;
+    };
+    if (result != MA_SUCCESS) return fallBack(std::string("could not open input and output together: ") + ma_result_description(result));
+    audio.captureChannels = std::max<ma_uint32>(1, audio.duplexDevice.capture.channels);
+    if (ma_pcm_rb_init(ma_format_f32, audio.captureChannels, CAPTURE_BUFFER_FRAMES, nullptr, nullptr, &audio.captureBuffer) != MA_SUCCESS){
+        ma_device_uninit(&audio.duplexDevice);
+        return fallBack("could not create capture buffer");
+    }
+    std::string engineError;
+    audio.directInput = nullptr;
+    audio.directTone = ToneState{};
+    if (!startEngineExternal(audio.duplexDevice.sampleRate, engineError)){
+        ma_device_uninit(&audio.duplexDevice);
+        ma_pcm_rb_uninit(&audio.captureBuffer);
+        return fallBack(engineError);
+    }
+    ma_engine_set_volume(&audio.engine, volume);
+    audio.duplexReady = true;
+    audio.captureReady = true;
+    audio.asioGate = true;
+    audio.duplexCalls = 0;
+    if (ma_device_start(&audio.duplexDevice) != MA_SUCCESS){
+        closeCapture(); // hands the output back to its own device
+        error = "could not start input and output together";
+        return false;
+    }
+    // Some systems open a duplex device that never calls (seen with PulseAudio): nothing would play at all. It must
+    // call within DUPLEX_START_S, or it's closed and separate devices are used.
+    const auto started = std::chrono::steady_clock::now();
+    while (audio.duplexCalls.load() == 0 && std::chrono::steady_clock::now() - started < std::chrono::duration<double>(DUPLEX_START_S)){
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    if (audio.duplexCalls.load() == 0){
+        closeCapture();
+        error = "input and output together never started";
+        return false;
+    }
+    return true;
+}
+#endif
+
 // --- Hearing the instrument ---
 
 // The engine's audio thread asks for the instrument's sound: whatever the capture thread put in, through the amp.
@@ -654,9 +770,9 @@ static ma_result monitorRead(ma_data_source* source, void* out, ma_uint64 frameC
     MonitorSource* self = (MonitorSource*)source;
     float* samples = (float*)out;
     const ma_uint32 wanted = (ma_uint32)frameCount;
-    if (audio.monitorSynth.load(std::memory_order_relaxed) || audio.engineOnAsio.load(std::memory_order_relaxed)){
+    if (audio.monitorSynth.load(std::memory_order_relaxed) || audio.engineExternal.load(std::memory_order_relaxed)){
         // Heard as a synth: the main thread reads the input (readMonitor) and plays the notes it finds. Or through
-        // ASIO: the driver's own callback plays it straight through (asioRender).
+        // ASIO: the driver's own callback plays it straight through (renderOutput).
         std::fill(samples, samples + wanted, 0.0f);
         *framesRead = frameCount;
         return MA_SUCCESS;
@@ -703,6 +819,7 @@ static ma_data_source_vtable MONITOR_VTABLE = { monitorRead, monitorSeek, monito
 
 static ma_uint32 openCaptureRate(){
     if (!audio.captureReady) return 0;
+    if (audio.duplexReady) return audio.duplexDevice.sampleRate; // the input converted to the device's rate
     return audio.asioDevice.empty() ? audio.captureDevice.sampleRate : (ma_uint32)asioSampleRate();
 }
 
@@ -847,6 +964,15 @@ static bool openCapture(const std::string& inputDevice, std::string& error){
         monitorFollowCapture();
         return true;
     }
+#ifdef _WIN32
+    // Windows: input and output as one low-latency device. Not elsewhere: PulseAudio opens one that never runs, and
+    // leaves the audio it was opened alongside stuck; separate devices always work there.
+    std::string duplexError;
+    if (!audio.songReady && startDuplexCapture(inputDevice, duplexError)){
+        monitorFollowCapture();
+        return true;
+    }
+#endif
 
     // Every input the device has, as its own channel: an audio interface's guitar and microphone stay apart
     ma_device_config config = ma_device_config_init(ma_device_type_capture);
@@ -904,19 +1030,24 @@ bool captureIsExclusive(){
 static void closeCapture(){
     if (!audio.captureReady) return;
     // The thread writing to the buffer is stopped before the buffer goes away
-    const bool engineWasOnAsio = audio.engineOnAsio;
+    const bool engineWasExternal = audio.engineExternal;
     if (!audio.asioDevice.empty()){
         audio.asioGate = false;
-        audio.engineOnAsio = false;
+        audio.engineExternal = false;
         stopAsio();
         audio.asioDevice.clear();
+    } else if (audio.duplexReady){
+        audio.asioGate = false;
+        audio.engineExternal = false;
+        ma_device_uninit(&audio.duplexDevice); // stops its callback first
+        audio.duplexReady = false;
     } else {
         ma_device_uninit(&audio.captureDevice);
     }
     ma_pcm_rb_uninit(&audio.captureBuffer);
     audio.captureReady = false;
-    if (engineWasOnAsio && !audio.closing){
-        // Everything was playing through the driver: back to Windows' output
+    if (engineWasExternal && !audio.closing){
+        // Everything was playing through that callback: back to the output device of its own
         float volume = ma_engine_get_volume(&audio.engine);
         stopEngine();
         std::string error;
@@ -949,7 +1080,7 @@ bool startCapture(const std::string& inputDevice, std::string& error){
 
 void stopCapture(){
     audio.captureReader = false;
-    if (audio.engineOnAsio) return; // everything plays through the driver: it stays open
+    if (audio.engineExternal) return; // everything plays through that callback: the input stays open
     if (!audio.monitorWanted){
         closeCapture();
         return;
@@ -973,12 +1104,12 @@ static void restartAsioIfAsked(){
 }
 
 int captureSampleRate(){
-    if (!audio.captureReady) return 0;
-    return audio.asioDevice.empty() ? (int)audio.captureDevice.sampleRate : (int)asioSampleRate();
+    return (int)openCaptureRate();
 }
 
 const char* captureDeviceName(){
     if (!audio.captureReady) return "none";
+    if (audio.duplexReady) return audio.duplexDevice.capture.name;
     return audio.asioDevice.empty() ? audio.captureDevice.capture.name : audio.asioDevice.c_str();
 }
 
@@ -989,7 +1120,7 @@ bool captureIsAsio(){
 double captureLatencySeconds(){
     if (!audio.captureReady) return 0.0;
     if (!audio.asioDevice.empty()) return asioInputLatencyFrames() / std::max(1.0, asioSampleRate());
-    const ma_device& device = audio.captureDevice;
+    const ma_device& device = audio.duplexReady ? audio.duplexDevice : audio.captureDevice;
     return (double)device.capture.internalPeriodSizeInFrames * device.capture.internalPeriods / std::max<ma_uint32>(1, device.capture.internalSampleRate);
 }
 
