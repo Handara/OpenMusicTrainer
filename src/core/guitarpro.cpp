@@ -8,6 +8,7 @@
 #include <cstring>
 #include <fstream>
 #include <map>
+#include <set>
 #include <sstream>
 
 const int RESOLUTION = 480;       // ticks per quarter note: a triplet sixteenth is a whole number of them
@@ -244,7 +245,8 @@ bool readGpif(const std::string& xml, GuitarProImport& out, std::string& error){
     }
 
     // The bars as played, one after the other
-    int tick = 0, graceNotes = 0, deadNotes = 0;
+    int tick = 0;
+    std::set<int> graceBeats, deadNotes; // counted once each, however often a repeat plays them
     int lastBeats = 0, lastUnit = 0, lastFifths = 99;
     bool lastMinor = false;
     for (int index : playOrder(masterBars)){
@@ -277,7 +279,7 @@ bool readGpif(const std::string& xml, GuitarProImport& out, std::string& error){
                     auto rhythm = rhythmRef ? rhythmNodes.find(std::atoi(rhythmRef->attribute("ref").c_str())) : rhythmNodes.end();
                     int duration = rhythmTicks(rhythm == rhythmNodes.end() ? nullptr : rhythm->second);
                     if (beat->second->child("GraceNotes")){ // played before the beat, in no time of its own
-                        graceNotes++;
+                        graceBeats.insert(beatId);
                         continue;
                     }
                     for (int noteId : numbers(beat->second->childText("Notes"))){
@@ -286,7 +288,7 @@ bool readGpif(const std::string& xml, GuitarProImport& out, std::string& error){
                         const XmlNode* stringProperty = property(*note->second, "String");
                         const XmlNode* fretProperty = property(*note->second, "Fret");
                         if (!stringProperty || !fretProperty) continue;
-                        if (property(*note->second, "Muted")){ deadNotes++; continue; }
+                        if (property(*note->second, "Muted")){ deadNotes.insert(noteId); continue; }
                         int string = std::atoi(stringProperty->childText("String").c_str());
                         int fret = std::atoi(fretProperty->childText("Fret").c_str());
                         if (string < 0 || string >= (int)track.pitches.size() || fret < 0 || fret > MAX_FRET) continue;
@@ -320,8 +322,8 @@ bool readGpif(const std::string& xml, GuitarProImport& out, std::string& error){
             return a.tick != b.tick ? a.tick < b.tick : a.stringIndex < b.stringIndex;
         });
     }
-    if (graceNotes > 0) out.leftOut.push_back(std::to_string(graceNotes) + " grace notes");
-    if (deadNotes > 0) out.leftOut.push_back(std::to_string(deadNotes) + " dead notes");
+    if (!graceBeats.empty()) out.leftOut.push_back(std::to_string(graceBeats.size()) + (graceBeats.size() == 1 ? " grace note" : " grace notes"));
+    if (!deadNotes.empty()) out.leftOut.push_back(std::to_string(deadNotes.size()) + (deadNotes.size() == 1 ? " dead note" : " dead notes"));
     return true;
 }
 

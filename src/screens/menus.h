@@ -20,6 +20,7 @@ struct SongSelectChoice {
     int part = 0;       // which of the song's parts to play
     bool rhythmMode = false; // taiko-style, only the rhythm (Tab switches it on the song list)
     bool partsOpened = false; // the instruments to play the song with were just listed: see whether they're connected
+    bool importSong = false;  // playing only: bring in a song from a Guitar Pro tab
 };
 // Whether an instrument can be played now: its input device is there. `problem` says why not, for the player.
 struct InstrumentStatus {
@@ -33,6 +34,8 @@ struct InstrumentStatus {
 SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry>& songs, const std::string& error,
                                   const std::string& notice, bool forEditing, const InstrumentStatus& guitar = {},
                                   const InstrumentStatus& bass = {});
+// The song list lands on this song next time it's shown (one just added)
+void selectSongInList(int songIndex);
 // Esc on the song list: closes the list of parts if it's open (true: it was, the screen stays)
 bool songSelectBack();
 

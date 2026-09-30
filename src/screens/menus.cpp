@@ -160,11 +160,21 @@ static bool switchRow(const char* label, const char* const* names, int count, in
     return changed;
 }
 
+static int songToSelect = -1; // selectSongInList
+
+void selectSongInList(int songIndex){
+    songToSelect = songIndex;
+}
+
 SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry>& songs, const std::string& error,
                                   const std::string& notice, bool forEditing, const InstrumentStatus& guitar,
                                   const InstrumentStatus& bass){
     static MenuList playList, editList; // each list keeps its selection
     MenuList& list = forEditing ? editList : playList;
+    if (!forEditing && songToSelect >= 0){
+        list.selected = songToSelect; // rows are the songs first, in order
+        songToSelect = -1;
+    }
     SongSelectChoice choice;
     beginMenu(title);
     float s = menuScale();
@@ -204,6 +214,8 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
     // Editing, a new song can be made too, from the player's own audio
     const int newSong = forEditing ? (int)rows.size() : -2;
     if (forEditing) rows.push_back(actionRow("New song from audio"));
+    const int importSong = !forEditing ? (int)rows.size() : -2;
+    if (!forEditing) rows.push_back(actionRow("Import a song"));
     const int openFolder = (int)rows.size();
     rows.push_back(actionRow("Open data folder"));
 
@@ -222,6 +234,7 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
     }
     if (confirmed == newSong) choice.newSong = true;
     if (confirmed == openFolder) choice.openDataFolder = true;
+    if (confirmed == importSong) choice.importSong = true;
 
     if (!error.empty() || !notice.empty()){
         ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() * 0.07f, ImGui::GetWindowHeight() * 0.17f + 20 * s));
@@ -229,7 +242,7 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
         else ImGui::TextColored(uiColorVec(UiColor::Good), "%s", notice.c_str());
     }
     menuScreenHint(forEditing ? "Up/Down  choose    Enter  edit    Esc  back    Drop a .lahn file to add a song"
-                              : "Up/Down  choose    Enter  choose    Tab  notes or rhythm    Esc  back", s);
+                              : "Up/Down  choose    Enter  choose    Tab  notes or rhythm    Drop a Guitar Pro tab to import it    Esc  back", s);
     ImGui::End();
     return choice;
 }

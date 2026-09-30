@@ -178,6 +178,7 @@ enable_warnings(lahn_core)
 add_executable(lahn
     src/main.cpp
     src/app/crashreport.cpp
+    src/app/filedialog.cpp
     src/audio/audio.cpp
     src/audio/asiodriver.cpp
     src/input/midi.cpp
@@ -196,6 +197,7 @@ add_executable(lahn
     src/screens/calibration.cpp
     src/screens/editor.cpp
     src/screens/gameplay.cpp
+    src/screens/importsong.cpp
     src/screens/instrumentscreen.cpp
     src/screens/learnscreen.cpp
     src/screens/lessoneditor.cpp
@@ -226,7 +228,7 @@ add_executable(lahn
 )
 target_link_libraries(lahn PRIVATE lahn_core raylib miniaudio imgui pl_mpeg)
 if(WIN32)
-    target_link_libraries(lahn PRIVATE winmm dbghelp asiosdk) # MIDI input (input/midi.cpp); crash reports (app/crashreport.cpp); ASIO
+    target_link_libraries(lahn PRIVATE winmm dbghelp comdlg32 asiosdk) # MIDI input (input/midi.cpp); crash reports (app/crashreport.cpp); the Open dialog (app/filedialog.cpp); ASIO
 endif()
 enable_warnings(lahn)
 

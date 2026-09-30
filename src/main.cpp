@@ -10,6 +10,7 @@
 #include "screens/calibration.h"
 #include "screens/editor.h"
 #include "screens/gameplay.h"
+#include "screens/importsong.h"
 #include "screens/instrumentscreen.h"
 #include "screens/learnscreen.h"
 #include "screens/lessoneditor.h"
@@ -27,6 +28,7 @@
 #include "views/viewfont.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <filesystem>
 #include <string>
@@ -35,7 +37,7 @@
 namespace fs = std::filesystem;
 
 enum class Screen { MainMenu, SongSelect, Playing, Results, Tuner, Instrument, EditorSelect, NewSong, Editor, LessonEditor, Settings, Learn, Calibration,
-                    TuningCheck, ToneWizard };
+                    TuningCheck, ToneWizard, ImportSong };
 
 // App-wide state shared between screens
 static struct {
@@ -86,10 +88,29 @@ static void goToSongList(Screen listScreen){
     app.screen = listScreen;
 }
 
-// Song packages (.lahn) dropped on a song list are installed into the player's songs, and the list shows them
+static void goToImport(const std::string& file){
+    openImportScreen(app.userSongsDir, file);
+    app.screen = Screen::ImportSong;
+}
+
+static bool isGuitarProFile(const std::string& path){
+    std::string extension = fs::path(path).extension().string();
+    for (char& c : extension) c = (char)std::tolower((unsigned char)c);
+    return extension == ".gp" || extension == ".gpx" || extension == ".gp5" || extension == ".gp4" || extension == ".gp3";
+}
+
+// Song packages (.lahn) dropped on a song list are installed into the player's songs, and the list shows them; a
+// Guitar Pro tab dropped on it goes to the import screen
 static void installDroppedPackages(){
     if (!IsFileDropped()) return;
     FilePathList dropped = LoadDroppedFiles();
+    for (unsigned i = 0; i < dropped.count; i++){
+        if (!isGuitarProFile(dropped.paths[i])) continue;
+        std::string tab = dropped.paths[i];
+        UnloadDroppedFiles(dropped);
+        goToImport(tab);
+        return;
+    }
     std::vector<std::string> added;
     app.songSelectError.clear();
     for (unsigned i = 0; i < dropped.count; i++){
@@ -372,6 +393,10 @@ static void handleBackKey(bool backClicked){
         case Screen::Settings: if (!settingsUsedEscape()) leaveSettings(); break;
         case Screen::Calibration: leaveCalibration(); break;
         case Screen::TuningCheck: leaveTuningCheck(false); break;
+        case Screen::ImportSong:
+            closeImportScreen();
+            goToSongSelect();
+            break;
         case Screen::ToneWizard:
             if (!ImGui::GetIO().WantTextInput){ // Esc in the name field stops typing, it doesn't leave
                 closeToneWizard(app.settings);
@@ -424,7 +449,8 @@ static void runMenus(){
             SongSelectChoice choice = songSelectScreen("Select a song", app.songs, app.songSelectError, app.songSelectNotice, false,
                                                        app.guitar, app.bass);
             if (choice.partsOpened) checkInstruments();
-            if (choice.back) app.screen = Screen::MainMenu;
+            if (choice.importSong) goToImport("");
+            else if (choice.back) app.screen = Screen::MainMenu;
             else if (choice.openDataFolder) openDataFolder();
             else if (choice.songIndex >= 0) chooseSong(app.songs[choice.songIndex], choice.part, choice.rhythmMode);
             break;
@@ -502,6 +528,15 @@ static void runMenus(){
             break;
         }
         case Screen::ToneWizard: toneWizardScreen(app.settings); break;
+        case Screen::ImportSong:
+            if (importScreen() == ImportChoice::Imported){
+                std::string title = importedSongTitle();
+                closeImportScreen();
+                goToSongList(Screen::SongSelect); // rescanned: it's there
+                app.songSelectNotice = "Added: " + title;
+                for (int i = 0; i < (int)app.songs.size(); i++) if (app.songs[i].title == title && !app.songs[i].builtIn) selectSongInList(i);
+            }
+            break;
         case Screen::TuningCheck:
             switch (tuningScreen()){
                 case TuningChoice::Tuned: case TuningChoice::Skipped: leaveTuningCheck(true); break;
