@@ -56,10 +56,10 @@ void drawHighway(Rectangle area, const std::vector<PlayNote>& notes, const Score
         float across = laneAt(i);
         DrawLineEx(point(alongStart, across), point(alongEnd, across), 1.0f, line);
         smoothRing(point(hitAlong, across), targetRadius - 2.0f * scale, targetRadius, 0.0f, 360.0f, Fade(STRING_COLORS[i % 6], 0.7f));
-        const char* label = TextFormat("%s%d [%d]", pitchClassName(tuning[i]), pitchOctave(tuning[i]), i + 1);
+        const char* name = TextFormat("%s%d [%d]", pitchClassName(tuning[i]), pitchOctave(tuning[i]), i + 1);
         Vector2 at = falls ? Vector2{across, hitAlong + targetRadius + 8 + fontSize / 2} // under each column's target
                            : Vector2{area.x + 10, across};                             // at the start of each lane
-        drawViewText(label, at.x, at.y, fontSize, themeColor(UiColor::Dim), falls ? 0.5f : 0.0f);
+        drawViewText(name, at.x, at.y, fontSize, themeColor(UiColor::Dim), falls ? 0.5f : 0.0f);
     }
     DrawLineEx(point(hitAlong, acrossStart), point(hitAlong, acrossEnd), 2.0f, themeColor(UiColor::Accent));
 

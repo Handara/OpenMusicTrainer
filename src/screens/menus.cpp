@@ -376,11 +376,11 @@ ResultsChoice resultsScreen(const GameResult& result){
         if (result.history.size() >= 2 && graphBottom - graphTop > 40 * s){
             draw->AddText(fonts.mono, 13 * s, ImVec2(left, boardY + 22 * s), uiColor(UiColor::Dim),
                           TextFormat("PROGRESS  ·  %d RUNS", (int)result.history.size()));
-            RunGraphLook look;
-            look.marked = (int)result.history.size() - 1;
-            look.reveal = std::clamp((since - 0.9f) / 0.8f, 0.0f, 1.0f);
-            look.reveal = 1.0f - (1.0f - look.reveal) * (1.0f - look.reveal);
-            drawRunHistory(draw, result.history, ImVec2(left, graphTop), ImVec2(width * 0.4f, graphBottom - graphTop), s, look);
+            RunGraphLook graph;
+            graph.marked = (int)result.history.size() - 1;
+            graph.reveal = std::clamp((since - 0.9f) / 0.8f, 0.0f, 1.0f);
+            graph.reveal = 1.0f - (1.0f - graph.reveal) * (1.0f - graph.reveal);
+            drawRunHistory(draw, result.history, ImVec2(left, graphTop), ImVec2(width * 0.4f, graphBottom - graphTop), s, graph);
         }
     }
     menuScreenHint("Enter  choose    Esc  back to songs", s);
