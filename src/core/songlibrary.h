@@ -53,6 +53,10 @@ struct NewSong {
 // Returns the chart's path in `chartPath`; nothing is left behind if it fails.
 bool createSong(const std::string& songsDir, const NewSong& song, std::string& chartPath, std::string& error);
 
+// Deleting a song: its folder is moved into the trash folder (under its own name, with a number if that's taken there),
+// not destroyed, so a song deleted by mistake can be put back by hand. Its records stay: they're kept by song, apart.
+bool trashSong(const std::string& songFolder, const std::string& trashDir, std::string& error);
+
 // A song from a chart made elsewhere (a Guitar Pro tab): a folder of its own in songsDir, named after its title (with
 // a number when that's taken), and its audio: the song's recording copied in when there's one (`audioPath`; lined up
 // in the editor), else lahn's backing rendered at `sampleRate` (core/backing), in time from the start

@@ -79,6 +79,24 @@ void loadBestRuns(std::vector<SongEntry>& songs, const std::string& recordsDir){
     }
 }
 
+bool trashSong(const std::string& songFolder, const std::string& trashDir, std::string& error){
+    std::error_code ec;
+    if (!fs::is_directory(songFolder, ec)){
+        error = "The song's folder isn't there any more";
+        return false;
+    }
+    fs::create_directories(trashDir, ec);
+    std::string name = fs::path(songFolder).filename().string();
+    fs::path destination = fs::path(trashDir) / name;
+    for (int n = 2; fs::exists(destination, ec); n++) destination = fs::path(trashDir) / (name + " (" + std::to_string(n) + ")");
+    fs::rename(songFolder, destination, ec);
+    if (ec){
+        error = "Could not delete the song: " + ec.message();
+        return false;
+    }
+    return true;
+}
+
 bool createImportedSong(const std::string& songsDir, Chart chart, const std::string& audioPath, int sampleRate,
                         std::string& chartPath, std::string& error){
     std::string base = safeFolderName(chart.title);

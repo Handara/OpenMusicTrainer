@@ -71,11 +71,13 @@ static void drawSongCard(const SongEntry& song, float s){
 }
 
 static int choosingPartOf = -1; // the song whose parts are listed, -1 when the songs are
+static int deleting = -1;       // the song about to be deleted, asked about first; -1 for none
 static bool partsJustOpened = false; // its first frame: the selection starts on the first part that can be played
 
 bool songSelectBack(){
-    if (choosingPartOf < 0) return false;
+    if (choosingPartOf < 0 && deleting < 0) return false;
     choosingPartOf = -1;
+    deleting = -1;
     return true;
 }
 
@@ -178,6 +180,27 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
     SongSelectChoice choice;
     beginMenu(title);
     float s = menuScale();
+    if (deleting >= 0 && deleting < (int)songs.size()){
+        // Asked first: a song's chart is hours of someone's work. Keeping it is the first choice.
+        static MenuList question;
+        static const std::vector<MenuRow> answers = { actionRow("Keep it", "Esc"), actionRow("Delete it") };
+        const SongEntry& song = songs[deleting];
+        menuScreenTitle(TextFormat("Delete %s?", song.title.c_str()), s);
+        ImGui::GetWindowDrawList()->AddText(uiFonts().text, 18 * s, ImVec2(ImGui::GetWindowWidth() * 0.07f, ImGui::GetWindowHeight() * 0.09f + 52 * s),
+                                            uiColor(UiColor::Dim), "It goes to the trash folder in your data folder: it can be put back from there. Your scores on it are kept.");
+        if (ImGui::IsWindowAppearing() || question.selected < 0) question.selected = 0;
+        int answer = menuList(question, answers, listArea(0.45f));
+        if (answer == 0) deleting = -1;
+        if (answer == 1){
+            choice.deleteSong = deleting;
+            deleting = -1;
+            question.selected = 0;
+        }
+        menuScreenHint("Up/Down  choose    Enter  confirm    Esc  keep it", s);
+        ImGui::End();
+        return choice;
+    }
+    deleting = -1;
     if (!forEditing && choosingPartOf >= 0 && choosingPartOf < (int)songs.size()){
         partList(songs[choosingPartOf], choice, guitar, bass);
         ImGui::End();
@@ -214,8 +237,8 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
     // Editing, a new song can be made too, from the player's own audio
     const int newSong = forEditing ? (int)rows.size() : -2;
     if (forEditing) rows.push_back(actionRow("New song from audio"));
-    const int importSong = !forEditing ? (int)rows.size() : -2;
-    if (!forEditing) rows.push_back(actionRow("Import a song"));
+    const int importSong = (int)rows.size();
+    rows.push_back(actionRow("Import a song"));
     const int openFolder = (int)rows.size();
     rows.push_back(actionRow("Open data folder"));
 
@@ -235,14 +258,19 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
     if (confirmed == newSong) choice.newSong = true;
     if (confirmed == openFolder) choice.openDataFolder = true;
     if (confirmed == importSong) choice.importSong = true;
+    // The player's own songs can be deleted (Delete, or the button): the ones that come with lahn can't
+    if (list.selected >= 0 && list.selected < (int)songs.size() && !songs[list.selected].builtIn){
+        bool pressed = menuPill("Delete", "Del", ImVec2(ImGui::GetWindowWidth() * 0.93f, ImGui::GetWindowHeight() - 48 * s), true, 0, s);
+        if (pressed || ImGui::IsKeyPressed(ImGuiKey_Delete)) deleting = list.selected;
+    }
 
     if (!error.empty() || !notice.empty()){
         ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() * 0.07f, ImGui::GetWindowHeight() * 0.17f + 20 * s));
         if (!error.empty()) ImGui::TextColored(uiColorVec(UiColor::Bad), "%s", error.c_str());
         else ImGui::TextColored(uiColorVec(UiColor::Good), "%s", notice.c_str());
     }
-    menuScreenHint(forEditing ? "Up/Down  choose    Enter  edit    Drop audio to make a song of it, or a .lahn to add one    Esc  back"
-                              : "Up/Down  choose    Enter  choose    Tab  notes or rhythm    Drop a Guitar Pro tab to import it    Esc  back", s);
+    menuScreenHint(forEditing ? "Up/Down  choose    Enter  edit    Drop audio, a tab or a .lahn to add a song    Esc  back"
+                              : "Up/Down  choose    Enter  choose    Tab  notes or rhythm    Drop a tab or a song to import it    Esc  back", s);
     ImGui::End();
     return choice;
 }

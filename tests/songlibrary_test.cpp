@@ -74,3 +74,22 @@ TEST_CASE("a new song is refused without what it needs, leaving nothing behind")
     CHECK_FALSE(error.empty());
     CHECK(fs::is_empty(root / "songs"));
 }
+
+TEST_CASE("a deleted song goes to the trash folder, where it can be found again"){
+    namespace fs = std::filesystem;
+    fs::path root = fs::temp_directory_path() / "lahn_tests" / "trash";
+    fs::remove_all(root);
+    fs::path song = root / "songs" / "My riff", trash = root / "trash";
+    fs::create_directories(song);
+    { std::ofstream(song / "song.chart") << "x"; }
+    std::string error;
+    REQUIRE_MESSAGE(trashSong(song.string(), trash.string(), error), error);
+    CHECK_FALSE(fs::exists(song));
+    CHECK(fs::is_regular_file(trash / "My riff" / "song.chart"));
+
+    // Another of the same name deleted later sits beside the first
+    fs::create_directories(song);
+    REQUIRE(trashSong(song.string(), trash.string(), error));
+    CHECK(fs::is_directory(trash / "My riff (2)"));
+    CHECK_FALSE(trashSong(song.string(), trash.string(), error)); // it's gone already
+}

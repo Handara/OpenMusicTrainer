@@ -65,6 +65,7 @@ static struct {
     bool testPlaying = false;     // playing the editor's chart: the end or Esc goes back to the editor
     CalibrationMode calibrationMode = CalibrationMode::Tap;
     std::string settingsError;    // why calibration couldn't start (e.g. no input device)
+    bool importForEditor = false; // the import was opened from the editor's song list: what comes in opens in the editor
     InstrumentStatus guitar, bass; // whether each can be played now: looked at as a song's instruments are listed
     bool tuned[2] = {false, false}; // the guitar and the bass were checked in tune (or the player skipped it) this session
     SongEntry tuningFor;          // the song, part and mode to start once the instrument is tuned
@@ -89,6 +90,7 @@ static void goToSongList(Screen listScreen){
 }
 
 static void goToImport(const std::string& file){
+    app.importForEditor = app.screen == Screen::EditorSelect;
     openImportScreen(app.userSongsDir, (fs::path(app.userDataDir) / "addons").string(), file);
     app.screen = Screen::ImportSong;
 }
@@ -116,9 +118,9 @@ static void installDroppedPackages(){
     for (unsigned i = 0; i < dropped.count; i++){
         std::string path = dropped.paths[i];
         bool editing = app.screen == Screen::EditorSelect;
-        if (editing ? !isAudioFile(path) : !isImportable(path)) continue;
+        if (!isImportable(path)) continue;
         UnloadDroppedFiles(dropped);
-        if (editing){
+        if (editing && isAudioFile(path)){
             openNewSongScreen(app.userSongsDir, path);
             app.screen = Screen::NewSong;
         } else {
@@ -142,6 +144,16 @@ static void installDroppedPackages(){
     app.songSelectNotice.clear();
     for (const std::string& name : added) app.songSelectNotice += (app.songSelectNotice.empty() ? "Added: " : ", ") + name;
     goToSongList(app.screen); // rescan: the new songs show up
+}
+
+// A song deleted from a list: into the trash folder of the data folder, and the list read again
+static void deleteSong(int index){
+    if (index < 0 || index >= (int)app.songs.size() || app.songs[index].builtIn) return;
+    std::string title = app.songs[index].title, error;
+    bool gone = trashSong(app.songs[index].folder, (fs::path(app.userDataDir) / "trash").string(), error);
+    goToSongList(app.screen);
+    app.songSelectError = gone ? "" : error;
+    app.songSelectNotice = gone ? "Deleted: " + title + " (it's in the trash folder of your data folder)" : "";
 }
 
 static void goToSongSelect(){
@@ -410,7 +422,7 @@ static void handleBackKey(bool backClicked){
         case Screen::TuningCheck: leaveTuningCheck(false); break;
         case Screen::ImportSong:
             closeImportScreen();
-            goToSongSelect();
+            goToSongList(app.importForEditor ? Screen::EditorSelect : Screen::SongSelect); // back where it was opened from
             break;
         case Screen::ToneWizard:
             if (!ImGui::GetIO().WantTextInput){ // Esc in the name field stops typing, it doesn't leave
@@ -465,6 +477,7 @@ static void runMenus(){
                                                        app.guitar, app.bass);
             if (choice.partsOpened) checkInstruments();
             if (choice.importSong) goToImport("");
+            else if (choice.deleteSong >= 0) deleteSong(choice.deleteSong);
             else if (choice.back) app.screen = Screen::MainMenu;
             else if (choice.openDataFolder) openDataFolder();
             else if (choice.songIndex >= 0) chooseSong(app.songs[choice.songIndex], choice.part, choice.rhythmMode);
@@ -474,6 +487,8 @@ static void runMenus(){
             installDroppedPackages();
             SongSelectChoice choice = songSelectScreen("Edit a song", app.songs, app.songSelectError, app.songSelectNotice, true);
             if (choice.back) app.screen = Screen::MainMenu;
+            else if (choice.importSong) goToImport("");
+            else if (choice.deleteSong >= 0) deleteSong(choice.deleteSong);
             else if (choice.openDataFolder) openDataFolder();
             else if (choice.newSong){
                 openNewSongScreen(app.userSongsDir);
@@ -547,9 +562,14 @@ static void runMenus(){
             if (importScreen() == ImportChoice::Imported){
                 std::string title = importedSongTitle();
                 closeImportScreen();
-                goToSongList(Screen::SongSelect); // rescanned: it's there
+                goToSongList(app.importForEditor ? Screen::EditorSelect : Screen::SongSelect); // rescanned: it's there
                 app.songSelectNotice = "Added: " + title;
-                for (int i = 0; i < (int)app.songs.size(); i++) if (app.songs[i].title == title && !app.songs[i].builtIn) selectSongInList(i);
+                for (int i = 0; i < (int)app.songs.size(); i++){
+                    if (app.songs[i].title != title || app.songs[i].builtIn) continue;
+                    if (app.importForEditor) editSong(app.songs[i]); // from the editor's list: straight into the editor
+                    else selectSongInList(i);
+                    break;
+                }
             }
             break;
         case Screen::TuningCheck:
