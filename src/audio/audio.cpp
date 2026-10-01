@@ -1431,6 +1431,34 @@ double audioTime(){
     return audio.engineSmoothTime;
 }
 
+bool decodeAudioFile(const std::string& path, int sampleRate, std::vector<float>& out, std::string& error,
+                     const std::atomic<bool>& cancel){
+    // Mono floats at the rate asked for: the decoder mixes the channels down and converts the rate
+    ma_decoder_config config = ma_decoder_config_init(ma_format_f32, 1, (ma_uint32)sampleRate);
+    ma_decoder decoder;
+    ma_result result = ma_decoder_init_file(path.c_str(), &config, &decoder);
+    if (result != MA_SUCCESS){
+        error = std::string("can't read it as audio: ") + ma_result_description(result);
+        return false;
+    }
+    out.clear();
+    std::vector<float> chunk(16384);
+    for (;;){
+        if (cancel) break;
+        ma_uint64 read = 0;
+        ma_decoder_read_pcm_frames(&decoder, chunk.data(), chunk.size(), &read);
+        if (read == 0) break;
+        out.insert(out.end(), chunk.begin(), chunk.begin() + (size_t)read);
+    }
+    ma_decoder_uninit(&decoder);
+    if (cancel) return false;
+    if (out.empty()){
+        error = "there's no sound in it";
+        return false;
+    }
+    return true;
+}
+
 bool songPeaks(const std::string& path, int peaksPerSecond, std::vector<float>& out, const std::atomic<bool>& cancel){
     // Mono floats at the file's own rate: the decoder mixes the channels down
     ma_decoder_config config = ma_decoder_config_init(ma_format_f32, 1, 0);

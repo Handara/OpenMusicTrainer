@@ -127,6 +127,34 @@ std::vector<double> findBeats(const std::vector<HeardNote>& notes, double length
     for (int f = last; f >= 0; f = previous[f]) beats.push_back((double)f / BEAT_RATE);
     std::reverse(beats.begin(), beats.end());
     if (beats.size() < 2) return {};
+
+    // Smoothed: found on frames, each beat is a few milliseconds off, which reads as a tempo wobbling. A recording
+    // that keeps one tempo (most do: a click track) gets that tempo exactly, the line through all its beats; one
+    // that drifts, each beat evened out with the few either side of it.
+    auto lineThrough = [&](size_t from, size_t to, double& start, double& slope){
+        double n = (double)(to - from), meanIndex = 0.0, meanTime = 0.0;
+        for (size_t i = from; i < to; i++){ meanIndex += (double)i; meanTime += beats[i]; }
+        meanIndex /= n; meanTime /= n;
+        double covariance = 0.0, variance = 0.0;
+        for (size_t i = from; i < to; i++){ covariance += (i - meanIndex) * (beats[i] - meanTime); variance += (i - meanIndex) * (i - meanIndex); }
+        slope = variance > 0.0 ? covariance / variance : 0.0;
+        start = meanTime - slope * meanIndex;
+    };
+    double start, slope, worst = 0.0;
+    lineThrough(0, beats.size(), start, slope);
+    for (size_t i = 0; i < beats.size(); i++) worst = std::max(worst, std::fabs(beats[i] - (start + slope * i)));
+    std::vector<double> smoothed(beats.size());
+    for (size_t i = 0; i < beats.size(); i++){
+        if (worst < 0.015){
+            smoothed[i] = start + slope * i;
+        } else {
+            size_t from = i >= 4 ? i - 4 : 0, to = std::min(beats.size(), i + 5);
+            double localStart, localSlope;
+            lineThrough(from, to, localStart, localSlope);
+            smoothed[i] = localStart + localSlope * i;
+        }
+    }
+    beats = smoothed;
     // Carried on at the tempo before the first and after the last, so every note is between two beats
     double step = period / BEAT_RATE;
     while (beats.front() > notes.front().start - 1e-6) beats.insert(beats.begin(), beats.front() - step);
@@ -165,7 +193,8 @@ bool transcribeBass(const std::vector<float>& samples, int sampleRate, const std
     }
     const int downbeat = (int)(std::max_element(weight, weight + 4) - weight);
     // Tick 0 on the last downbeat at or before the first note (a bar more in front of the beats, if none is)
-    int firstNote = (int)std::floor(beatPosition(beats, notes.front().start) + 1e-6);
+    // (a note a hair before a beat is on that beat: the beats are smoothed, the notes are where they were played)
+    int firstNote = (int)std::floor(beatPosition(beats, notes.front().start) + 0.25);
     int first = firstNote - (((firstNote - downbeat) % 4) + 4) % 4;
     while (first < 0){
         for (int i = 0; i < 4; i++) beats.insert(beats.begin(), 2 * beats[0] - beats[1]);

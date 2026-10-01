@@ -93,19 +93,21 @@ static void goToImport(const std::string& file){
     app.screen = Screen::ImportSong;
 }
 
-static bool isGuitarProFile(const std::string& path){
+// What the import screen takes: a Guitar Pro tab, or a recording of a bass to write down
+static bool isImportable(const std::string& path){
     std::string extension = fs::path(path).extension().string();
     for (char& c : extension) c = (char)std::tolower((unsigned char)c);
-    return extension == ".gp" || extension == ".gpx" || extension == ".gp5" || extension == ".gp4" || extension == ".gp3";
+    for (const char* kind : { ".gp", ".gpx", ".gp5", ".gp4", ".gp3", ".mp3", ".ogg", ".flac", ".wav" }) if (extension == kind) return true;
+    return false;
 }
 
 // Song packages (.lahn) dropped on a song list are installed into the player's songs, and the list shows them; a
-// Guitar Pro tab dropped on it goes to the import screen
+// Guitar Pro tab or a recording dropped on it goes to the import screen
 static void installDroppedPackages(){
     if (!IsFileDropped()) return;
     FilePathList dropped = LoadDroppedFiles();
     for (unsigned i = 0; i < dropped.count; i++){
-        if (!isGuitarProFile(dropped.paths[i])) continue;
+        if (!isImportable(dropped.paths[i])) continue;
         std::string tab = dropped.paths[i];
         UnloadDroppedFiles(dropped);
         goToImport(tab);
@@ -686,6 +688,7 @@ int main(void){
     closeLessonEditor();
     stopCalibration();
     closeTuningScreen();
+    closeImportScreen(); // its listening thread stopped
     unloadTransition();
     closeUi();
     unloadStaffFont();
