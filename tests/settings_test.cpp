@@ -30,6 +30,7 @@ TEST_CASE("settings survive a save and load"){
     original.previewVolume = 0.25f;
     original.editorNoteVolume = 0.45f;
     original.editorSongVolume = 0.35f;
+    original.editorNoteNames = false;
     original.previewSound = "my rain.wav";
     original.fullscreen = true;
     original.darkTheme = true;
@@ -54,6 +55,7 @@ TEST_CASE("settings survive a save and load"){
     CHECK(loaded.previewVolume == doctest::Approx(0.25f));
     CHECK(loaded.editorNoteVolume == doctest::Approx(0.45f));
     CHECK(loaded.editorSongVolume == doctest::Approx(0.35f));
+    CHECK_FALSE(loaded.editorNoteNames);
     CHECK(loaded.previewSound == "my rain.wav");
     CHECK(loaded.fullscreen);
     CHECK(loaded.darkTheme);

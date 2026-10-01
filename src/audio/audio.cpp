@@ -483,23 +483,25 @@ void playSong(bool loop){
     ma_sound_start(&audio.song);
 }
 
-double playSongFrom(double seconds){
+double playSongFrom(double seconds, double notBefore){
     if (!audio.songReady || !audio.engineReady || audio.songFromReader) return -1.0;
     audio.looping = false;
     ma_sound_set_looping(&audio.song, MA_FALSE);
     ma_sound_stop(&audio.song);
-    // Before the audio's start (a negative time), the song waits that much longer and plays from its first sample
-    ma_sound_seek_to_pcm_frame(&audio.song, (ma_uint64)std::llround(std::max(0.0, seconds) * audio.songSampleRate));
+    // Before where the audio may start (its first sample, or a trimmed song's start), the song waits that much
+    // longer and plays from there
+    const double from = std::max(0.0, notBefore), early = std::max(0.0, from - seconds);
+    ma_sound_seek_to_pcm_frame(&audio.song, (ma_uint64)std::llround(std::max(from, seconds) * audio.songSampleRate));
     ma_uint32 engineRate = ma_engine_get_sample_rate(&audio.engine);
-    double wait = SONG_START_LEAD_S + std::max(0.0, -seconds);
+    double wait = SONG_START_LEAD_S + early;
     ma_uint64 start = ma_engine_get_time_in_pcm_frames(&audio.engine) + (ma_uint64)std::llround(wait * engineRate);
     ma_sound_set_start_time_in_pcm_frames(&audio.song, start);
     audio.songStartTime = (double)start / engineRate;
-    audio.songStartPosition = std::max(0.0, seconds);
+    audio.songStartPosition = std::max(from, seconds);
     audio.smoothTime = seconds;
     audio.lastWallTime = wallClockSeconds();
     ma_sound_start(&audio.song);
-    return (double)(start - (ma_uint64)std::llround(std::max(0.0, -seconds) * engineRate)) / engineRate;
+    return (double)(start - (ma_uint64)std::llround(early * engineRate)) / engineRate;
 }
 
 void stopSong(){

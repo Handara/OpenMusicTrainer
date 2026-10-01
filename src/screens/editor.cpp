@@ -46,6 +46,8 @@ const float DRAG_STARTS = 4.0f;          // pixels the mouse moves before a clic
 const float WHEEL_SCROLL = 110.0f;       // pixels a notch of the wheel moves along the song
 const double FRET_TYPING_S = 0.8;        // two digits typed this close together are one fret: 1 then 2 is 12
 const double SETTLE_S = 0.5;             // wheel notches and key repeats this close together are one undo step
+const double MIN_TRIMMED_S = 0.5;        // a trimmed song keeps at least this much of its audio
+const float TRIM_GRIP = 7.0f;            // pixels either side of a trim edge that take hold of it
 const float PLACED_NOTE_S = 1.0f;        // how long a note rings when it's placed or picked
 const double RING_S = 1.2;               // played back, a note with no length rings this long, or until its string's next note
 const double MIN_SOUND_S = 0.12;
@@ -72,7 +74,10 @@ enum class Drag {
     Length,    // how long a note is held: its end follows the mouse
     Box,       // a rectangle selecting the notes inside
     Erase,     // the right button: every note it passes over goes
-    Playhead,  // on the ruler or the waveform
+    Playhead,  // on the ruler
+    Slide,     // on the waveform: a click moves the playhead, moving slides the song under the grid (its offset)
+    TrimStart, // the waveform's edges: where the song starts and ends in its audio
+    TrimEnd,
     Pan,       // the middle button: the view follows the mouse
 };
 
@@ -122,6 +127,7 @@ struct EditorState {
     std::set<NoteKey> dragSelection;   // Move: what was selected then. Box: what stays selected whatever the box holds
     bool dragChanged = false;
     double panFromTick = 0.0;
+    double slideFromOffset = 0.0; // Slide: the chart's offset as the drag began
     bool resumeAfterDrag = false; // the playhead was grabbed while playing: playback starts again from where it's left
 
     // Playback (Space): the song, a metronome and the chart's notes, from the playhead. Everything runs on the
@@ -442,10 +448,27 @@ static double visibleTicks(){
     return editor.gridWidth / editor.pixelsPerBeat * editor.chart.resolution;
 }
 
-// The view stays between a little before the song's start and its end
+// The audio's length, 0 without any
+static double audioSeconds(){
+    return editor.songLoaded ? songLength() : 0.0;
+}
+
+// Where the song ends in its audio: where it's trimmed to, or the audio's own end
+static double songEndSeconds(){
+    return editor.chart.trimEnd > 0.0 ? std::min(editor.chart.trimEnd, audioSeconds()) : audioSeconds();
+}
+
+// The view stays between a little before the song's start and its end: the chart's, or the audio's where it reaches
+// further (it starts before the first bar when the offset says so)
 static void clampView(){
-    double lead = VIEW_LEAD * menuScale() / editor.pixelsPerBeat * editor.chart.resolution;
-    editor.viewStartTick = std::clamp(editor.viewStartTick, -lead, std::max(-lead, (double)editor.chart.endTick));
+    const Chart& chart = editor.chart;
+    double lead = VIEW_LEAD * menuScale() / editor.pixelsPerBeat * chart.resolution;
+    double first = 0.0, last = chart.endTick;
+    if (editor.songLoaded){
+        first = std::min(first, secondsToTick(chart, 0.0));
+        last = std::max(last, secondsToTick(chart, audioSeconds()));
+    }
+    editor.viewStartTick = std::clamp(editor.viewStartTick, first - lead, std::max(first - lead, last));
 }
 
 // Zooms in or out around a point of the grid (in pixels from its left), which stays where it is
@@ -536,6 +559,30 @@ static void schedulePlayback(){
                          soundingSeconds(notes, it - notes.begin()), engineTime(it->tick), editor.settings->editorNoteVolume);
         editor.scheduledNote = { it->tick, it->stringIndex };
     }
+}
+
+static void movePlayhead(int tick){
+    editor.playheadTick = std::clamp(tick, 0, editor.chart.endTick);
+    showTick(editor.playheadTick);
+    if (editor.playing){ // playback jumps there
+        stopPlayback();
+        startPlayback();
+    }
+}
+
+// The song slid under the grid: its offset moved by some seconds (later in the audio = the waveform moves left).
+// Playing, it starts again from the playhead, to hear how the notes and the click now sit on it.
+static void restartPlayback(){
+    if (!editor.playing) return;
+    stopPlayback();
+    startPlayback();
+}
+
+static void slideSong(double seconds){
+    editor.chart.offset = std::round((editor.chart.offset + seconds) * 10000.0) / 10000.0;
+    editor.status = TextFormat("Offset %.3f s: the first bar starts there in the audio", editor.chart.offset);
+    markChangedInRun();
+    restartPlayback();
 }
 
 // --- Saving -------------------------------------------------------------------------------------------
@@ -846,6 +893,9 @@ static void drawToolBar(float s, float width){
     // What's heard while it plays, and whether the song's waveform is shown
     if (barToggle(bar, "Click", "A metronome click on each beat while it plays", editor.metronome)) editor.metronome = !editor.metronome;
     if (barToggle(bar, "Notes", "The part's notes played over the song while it plays", editor.playNotes)) editor.playNotes = !editor.playNotes;
+    if (barToggle(bar, "Names", "Each note's name under its fret", editor.settings->editorNoteNames)){
+        editor.settings->editorNoteNames = !editor.settings->editorNoteNames;
+    }
     if (barToggle(bar, "Waveform",
                   !editor.songLoaded ? "The song's waveform: this song has no audio"
                   : waveform.show && !waveform.ready ? "The song's waveform: reading the audio..."
@@ -950,6 +1000,23 @@ static void drawDetails(ImVec2 min, ImVec2 max, float s){
     if (chart.tempoMap.size() > 1) note(TextFormat("+ %d tempo changes", (int)chart.tempoMap.size() - 1));
     field("Offset: where the first bar starts in the audio (s)");
     if (ImGui::InputDouble("##offset", &chart.offset, 0.001, 0.01, "%.3f")) markChanged();
+    if (editor.songLoaded){
+        // Trimmed: the part of the audio that's the song. The file itself is left whole.
+        const double length = audioSeconds();
+        field("The song starts at (s into the audio)");
+        double start = chart.trimStart;
+        if (ImGui::InputDouble("##trimstart", &start, 0.1, 1.0, "%.3f")){
+            chart.trimStart = std::clamp(start, 0.0, std::max(0.0, songEndSeconds() - MIN_TRIMMED_S));
+            markChanged();
+        }
+        field(TextFormat("and ends at (0: the audio's end, %.3f)", length));
+        double end = chart.trimEnd;
+        if (ImGui::InputDouble("##trimend", &end, 0.1, 1.0, "%.3f")){
+            end = end <= 0.0 || end >= length ? 0.0 : std::max(end, chart.trimStart + MIN_TRIMMED_S);
+            chart.trimEnd = end >= length ? 0.0 : end;
+            markChanged();
+        }
+    }
     field("Length (bars)");
     int bars = barNumberAt(chart, chart.endTick - 1) + 1;
     if (ImGui::InputInt("##bars", &bars)){
@@ -1045,6 +1112,10 @@ static void finishDrag(){
         case Drag::Note: if (!ImGui::GetIO().KeyCtrl) editor.selection = { editor.dragNote }; break; // a click: that note alone
         case Drag::Move: if (editor.dragChanged) markChanged(); break;
         case Drag::Playhead: if (editor.resumeAfterDrag) startPlayback(); break;
+        case Drag::Slide:
+            if (!editor.dragMoved) movePlayhead(snapTick(editor.dragFromTick)); // a click on the waveform: the playhead goes there
+            else if (editor.dragChanged) restartPlayback();
+            break;
         default: break;
     }
     editor.drag = Drag::None;
@@ -1094,8 +1165,13 @@ static void drawTimeline(ImVec2 min, ImVec2 max, float s){
     const ImVec2 mouse = io.MousePos;
     const int mouseRow = (int)std::floor((mouse.y - rowsTop) / rowHeight);
     const bool overRows = hovered && mouse.x >= gridLeft && mouseRow >= 0 && mouseRow < strings;
-    const bool overTop = hovered && mouse.x >= gridLeft && mouse.y < rowsTop; // the ruler and the waveform
+    const bool overRuler = hovered && mouse.x >= gridLeft && mouse.y < rulerBottom;
+    const bool overWave = hovered && mouse.x >= gridLeft && mouse.y >= rulerBottom && mouse.y < rowsTop;
     editor.hoverString = overRows ? stringToRow(mouseRow) : -1;
+    // The song's two edges in its audio, on the waveform: taken hold of to trim it
+    const float trimStartX = tickToX(secondsToTick(chart, chart.trimStart)), trimEndX = tickToX(secondsToTick(chart, songEndSeconds()));
+    const bool overTrimStart = overWave && std::fabs(mouse.x - trimStartX) <= TRIM_GRIP * s;
+    const bool overTrimEnd = overWave && !overTrimStart && std::fabs(mouse.x - trimEndX) <= TRIM_GRIP * s;
 
     // The note under the mouse: the nearest one whose circle it's in, or else one whose grip it's on. A note with no
     // tail offers its grip only once it's selected, or the grips would take the clicks meant for the next grid line.
@@ -1127,10 +1203,13 @@ static void drawTimeline(ImVec2 min, ImVec2 max, float s){
         editor.dragFrom = mouse;
         editor.dragFromTick = xToTick(mouse.x);
         editor.dragMoved = editor.dragChanged = false;
-        if (overTop){
+        if (overRuler){
             editor.drag = Drag::Playhead;
             editor.resumeAfterDrag = editor.playing;
             stopPlayback();
+        } else if (overWave){
+            editor.drag = overTrimStart ? Drag::TrimStart : overTrimEnd ? Drag::TrimEnd : Drag::Slide;
+            editor.slideFromOffset = chart.offset;
         } else if (overGrip){
             editor.drag = Drag::Length;
             editor.dragNote = hoverKey;
@@ -1170,7 +1249,7 @@ static void drawTimeline(ImVec2 min, ImVec2 max, float s){
     if (editor.drag != Drag::None){
         if (std::fabs(mouse.x - editor.dragFrom.x) > DRAG_STARTS * s || std::fabs(mouse.y - editor.dragFrom.y) > DRAG_STARTS * s) editor.dragMoved = true;
         // Held against an edge, the view scrolls under the drag
-        if (editor.drag != Drag::Pan && editor.drag != Drag::Erase && editor.dragMoved){
+        if (editor.drag != Drag::Pan && editor.drag != Drag::Erase && editor.drag != Drag::Slide && editor.dragMoved){
             float past = mouse.x > gridRight - 20 * s ? 1.0f : mouse.x < gridLeft + 20 * s ? -1.0f : 0.0f;
             editor.viewStartTick += past * 700.0f * s * io.DeltaTime / editor.pixelsPerBeat * resolution;
             clampView();
@@ -1222,6 +1301,40 @@ static void drawTimeline(ImVec2 min, ImVec2 max, float s){
                 if (overNote) deleteNote(hoverKey.first, hoverKey.second);
                 overNote = false;
                 break;
+            case Drag::Slide: {
+                // The waveform follows the mouse: the audio that was under it when the button went down stays
+                // under it. With Shift, ten times finer.
+                if (!editor.dragMoved) break;
+                double moved = songSeconds(mouseTick) - songSeconds(editor.dragFromTick);
+                if (io.KeyShift) moved /= 10.0;
+                double offset = std::round((editor.slideFromOffset - moved) * 10000.0) / 10000.0;
+                if (offset != chart.offset){
+                    editor.chart.offset = offset;
+                    editor.dragChanged = true;
+                    markChanged();
+                }
+                break;
+            }
+            case Drag::TrimStart:
+            case Drag::TrimEnd: {
+                // The edge follows the mouse, taking to the grid when it's close (not with Alt)
+                if (!editor.dragMoved) break;
+                double tick = mouseTick;
+                if (!io.KeyAlt && std::fabs(tickToX(snapTick(mouseTick)) - mouse.x) < TRIM_GRIP * s) tick = snapTick(mouseTick);
+                double seconds = std::round(songSeconds(tick) * 1000.0) / 1000.0, length = audioSeconds();
+                double& edge = editor.drag == Drag::TrimStart ? editor.chart.trimStart : editor.chart.trimEnd;
+                double to;
+                if (editor.drag == Drag::TrimStart) to = std::clamp(seconds, 0.0, std::max(0.0, songEndSeconds() - MIN_TRIMMED_S));
+                else {
+                    to = std::clamp(seconds, std::min(length, chart.trimStart + MIN_TRIMMED_S), length);
+                    if (to >= length - 0.005) to = 0.0; // back at the audio's end: not trimmed
+                }
+                if (to != edge){
+                    edge = to;
+                    markChanged();
+                }
+                break;
+            }
             case Drag::Pan:
                 editor.viewStartTick = editor.panFromTick - (mouse.x - editor.dragFrom.x) / editor.pixelsPerBeat * resolution;
                 clampView();
@@ -1306,6 +1419,23 @@ static void drawTimeline(ImVec2 min, ImVec2 max, float s){
         draw->AddText(fonts.mono, 12 * s, ImVec2(endX + 6 * s, min.y + 6 * s), uiColor(UiColor::Dim), "end");
     }
 
+    // What's trimmed away: faded, with the song's two edges on the waveform to take hold of
+    if (wave){
+        const ImU32 away = uiColor(UiColor::Background, 0.62f);
+        if (chart.trimStart > 0.0 && trimStartX > gridLeft) draw->AddRectFilled(ImVec2(gridLeft, rulerBottom + 1.0f), ImVec2(trimStartX, rowsBottom), away);
+        if (chart.trimEnd > 0.0 && trimEndX < gridRight) draw->AddRectFilled(ImVec2(std::max(trimEndX, gridLeft), rulerBottom + 1.0f), ImVec2(gridRight, rowsBottom), away);
+        auto edge = [&](float x, bool start, bool lit){
+            const ImU32 color = lit ? uiColor(UiColor::Accent) : uiColor(UiColor::Ink, 0.75f);
+            const float inward = start ? 1.0f : -1.0f, top = rulerBottom + 3 * s, bottom = rowsTop - 3 * s;
+            verticalLine(draw, x, top, bottom, 2.0f * s, color);
+            // A bracket's two feet, turned towards the song
+            draw->AddRectFilled(ImVec2(x, top), ImVec2(x + inward * 8 * s, top + 3 * s), color);
+            draw->AddRectFilled(ImVec2(x, bottom - 3 * s), ImVec2(x + inward * 8 * s, bottom), color);
+        };
+        edge(trimStartX, true, overTrimStart || editor.drag == Drag::TrimStart);
+        edge(trimEndX, false, overTrimEnd || editor.drag == Drag::TrimEnd);
+    }
+
     // Where a new note would go: its place on the grid marked up through the waveform, the note itself faint, with
     // its fret and its name
     const bool ghost = overRows && !overNote && !overGrip && editor.drag == Drag::None && !io.KeyShift;
@@ -1330,6 +1460,8 @@ static void drawTimeline(ImVec2 min, ImVec2 max, float s){
 
     // Notes: a tail for as long as each is held, its fret on its string's color; the selected ones ringed
     const double margin = (radius + 16 * s) / editor.pixelsPerBeat * resolution;
+    const float nameSize = 13.5f * s;
+    const bool names = editor.settings->editorNoteNames && rowHeight / 2 - radius >= nameSize + 5 * s; // where a row has the room
     for (const FrettedNote& note : track().notes){
         if (note.tick > viewEndTick + margin) break;
         if (note.tick + note.duration < editor.viewStartTick - margin) continue;
@@ -1353,6 +1485,11 @@ static void drawTimeline(ImVec2 min, ImVec2 max, float s){
         const char* fret = TextFormat("%d", note.fret);
         const float size = radius * 1.05f;
         draw->AddText(fonts.bold, size, ImVec2(center.x - textWidth(fonts.bold, size, fret) / 2, center.y - size / 2 - s), IM_COL32_WHITE, fret);
+        if (names){ // the note it is, under it: the neck learned while charting
+            const char* name = pitchClassName(track().tuning[note.stringIndex] + note.fret);
+            draw->AddText(fonts.bold, nameSize, ImVec2(center.x - textWidth(fonts.bold, nameSize, name) / 2, center.y + radius + 3 * s),
+                          uiColor(UiColor::Ink, selected || under ? 1.0f : 0.72f), name);
+        }
         if (under && editor.drag == Drag::None){
             int pitch = track().tuning[note.stringIndex] + note.fret;
             if (overGrip) hoverTip = "Drag  how long the note is held";
@@ -1381,8 +1518,19 @@ static void drawTimeline(ImVec2 min, ImVec2 max, float s){
     draw->AddText(fonts.mono, 10.5f * s, ImVec2(min.x + 16 * s, min.y + 8 * s), uiColor(UiColor::Dim), "BAR");
     if (wave) draw->AddText(fonts.mono, 10.5f * s, ImVec2(min.x + 16 * s, rulerBottom + waveHeight / 2 - 6 * s), uiColor(UiColor::Dim), "SONG");
 
-    if (overTop && editor.drag == Drag::None) hoverTip = "Click or drag  move the playhead      Wheel  along the song      Ctrl + wheel  zoom";
-    if (overGrip || editor.drag == Drag::Length) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+    if (overRuler && editor.drag == Drag::None) hoverTip = "Click or drag  move the playhead      Wheel  along the song      Ctrl + wheel  zoom";
+    const bool trimming = editor.drag == Drag::TrimStart || editor.drag == Drag::TrimEnd;
+    if (editor.drag == Drag::Slide && editor.dragMoved){
+        hoverTip = TextFormat("Offset %.3f s  where the first bar starts in the audio      Shift  ten times finer", chart.offset);
+    } else if (trimming || ((overTrimStart || overTrimEnd) && editor.drag == Drag::None)){
+        const bool start = editor.drag == Drag::TrimStart || (editor.drag == Drag::None && overTrimStart);
+        if (start) hoverTip = TextFormat("Drag  where the song starts: %.2f s into its audio      Alt  off the grid", chart.trimStart);
+        else hoverTip = TextFormat("Drag  where the song ends: %.2f s into its audio%s      Alt  off the grid", songEndSeconds(), chart.trimEnd > 0.0 ? "" : " (its end)");
+    } else if (overWave && editor.drag == Drag::None){
+        hoverTip = "Drag  slide the song under the grid      Drag an edge  trim the song      Click  move the playhead      Alt + Left Right  slide by 1 ms";
+    }
+    if (overGrip || editor.drag == Drag::Length || trimming || ((overTrimStart || overTrimEnd) && editor.drag == Drag::None)) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+    else if (editor.drag == Drag::Slide && editor.dragMoved) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
     else if (overNote) ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
 }
 
@@ -1417,6 +1565,11 @@ static void drawOverview(ImVec2 min, ImVec2 max, float s){
         float x = xAt(note.tick), y = min.y + 5 * s + (height - 10 * s) * (row + 0.5f) / strings;
         draw->AddRectFilled(ImVec2(x, y - 1.5f * s), ImVec2(x + std::max(2.0f * s, xAt(note.tick + note.duration) - x), y + 1.5f * s), stringInk(note.stringIndex));
     }
+    if (editor.songLoaded){ // what's trimmed away, faded
+        const ImU32 away = uiColor(UiColor::Background, 0.62f);
+        if (chart.trimStart > 0.0) draw->AddRectFilled(min, ImVec2(xAt(secondsToTick(chart, chart.trimStart)), max.y), away);
+        if (chart.trimEnd > 0.0) draw->AddRectFilled(ImVec2(xAt(secondsToTick(chart, chart.trimEnd)), min.y), max, away);
+    }
     float from = xAt(std::max(0.0, editor.viewStartTick)), to = std::max(from + 4 * s, xAt(std::min(total, editor.viewStartTick + visibleTicks())));
     draw->AddRectFilled(ImVec2(from, min.y), ImVec2(to, max.y), uiColor(UiColor::Accent, 0.14f), 4 * s);
     draw->AddRect(ImVec2(from, min.y), ImVec2(to, max.y), uiColor(UiColor::Accent), 4 * s, 0, 1.5f * s);
@@ -1426,15 +1579,6 @@ static void drawOverview(ImVec2 min, ImVec2 max, float s){
 }
 
 // --- Keys ---------------------------------------------------------------------------------------------
-
-static void movePlayhead(int tick){
-    editor.playheadTick = std::clamp(tick, 0, editor.chart.endTick);
-    showTick(editor.playheadTick);
-    if (editor.playing){ // playback jumps there
-        stopPlayback();
-        startPlayback();
-    }
-}
 
 // Keyboard editing, skipped while a text field is being typed in
 static void handleEditingKeys(){
@@ -1484,8 +1628,11 @@ static void handleEditingKeys(){
 
     // Left and Right: the selected notes along the grid (with Shift, how long they're held), or else the playhead.
     // With Ctrl: the playhead, a bar at a time.
+    // With Alt: the song itself, slid a millisecond under the grid (ten with Shift), the way the waveform moves.
     int along = (ImGui::IsKeyPressed(ImGuiKey_RightArrow) ? 1 : 0) - (ImGui::IsKeyPressed(ImGuiKey_LeftArrow) ? 1 : 0);
-    if (along != 0 && ctrl){
+    if (along != 0 && io.KeyAlt){
+        if (editor.songLoaded) slideSong(-along * (io.KeyShift ? 0.010 : 0.001));
+    } else if (along != 0 && ctrl){
         int bar = barNumberAt(chart, editor.playheadTick);
         bool onBarLine = barStartTick(chart, bar) == editor.playheadTick;
         movePlayhead(barStartTick(chart, along > 0 ? bar + 1 : onBarLine ? std::max(0, bar - 1) : bar));
@@ -1517,7 +1664,9 @@ static void drawKeysPopup(float s){
         { "Shift + drag", "select every note in a box" },
         { "Shift + wheel", "along the song (or the middle button, dragged)" },
         { "Ctrl + wheel", "zoom" },
-        { "Ruler, waveform", "click or drag to move the playhead" },
+        { "Ruler", "click or drag to move the playhead (a click on the waveform too)" },
+        { "Drag the waveform", "slide the song under the grid; with Shift, finer" },
+        { "Drag its edges", "trim where the song starts and ends" },
     };
     static const Row KEYS[] = {
         { "0 - 9", "type a fret: 1 then 2 is 12" },
@@ -1526,6 +1675,7 @@ static void drawKeysPopup(float s){
         { "Left  Right", "move the selected notes; with none, the playhead" },
         { "Shift + Left  Right", "held shorter or longer" },
         { "Ctrl + Left  Right", "the playhead, bar by bar" },
+        { "Alt + Left  Right", "slide the song by 1 ms; with Shift, by 10" },
         { "Delete", "delete the selected notes" },
         { "Ctrl + A  C  X  V", "select all, copy, cut, paste at the playhead" },
         { "Ctrl + Z  Y", "undo, redo" },
@@ -1558,7 +1708,7 @@ static void drawKeysPopup(float s){
             }
             ImGui::EndGroup();
         };
-        column("MOUSE", MOUSE, (int)(sizeof(MOUSE) / sizeof(MOUSE[0])), 150);
+        column("MOUSE", MOUSE, (int)(sizeof(MOUSE) / sizeof(MOUSE[0])), 160);
         ImGui::SameLine(0, 44 * s);
         column("KEYBOARD", KEYS, (int)(sizeof(KEYS) / sizeof(KEYS[0])), 180);
         ImGui::Dummy(ImVec2(0, 8 * s));

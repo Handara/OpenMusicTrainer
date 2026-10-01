@@ -52,6 +52,9 @@ TEST_CASE("a part's fingerprint changes with what's played, and only then"){
     Chart faster = smallChart();
     faster.tempoMap[0].bpm = 140.0;               // the same notes, faster
     CHECK(partFingerprint(faster, 0) != original);
+    Chart trimmed = smallChart();
+    trimmed.trimEnd = 1.5;                        // the same notes, but not all of them played
+    CHECK(partFingerprint(trimmed, 0) != original);
 }
 
 TEST_CASE("records: the best first, a limited list, kept on disk"){

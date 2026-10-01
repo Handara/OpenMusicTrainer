@@ -61,6 +61,11 @@ bool loadChart(const std::string& path, Chart& out, std::string& error){
             if (!(ss >> out.offset)) return lineError("expected: offset <seconds>");
         } else if (keyword == "end"){
             if (!(ss >> out.endTick)) return lineError("expected: end <tick>");
+        } else if (keyword == "trim"){
+            if (!(ss >> out.trimStart >> out.trimEnd)) return lineError("expected: trim <start seconds> <end seconds>, 0 for an end left as it is");
+            if (out.trimStart < 0.0 || out.trimEnd < 0.0 || (out.trimEnd > 0.0 && out.trimEnd <= out.trimStart)){
+                return lineError("trim needs a start >= 0 and an end after it (or 0)");
+            }
         } else if (keyword == "tempo"){
             TempoChange tempo{};
             if (!(ss >> tempo.tick >> tempo.bpm)) return lineError("expected: tempo <tick> <bpm>");
@@ -258,7 +263,12 @@ bool saveChart(const std::string& path, const Chart& chart, std::string& error){
     if (!chart.audioFile.empty()) out << "audio " << chart.audioFile << "\n";
     out << "resolution " << chart.resolution << "\n";
     out << "offset " << formatNumber(chart.offset) << "\n";
-    out << "end " << chart.endTick << "\n\n";
+    out << "end " << chart.endTick << "\n";
+    if (chart.trimStart > 0.0 || chart.trimEnd > 0.0){
+        out << "# trim <start> <end>: the part of the audio that's played, in seconds (0: not trimmed at that end)\n";
+        out << "trim " << formatNumber(chart.trimStart) << " " << formatNumber(chart.trimEnd) << "\n";
+    }
+    out << "\n";
 
     out << "# tempo <tick> <bpm>\n";
     for (const TempoChange& tempo : chart.tempoMap) out << "tempo " << tempo.tick << " " << formatNumber(tempo.bpm) << "\n";
@@ -306,6 +316,20 @@ double tickToSeconds(const Chart& chart, int tick){
         seconds += beats * 60.0 / tempo.bpm;
     }
     return seconds;
+}
+
+void dropTrimmedNotes(Chart& chart){
+    if (chart.trimStart <= 0.0 && chart.trimEnd <= 0.0) return;
+    auto trimmed = [&](int tick){
+        double seconds = tickToSeconds(chart, tick);
+        return (chart.trimStart > 0.0 && seconds < chart.trimStart) || (chart.trimEnd > 0.0 && seconds >= chart.trimEnd);
+    };
+    for (FrettedTrack& track : chart.frettedTracks){
+        track.notes.erase(std::remove_if(track.notes.begin(), track.notes.end(), [&](const FrettedNote& note){ return trimmed(note.tick); }), track.notes.end());
+    }
+    for (KeysTrack& track : chart.keysTracks){
+        track.notes.erase(std::remove_if(track.notes.begin(), track.notes.end(), [&](const KeysNote& note){ return trimmed(note.tick); }), track.notes.end());
+    }
 }
 
 // The same walk backwards: through each section while the time lasts, then the rest at the tempo it ends in

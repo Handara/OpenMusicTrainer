@@ -70,6 +70,10 @@ struct Chart {
     std::vector<KeyChange> keys;                     // sorted, first at tick 0, each on a bar line; C major if none
     std::vector<FrettedTrack> frettedTracks;
     std::vector<KeysTrack> keysTracks;
+    // The song trimmed: the part of the audio that's played, in seconds into it. Nothing is cut from the file; the
+    // game starts and stops there, and leaves out the notes that fall outside. 0 = not trimmed at that end.
+    double trimStart = 0.0;
+    double trimEnd = 0.0;
 };
 
 // A song's parts are its fretted tracks, then its keys tracks: part numbers count through both in that order
@@ -83,6 +87,9 @@ bool loadChart(const std::string& path, Chart& out, std::string& error);
 // Writes a chart in the same format loadChart reads. The file is replaced only once the new one is fully
 // written, so a crash or full disk mid-save never leaves a half-written chart behind.
 bool saveChart(const std::string& path, const Chart& chart, std::string& error);
+
+// Without the notes the trim leaves out: those before the song's start or from its end on, in every part
+void dropTrimmedNotes(Chart& chart);
 
 double tickToSeconds(const Chart& chart, int tick);
 // The other way: a time in the audio to a tick, with a fraction. Before tick 0 it goes negative at the first tempo.

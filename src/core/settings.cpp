@@ -80,6 +80,7 @@ Settings loadSettings(const std::string& path, std::vector<std::string>& warning
         else if (key == "hit_sound_volume") number(settings.hitSoundVolume, 0.0f, 1.0f);
         else if (key == "editor_note_volume") number(settings.editorNoteVolume, 0.0f, 1.0f);
         else if (key == "editor_song_volume") number(settings.editorSongVolume, 0.0f, 1.0f);
+        else if (key == "editor_note_names") settings.editorNoteNames = value == "1";
         else if (key == "monitor") settings.monitorOn = value == "1";
         else if (key == "monitor_sound"){
             if (value == "synth" || value == "instrument") settings.monitorSynth = value == "synth";
@@ -148,6 +149,7 @@ bool saveSettings(const std::string& path, const Settings& settings, std::string
     out << "hit_sound_volume " << settings.hitSoundVolume << "\n";
     out << "editor_note_volume " << settings.editorNoteVolume << "\n";
     out << "editor_song_volume " << settings.editorSongVolume << "\n";
+    out << "editor_note_names " << (settings.editorNoteNames ? 1 : 0) << "\n";
     out << "monitor " << (settings.monitorOn ? 1 : 0) << "\n";
     out << "monitor_sound " << (settings.monitorSynth ? "synth" : "instrument") << "\n";
     out << "monitor_volume " << settings.monitorVolume << "\n";

@@ -50,6 +50,7 @@ const int laneKeys[MAX_LANES] = { KEY_ONE, KEY_TWO, KEY_THREE, KEY_FOUR, KEY_FIV
 const int MAX_MULTIPLIER = 4;
 const double LEAD_IN_S = 2.0; // starting part-way into a song, it plays this long before the first note
 const double MIN_COUNT_IN_S = 1.5; // from the top, a bar is counted in; two when one is shorter than this (fast songs)
+const double TRIM_FADE_S = 0.4;    // a trimmed song's end fades out over this long rather than being cut
 const double RESUME_RUNUP_S = 1.5; // resuming, the song picks up this long before where it was paused
 
 static HitFeedback feedback; // the judgements, timing bar and combo shown over the play screen
@@ -254,8 +255,10 @@ static struct {
     std::string partName;
     Rectangle distribution = {}; // where the HUD's timing distribution is: the results screen grows it from there
     float resumeAt = -1.0f;   // after a resume: the song time it was paused at (GET READY shows until then)
-    float countInBeat = 0.0f; // from the top: the count-in's beat (seconds), before the song's time 0; 0 for none
+    float countInBeat = 0.0f; // from the top: the count-in's beat (seconds), before the song's start; 0 for none
     int countInBeats = 0;
+    float startsAt = 0.0f;    // where in the audio the song starts: 0, or a trimmed song's start
+    float endsAt = 0.0f;      // where a trimmed song ends, 0 for the audio's own end
     std::string fingerprint;  // of the part being played
     ChordListening chords;    // plucks near a chord, checked for its notes
     TuningWatch tuning;       // the notes played, for the instrument going out of tune
@@ -282,13 +285,14 @@ static void handleDrumKeys(){
 
 // From the top, a bar is counted in (two for a fast song), clicking on each beat with the count on screen: a note on
 // the very first beat isn't a surprise, and the first notes' rings are already closing in while it counts. The song
-// is started that long before its time 0 (its clock counts up from below it).
+// is started that long before its start (its clock counts up from below it): the audio's own, or where it's trimmed to.
 static void startWithCountIn(){
-    const TimeSignatureChange& time = timeSignatureAt(game.chart, 0);
-    const double bar = tickToSeconds(game.chart, ticksPerBar(game.chart, time));
+    const int startTick = std::max(0, (int)secondsToTick(game.chart, game.startsAt));
+    const TimeSignatureChange& time = timeSignatureAt(game.chart, startTick);
+    const double bar = tickToSeconds(game.chart, startTick + ticksPerBar(game.chart, time)) - tickToSeconds(game.chart, startTick);
     const int bars = bar < MIN_COUNT_IN_S ? 2 : 1;
     const double countIn = bar * bars, beat = bar / std::max(1, time.beats);
-    double begins = playSongFrom(-countIn); // on the engine's clock, when the count starts
+    double begins = playSongFrom(game.startsAt - countIn, game.startsAt); // on the engine's clock, when the count starts
     if (begins < 0.0){
         playSong(false); // a song that can't be started ahead (read as it plays): from the top at once
         return;
@@ -337,6 +341,10 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
         game.chart.frettedTracks = { chart.frettedTracks[options.part] };
     }
     game.chart.keysTracks.clear();
+    // A trimmed song: only the part of the audio that's kept is played, and only its notes
+    dropTrimmedNotes(game.chart);
+    game.startsAt = (float)game.chart.trimStart;
+    game.endsAt = (float)game.chart.trimEnd;
     // Starting part-way: the notes before are left out, so the score (the sheet music) is built without them too
     std::vector<FrettedNote>& chartNotes = game.chart.frettedTracks[0].notes;
     chartNotes.erase(chartNotes.begin(), std::lower_bound(chartNotes.begin(), chartNotes.end(), fromTick,
@@ -386,6 +394,8 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
         game.notes.clear();
         for (const RhythmHit& hit : rhythmHits(chart, options.part)){
             if (hit.tick < fromTick) continue;
+            double at = tickToSeconds(game.chart, hit.tick);
+            if (at < game.startsAt || (game.endsAt > 0.0f && at >= game.endsAt)) continue; // trimmed away
             game.notes.push_back({(float)tickToSeconds(game.chart, hit.tick), hit.kind == RhythmHitKind::Ka ? 1 : 0, hit.big ? 1 : 0, -1});
         }
     }
@@ -434,7 +444,8 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
     game.outOfTune = false;
     game.active = true;
     game.countInBeats = 0;
-    if (fromTick > 0) playSongFrom(tickToSeconds(game.chart, fromTick) - LEAD_IN_S);
+    setSongVolume(1.0f);
+    if (fromTick > 0) playSongFrom(tickToSeconds(game.chart, fromTick) - LEAD_IN_S, game.startsAt);
     else startWithCountIn();
     return true;
 }
@@ -452,7 +463,7 @@ void resumeGameplay(){
     game.outOfTune = false;
     game.paused = false;
     game.resumeAt = game.songTime;
-    playSongFrom(game.songTime + game.options.offsetSeconds - RESUME_RUNUP_S);
+    playSongFrom(game.songTime + game.options.offsetSeconds - RESUME_RUNUP_S, game.startsAt);
 }
 
 bool gameplayPaused(){
@@ -514,7 +525,15 @@ bool updateGameplay(){
     int missed = markMisses(game.notes, game.songTime, &missedNote);
     scoreMisses(game.state, missed, judgementAnchor(game.notes, missedNote));
 
-    if (songEnded()){
+    // A trimmed song fades out into its end, and ends there
+    bool trimmedEnd = false;
+    if (game.endsAt > 0.0f){
+        double left = game.endsAt - (game.songTime + game.options.offsetSeconds); // against the audio's own time
+        setSongVolume((float)std::clamp(left / TRIM_FADE_S, 0.0, 1.0));
+        trimmedEnd = left <= 0.0;
+    }
+    if (songEnded() || trimmedEnd){
+        stopSong();
         // Anything still unjudged when the music stops counts as missed
         scoreMisses(game.state, markMisses(game.notes, game.songTime + 1e9));
         return false;
@@ -605,8 +624,8 @@ void drawGameplayHud(){
                       uiColor(UiColor::Dim), keys);
     }
     // The count-in, over where the notes arrive: the beats left, each popping in on its click and settling
-    if (game.countInBeats > 0 && game.songTime < 0.0f && !game.paused){
-        float beatsLeft = -game.songTime / game.countInBeat;
+    if (game.countInBeats > 0 && game.songTime < game.startsAt && !game.paused){
+        float beatsLeft = (game.startsAt - game.songTime) / game.countInBeat;
         int count = std::min(game.countInBeats, (int)std::ceil(beatsLeft - 0.001f));
         float intoBeat = 1.0f - (beatsLeft - std::floor(beatsLeft - 0.001f)); // 0 on the click, towards 1 before the next
         const char* number = TextFormat("%d", std::max(1, count));
@@ -633,6 +652,7 @@ void stopGameplay(){
     stopMidiInput();
     stopPianoKeys();
     unloadSong();
+    setSongVolume(1.0f); // a trimmed song's fade-out isn't the next song's
     game.active = false;
 }
 

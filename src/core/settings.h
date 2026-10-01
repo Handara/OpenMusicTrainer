@@ -41,6 +41,7 @@ struct Settings {
     // clean guitar) and the song under them
     float editorNoteVolume = 0.8f;
     float editorSongVolume = 1.0f;
+    bool editorNoteNames = true;       // each note's name under its fret in the editor
     std::string previewSound = "drop";  // a built-in sound, or a file name in the user's sounds folder
     float hitSoundVolume = 0.5f;       // the drop on each note hit with an instrument (0 for none)
     // Hearing the instrument through lahn wherever the player is (audio.h: setMonitor)

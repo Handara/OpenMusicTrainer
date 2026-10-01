@@ -98,6 +98,7 @@ TEST_CASE("broken charts are rejected with a clear message"){
         {"no time at tick 0",   HEADER + "time 1920 3/4\n" + TRACK, "needs a time signature at tick 0"},
         {"time mid-bar",        HEADER + "time 0 4/4\ntime 960 3/4\n" + TRACK, "time signature at tick 960 isn't on a bar line"},
         {"unknown key",         HEADER + "key 0 G# major\n" + TRACK, "unknown key 'G# major'"},
+        {"trim ends before it starts", HEADER + "trim 12 8\n" + TRACK, "trim needs a start >= 0 and an end after it"},
         {"key mid-bar",         HEADER + "key 0 C major\nkey 480 G major\n" + TRACK, "key at tick 480 isn't on a bar line"},
         {"no tempo at tick 0",  "version 1\nresolution 480\nend 9600\ntempo 480 120\n" + TRACK, "needs a tempo at tick 0"},
         {"duplicate note",      HEADER + TRACK + "n 960 0 0\nn 960 0 3\n", "two notes on string 0 at tick 960"},
@@ -249,4 +250,40 @@ TEST_CASE("keys parts: notes as pitches, saved and read back"){
     CHECK_FALSE(loadChart(path.string(), again, error)); // the same note twice
     std::ofstream(path, std::ios::binary) << "version 2\nresolution 480\nend 1920\ntempo 0 100\ntrack keys P\nn 0 200\n";
     CHECK_FALSE(loadChart(path.string(), again, error)); // no such pitch
+}
+
+TEST_CASE("a trimmed song: its trim saved and read back, the notes outside it left out"){
+    Chart chart;
+    std::string error;
+    // 120 BPM, 480 ticks a beat: a beat is half a second, and with the offset tick 0 is 1 s into the audio
+    REQUIRE(loadChart(writeTemp("trim.chart", "version 2\nresolution 480\noffset 1\nend 7680\ntempo 0 120\ntrim 2 4.5\n"
+                                              "track guitar Lead\ntuning 40 45 50 55 59 64\n"
+                                              "n 0 0 0\nn 960 0 1\nn 1920 0 2\nn 2880 0 3\nn 3360 0 4\nn 3840 0 5\n"
+                                              "track keys Piano\nn 480 60\nn 2400 62\n"), chart, error));
+    CHECK(chart.trimStart == doctest::Approx(2.0));
+    CHECK(chart.trimEnd == doctest::Approx(4.5));
+
+    std::string path = tempPath("trim-saved.chart");
+    REQUIRE(saveChart(path, chart, error));
+    Chart again;
+    REQUIRE(loadChart(path, again, error));
+    CHECK(again.trimStart == doctest::Approx(2.0));
+    CHECK(again.trimEnd == doctest::Approx(4.5));
+
+    // The song is the audio from 2 s to 4.5 s: ticks 960 (2 s) to just before 3360 (4.5 s)
+    dropTrimmedNotes(again);
+    REQUIRE(again.frettedTracks[0].notes.size() == 3);
+    CHECK(again.frettedTracks[0].notes.front().tick == 960);
+    CHECK(again.frettedTracks[0].notes.back().tick == 2880);
+    REQUIRE(again.keysTracks[0].notes.size() == 1);
+    CHECK(again.keysTracks[0].notes[0].tick == 2400);
+
+    // Not trimmed: nothing is written about it, and nothing left out
+    chart.trimStart = chart.trimEnd = 0.0;
+    REQUIRE(saveChart(path, chart, error));
+    Chart whole;
+    REQUIRE(loadChart(path, whole, error));
+    CHECK(whole.trimStart == 0.0);
+    dropTrimmedNotes(whole);
+    CHECK(whole.frettedTracks[0].notes.size() == 6);
 }

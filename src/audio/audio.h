@@ -27,10 +27,12 @@ void setMasterVolume(float volume); // 0..1
 bool loadSong(const std::string& path, std::string& error);
 void unloadSong();
 void playSong(bool loop);
-// Plays from a point in the song (seconds; before 0 it waits that long first), starting a moment from now on the
-// engine's clock (audioTime). Returns the engine time at which `seconds` plays, so clicks and notes can be scheduled
-// exactly with it; -1 if it can't (no song, or one from a reader, which only plays from the start).
-double playSongFrom(double seconds);
+// Plays from a point in the song (seconds), starting a moment from now on the engine's clock (audioTime). Nothing
+// before `notBefore` is played (the audio's start, or where a trimmed song starts): from an earlier point, it waits
+// that much longer first, the song's clock counting up meanwhile. Returns the engine time at which `seconds` plays,
+// so clicks and notes can be scheduled exactly with it; -1 if it can't (no song, or one from a reader, which only
+// plays from the start).
+double playSongFrom(double seconds, double notBefore = 0.0);
 void stopSong(); // pauses where it is; playSong or playSongFrom starts it again
 // The song's own volume (0..1, 1 as it starts): the editor turns it down to hear the notes over it. It stays until
 // it's set again, through the songs loaded after.

@@ -61,6 +61,10 @@ std::string partFingerprint(const Chart& chart, int part){
     uint64_t hash = 14695981039346656037ULL;
     hashInto(hash, chart.resolution);
     hashInto(hash, (long long)std::llround(chart.offset * 1000000.0));
+    if (chart.trimStart > 0.0 || chart.trimEnd > 0.0){ // a trimmed song is another run (untrimmed ones keep their records)
+        hashInto(hash, (long long)std::llround(chart.trimStart * 1000.0));
+        hashInto(hash, (long long)std::llround(chart.trimEnd * 1000.0));
+    }
     for (const TempoChange& tempo : chart.tempoMap){
         hashInto(hash, tempo.tick);
         hashInto(hash, (long long)std::llround(tempo.bpm * 1000.0));
