@@ -708,7 +708,9 @@ static bool barSlider(Bar& bar, const char* label, float* value, const char* tip
     const float trackLeft = min.x + labelWidth + 10 * s + knob, trackRight = trackLeft + track;
 
     ImGui::SetCursorScreenPos(min);
+    ImGui::PushID("slider"); // a button may have the same name (the Notes switch)
     ImGui::InvisibleButton(label, ImVec2(width, height));
+    ImGui::PopID();
     bool hovered = ImGui::IsItemHovered(), held = ImGui::IsItemActive(), changed = false;
     if (hovered) hoverTip = tip;
     if (held){

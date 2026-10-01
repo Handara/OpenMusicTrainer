@@ -230,6 +230,8 @@ add_executable(lahn
     src/views/viewfont.cpp
     src/video/video.cpp
 )
+# The build players get (Release): without ImGui's notes to its programmer (see ui/ui.cpp). The others keep them.
+target_compile_definitions(lahn PRIVATE $<$<CONFIG:Release>:LAHN_PLAYER_BUILD>)
 target_link_libraries(lahn PRIVATE lahn_core raylib miniaudio imgui pl_mpeg ${CMAKE_DL_LIBS}) # dl: the stems add-on's runtime, loaded when it's there
 # ONNX Runtime's interface only (its headers): the library itself comes with the stems add-on (src/app/stemmodel.cpp)
 target_include_directories(lahn SYSTEM PRIVATE third_party/onnxruntime)
