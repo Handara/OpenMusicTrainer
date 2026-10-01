@@ -1,5 +1,6 @@
 #include "screens/newsong.h"
 
+#include "app/filedialog.h"
 #include "audio/audio.h"
 #include "core/songlibrary.h"
 #include "imgui.h"
@@ -24,16 +25,22 @@ static struct {
     std::string chartPath;     // the song made
 } form;
 
-void openNewSongScreen(const std::string& userSongsDir){
+// A new audio file: its name becomes the title unless one was typed
+static void audioChosen();
+
+void openNewSongScreen(const std::string& userSongsDir, const std::string& audioPath){
     form = {};
     form.songsDir = userSongsDir;
+    if (!audioPath.empty()){
+        form.audioPath = audioPath;
+        audioChosen();
+    }
 }
 
 std::string newSongChartPath(){
     return form.chartPath;
 }
 
-// A new audio file: its name becomes the title unless one was typed
 static void audioChosen(){
     if (form.titleFromFile) form.title = fs::path(form.audioPath).stem().string();
     form.error.clear();
@@ -86,9 +93,18 @@ NewSongChoice newSongScreen(){
     };
     field("Audio file");
     if (ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
-    if (ImGui::InputTextWithHint("##audio", "Drop a file on the window, or type its path", &form.audioPath,
+    if (ImGui::InputTextWithHint("##audio", "Drop a file on the window, choose it, or type its path", &form.audioPath,
                                  ImGuiInputTextFlags_EnterReturnsTrue)) enter = true;
     if (ImGui::IsItemEdited()) audioChosen();
+    // The system's Open dialog, beside it
+    ImGui::SameLine();
+    if (ImGui::Button("Choose...")){
+        std::string path, error;
+        if (chooseFile("Choose the song's audio", "Audio", { "*.mp3", "*.ogg", "*.flac", "*.wav" }, path, error)){
+            form.audioPath = path;
+            audioChosen();
+        } else if (!error.empty()) form.error = error;
+    }
     ImGui::Dummy(ImVec2(0, 8 * s));
     field("Title");
     if (ImGui::InputText("##title", &form.title, ImGuiInputTextFlags_EnterReturnsTrue)) enter = true;

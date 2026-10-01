@@ -6,7 +6,7 @@
 // the song a title, an artist and a tempo. The song is made in the user's songs folder (core/songlibrary
 // createSong) and opens in the editor, where playback helps set the tempo and offset by ear.
 
-void openNewSongScreen(const std::string& userSongsDir);
+void openNewSongScreen(const std::string& userSongsDir, const std::string& audioPath = ""); // the audio, if already chosen
 
 enum class NewSongChoice { None, Back, Created };
 NewSongChoice newSongScreen();

@@ -241,7 +241,7 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
         if (!error.empty()) ImGui::TextColored(uiColorVec(UiColor::Bad), "%s", error.c_str());
         else ImGui::TextColored(uiColorVec(UiColor::Good), "%s", notice.c_str());
     }
-    menuScreenHint(forEditing ? "Up/Down  choose    Enter  edit    Esc  back    Drop a .lahn file to add a song"
+    menuScreenHint(forEditing ? "Up/Down  choose    Enter  edit    Drop audio to make a song of it, or a .lahn to add one    Esc  back"
                               : "Up/Down  choose    Enter  choose    Tab  notes or rhythm    Drop a Guitar Pro tab to import it    Esc  back", s);
     ImGui::End();
     return choice;

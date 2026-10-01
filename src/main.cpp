@@ -101,16 +101,29 @@ static bool isImportable(const std::string& path){
     return false;
 }
 
-// Song packages (.lahn) dropped on a song list are installed into the player's songs, and the list shows them; a
-// Guitar Pro tab or a recording dropped on it goes to the import screen
+static bool isAudioFile(const std::string& path){
+    std::string extension = fs::path(path).extension().string();
+    for (char& c : extension) c = (char)std::tolower((unsigned char)c);
+    return extension == ".mp3" || extension == ".ogg" || extension == ".flac" || extension == ".wav";
+}
+
+// Song packages (.lahn) dropped on a song list are installed into the player's songs, and the list shows them. On the
+// list to play, a Guitar Pro tab or a recording goes to the import screen; on the editor's list, an audio file makes a
+// new song of it.
 static void installDroppedPackages(){
     if (!IsFileDropped()) return;
     FilePathList dropped = LoadDroppedFiles();
     for (unsigned i = 0; i < dropped.count; i++){
-        if (!isImportable(dropped.paths[i])) continue;
-        std::string tab = dropped.paths[i];
+        std::string path = dropped.paths[i];
+        bool editing = app.screen == Screen::EditorSelect;
+        if (editing ? !isAudioFile(path) : !isImportable(path)) continue;
         UnloadDroppedFiles(dropped);
-        goToImport(tab);
+        if (editing){
+            openNewSongScreen(app.userSongsDir, path);
+            app.screen = Screen::NewSong;
+        } else {
+            goToImport(path);
+        }
         return;
     }
     std::vector<std::string> added;
