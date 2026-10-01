@@ -28,6 +28,8 @@ TEST_CASE("settings survive a save and load"){
     original.inputDevice = "Focusrite USB";
     original.masterVolume = 0.8f;
     original.previewVolume = 0.25f;
+    original.editorNoteVolume = 0.45f;
+    original.editorSongVolume = 0.35f;
     original.previewSound = "my rain.wav";
     original.fullscreen = true;
     original.darkTheme = true;
@@ -50,6 +52,8 @@ TEST_CASE("settings survive a save and load"){
     CHECK(loaded.inputDevice == original.inputDevice);
     CHECK(loaded.masterVolume == doctest::Approx(0.8f));
     CHECK(loaded.previewVolume == doctest::Approx(0.25f));
+    CHECK(loaded.editorNoteVolume == doctest::Approx(0.45f));
+    CHECK(loaded.editorSongVolume == doctest::Approx(0.35f));
     CHECK(loaded.previewSound == "my rain.wav");
     CHECK(loaded.fullscreen);
     CHECK(loaded.darkTheme);

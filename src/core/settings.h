@@ -36,7 +36,11 @@ struct Settings {
     bool exclusiveInput = true;        // Windows: the input device for lahn alone, past Windows' effects (audio.h)
     std::string midiDevice;            // a MIDI keyboard or controller, by name; empty = the first one connected
     float masterVolume = 1.0f;         // 0..1
-    float previewVolume = 0.6f;        // sounds the game makes itself (editor note previews, later ear training)
+    float previewVolume = 0.6f;        // sounds the game makes itself (the keyboard's notes, ear training)
+    // The song editor's own mix, set on its screen: the notes it plays (a plucked string, made louder than a preview:
+    // they must be heard over the song) and the song under them
+    float editorNoteVolume = 0.8f;
+    float editorSongVolume = 1.0f;
     std::string previewSound = "drop";  // a built-in sound, or a file name in the user's sounds folder
     float hitSoundVolume = 0.5f;       // the drop on each note hit with an instrument (0 for none)
     // Hearing the instrument through lahn wherever the player is (audio.h: setMonitor)

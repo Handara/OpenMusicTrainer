@@ -201,7 +201,7 @@ static void leaveSettings(){
 
 static void editSong(const SongEntry& song){
     std::string error;
-    if (openEditor(song, app.userSongsDir, app.packagesDir, app.settings.lowStringOnTop, error)){
+    if (openEditor(song, app.userSongsDir, app.packagesDir, app.settings, error)){
         app.songSelectError.clear();
         app.screen = Screen::Editor;
     } else {

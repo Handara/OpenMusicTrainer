@@ -235,7 +235,7 @@ static void audioSection(Settings& settings, const std::string& soundsDir, Setti
 
     settingsGroup("VOLUME");
     if (percentSlider("Everything", nullptr, &settings.masterVolume)) setMasterVolume(settings.masterVolume);
-    if (percentSlider("Preview sounds", "Notes you place in the editor or play on the keyboard", &settings.previewVolume)) setPreviewVolume(settings.previewVolume);
+    if (percentSlider("Preview sounds", "Notes you play on the keyboard, drums and ear training (the song editor has its own volumes)", &settings.previewVolume)) setPreviewVolume(settings.previewVolume);
     if (percentSlider("Hit sound", "A drop on every note you hit with your instrument", &settings.hitSoundVolume)) setHitSoundVolume(settings.hitSoundVolume);
     if (ImGui::IsItemDeactivatedAfterEdit()) playHitSound(true); // heard at the level just set
 

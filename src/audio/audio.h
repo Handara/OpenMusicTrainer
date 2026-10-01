@@ -32,6 +32,9 @@ void playSong(bool loop);
 // exactly with it; -1 if it can't (no song, or one from a reader, which only plays from the start).
 double playSongFrom(double seconds);
 void stopSong(); // pauses where it is; playSong or playSongFrom starts it again
+// The song's own volume (0..1, 1 as it starts): the editor turns it down to hear the notes over it. It stays until
+// it's set again, through the songs loaded after.
+void setSongVolume(float volume);
 bool songEnded();      // true once a non-looping song has played to its end
 double songLength();   // seconds
 double songPosition(); // seconds, smoothed between audio updates; call once per frame
@@ -63,6 +66,12 @@ bool previewSoundHasPitch();
 void setPreviewVolume(float volume); // 0..1
 void playPreview(float frequency, float delaySeconds = 0.0f); // the delay is timed on the audio clock, to the sample
 void playPreviewAt(float frequency, double time); // at a time on the engine's clock (audioTime), like playClickAt
+// A guitar's or a bass's note, made to be heard over a song (the editor's): the plucked string whatever the preview
+// sound is (it has the harmonics that carry a low note on small speakers, where the drop's pure tone vanishes),
+// pushed into a soft limit, which makes it some 12 dB louder than a preview without a note alone ever clipping. At
+// its own volume (0..1), not the preview volume.
+void playStringNote(float frequency, float volume);
+void playStringNoteAt(float frequency, double time, float volume);
 // A note played on the game's piano (the built-in electric piano), whatever the preview sound: keys parts sound
 // it for every key the player presses, since most MIDI controllers and every computer keyboard make no sound
 void playKeysNote(float frequency);
