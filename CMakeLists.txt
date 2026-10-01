@@ -168,6 +168,7 @@ add_library(lahn_core STATIC
     src/core/singing.cpp
     src/core/songlibrary.cpp
     src/core/songpackage.cpp
+    src/core/stemsplit.cpp
     src/core/synth.cpp
     src/core/today.cpp
 )
@@ -282,6 +283,7 @@ if(BUILD_TESTING)
         tests/songlibrary_test.cpp
         tests/sampleformat_test.cpp
         tests/songpackage_test.cpp
+        tests/stemsplit_test.cpp
         tests/synth_test.cpp
         tests/tonechain_test.cpp
         tests/transcribe_test.cpp
