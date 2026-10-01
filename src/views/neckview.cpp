@@ -68,11 +68,17 @@ static const SongShape& shapeOf(const std::vector<PlayNote>& notes){
     return shape;
 }
 
-// Depth: a note to play floats a little above its place, its shadow on the board under it, and settles into it as
-// its ring closes, with a small squash as it lands. The board stays flat and square to the eye, so every fret and
-// label reads at a glance; only the notes stand out from it.
-const float FLOAT_HEIGHT = 10.0f;  // at a 720-pixel-tall window: how high a note floats when its ring appears
-const float LAND_S = 0.12f;        // the squash as it lands, and the ripple around it
+// Depth: a note to play drops onto its place from above the board, at a steady speed: how high it is says how soon
+// it's due. Notes repeated on one spot then come down as a column, one after the other, where circles drawn in place
+// would hide each other. While it falls its place is marked on the board (as a piece's is in Tetris), under its
+// shadow, which gathers as it comes down, and a thread ties it to that place; it lands as its ring closes, with a
+// small squash. The board stays flat and
+// square to the eye, so every fret and label reads at a glance; only the notes stand out from it.
+const float MIN_DROP = 1.5f, MAX_DROP = 3.0f; // how far a note falls, in string spacings: from the view's top if that's between
+const float DROP_GROW = 0.1f;      // higher is nearer the eye: that much bigger at the top of its fall
+const float NOTE_DEPTH = 3.0f;     // at a 720-pixel-tall window: a note's side, showing under its face
+const float LAND_S = 0.12f;        // the squash as it lands
+const float RING_FROM = 0.55f;     // a note's ring appears when this much of its fall is left
 
 // The layout the neck was last drawn with, so where a note is can be asked afterwards (neckNoteAt)
 static struct {
@@ -194,50 +200,67 @@ void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std:
         smoothCircle({ at.x + rim * std::cos(angle), at.y + rim * std::sin(angle) }, SLIDER_WIDTH * 1.4f * s, Fade(lit, fade)); // the ball
     }
 
-    // Then the rest, the latest first, so the next note to play is drawn over any that come after it
+    // Then the rest, the latest first, so the next note to play is drawn over any that come after it: what's on the
+    // board (each note's place, ring and shadow), then the notes themselves, falling over it
     const Color card = themeColor(UiColor::Card);
-    for (auto it = to; it != from;){
-        const PlayNote& note = *--it;
-        Vector2 at = centerOf(note);
-        Color color = stringColor(note.stringIndex);
-        const float share = std::min(1.0f, note.beats / WHOLE_NOTE_BEATS);
-        const bool slider = isSlider(note);
-        if (note.hit && slider && now < note.time + note.writtenLength) continue; // held: drawn above
-        if (note.hit){
-            // It bursts where it was played, green for perfect, brass for good, and is gone
-            if (note.hitFlash <= 0.0f) continue;
-            float t = note.hitFlash / HIT_FLASH_DURATION; // 1 at the hit, 0 when it's over
-            Color lit = themeColor(note.wasPerfect ? UiColor::Good : UiColor::Accent);
-            float burst = radius + (1.0f - t) * 22 * s;
-            smoothCircle(at, radius * (0.6f + 0.6f * t), Fade(lit, t));
-            smoothRing(at, burst - 2.5f * s, burst, 0.0f, 360.0f, Fade(lit, t));
-            continue;
+    const float drop = std::clamp((stringY(lowStringOnTop ? 0 : strings - 1) - radius - area.y) / spacing, MIN_DROP, MAX_DROP) * spacing;
+    for (int pass = 0; pass < 2; pass++){
+        const bool onBoard = pass == 0;
+        for (auto it = to; it != from;){
+            const PlayNote& note = *--it;
+            Vector2 at = centerOf(note);
+            Color color = stringColor(note.stringIndex);
+            const float share = std::min(1.0f, note.beats / WHOLE_NOTE_BEATS);
+            const bool slider = isSlider(note);
+            if (note.hit && slider && now < note.time + note.writtenLength) continue; // held: drawn above
+            if (note.hit){
+                // It bursts where it was played, green for perfect, brass for good, and is gone
+                if (onBoard || note.hitFlash <= 0.0f) continue;
+                float t = note.hitFlash / HIT_FLASH_DURATION; // 1 at the hit, 0 when it's over
+                Color lit = themeColor(note.wasPerfect ? UiColor::Good : UiColor::Accent);
+                float burst = radius + (1.0f - t) * 22 * s;
+                smoothCircle(at, radius * (0.6f + 0.6f * t), Fade(lit, t));
+                smoothRing(at, burst - 2.5f * s, burst, 0.0f, 360.0f, Fade(lit, t));
+                continue;
+            }
+            if (note.judged){
+                // Missed: it stays where it should have been played for a moment, faded, then goes
+                float fade = 0.45f * (1.0f - (now - note.time) / MISS_FADE_S);
+                if (onBoard && fade > 0.0f) smoothCircle(at, radius * 0.8f, Fade(color, fade));
+                continue;
+            }
+            float until = note.time - now, alpha = alphaOf(note);
+            float fall = std::clamp(until / approach, 0.0f, 1.0f); // 1 as it appears, 0 once it's down
+            if (onBoard){
+                // Its place, marked; its shadow, small and faint from high up, gathering as it comes down
+                smoothCircle(at, radius, Fade(color, 0.1f * alpha));
+                smoothRing(at, radius - 1.5f * s, radius, 0.0f, 360.0f, Fade(color, 0.5f * alpha));
+                smoothCircle({ at.x + 1.5f * s, at.y + 2.5f * s }, radius * (1.0f - 0.4f * fall), Fade(themeColor(UiColor::Ink), (0.18f - 0.12f * fall) * alpha));
+                if (until > 0.0f){
+                    // The ring closes onto the note's rim: when it lands, play it (and a long note's slider begins)
+                    // It only shows for the second half of the fall: with notes coming down one after the other onto
+                    // one place, a ring for each of them would be a target, not a cue
+                    float ring = rim + (radius * RING_START - rim) * until / approach;
+                    float shown = std::clamp((RING_FROM - fall) / 0.15f, 0.0f, 1.0f);
+                    if (shown > 0.0f) smoothRing(at, ring - 1.25f * s, ring + 1.25f * s, 0.0f, 360.0f, Fade(color, 0.85f * alpha * shown));
+                }
+                if (slider) drawRimArc(at, rim, 0.0f, share, SLIDER_WIDTH * s, Fade(color, TRACK_ALPHA * alpha)); // how long it rings
+                continue;
+            }
+            // The note: a thick disc seen from above, its side showing under its face; it squashes as it lands
+            float landed = std::clamp(-until / LAND_S, 0.0f, 1.0f); // 0 at the moment it's due, 1 a moment after
+            float squash = until <= 0.0f ? 0.08f * std::sin(PI * landed) : 0.0f;
+            float size = radius * (1.0f + DROP_GROW * fall) * (1.0f + squash), depth = NOTE_DEPTH * s * (0.4f + 0.6f * fall);
+            Vector2 face = { at.x, at.y - drop * fall - depth }, side = { face.x, face.y + depth };
+            // A thread down to its place: a note crossing another string's line on its way isn't taken for one on it
+            if (fall > 0.0f) smoothLine({ at.x, side.y }, at, 2.0f * s, Fade(color, 0.45f * alpha));
+            smoothCircle(side, size + 1.5f * s, Fade(card, alpha)); // a rim that keeps notes apart
+            smoothCircle(face, size + 1.5f * s, Fade(card, alpha));
+            smoothCircle(side, size, Fade(ColorLerp(color, BLACK, 0.32f), alpha));
+            smoothCircle(face, size, Fade(color, alpha));
+            smoothRing(face, size * 0.72f, size * 0.82f, 200.0f, 330.0f, Fade(WHITE, 0.3f * alpha)); // a glint: a thing, not a mark
+            drawNoteLabel(note.fret, note.pitch, label, face.x, face.y, size * 1.1f, Fade(WHITE, alpha));
         }
-        if (note.judged){
-            // Missed: it stays where it should have been played for a moment, faded, then goes
-            float fade = 0.45f * (1.0f - (now - note.time) / MISS_FADE_S);
-            if (fade <= 0.0f) continue;
-            smoothCircle(at, radius * 0.8f, Fade(color, fade));
-            continue;
-        }
-        float until = note.time - now, alpha = alphaOf(note);
-        if (until > 0.0f){
-            // The ring closes onto the note's rim: when it lands, play it (and a long note's slider begins)
-            float ring = rim + (radius * RING_START - rim) * until / approach;
-            smoothRing(at, ring - 1.25f * s, ring + 1.25f * s, 0.0f, 360.0f, Fade(color, 0.85f * alpha));
-        }
-        if (slider) drawRimArc(at, rim, 0.0f, share, SLIDER_WIDTH * s, Fade(color, TRACK_ALPHA * alpha)); // how long it rings
-        // Floating over its place, its shadow under it; it settles as its ring closes, and squashes as it lands
-        float rise = std::pow(std::clamp(until / approach, 0.0f, 1.0f), 1.5f);
-        float lift = FLOAT_HEIGHT * s * rise;
-        float landed = std::clamp(-until / LAND_S, 0.0f, 1.0f); // 0 at the moment it's due, 1 a moment after
-        float squash = until <= 0.0f ? 0.08f * std::sin(PI * landed) : 0.0f;
-        Vector2 body = { at.x, at.y - lift };
-        smoothCircle({ at.x + 1.5f * s, at.y + 2.5f * s }, radius * (1.02f - 0.12f * rise), Fade(themeColor(UiColor::Ink), (0.16f - 0.08f * rise) * alpha));
-        smoothCircle(body, radius + 1.5f * s, Fade(card, alpha)); // a rim that keeps notes apart
-        smoothCircle(body, radius * (1.0f + squash), Fade(color, alpha));
-        smoothRing(body, radius * 0.72f, radius * 0.82f, 200.0f, 330.0f, Fade(WHITE, 0.3f * alpha)); // a glint: a thing, not a mark
-        drawNoteLabel(note.fret, note.pitch, label, body.x, body.y, radius * 1.1f, Fade(WHITE, alpha));
     }
     EndScissorMode();
 }

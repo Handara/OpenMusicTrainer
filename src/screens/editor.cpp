@@ -36,6 +36,7 @@ const float MAX_ROW_HEIGHT_ALONE = 110.0f; // and without it
 const float MIN_WAVE_HEIGHT = 64.0f;     // the waveform's own lane, over the strings
 const float MAX_WAVE_HEIGHT = 150.0f;
 const float NOTE_RADIUS = 15.0f;
+const float NAMED_NOTE_RADIUS = 18.0f;   // with its name under its fret, inside it
 const float OVERVIEW_HEIGHT = 34.0f;     // the whole song, small, under the timeline
 const float DRAWER_WIDTH = 340.0f;       // the song's details, beside the timeline
 const float VIEW_LEAD = 40.0f;           // pixels kept free before the song's start, so its first notes show whole
@@ -893,7 +894,7 @@ static void drawToolBar(float s, float width){
     // What's heard while it plays, and whether the song's waveform is shown
     if (barToggle(bar, "Click", "A metronome click on each beat while it plays", editor.metronome)) editor.metronome = !editor.metronome;
     if (barToggle(bar, "Notes", "The part's notes played over the song while it plays", editor.playNotes)) editor.playNotes = !editor.playNotes;
-    if (barToggle(bar, "Names", "Each note's name under its fret", editor.settings->editorNoteNames)){
+    if (barToggle(bar, "Names", "Each note's name in it, under its fret", editor.settings->editorNoteNames)){
         editor.settings->editorNoteNames = !editor.settings->editorNoteNames;
     }
     if (barToggle(bar, "Waveform",
@@ -1142,7 +1143,8 @@ static void drawTimeline(ImVec2 min, ImVec2 max, float s){
     const float rowHeight = std::min((wave ? MAX_ROW_HEIGHT : MAX_ROW_HEIGHT_ALONE) * s, (room - (wave ? MIN_WAVE_HEIGHT * s : 0.0f)) / strings);
     const float waveHeight = wave ? std::clamp(room - rowHeight * strings, MIN_WAVE_HEIGHT * s, MAX_WAVE_HEIGHT * s) : 0.0f;
     const float rowsTop = rulerBottom + waveHeight, rowsBottom = rowsTop + rowHeight * strings;
-    const float radius = std::min(NOTE_RADIUS * s, rowHeight * 0.4f);
+    const bool names = editor.settings->editorNoteNames;
+    const float radius = std::min((names ? NAMED_NOTE_RADIUS : NOTE_RADIUS) * s, rowHeight * 0.4f);
     editor.gridLeft = gridLeft;
     editor.gridWidth = std::max(1.0f, gridRight - gridLeft);
     clampView();
@@ -1436,6 +1438,20 @@ static void drawTimeline(ImVec2 min, ImVec2 max, float s){
         edge(trimEndX, false, overTrimEnd || editor.drag == Drag::TrimEnd);
     }
 
+    // In a note: its fret, or with the names on, its fret over the note it is (the neck learned while charting)
+    auto label = [&](ImVec2 center, int stringIndex, int fret, ImU32 color){
+        const char* number = TextFormat("%d", fret);
+        if (!names){
+            const float size = radius * 1.05f;
+            draw->AddText(fonts.bold, size, ImVec2(center.x - textWidth(fonts.bold, size, number) / 2, center.y - size / 2 - s), color, number);
+            return;
+        }
+        const char* name = pitchClassName(track().tuning[stringIndex] + fret);
+        const float size = radius * 0.88f, nameSize = radius * 0.6f, top = center.y - (size + nameSize * 0.85f) / 2 - s;
+        draw->AddText(fonts.bold, size, ImVec2(center.x - textWidth(fonts.bold, size, number) / 2, top), color, number);
+        draw->AddText(fonts.bold, nameSize, ImVec2(center.x - textWidth(fonts.bold, nameSize, name) / 2, top + size * 0.92f),
+                      (color & IM_COL32(255, 255, 255, 0)) | IM_COL32(0, 0, 0, 215), name);
+    };
     // Where a new note would go: its place on the grid marked up through the waveform, the note itself faint, with
     // its fret and its name
     const bool ghost = overRows && !overNote && !overGrip && editor.drag == Drag::None && !io.KeyShift;
@@ -1445,10 +1461,8 @@ static void drawTimeline(ImVec2 min, ImVec2 max, float s){
         verticalLine(draw, center.x, rulerBottom, rowsBottom, 1.0f, uiColor(UiColor::Accent, 0.55f));
         draw->AddCircleFilled(center, radius, stringInk(editor.hoverString, 0.28f));
         draw->AddCircle(center, radius, stringInk(editor.hoverString), 0, 1.5f * s);
-        const char* fret = TextFormat("%d", editor.newNoteFret);
-        const float size = radius * 1.05f;
-        draw->AddText(fonts.bold, size, ImVec2(center.x - textWidth(fonts.bold, size, fret) / 2, center.y - size / 2 - s), uiColor(UiColor::Ink), fret);
-        draw->AddText(fonts.mono, 12 * s, ImVec2(center.x + radius + 5 * s, center.y - radius - 4 * s), uiColor(UiColor::Ink), pitchText(pitch));
+        label(center, editor.hoverString, editor.newNoteFret, uiColor(UiColor::Ink));
+        if (!names) draw->AddText(fonts.mono, 12 * s, ImVec2(center.x + radius + 5 * s, center.y - radius - 4 * s), uiColor(UiColor::Ink), pitchText(pitch));
         hoverTip = TextFormat("Click  place fret %d (%s)      Wheel  another fret      Drag right  hold it      Shift + drag  select      Shift + wheel  scroll",
                               editor.newNoteFret, pitchText(pitch));
     }
@@ -1460,8 +1474,6 @@ static void drawTimeline(ImVec2 min, ImVec2 max, float s){
 
     // Notes: a tail for as long as each is held, its fret on its string's color; the selected ones ringed
     const double margin = (radius + 16 * s) / editor.pixelsPerBeat * resolution;
-    const float nameSize = 13.5f * s;
-    const bool names = editor.settings->editorNoteNames && rowHeight / 2 - radius >= nameSize + 5 * s; // where a row has the room
     for (const FrettedNote& note : track().notes){
         if (note.tick > viewEndTick + margin) break;
         if (note.tick + note.duration < editor.viewStartTick - margin) continue;
@@ -1482,14 +1494,7 @@ static void drawTimeline(ImVec2 min, ImVec2 max, float s){
         draw->AddCircleFilled(center, radius, stringInk(note.stringIndex));
         if (selected) draw->AddCircle(center, radius + 3.5f * s, uiColor(UiColor::Accent), 0, 2.5f * s);
         else if (under) draw->AddCircle(center, radius + 3.0f * s, uiColor(UiColor::Ink, 0.5f), 0, 1.5f * s);
-        const char* fret = TextFormat("%d", note.fret);
-        const float size = radius * 1.05f;
-        draw->AddText(fonts.bold, size, ImVec2(center.x - textWidth(fonts.bold, size, fret) / 2, center.y - size / 2 - s), IM_COL32_WHITE, fret);
-        if (names){ // the note it is, under it: the neck learned while charting
-            const char* name = pitchClassName(track().tuning[note.stringIndex] + note.fret);
-            draw->AddText(fonts.bold, nameSize, ImVec2(center.x - textWidth(fonts.bold, nameSize, name) / 2, center.y + radius + 3 * s),
-                          uiColor(UiColor::Ink, selected || under ? 1.0f : 0.72f), name);
-        }
+        label(center, note.stringIndex, note.fret, IM_COL32_WHITE);
         if (under && editor.drag == Drag::None){
             int pitch = track().tuning[note.stringIndex] + note.fret;
             if (overGrip) hoverTip = "Drag  how long the note is held";
