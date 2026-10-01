@@ -46,6 +46,10 @@ const float DRAG_STARTS = 4.0f;          // pixels the mouse moves before a clic
 const float WHEEL_SCROLL = 110.0f;       // pixels a notch of the wheel moves along the song
 const double FRET_TYPING_S = 0.8;        // two digits typed this close together are one fret: 1 then 2 is 12
 const double SETTLE_S = 0.5;             // wheel notches and key repeats this close together are one undo step
+const float PLACED_NOTE_S = 1.0f;        // how long a note rings when it's placed or picked
+const double RING_S = 1.2;               // played back, a note with no length rings this long, or until its string's next note
+const double MIN_SOUND_S = 0.12;
+const int NOTES_MADE_PER_FRAME = 2;      // each note's sound is worked out when it's scheduled: a chord is spread over frames
 
 // Grid choices: snap positions per beat (a beat is a quarter note). 3, 6 and 12 give triplets.
 const int SNAP_DIVISIONS[] = { 1, 2, 3, 4, 6, 8, 12, 16 };
@@ -129,7 +133,8 @@ struct EditorState {
     int playheadTick = 0;      // where playback starts, and where it comes back to when stopped
     double playFrom = 0.0;     // the song time at the playhead when playback started
     double playStartTime = 0.0;// the engine time (audioTime) at which playFrom plays
-    int scheduledTick = 0;     // clicks and notes before this tick are already scheduled
+    int scheduledTick = 0;     // clicks before this tick are already scheduled
+    NoteKey scheduledNote;     // and the part's notes up to this one (a tick and a string: it needn't be a note's)
 
     bool active = false;
 };
@@ -357,9 +362,10 @@ static void restringSelection(int strings){
     markChangedInRun();
 }
 
-// Lets you hear what you're placing: the string's open pitch plus the fret, loud enough to be heard over the song
+// Lets you hear what you're placing: the string's open pitch plus the fret, on the part's own instrument
 static void previewNote(int stringIndex, int fret){
-    playStringNote(midiToFrequency((float)(track().tuning[stringIndex] + fret)), editor.settings->editorNoteVolume);
+    playStringNote(midiToFrequency((float)(track().tuning[stringIndex] + fret)), track().type == InstrumentType::Bass, PLACED_NOTE_S,
+                   editor.settings->editorNoteVolume);
 }
 
 // The selected notes' frets, moved by `change` or (with `set`) all put on one fret. With nothing selected, it's the
@@ -469,6 +475,7 @@ static void startPlayback(){
     if (start < 0.0) start = audioTime() + 0.1; // no song: the clicks and notes still need a moment to be scheduled
     editor.playStartTime = start;
     editor.scheduledTick = editor.playheadTick;
+    editor.scheduledNote = { editor.playheadTick - 1, INT_MAX }; // nothing before the playhead
     editor.playing = true;
 }
 
@@ -479,12 +486,26 @@ static void stopPlayback(){
     editor.playing = false;
 }
 
-// Schedules what falls in the next moment: metronome clicks on each beat (the bar's first accented) and each note's
-// pitch, at their exact times on the engine's clock
+// How long a note sounds when the part is played: for as long as it's held if it has a length, else for a moment;
+// either way no further than the next note on its string, which can only play one at a time
+static float soundingSeconds(const std::vector<FrettedNote>& notes, size_t index){
+    const Chart& chart = editor.chart;
+    const FrettedNote& note = notes[index];
+    const double start = tickToSeconds(chart, note.tick);
+    double end = note.duration > 0 ? tickToSeconds(chart, note.tick + note.duration) : start + RING_S;
+    for (size_t i = index + 1; i < notes.size(); i++){
+        double next = tickToSeconds(chart, notes[i].tick);
+        if (next >= end) break;
+        if (notes[i].stringIndex == note.stringIndex) end = next;
+    }
+    return (float)std::max(MIN_SOUND_S, end - start);
+}
+
+// Schedules what falls in the next moment: metronome clicks on each beat (the bar's first accented) and each note
+// on the part's instrument, at their exact times on the engine's clock
 static void schedulePlayback(){
     const Chart& chart = editor.chart;
     int horizonTick = (int)std::floor(secondsToTick(chart, playbackSeconds() + LOOKAHEAD_S)) + 1;
-    if (horizonTick <= editor.scheduledTick) return;
     auto engineTime = [&](int tick){ return editor.playStartTime + (tickToSeconds(chart, tick) - editor.playFrom); };
 
     if (editor.metronome){
@@ -497,16 +518,24 @@ static void schedulePlayback(){
             tick = next + 1;
         }
     }
-    if (editor.playNotes){
-        const std::vector<FrettedNote>& notes = track().notes;
-        auto it = std::lower_bound(notes.begin(), notes.end(), editor.scheduledTick,
-                                   [](const FrettedNote& note, int tick){ return note.tick < tick; });
-        for (; it != notes.end() && it->tick < horizonTick; ++it){
-            playStringNoteAt(midiToFrequency((float)(track().tuning[it->stringIndex] + it->fret)), engineTime(it->tick),
-                             editor.settings->editorNoteVolume);
-        }
+    editor.scheduledTick = std::max(editor.scheduledTick, horizonTick);
+
+    // The notes after the last one scheduled, a few each frame. With the notes off, the place is kept up to date, so
+    // turning them on again doesn't play everything that went by.
+    if (!editor.playNotes){
+        editor.scheduledNote = { horizonTick - 1, INT_MAX };
+        return;
     }
-    editor.scheduledTick = horizonTick;
+    const std::vector<FrettedNote>& notes = track().notes;
+    const bool bass = track().type == InstrumentType::Bass;
+    auto it = std::upper_bound(notes.begin(), notes.end(), editor.scheduledNote, [](const NoteKey& key, const FrettedNote& note){
+        return key < NoteKey(note.tick, note.stringIndex);
+    });
+    for (int made = 0; it != notes.end() && it->tick < horizonTick && made < NOTES_MADE_PER_FRAME; ++it, made++){
+        playStringNoteAt(midiToFrequency((float)(track().tuning[it->stringIndex] + it->fret)), bass,
+                         soundingSeconds(notes, it - notes.begin()), engineTime(it->tick), editor.settings->editorNoteVolume);
+        editor.scheduledNote = { it->tick, it->stringIndex };
+    }
 }
 
 // --- Saving -------------------------------------------------------------------------------------------
@@ -856,7 +885,7 @@ static void drawBottomBar(float s, float width, float height, const char* hint){
     if (barButton(right, "##zoomout", nullptr, "Zoom out (Ctrl + wheel)", false, true, Icon::Minus)) zoomBy(1.0f / 1.3f, editor.gridWidth / 2);
     barGap(right, 10);
     Settings& settings = *editor.settings;
-    barSlider(right, "Notes", &settings.editorNoteVolume, "How loud the notes are: the ones you place, and the part played over the song");
+    barSlider(right, "Notes", &settings.editorNoteVolume, "How loud the notes are: the ones you place, and the part played over the song, on its own instrument");
     barGap(right, 8);
     if (barSlider(right, "Song", &settings.editorSongVolume, "How loud the song is under the notes, here in the editor")) setSongVolume(settings.editorSongVolume);
 

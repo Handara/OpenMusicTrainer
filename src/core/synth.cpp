@@ -114,6 +114,134 @@ void renderBass(float* out, int count, float frequency, int sampleRate){
     fadeEnd(out, count, sampleRate);
 }
 
+// --- String instruments -------------------------------------------------------------------------------
+
+// What makes one string instrument sound unlike another
+struct StringShape {
+    float pluckAt;      // where the string is plucked, as a part of its length from the bridge: nearer, brighter
+    float pickupAt;     // where the pickup listens
+    float toneHz;       // above this the pickup, the tone knob and the amp let less and less through
+    float topHz;        // no harmonic is made above this
+    int maxHarmonics;
+    float body;         // the fundamental, boosted: an amp's low end
+    float sustainS;     // how long the fundamental of a note at 110 Hz rings (to -60 dB)
+    float sustainSlope; // higher notes ring shorter: sustain goes as (110 / frequency) ^ slope
+    float damping;      // how much sooner each higher harmonic dies
+    float snap;         // how much brighter the attack is than the note it settles into
+    float snapS;        // and for how long
+    float stiffness;    // a stiff string's harmonics run a little sharp
+    float attackS;      // the note's rise: no click
+    float noise;        // the finger or the pick on the string, against the note
+    float noiseHz;      // dull (a finger's thump) or bright (a pick's tick)
+    float noiseS;
+    float chorus;       // how much of a slowly wandering copy is mixed in
+    float level;        // the loudness every note is brought to (RMS over its first moments)
+};
+
+// Fingers over the pickup of a four-string: the second and third harmonics as strong as the fundamental (they carry
+// a low E on small speakers), a growl that lasts a second, a slap's brightness for the first few hundredths
+const StringShape BASS_SHAPE = { 0.21f, 0.17f, 1500.0f, 4500.0f, 28, 1.7f, 3.2f, 0.3f, 0.30f, 1.8f, 0.035f, 1.0e-4f, 0.003f,
+                                 0.22f, 450.0f, 0.012f, 0.0f, 0.17f };
+// A pick near the bridge heard at the neck pickup: glassy, long-ringing, a touch of chorus
+const StringShape GUITAR_SHAPE = { 0.14f, 0.23f, 3800.0f, 8000.0f, 32, 1.0f, 3.6f, 0.3f, 0.09f, 0.8f, 0.02f, 4.0e-5f, 0.0015f,
+                                   0.10f, 3200.0f, 0.004f, 0.28f, 0.12f };
+
+const float STRING_MUTE_S = 0.05f;      // a note is muted this quickly at its end
+const float STRING_LEVEL_OVER_S = 0.3f; // its loudness is measured over this much of its start
+const float STRING_PEAK = 0.85f;        // and its peaks kept under this
+
+void renderStringNote(float* out, int count, float frequency, int sampleRate, StringVoice voice, unsigned seed){
+    const StringShape& shape = voice == StringVoice::Bass ? BASS_SHAPE : GUITAR_SHAPE;
+    std::fill(out, out + count, 0.0f);
+    if (count < 2) return;
+
+    // The attack's extra brightness, fading: shared by every harmonic
+    std::vector<float> snap(count);
+    const float snapDecay = std::exp(-1.0f / (shape.snapS * sampleRate));
+    float bright = 1.0f;
+    for (float& value : snap){
+        value = bright;
+        bright *= snapDecay;
+    }
+
+    // Each harmonic: a sine turning at its own speed and fading at its own rate. Its size is what a string plucked
+    // at one point and heard at another gives (both are standing-wave shapes: sin(k pi x)), over k; the high ones
+    // die sooner, so each is only worked out for as long as it can be heard.
+    const double pi = TWO_PI / 2;
+    const float sustain = shape.sustainS * std::pow(110.0f / frequency, shape.sustainSlope);
+    float total = 0.0f;
+    for (int k = 1; k <= shape.maxHarmonics; k++){
+        const double harmonic = k * (double)frequency * std::sqrt(1.0 + shape.stiffness * k * k);
+        if (harmonic > shape.topHz || harmonic > sampleRate * 0.45) break;
+        double size = std::sin(k * pi * shape.pluckAt) * std::sin(k * pi * shape.pickupAt);
+        size += size < 0.0 ? -0.04 : 0.04; // never quite nothing: a real string is plucked over a width, not at a point
+        size /= k;
+        const double over = harmonic / shape.toneHz;
+        size /= std::sqrt(1.0 + over * over * over * over);
+        if (k == 1) size *= shape.body;
+        total += (float)std::fabs(size);
+
+        const float rings = sustain / (1.0f + shape.damping * std::pow((float)(k - 1), 1.4f));
+        const double fade = std::pow(0.001, 1.0 / ((double)rings * sampleRate));
+        const int heard = std::min(count, (int)(rings * 1.2f * sampleRate));
+        const float snapped = shape.snap * std::min(1.0f, (k - 1) / 4.0f);
+        const double turn = TWO_PI * harmonic / sampleRate, cosine = std::cos(turn), sine = std::sin(turn);
+        double x = size, y = 0.0; // y is the sine, starting from 0
+        for (int i = 0; i < heard; i++){
+            out[i] += (float)y * (1.0f + snapped * snap[i]);
+            const double nextX = (x * cosine - y * sine) * fade;
+            y = (x * sine + y * cosine) * fade;
+            x = nextX;
+        }
+    }
+
+    // The note rises quickly rather than at once, and the finger's thump or the pick's tick goes with it
+    const int attack = std::max(1, (int)(shape.attackS * sampleRate));
+    for (int i = 0; i < attack && i < count; i++) out[i] *= (float)i / attack;
+    std::minstd_rand rng(seed);
+    std::uniform_real_distribution<float> noise(-1.0f, 1.0f);
+    const float color = 1.0f - std::exp(-(float)TWO_PI * shape.noiseHz / sampleRate);
+    const float noiseDecay = std::exp(-1.0f / (shape.noiseS * sampleRate));
+    float smoothed = 0.0f, burst = shape.noise * total;
+    for (int i = 0; i < count && burst > 1.0e-5f; i++){
+        smoothed += color * (noise(rng) - smoothed);
+        out[i] += smoothed * burst;
+        burst *= noiseDecay;
+    }
+
+    // Chorus: the note again a few milliseconds later, the delay slowly wandering
+    if (shape.chorus > 0.0f){
+        std::vector<float> dry(out, out + count);
+        for (int i = 0; i < count; i++){
+            double at = i - (0.011 + 0.002 * std::sin(TWO_PI * 0.8 * i / sampleRate)) * sampleRate;
+            if (at < 0.0) continue;
+            int before = (int)at;
+            float part = (float)(at - before);
+            float delayed = dry[before] * (1.0f - part) + (before + 1 < count ? dry[before + 1] : 0.0f) * part;
+            out[i] += shape.chorus * delayed;
+        }
+    }
+
+    // Every note as loud as the next, whatever its pitch and however many harmonics it has
+    const int measured = std::min(count, (int)(STRING_LEVEL_OVER_S * sampleRate));
+    double energy = 0.0;
+    float peak = 0.0f;
+    for (int i = 0; i < measured; i++) energy += (double)out[i] * out[i];
+    for (int i = 0; i < count; i++) peak = std::max(peak, std::fabs(out[i]));
+    if (energy > 0.0 && peak > 0.0f){
+        float gain = std::min(shape.level / (float)std::sqrt(energy / measured), STRING_PEAK / peak);
+        for (int i = 0; i < count; i++) out[i] *= gain;
+    }
+
+    // Muted at its end
+    const int mute = std::min(count - 1, (int)(STRING_MUTE_S * sampleRate));
+    for (int i = 0; i < mute; i++){
+        float left = (float)i / mute;
+        out[count - 1 - i] *= left * left * (3.0f - 2.0f * left);
+    }
+    out[count - 1] = 0.0f;
+}
+
 void renderDrop(float* out, int count, float frequency, int sampleRate){
     const float glideSamples = 0.025f * sampleRate; // reaches the note's pitch after 25 ms
     const float decay = decayPerSample(0.35f, sampleRate);

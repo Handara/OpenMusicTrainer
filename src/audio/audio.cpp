@@ -224,7 +224,7 @@ std::vector<std::string> inputDeviceNames(){
 
 static void releaseVoice(Voice& voice);
 static void startVoice(Voice& voice, const float* data, size_t frames, float pitchRatio, float volume, unsigned long long startFrame);
-static void startPreview(float frequency, ma_uint64 startFrame, const char* builtIn = nullptr, float loudVolume = -1.0f);
+static void startPreview(float frequency, ma_uint64 startFrame, const char* builtIn = nullptr);
 static void startMonitorSound();
 static void stopMonitorSound();
 static bool openCapture(const std::string& inputDevice, std::string& error);
@@ -1350,28 +1350,30 @@ void playPreviewAt(float frequency, double time){
     startPreview(frequency, (ma_uint64)std::llround(std::max(0.0, time) * ma_engine_get_sample_rate(&audio.engine)));
 }
 
-void playStringNote(float frequency, float volume){
-    if (!audio.engineReady) return;
-    startPreview(frequency, ma_engine_get_time_in_pcm_frames(&audio.engine), "pluck", std::clamp(volume, 0.0f, 1.0f));
-}
+const float MAX_STRING_NOTE_S = 4.0f;
 
-void playStringNoteAt(float frequency, double time, float volume){
-    if (!audio.engineReady) return;
-    startPreview(frequency, (ma_uint64)std::llround(std::max(0.0, time) * ma_engine_get_sample_rate(&audio.engine)), "pluck",
-                 std::clamp(volume, 0.0f, 1.0f));
-}
-
-// A loud note is driven into a soft limit (tanh): what's quiet in it comes up by LOUD_DRIVE, its peaks stay under
-// LOUD_LEVEL
-const float LOUD_DRIVE = 5.0f;
-const float LOUD_LEVEL = 0.85f;
-
-// A preview note starting at a frame of the engine's clock; `loudVolume` from 0 makes it a loud one, at that volume
-// (built-in sounds only: a custom sound is shared between voices, and can't be driven for one of them)
-static void startPreview(float frequency, ma_uint64 startFrame, const char* builtIn, float loudVolume){
+static void startStringNote(float frequency, bool bass, float seconds, ma_uint64 startFrame, float volume){
     Voice& voice = takeVoice();
-    const bool loud = loudVolume >= 0.0f;
-    float volume = loud ? loudVolume : audio.previewVolume;
+    ma_uint32 sampleRate = ma_engine_get_sample_rate(&audio.engine);
+    voice.samples.resize((size_t)(std::clamp(seconds, 0.05f, MAX_STRING_NOTE_S) * sampleRate));
+    renderStringNote(voice.samples.data(), (int)voice.samples.size(), frequency, (int)sampleRate, bass ? StringVoice::Bass : StringVoice::Guitar,
+                     (unsigned)audio.previewCount++);
+    startVoice(voice, voice.samples.data(), voice.samples.size(), 1.0f, std::clamp(volume, 0.0f, 1.0f), startFrame);
+}
+
+void playStringNote(float frequency, bool bass, float seconds, float volume){
+    if (!audio.engineReady) return;
+    startStringNote(frequency, bass, seconds, ma_engine_get_time_in_pcm_frames(&audio.engine), volume);
+}
+
+void playStringNoteAt(float frequency, bool bass, float seconds, double time, float volume){
+    if (!audio.engineReady) return;
+    startStringNote(frequency, bass, seconds, (ma_uint64)std::llround(std::max(0.0, time) * ma_engine_get_sample_rate(&audio.engine)), volume);
+}
+
+// A preview note starting at a frame of the engine's clock
+static void startPreview(float frequency, ma_uint64 startFrame, const char* builtIn){
+    Voice& voice = takeVoice();
 
     // Built-in sounds are rendered at the engine's own sample rate and pitch, so nothing is resampled.
     // A custom sound plays from the shared decoded copy, re-pitched to the note if it has a pitch.
@@ -1383,7 +1385,6 @@ static void startPreview(float frequency, ma_uint64 startFrame, const char* buil
         voice.samples.resize((size_t)(PREVIEW_LENGTH_S * sampleRate)); // keeps its memory between notes: no allocation after the first
         renderBuiltInSound(builtIn ? builtIn : audio.previewSoundName.c_str(), voice.samples.data(), (int)voice.samples.size(), frequency,
                            (int)sampleRate, (unsigned)audio.previewCount);
-        if (loud) for (float& sample : voice.samples) sample = LOUD_LEVEL * std::tanh(LOUD_DRIVE * sample / LOUD_LEVEL);
         data = voice.samples.data();
         frames = voice.samples.size();
     } else {
@@ -1392,7 +1393,7 @@ static void startPreview(float frequency, ma_uint64 startFrame, const char* buil
         if (audio.customSoundRoot > 0.0f) pitchRatio = frequency / audio.customSoundRoot;
     }
     audio.previewCount++;
-    startVoice(voice, data, frames, pitchRatio, volume, startFrame);
+    startVoice(voice, data, frames, pitchRatio, audio.previewVolume, startFrame);
 }
 
 void playKeysNote(float frequency){

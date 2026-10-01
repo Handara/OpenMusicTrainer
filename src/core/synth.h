@@ -21,6 +21,14 @@ void renderDrop(float* out, int count, float frequency, int sampleRate);
 // synth (the notes it heard, see input/synthmonitor).
 void renderBass(float* out, int count, float frequency, int sampleRate);
 
+// A note on a string instrument, for hearing a part as its own instrument (the song editor's notes): an electric bass
+// played with the fingers, round at the bottom with a little slap in its attack, or a clean electric guitar, bright and
+// bell-like with a light chorus. Built from the string itself: each harmonic as loud as plucking there and listening
+// at the pickup makes it, the high ones dying first. No distortion. Every note comes out equally loud whatever its
+// pitch; it rings for `count` samples and is muted over the last few hundredths of a second, as a hand does.
+enum class StringVoice { Guitar, Bass };
+void renderStringNote(float* out, int count, float frequency, int sampleRate, StringVoice voice, unsigned seed);
+
 // A metronome click: a high woodblock-like tone that dies within ~30 ms, plus a tiny burst of noise for the
 // "tick". The accented click (the first beat of a bar) is higher.
 void renderClick(float* out, int count, int sampleRate, bool accent);

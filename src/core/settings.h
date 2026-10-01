@@ -37,8 +37,8 @@ struct Settings {
     std::string midiDevice;            // a MIDI keyboard or controller, by name; empty = the first one connected
     float masterVolume = 1.0f;         // 0..1
     float previewVolume = 0.6f;        // sounds the game makes itself (the keyboard's notes, ear training)
-    // The song editor's own mix, set on its screen: the notes it plays (a plucked string, made louder than a preview:
-    // they must be heard over the song) and the song under them
+    // The song editor's own mix, set on its screen: the notes it plays (each part on its own instrument, a bass or a
+    // clean guitar) and the song under them
     float editorNoteVolume = 0.8f;
     float editorSongVolume = 1.0f;
     std::string previewSound = "drop";  // a built-in sound, or a file name in the user's sounds folder

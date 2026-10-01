@@ -128,3 +128,61 @@ TEST_CASE("the synth bass is in tune across a bass's range, round, and ends sile
         CHECK(samples.back() == 0.0f);
     }
 }
+
+TEST_CASE("string notes: a bass and a guitar in tune, each note as loud as the next, muted at their end"){
+    const int sampleRate = 48000;
+    PitchDetector detector;
+    initPitchDetector(detector, sampleRate, 30.0f, 1400.0f);
+    const int window = pitchWindowSize(detector);
+    std::vector<float> samples(sampleRate);
+    auto level = [&](int from, int to){
+        double energy = 0.0;
+        for (int i = from; i < to; i++) energy += (double)samples[i] * samples[i];
+        return (float)std::sqrt(energy / (to - from));
+    };
+
+    for (StringVoice voice : {StringVoice::Bass, StringVoice::Guitar}){
+        const bool bass = voice == StringVoice::Bass;
+        float quietest = 1.0f, loudest = 0.0f;
+        for (int midi : bass ? std::vector<int>{28, 33, 43, 55} : std::vector<int>{40, 52, 64, 76}){
+            float frequency = midiToFrequency((float)midi);
+            renderStringNote(samples.data(), (int)samples.size(), frequency, sampleRate, voice, 1);
+            PitchResult result = detectPitch(detector, samples.data() + sampleRate / 10, window);
+            float cents = 1200.0f * std::log2(result.frequency / frequency);
+            CHECK_MESSAGE(std::fabs(cents) < 5.0f, (bass ? "bass" : "guitar") << " MIDI " << midi << ": " << cents << " cents");
+
+            float peak = 0.0f;
+            for (float sample : samples) peak = std::max(peak, std::fabs(sample));
+            CHECK(peak <= 0.86f);                                      // room to spare: no clipping, no distortion
+            CHECK(level(sampleRate / 2, sampleRate * 6 / 10) < level(0, sampleRate / 10)); // it decays
+            CHECK(samples.back() == 0.0f);                             // muted: no click at the end
+            float loudness = level(0, sampleRate * 3 / 10);
+            quietest = std::min(quietest, loudness);
+            loudest = std::max(loudest, loudness);
+        }
+        CHECK(loudest < quietest * 1.05f); // the same loudness across the neck
+    }
+}
+
+TEST_CASE("string notes: the bass is darker than the guitar, and both brighter in their attack than after"){
+    const int sampleRate = 48000;
+    const float frequency = 98.0f; // a G both instruments have
+    // How much of a stretch of sound is above 600 Hz: one-pole high-passed energy against the whole
+    auto brightness = [&](const std::vector<float>& samples, int from, int to){
+        const float keep = std::exp(-6.2831853f * 600.0f / sampleRate);
+        float low = 0.0f;
+        double high = 0.0, all = 0.0;
+        for (int i = from; i < to; i++){
+            low = low * keep + samples[i] * (1.0f - keep);
+            high += (double)(samples[i] - low) * (samples[i] - low);
+            all += (double)samples[i] * samples[i];
+        }
+        return (float)(high / all);
+    };
+    std::vector<float> bass(sampleRate), guitar(sampleRate);
+    renderStringNote(bass.data(), sampleRate, frequency, sampleRate, StringVoice::Bass, 1);
+    renderStringNote(guitar.data(), sampleRate, frequency, sampleRate, StringVoice::Guitar, 1);
+    CHECK(brightness(bass, 0, sampleRate / 4) < brightness(guitar, 0, sampleRate / 4));
+    CHECK(brightness(bass, sampleRate / 2, sampleRate * 3 / 4) < brightness(bass, 0, sampleRate / 20));
+    CHECK(brightness(guitar, sampleRate / 2, sampleRate * 3 / 4) < brightness(guitar, 0, sampleRate / 20));
+}
