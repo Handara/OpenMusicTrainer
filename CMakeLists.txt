@@ -158,6 +158,7 @@ add_library(lahn_core STATIC
     src/core/routine.cpp
     src/core/sampleformat.cpp
     src/core/tonechain.cpp
+    src/core/transcribe.cpp
     src/core/tonelibrary.cpp
     src/core/xml.cpp
     src/core/tuningcheck.cpp
@@ -283,6 +284,7 @@ if(BUILD_TESTING)
         tests/songpackage_test.cpp
         tests/synth_test.cpp
         tests/tonechain_test.cpp
+        tests/transcribe_test.cpp
         tests/tuningcheck_test.cpp
         tests/today_test.cpp
     )
