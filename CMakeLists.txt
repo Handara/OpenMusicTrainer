@@ -129,6 +129,7 @@ endfunction()
 # It deliberately does NOT link raylib, miniaudio or imgui: including one of them here fails to compile,
 # which keeps this layer reusable (editor, tests, a future server) and testable on its own.
 add_library(lahn_core STATIC
+    src/core/addon.cpp
     src/core/backing.cpp
     src/core/calibration.cpp
     src/core/chart.cpp
@@ -181,6 +182,7 @@ add_executable(lahn
     src/main.cpp
     src/app/crashreport.cpp
     src/app/filedialog.cpp
+    src/app/stemmodel.cpp
     src/audio/audio.cpp
     src/audio/asiodriver.cpp
     src/input/midi.cpp
@@ -228,7 +230,9 @@ add_executable(lahn
     src/views/viewfont.cpp
     src/video/video.cpp
 )
-target_link_libraries(lahn PRIVATE lahn_core raylib miniaudio imgui pl_mpeg)
+target_link_libraries(lahn PRIVATE lahn_core raylib miniaudio imgui pl_mpeg ${CMAKE_DL_LIBS}) # dl: the stems add-on's runtime, loaded when it's there
+# ONNX Runtime's interface only (its headers): the library itself comes with the stems add-on (src/app/stemmodel.cpp)
+target_include_directories(lahn SYSTEM PRIVATE third_party/onnxruntime)
 if(WIN32)
     target_link_libraries(lahn PRIVATE winmm dbghelp comdlg32 asiosdk) # MIDI input (input/midi.cpp); crash reports (app/crashreport.cpp); the Open dialog (app/filedialog.cpp); ASIO
 endif()
@@ -253,6 +257,7 @@ include(CTest)
 if(BUILD_TESTING)
     add_executable(lahn_tests
         tests/main.cpp
+        tests/addon_test.cpp
         tests/calibration_test.cpp
         tests/chart_test.cpp
         tests/chords_test.cpp
