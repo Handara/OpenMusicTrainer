@@ -89,15 +89,15 @@ static void goToSongList(Screen listScreen){
 }
 
 static void goToImport(const std::string& file){
-    openImportScreen(app.userSongsDir, file);
+    openImportScreen(app.userSongsDir, (fs::path(app.userDataDir) / "addons").string(), file);
     app.screen = Screen::ImportSong;
 }
 
-// What the import screen takes: a Guitar Pro tab, or a recording of a bass to write down
+// What the import screen takes: a Guitar Pro tab, a song or a recording of a bass to write down, the stems add-on
 static bool isImportable(const std::string& path){
     std::string extension = fs::path(path).extension().string();
     for (char& c : extension) c = (char)std::tolower((unsigned char)c);
-    for (const char* kind : { ".gp", ".gpx", ".gp5", ".gp4", ".gp3", ".mp3", ".ogg", ".flac", ".wav" }) if (extension == kind) return true;
+    for (const char* kind : { ".gp", ".gpx", ".gp5", ".gp4", ".gp3", ".mp3", ".ogg", ".flac", ".wav", ".lahnaddon" }) if (extension == kind) return true;
     return false;
 }
 

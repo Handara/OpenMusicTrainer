@@ -1431,10 +1431,11 @@ double audioTime(){
     return audio.engineSmoothTime;
 }
 
-bool decodeAudioFile(const std::string& path, int sampleRate, std::vector<float>& out, std::string& error,
+bool decodeAudioFile(const std::string& path, int sampleRate, int channels, std::vector<float>& out, std::string& error,
                      const std::atomic<bool>& cancel){
-    // Mono floats at the rate asked for: the decoder mixes the channels down and converts the rate
-    ma_decoder_config config = ma_decoder_config_init(ma_format_f32, 1, (ma_uint32)sampleRate);
+    // Floats at the rate and channels asked for: the decoder mixes the channels and converts the rate
+    channels = std::clamp(channels, 1, 2);
+    ma_decoder_config config = ma_decoder_config_init(ma_format_f32, (ma_uint32)channels, (ma_uint32)sampleRate);
     ma_decoder decoder;
     ma_result result = ma_decoder_init_file(path.c_str(), &config, &decoder);
     if (result != MA_SUCCESS){
@@ -1446,9 +1447,9 @@ bool decodeAudioFile(const std::string& path, int sampleRate, std::vector<float>
     for (;;){
         if (cancel) break;
         ma_uint64 read = 0;
-        ma_decoder_read_pcm_frames(&decoder, chunk.data(), chunk.size(), &read);
+        ma_decoder_read_pcm_frames(&decoder, chunk.data(), chunk.size() / channels, &read);
         if (read == 0) break;
-        out.insert(out.end(), chunk.begin(), chunk.begin() + (size_t)read);
+        out.insert(out.end(), chunk.begin(), chunk.begin() + (size_t)read * channels);
     }
     ma_decoder_uninit(&decoder);
     if (cancel) return false;

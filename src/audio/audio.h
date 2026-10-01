@@ -40,9 +40,10 @@ double songPosition(); // seconds, smoothed between audio updates; call once per
 // It decodes the whole file, which takes a second or two for a long song, so it's meant for a background thread:
 // setting `cancel` stops it early (and it returns false). Independent of the playing song.
 bool songPeaks(const std::string& path, int peaksPerSecond, std::vector<float>& out, const std::atomic<bool>& cancel);
-// A whole audio file (mp3, flac, wav, ogg) as mono samples at `sampleRate`, for listening to it (a bass part written
-// down from it). For a background thread too, `cancel` stopping it.
-bool decodeAudioFile(const std::string& path, int sampleRate, std::vector<float>& out, std::string& error,
+// A whole audio file (mp3, flac, wav, ogg) as samples at `sampleRate`, mono or stereo (`channels` 1 or 2; stereo comes
+// left, right, left, right...), for listening to it (a bass part written down from it, a stem split from it). For a
+// background thread too, `cancel` stopping it.
+bool decodeAudioFile(const std::string& path, int sampleRate, int channels, std::vector<float>& out, std::string& error,
                      const std::atomic<bool>& cancel);
 
 // A song whose samples come from a function instead of a file: the sound of a video, decoded as it plays. The

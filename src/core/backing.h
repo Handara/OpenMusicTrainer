@@ -10,5 +10,5 @@
 // louder, standing in for the drums. Mono, from tick 0, with a moment after the last note. Pure logic.
 std::vector<float> renderBacking(const Chart& chart, int sampleRate);
 
-// A mono WAV file (16-bit), replaced whole
-bool writeWav(const std::string& path, const std::vector<float>& samples, int sampleRate, std::string& error);
+// A WAV file (16-bit), replaced whole: mono, or stereo with its samples left, right, left, right...
+bool writeWav(const std::string& path, const std::vector<float>& samples, int sampleRate, std::string& error, int channels = 1);

@@ -73,7 +73,7 @@ std::vector<float> renderBacking(const Chart& chart, int sampleRate){
 static void put16(std::string& data, int value){ data += (char)(value & 0xFF); data += (char)((value >> 8) & 0xFF); }
 static void put32(std::string& data, uint32_t value){ for (int i = 0; i < 4; i++) data += (char)((value >> (8 * i)) & 0xFF); }
 
-bool writeWav(const std::string& path, const std::vector<float>& samples, int sampleRate, std::string& error){
+bool writeWav(const std::string& path, const std::vector<float>& samples, int sampleRate, std::string& error, int channels){
     std::string data;
     const uint32_t bytes = (uint32_t)samples.size() * 2;
     data.reserve(44 + bytes);
@@ -82,10 +82,10 @@ bool writeWav(const std::string& path, const std::vector<float>& samples, int sa
     data += "WAVEfmt ";
     put32(data, 16);
     put16(data, 1);                 // PCM
-    put16(data, 1);                 // mono
+    put16(data, channels);
     put32(data, (uint32_t)sampleRate);
-    put32(data, (uint32_t)sampleRate * 2);
-    put16(data, 2);                 // bytes per frame
+    put32(data, (uint32_t)(sampleRate * 2 * channels));
+    put16(data, 2 * channels);      // bytes per frame
     put16(data, 16);                // bits per sample
     data += "data";
     put32(data, bytes);
