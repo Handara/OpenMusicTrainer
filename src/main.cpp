@@ -1,5 +1,6 @@
 #include "raylib.h"
 #include "app/crashreport.h"
+#include "app/videoconvert.h"
 #include "audio/audio.h"
 #include "core/paths.h"
 #include "core/routine.h"
@@ -89,9 +90,14 @@ static void goToSongList(Screen listScreen){
     app.screen = listScreen;
 }
 
+// Where add-ons are installed (the stems add-on, the video add-on)
+static std::string addonsDir(){
+    return (fs::path(app.userDataDir) / "addons").string();
+}
+
 static void goToImport(const std::string& file){
     app.importForEditor = app.screen == Screen::EditorSelect;
-    openImportScreen(app.userSongsDir, (fs::path(app.userDataDir) / "addons").string(), file);
+    openImportScreen(app.userSongsDir, addonsDir(), file);
     app.screen = Screen::ImportSong;
 }
 
@@ -111,17 +117,17 @@ static bool isAudioFile(const std::string& path){
 
 // Song packages (.lahn) dropped on a song list are installed into the player's songs, and the list shows them. On the
 // list to play, a Guitar Pro tab or a recording goes to the import screen; on the editor's list, an audio file makes a
-// new song of it.
+// new song of it; on either, a video does (its sound the song's audio, its pictures behind the notes).
 static void installDroppedPackages(){
     if (!IsFileDropped()) return;
     FilePathList dropped = LoadDroppedFiles();
     for (unsigned i = 0; i < dropped.count; i++){
         std::string path = dropped.paths[i];
         bool editing = app.screen == Screen::EditorSelect;
-        if (!isImportable(path)) continue;
+        if (!isImportable(path) && !isVideoFile(path)) continue;
         UnloadDroppedFiles(dropped);
-        if (editing && isAudioFile(path)){
-            openNewSongScreen(app.userSongsDir, path);
+        if ((editing && isAudioFile(path)) || isVideoFile(path)){
+            openNewSongScreen(app.userSongsDir, addonsDir(), path);
             app.screen = Screen::NewSong;
         } else {
             goToImport(path);
@@ -201,7 +207,7 @@ static void leaveSettings(){
 
 static void editSong(const SongEntry& song){
     std::string error;
-    if (openEditor(song, app.userSongsDir, app.packagesDir, app.settings, error)){
+    if (openEditor(song, app.userSongsDir, app.packagesDir, addonsDir(), app.settings, error)){
         app.songSelectError.clear();
         app.screen = Screen::Editor;
     } else {
@@ -492,7 +498,7 @@ static void runMenus(){
             else if (choice.deleteSong >= 0) deleteSong(choice.deleteSong);
             else if (choice.openDataFolder) openDataFolder();
             else if (choice.newSong){
-                openNewSongScreen(app.userSongsDir);
+                openNewSongScreen(app.userSongsDir, addonsDir());
                 app.screen = Screen::NewSong;
             }
             else if (choice.songIndex >= 0) editSong(app.songs[choice.songIndex]);
@@ -505,6 +511,8 @@ static void runMenus(){
                     // Straight into the editor with it; the list shows it next time
                     goToSongList(Screen::EditorSelect);
                     for (const SongEntry& song : app.songs) if (song.chartPath == newSongChartPath()) editSong(song);
+                    // Made from a video: its pictures are brought in now, the editor showing how far along
+                    if (app.screen == Screen::Editor && !newSongVideoPath().empty()) editorImportFile(newSongVideoPath());
                     break;
                 }
                 case NewSongChoice::None: break;

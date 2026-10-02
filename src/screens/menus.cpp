@@ -236,7 +236,7 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
     }
     // Editing, a new song can be made too, from the player's own audio
     const int newSong = forEditing ? (int)rows.size() : -2;
-    if (forEditing) rows.push_back(actionRow("New song from audio"));
+    if (forEditing) rows.push_back(actionRow("New song from audio or video"));
     const int importSong = (int)rows.size();
     rows.push_back(actionRow("Import a song"));
     const int openFolder = (int)rows.size();
@@ -269,7 +269,7 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
         if (!error.empty()) ImGui::TextColored(uiColorVec(UiColor::Bad), "%s", error.c_str());
         else ImGui::TextColored(uiColorVec(UiColor::Good), "%s", notice.c_str());
     }
-    menuScreenHint(forEditing ? "Up/Down  choose    Enter  edit    Drop audio, a tab or a .lahn to add a song    Esc  back"
+    menuScreenHint(forEditing ? "Up/Down  choose    Enter  edit    Drop audio, a video, a tab or a .lahn to add a song    Esc  back"
                               : "Up/Down  choose    Enter  choose    Tab  notes or rhythm    Drop a tab or a song to import it    Esc  back", s);
     ImGui::End();
     return choice;

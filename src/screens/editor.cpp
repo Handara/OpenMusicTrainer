@@ -1,7 +1,9 @@
 #include "screens/editor.h"
 
 #include "app/filedialog.h"
+#include "app/videoconvert.h"
 #include "audio/audio.h"
+#include "core/addon.h"
 #include "core/chart.h"
 #include "core/files.h"
 #include "core/guitarpro.h"
@@ -17,6 +19,7 @@
 #include "ui/settingsui.h"
 #include "ui/theme.h"
 #include "ui/ui.h"
+#include "video/video.h"
 #include "views/playnote.h"
 
 #include <algorithm>
@@ -69,6 +72,8 @@ const char* const ADD_PART_POPUP = "Add a part";
 const char* const IMPORT_POPUP = "Import into this song";
 const char* const IMPORT_PARTS_POPUP = "Parts to bring in";
 const char* const EXPORT_POPUP = "Export this song";
+const char* const VIDEO_POPUP = "Bringing in a video";
+const std::vector<std::string> VIDEO_PATTERNS = { "*.mp4", "*.m4v", "*.mkv", "*.webm", "*.mov", "*.avi", "*.wmv", "*.flv", "*.mpg", "*.mpeg" };
 const std::vector<std::string> PARTS_PATTERNS = { "*.gp", "*.gpx", "*.gp5", "*.gp4", "*.gp3", "*.chart" };
 const std::vector<std::string> AUDIO_PATTERNS = { "*.mp3", "*.ogg", "*.flac", "*.wav" };
 const double LOOKAHEAD_S = 0.2;       // playback schedules clicks and notes this far ahead, on the audio clock
@@ -97,7 +102,8 @@ struct EditorState {
     std::string chartPath;
     std::string songFolder;
     std::string userSongsDir;
-    std::string packagesDir;  // where Share writes the song's package
+    std::string packagesDir;  // where Export writes the song's package
+    std::string addonsDir;    // where add-ons are installed: the video add-on's FFmpeg is looked for there
     Settings* settings = nullptr; // the string order, and the editor's volumes
     bool builtIn = false;
     bool dirty = false;       // changed since the last save
@@ -125,6 +131,8 @@ struct EditorState {
     std::vector<std::string> importLeftOut; // what a tab holds that couldn't be read
     std::vector<char> importChosen;       // per part: brought in or not
     bool importBars = false;              // its tempos, time signatures and keys too
+    bool importVideoSound = false;        // a video brought in: its sound too, as the song's audio
+    bool exportVideo = true;              // the package made with the song's video in it
 
     // Editing
     int part = 0;             // which fretted track is being edited
@@ -199,6 +207,29 @@ static void startWaveform(const std::string& audioPath){
             waveform.ready = true; // after the peaks are in place: the main thread reads them once it sees this
         }
     });
+}
+
+// A video brought into the song is converted on a thread of its own (FFmpeg takes tens of seconds over a long
+// one); the editor shows how far along it is, and takes what was made once it's done.
+static struct {
+    std::thread thread;
+    std::atomic<bool> working{false};
+    std::atomic<bool> cancel{false};
+    std::atomic<bool> done{false};     // set last by the thread: what's below is then the main thread's to read
+    std::atomic<int> stage{0};         // 0 its sound, 1 its pictures
+    std::atomic<float> progress{0.0f};
+    std::string file;                  // the video's name, for the screen
+    std::string videoName, audioName;  // what was made, in the song's folder ("" for none)
+    std::string error;
+    bool ok = false;
+} bringingVideo;
+
+static void stopVideoWork(){
+    bringingVideo.cancel = true;
+    if (bringingVideo.thread.joinable()) bringingVideo.thread.join();
+    bringingVideo.cancel = false;
+    bringingVideo.working = false;
+    bringingVideo.done = false;
 }
 
 static void markChanged(){
@@ -778,50 +809,157 @@ static void bringPartsIn(){
     editor.importChart = Chart{};
 }
 
-// The song's audio, from a file: copied into the song's folder beside the audio it had (which stays, so undoing
-// goes back to it), then loaded in its place
-static void importAudio(const std::string& path){
-    if (editor.builtIn){
-        editor.status = "Save first: a built-in song becomes your own copy, and the audio goes into that";
-        return;
-    }
-    const std::string extension = lowerExtension(path);
-    fs::path folder = editor.songFolder;
-    std::string name = "audio" + extension;
+// A name no file in the song's folder has yet: "audio.mp3", else "audio 2.mp3"...
+static std::string freeName(const std::string& stem, const std::string& extension){
+    std::string name = stem + extension;
     std::error_code ec;
-    for (int n = 2; fs::exists(folder / name, ec); n++) name = "audio " + std::to_string(n) + extension;
-    fs::copy_file(path, folder / name, ec);
-    if (ec){
-        editor.status = "Could not copy the audio: " + ec.message();
-        return;
-    }
+    for (int n = 2; fs::exists(fs::path(editor.songFolder) / name, ec); n++) name = stem + " " + std::to_string(n) + extension;
+    return name;
+}
+
+// The song's audio becomes a file already in its folder. The audio it had stays there, so undoing goes back to it.
+static bool switchAudio(const std::string& name, std::string& error){
+    const fs::path folder = editor.songFolder;
     stopPlayback();
     stopWaveform();
     unloadSong();
-    std::string error;
     editor.songLoaded = loadSong((folder / name).string(), error);
     if (!editor.songLoaded){
-        fs::remove(folder / name, ec);
-        editor.status = fs::path(path).filename().string() + ": " + error;
         // Back to the audio it had
+        std::string ignored;
         if (!editor.chart.audioFile.empty()){
-            editor.songLoaded = loadSong((folder / editor.chart.audioFile).string(), error);
+            editor.songLoaded = loadSong((folder / editor.chart.audioFile).string(), ignored);
             if (editor.songLoaded) startWaveform((folder / editor.chart.audioFile).string());
         }
-        return;
+        return false;
     }
     startWaveform((folder / name).string());
     setSongVolume(editor.settings->editorSongVolume);
     editor.chart.audioFile = name;
     markChanged();
+    return true;
+}
+
+static void importAudio(const std::string& path){
+    if (editor.builtIn){
+        editor.status = "Save first: a built-in song becomes your own copy, and the audio goes into that";
+        return;
+    }
+    const std::string name = freeName("audio", lowerExtension(path));
+    std::error_code ec;
+    fs::copy_file(path, fs::path(editor.songFolder) / name, ec);
+    if (ec){
+        editor.status = "Could not copy the audio: " + ec.message();
+        return;
+    }
+    std::string error;
+    if (!switchAudio(name, error)){
+        fs::remove(fs::path(editor.songFolder) / name, ec);
+        editor.status = fs::path(path).filename().string() + ": " + error;
+        return;
+    }
     editor.status = "The song's audio is now " + fs::path(path).filename().string() + ": drag the waveform to line it up with the bars";
+}
+
+// The song's video, from a file: shown behind the notes when the song is played. One lahn plays as it is (.mpg) is
+// copied in; any other kind is converted by FFmpeg (app/videoconvert), on a thread, its sound taken as the song's
+// audio if that's asked.
+static void importVideo(const std::string& path, bool withSound){
+    if (bringingVideo.working) return;
+    if (editor.builtIn){
+        editor.status = "Save first: a built-in song becomes your own copy, and the video goes into that";
+        return;
+    }
+    const std::string shown = fs::path(path).filename().string();
+    const fs::path folder = editor.songFolder;
+    const std::string videoName = freeName("video", ".mpg");
+    if (isPlayableVideo(path) && !withSound){
+        std::error_code ec;
+        std::string error;
+        fs::copy_file(path, folder / videoName, ec);
+        if (ec || !openSongVideo((folder / videoName).string(), error)){ // opened once, to know it plays
+            editor.status = shown + ": " + (ec ? ec.message() : error);
+            fs::remove(folder / videoName, ec);
+            return;
+        }
+        closeSongVideo();
+        editor.chart.videoFile = videoName;
+        editor.chart.videoOffset = 0.0;
+        markChanged();
+        editor.status = "The song's video is now " + shown;
+        return;
+    }
+    const std::string ffmpeg = findFfmpeg(editor.addonsDir);
+    if (ffmpeg.empty()){
+        editor.status = "A video of this kind needs lahn's video add-on: drop its file (lahn-video...lahnaddon) on the editor, then the video again";
+        return;
+    }
+    stopVideoWork();
+    bringingVideo.file = shown;
+    bringingVideo.stage = withSound ? 0 : 1;
+    bringingVideo.progress = 0.0f;
+    bringingVideo.working = true;
+    const std::string videoTo = (folder / videoName).string();
+    const std::string audioTo = withSound ? (folder / freeName("audio", ".mp3")).string() : "";
+    bringingVideo.thread = std::thread([path, ffmpeg, videoTo, audioTo]{
+        std::string error, audioName;
+        bool ok = true;
+        if (!audioTo.empty()){
+            if (extractAudio(ffmpeg, path, audioTo, &bringingVideo.progress, bringingVideo.cancel, error)) audioName = fs::path(audioTo).filename().string();
+            else if (error != "the video has no sound") ok = false; // one with none still has its pictures
+        }
+        if (ok){
+            bringingVideo.stage = 1;
+            bringingVideo.progress = 0.0f;
+            error.clear();
+            ok = convertVideo(ffmpeg, path, videoTo, &bringingVideo.progress, bringingVideo.cancel, error);
+            std::error_code ec;
+            if (!ok && !audioName.empty()) fs::remove(audioTo, ec); // all of it, or none
+        }
+        bringingVideo.ok = ok;
+        bringingVideo.error = error;
+        bringingVideo.videoName = fs::path(videoTo).filename().string();
+        bringingVideo.audioName = audioName;
+        bringingVideo.done = true;
+    });
+}
+
+// The conversion done: what it made becomes the song's
+static void takeVideoWork(){
+    if (!bringingVideo.done) return;
+    if (bringingVideo.thread.joinable()) bringingVideo.thread.join();
+    bringingVideo.done = false;
+    bringingVideo.working = false;
+    if (!bringingVideo.ok){
+        editor.status = bringingVideo.error == "stopped" ? "The video wasn't brought in" : bringingVideo.file + ": " + bringingVideo.error;
+        return;
+    }
+    editor.chart.videoFile = bringingVideo.videoName;
+    editor.chart.videoOffset = 0.0;
+    markChanged();
+    editor.status = "The song's video is now " + bringingVideo.file;
+    if (!bringingVideo.audioName.empty()){
+        std::string error;
+        if (switchAudio(bringingVideo.audioName, error)) editor.status += ", and its sound the song's audio: drag the waveform to line it up with the bars";
+        else editor.status += " (its sound couldn't be read: " + error + ")";
+    }
+}
+
+// An add-on's file dropped on the editor is installed (the video add-on, to bring videos in)
+static void installDroppedAddon(const std::string& path){
+    AddonInfo info;
+    std::string error;
+    if (installAddon(path, editor.addonsDir, info, error)) editor.status = "The " + info.name + " add-on is installed";
+    else editor.status = error;
 }
 
 // A file chosen or dropped: what it is says what's brought in
 static void importFile(const std::string& path){
     if (matches(path, AUDIO_PATTERNS)) importAudio(path);
     else if (matches(path, PARTS_PATTERNS)) readPartsFile(path);
-    else editor.status = fs::path(path).filename().string() + " is neither a tab, a chart nor an audio file";
+    else if (isVideoFile(path)) importVideo(path, editor.chart.audioFile.empty()); // its sound too, for a song with no audio
+    else if (lowerExtension(path) == ADDON_EXTENSION) installDroppedAddon(path);
+    else editor.status = fs::path(path).filename().string() + " is neither a tab, a chart, an audio file nor a video";
 }
 
 // The song as one file anyone can install (core/songpackage), in the packages folder, which then opens. It's made
@@ -836,7 +974,7 @@ static void exportPackage(){
     std::string name = safeFolderName(editor.chart.title);
     fs::path package = fs::path(editor.packagesDir) / ((name.empty() ? "Song" : name) + SONG_PACKAGE_EXTENSION);
     std::string error;
-    if (!exportSongPackage(editor.songFolder, package.string(), error)){
+    if (!exportSongPackage(editor.songFolder, package.string(), error, editor.exportVideo)){
         editor.status = "Could not export: " + error;
         return;
     }
@@ -1206,6 +1344,18 @@ static void drawDetails(ImVec2 min, ImVec2 max, float s){
     field("Artist");
     if (ImGui::InputText("##artist", &chart.artist)) markChanged();
     note(chart.audioFile.empty() ? "No audio: it plays as clicks and notes alone" : TextFormat("Audio: %s", chart.audioFile.c_str()));
+    if (chart.videoFile.empty()){
+        note("No video: Import brings one in");
+    } else {
+        note(TextFormat("Video: %s, behind the notes when the song is played", chart.videoFile.c_str()));
+        field("Seconds into the video where the audio starts");
+        if (ImGui::InputDouble("##videooffset", &chart.videoOffset, 0.05, 0.5, "%.2f")) markChangedInRun();
+        if (ImGui::Button("Take the video off")){
+            chart.videoFile.clear(); // its file stays in the folder: undoing brings it back
+            chart.videoOffset = 0.0;
+            markChanged();
+        }
+    }
 
     settingsGroup("THIS PART");
     field("Name");
@@ -1970,7 +2120,10 @@ static bool choiceButton(const char* label, const char* explanation, float width
 }
 
 static void drawImportExportPopups(float s){
-    if (editor.openImport) ImGui::OpenPopup(IMPORT_POPUP);
+    if (editor.openImport){
+        ImGui::OpenPopup(IMPORT_POPUP);
+        editor.importVideoSound = editor.chart.audioFile.empty(); // a song with no audio yet most likely wants it
+    }
     if (editor.openExport) ImGui::OpenPopup(EXPORT_POPUP);
     editor.openImport = editor.openExport = false;
     const float width = 420 * s;
@@ -1990,6 +2143,13 @@ static void drawImportExportPopups(float s){
             else if (!error.empty()) editor.status = error;
             ImGui::CloseCurrentPopup();
         }
+        if (choiceButton("Its video...", "A video of any kind (mp4, mkv, webm, mov...): shown behind the notes while the song is played. Kinds other than .mpg are converted, which needs lahn's video add-on.", width)){
+            if (chooseFile("Choose the song's video", "Videos", VIDEO_PATTERNS, path, error)) importVideo(path, editor.importVideoSound);
+            else if (!error.empty()) editor.status = error;
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::Checkbox("and its sound, as the song's audio", &editor.importVideoSound);
+        ImGui::Spacing();
         ImGui::TextDisabled("Or drop the file on the editor.");
         ImGui::Spacing();
         if (ImGui::Button("Close") || ImGui::IsKeyPressed(ImGuiKey_Escape, false)) ImGui::CloseCurrentPopup();
@@ -2039,9 +2199,15 @@ static void drawImportExportPopups(float s){
 
     ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
     if (ImGui::BeginPopupModal(EXPORT_POPUP, nullptr, ImGuiWindowFlags_AlwaysAutoResize)){
-        if (choiceButton("The whole song, one file (.lahn)", "Its chart and its audio. Anyone with lahn installs it by dropping it on their song list.", width)){
+        const bool hasVideo = !editor.chart.videoFile.empty();
+        if (choiceButton("The whole song, one file (.lahn)", hasVideo ? "Its chart, its audio and, if you leave it ticked, its video. Anyone with lahn installs it by dropping it on their song list."
+                                                                     : "Its chart and its audio. Anyone with lahn installs it by dropping it on their song list.", width)){
             exportPackage();
             ImGui::CloseCurrentPopup();
+        }
+        if (hasVideo){
+            ImGui::Checkbox("with its video (a much bigger file)", &editor.exportVideo);
+            ImGui::Spacing();
         }
         if (choiceButton("Its chart alone (.chart)", "The parts, the bars and the tempos, without the audio: for someone who has the recording. They bring it into their own song with Import.", width)){
             exportChart();
@@ -2050,13 +2216,26 @@ static void drawImportExportPopups(float s){
         if (ImGui::Button("Close") || ImGui::IsKeyPressed(ImGuiKey_Escape, false)) ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
     }
+    // A video being converted: how far along, and a way out
+    takeVideoWork();
+    if (bringingVideo.working && !ImGui::IsPopupOpen(VIDEO_POPUP)) ImGui::OpenPopup(VIDEO_POPUP);
+    ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+    if (ImGui::BeginPopupModal(VIDEO_POPUP, nullptr, ImGuiWindowFlags_AlwaysAutoResize)){
+        ImGui::Text("%s", bringingVideo.file.c_str());
+        ImGui::TextDisabled("%s", bringingVideo.stage == 0 ? "Its sound, into the song's audio" : "Its pictures, into a video lahn plays");
+        ImGui::ProgressBar(bringingVideo.progress.load(), ImVec2(width, 0));
+        ImGui::Spacing();
+        if (ImGui::Button("Stop")) bringingVideo.cancel = true;
+        if (!bringingVideo.working) ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+    }
     popCompactStyle();
 }
 
 // --- Screen -------------------------------------------------------------------------------------------
 
-bool openEditor(const SongEntry& song, const std::string& userSongsDir, const std::string& packagesDir, Settings& settings,
-                std::string& error){
+bool openEditor(const SongEntry& song, const std::string& userSongsDir, const std::string& packagesDir, const std::string& addonsDir,
+                Settings& settings, std::string& error){
     closeEditor();
     EditorState fresh;
     if (!loadChart(song.chartPath, fresh.chart, error)) return false;
@@ -2068,6 +2247,7 @@ bool openEditor(const SongEntry& song, const std::string& userSongsDir, const st
     fresh.songFolder = song.folder;
     fresh.userSongsDir = userSongsDir;
     fresh.packagesDir = packagesDir;
+    fresh.addonsDir = addonsDir;
     fresh.settings = &settings;
     fresh.builtIn = song.builtIn;
     if (song.builtIn) fresh.status = "Built-in song: saving creates your own copy";
@@ -2094,6 +2274,7 @@ bool openEditor(const SongEntry& song, const std::string& userSongsDir, const st
 
 void closeEditor(){
     if (!editor.active) return;
+    stopVideoWork();
     stopRecording();
     stopPlayback();
     unloadSong();
@@ -2202,4 +2383,8 @@ EditorChoice editorScreen(){
 
     ImGui::End();
     return choice;
+}
+
+void editorImportFile(const std::string& path){
+    if (editor.active) importFile(path);
 }

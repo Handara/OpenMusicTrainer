@@ -7,13 +7,16 @@
 #include <string>
 
 // The chart editor: a timeline of the song, a row per string, where notes are placed, moved, held and re-fretted with
-// the mouse (the wheel changes a fret) or the keyboard; the song's details in a drawer; play, test play, save, share.
+// the mouse (the wheel changes a fret) or the keyboard; the song's details in a drawer; play, record, test play, save, import and export.
 // Built-in songs are read-only; saving one creates an editable copy in the user's songs folder.
 
-// packagesDir: where Share puts the song's package (.lahn). `settings`: the string order, and the editor's own
+// packagesDir: where Export puts the song's package (.lahn). `settings`: the string order, and the editor's own
 // volumes, which it changes (they're saved with the rest); it must outlive the editor.
-bool openEditor(const SongEntry& song, const std::string& userSongsDir, const std::string& packagesDir, Settings& settings,
-                std::string& error);
+// addonsDir: where add-ons are installed (the video add-on, for bringing videos in).
+bool openEditor(const SongEntry& song, const std::string& userSongsDir, const std::string& packagesDir, const std::string& addonsDir,
+                Settings& settings, std::string& error);
+// A file brought into the song being edited, as if dropped on it: a tab or a chart (its parts), an audio file, a video
+void editorImportFile(const std::string& path);
 
 enum class EditorChoice { None, Back, TestPlay };
 EditorChoice editorScreen(); // full-screen ImGui; handles its own Esc so it can warn about unsaved changes
