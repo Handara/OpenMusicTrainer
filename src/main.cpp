@@ -243,6 +243,7 @@ static GameplayOptions gameplayOptions(){
     options.noteSpeed = app.settings.noteSpeed;
     options.offsetSeconds = app.settings.globalOffsetMs / 1000.0f;
     options.lowStringOnTop = app.settings.lowStringOnTop;
+    options.video = app.settings.songVideo;
     options.noteViews = app.settings.noteViews;
     options.playWithInstrument = false; // set by startSong, from the part: each is played on its own instrument
     options.inputDevice = app.settings.inputDevice;

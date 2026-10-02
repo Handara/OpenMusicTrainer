@@ -113,6 +113,7 @@ Settings loadSettings(const std::string& path, std::vector<std::string>& warning
             else warnings.push_back("line " + std::to_string(lineNumber) + ": neck_range is whole or song, keeping default");
         }
         else if (key == "low_string_on_top") settings.lowStringOnTop = value == "1";
+        else if (key == "song_video") settings.songVideo = value == "1";
         else if (key == "fullscreen") settings.fullscreen = value == "1";
         else if (key == "theme"){
             if (value == "light" || value == "dark") settings.darkTheme = value == "dark";
@@ -165,6 +166,7 @@ bool saveSettings(const std::string& path, const Settings& settings, std::string
     out << "note_label " << (label == NoteLabel::Fret ? "fret" : label == NoteLabel::Name ? "name" : "both") << "\n";
     out << "neck_range " << (settings.noteViews.wholeNeck ? "whole" : "song") << "\n";
     out << "low_string_on_top " << (settings.lowStringOnTop ? 1 : 0) << "\n";
+    out << "song_video " << (settings.songVideo ? 1 : 0) << "\n";
     out << "theme " << (settings.darkTheme ? "dark" : "light") << "\n";
     out << "fullscreen " << (settings.fullscreen ? 1 : 0) << "\n";
     out << "frame_rate_limit " << settings.frameRateLimit << "\n\n";

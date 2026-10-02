@@ -279,6 +279,11 @@ static void displaySection(Settings& settings){
         settings.lowStringOnTop = order == 0;
     }
 
+    int video = settings.songVideo ? 0 : 1;
+    if (settingSegments("Song videos", "A song's video, when it has one, behind the notes", &video, { "Shown", "Hidden" })){
+        settings.songVideo = video == 0;
+    }
+
     settingsGroup("LOOK");
     int colors = settings.darkTheme ? 1 : 0;
     if (settingSegments("Theme", nullptr, &colors, { "Light", "Dark" })){

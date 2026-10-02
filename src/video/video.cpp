@@ -172,3 +172,88 @@ const Texture2D& videoTexture(){
     }
     return video.texture;
 }
+
+// --- A song's video -----------------------------------------------------------------------------------
+
+const double SEEK_BEHIND_S = 0.05; // asked for a moment this far before the picture shown: the song went back
+const double SEEK_AHEAD_S = 1.0;   // or this far past it: the song jumped ahead. Otherwise pictures are decoded in order.
+
+static struct {
+    std::vector<uint8_t> file;
+    plm_t* pictures = nullptr;
+    Texture2D texture{};
+    std::vector<uint8_t> rgba;
+    plm_frame_t* pending = nullptr; // decoded, not due yet
+    double shownTime = -1.0;        // the time of the picture in the texture; -1 before the first
+    bool finished = false;
+} backdrop;
+
+void closeSongVideo(){
+    if (!backdrop.pictures) return;
+    plm_destroy(backdrop.pictures);
+    UnloadTexture(backdrop.texture);
+    backdrop = {};
+}
+
+bool songVideoOpen(){
+    return backdrop.pictures != nullptr;
+}
+
+bool openSongVideo(const std::string& path, std::string& error){
+    closeSongVideo();
+    int size = 0;
+    unsigned char* data = LoadFileData(path.c_str(), &size);
+    if (!data){
+        error = "Could not read " + path;
+        return false;
+    }
+    backdrop.file.assign(data, data + size);
+    UnloadFileData(data);
+    backdrop.pictures = plm_create_with_memory(backdrop.file.data(), backdrop.file.size(), 0);
+    if (!backdrop.pictures || !plm_probe(backdrop.pictures, 5000 * 1024) || plm_get_num_video_streams(backdrop.pictures) == 0){
+        if (backdrop.pictures) plm_destroy(backdrop.pictures);
+        backdrop = {};
+        error = "Not an MPEG-1 video";
+        return false;
+    }
+    plm_set_audio_enabled(backdrop.pictures, 0);
+    plm_set_loop(backdrop.pictures, 0);
+    Image black = GenImageColor(plm_get_width(backdrop.pictures), plm_get_height(backdrop.pictures), BLACK);
+    backdrop.texture = LoadTextureFromImage(black);
+    UnloadImage(black);
+    SetTextureFilter(backdrop.texture, TEXTURE_FILTER_BILINEAR);
+    backdrop.rgba.assign((size_t)backdrop.texture.width * backdrop.texture.height * 4, 255); // opaque: pl_mpeg leaves alpha alone
+    return true;
+}
+
+static void showPicture(plm_frame_t* picture){
+    plm_frame_to_rgba(picture, backdrop.rgba.data(), backdrop.texture.width * 4);
+    backdrop.shownTime = picture->time;
+}
+
+const Texture2D& songVideoTexture(double seconds){
+    if (!backdrop.pictures) return backdrop.texture;
+    seconds = std::max(0.0, seconds);
+    const double before = backdrop.shownTime;
+    // The song went back, or jumped ahead: to the nearest picture the video can start from, then on from there
+    const bool pastTheEnd = backdrop.finished && seconds > backdrop.shownTime;
+    if (backdrop.shownTime >= 0.0 && !pastTheEnd && (seconds < backdrop.shownTime - SEEK_BEHIND_S || seconds > backdrop.shownTime + SEEK_AHEAD_S)){
+        backdrop.pending = nullptr;
+        backdrop.finished = false;
+        if (plm_frame_t* found = plm_seek_frame(backdrop.pictures, seconds, 0)) showPicture(found);
+    }
+    // Every picture due by now, in order (the first one always: there's nothing to show before it). Converting each
+    // keeps the code simple, and it's rarely more than one.
+    while (!backdrop.finished){
+        if (!backdrop.pending) backdrop.pending = plm_decode_video(backdrop.pictures);
+        if (!backdrop.pending){
+            backdrop.finished = true;
+            break;
+        }
+        if (backdrop.shownTime >= 0.0 && backdrop.pending->time > seconds) break; // not due yet
+        showPicture(backdrop.pending);
+        backdrop.pending = nullptr; // its memory is reused by the next decode
+    }
+    if (backdrop.shownTime != before) UpdateTexture(backdrop.texture, backdrop.rgba.data());
+    return backdrop.texture;
+}

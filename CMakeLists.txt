@@ -185,7 +185,9 @@ add_executable(lahn
     src/main.cpp
     src/app/crashreport.cpp
     src/app/filedialog.cpp
+    src/app/process.cpp
     src/app/stemmodel.cpp
+    src/app/videoconvert.cpp
     src/audio/audio.cpp
     src/audio/asiodriver.cpp
     src/input/midi.cpp

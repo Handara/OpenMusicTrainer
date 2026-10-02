@@ -35,6 +35,7 @@ struct GameplayOptions {
     float noteSpeed = 300.0f;  // pixels per second
     float offsetSeconds = 0.0f; // latency compensation: positive = notes are judged and drawn later
     bool lowStringOnTop = true;
+    bool video = true;         // the song's video behind the notes, when it has one
     NoteViews noteViews;
     bool playWithInstrument = false;  // judge notes played on the input device (the number keys work either way)
     InputRole instrument = InputRole::Guitar; // which: its input and its range are listened to. A part of another

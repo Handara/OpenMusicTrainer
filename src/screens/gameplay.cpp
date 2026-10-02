@@ -18,6 +18,7 @@
 #include "ui/hitfeedback.h"
 #include "ui/menulist.h"
 #include "ui/theme.h"
+#include "video/video.h"
 #include "views/neckview.h"
 #include "views/noteviews.h"
 #include "views/staff.h"
@@ -144,6 +145,7 @@ struct ChordListening {
     std::vector<Pluck> plucks; // waiting for enough sound after them
     float lastChordAt = -100.0f; // song time of the last chord heard this way
 };
+const float VIDEO_WASH = 0.72f;   // how much of the background's color is laid over a song's video
 const float SAME_PLUCK_S = 0.06f; // a note the detector finds this close to a chord heard is that chord's pluck
 
 // The unjudged chord (two notes or more at one time) due nearest `time`, within the near window: its notes' indices
@@ -377,6 +379,14 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
     }
 
     if (!loadSong(audioPath, error)) return false;
+    // Its video, for behind the notes. A song plays the same without one: a video that's missing (a package made
+    // without it) or can't be read is only noted.
+    closeSongVideo();
+    if (options.video && !chart.videoFile.empty()){
+        std::string videoError;
+        std::string videoPath = (std::filesystem::path(audioPath).parent_path() / chart.videoFile).string();
+        if (!openSongVideo(videoPath, videoError)) TraceLog(LOG_INFO, "Song video: %s", videoError.c_str());
+    }
 
     // Gameplay notes: the chart's notes converted to seconds, plus per-run judging state
     game.notes.clear();
@@ -582,6 +592,16 @@ void drawGameplay(){
     ClearBackground(themeColor(UiColor::Background));
     TimeAxis axis = { game.songTime, (float)HIT_LINE_X, game.options.noteSpeed };
     float width = (float)GetScreenWidth(), height = (float)GetScreenHeight();
+    if (songVideoOpen()){
+        // The song's video fills the window (cropped where its shape differs), washed toward the background so the
+        // notes stay the thing to read. It follows what's heard: the song's time, as the notes do.
+        const Texture2D& picture = songVideoTexture(game.songTime + game.chart.videoOffset);
+        float scale = std::max(width / picture.width, height / picture.height);
+        float shownWidth = width / scale, shownHeight = height / scale;
+        DrawTexturePro(picture, { (picture.width - shownWidth) / 2, (picture.height - shownHeight) / 2, shownWidth, shownHeight },
+                       { 0, 0, width, height }, { 0, 0 }, 0.0f, WHITE);
+        DrawRectangle(0, 0, (int)width, (int)height, Fade(themeColor(UiColor::Background), VIDEO_WASH));
+    }
     Rectangle viewsArea = { 0, height * 0.14f, width, height * 0.72f }; // below the HUD, above the combo and timing bar
     if (game.options.rhythmMode){
         drawRhythmLane(viewsArea, game.notes, game.score, axis);
@@ -670,6 +690,7 @@ void drawGameplayHud(){
 }
 
 void stopGameplay(){
+    closeSongVideo();
     stopNoteInput();
     stopMidiInput();
     stopPianoKeys();
