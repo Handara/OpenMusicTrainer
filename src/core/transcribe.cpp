@@ -1,5 +1,6 @@
 #include "core/transcribe.h"
 
+#include "core/beats.h"
 #include "core/notedetector.h"
 #include "core/positions.h"
 
@@ -13,10 +14,6 @@ const float LEVEL_PEAK = 0.8f;      // the recording is evened out to this befor
 const int LEVEL_FRAME = 512;        // samples per level reading, for where notes end
 const float NOTE_DIES_DB = 24.0f;   // a note has ended when it's this far under its loudest
 const double MIN_NOTE_S = 0.03;     // shorter is a slip of the detector, not a note
-const int BEAT_RATE = 200;          // frames a second, for finding the beat
-const double SLOWEST_BPM = 60.0, FASTEST_BPM = 200.0;
-const double LIKELY_BPM = 115.0;    // tempos near this are likelier, an octave either way much less
-const double BEAT_TIGHTNESS = 100.0; // how much the beat resists speeding up or slowing down between two beats
 const int RESOLUTION = 480;
 const int SIXTEENTH = RESOLUTION / 4;
 const int BASS_FRETS = 24;
@@ -69,9 +66,8 @@ std::vector<HeardNote> hearNotes(const std::vector<float>& input, int sampleRate
 }
 
 std::vector<double> findBeats(const std::vector<HeardNote>& notes, double length){
-    std::vector<double> beats;
-    if (notes.size() < 4 || length <= 0.0) return beats;
-    // The attacks as an envelope: a short bump at each, the longer notes a little stronger
+    if (notes.size() < 4 || length <= 0.0) return {};
+    // The attacks as a curve of onset strengths: a short bump at each, the longer notes a little stronger
     const int frames = (int)(length * BEAT_RATE) + 1;
     std::vector<double> onsets(frames, 0.0);
     for (const HeardNote& note : notes){
@@ -82,82 +78,11 @@ std::vector<double> findBeats(const std::vector<HeardNote>& notes, double length
             if (f >= 0 && f < frames) onsets[f] += weight * std::exp(-0.5 * d * d / 2.0);
         }
     }
-    double mean = std::accumulate(onsets.begin(), onsets.end(), 0.0) / frames, spread = 0.0;
-    for (double& o : onsets){ o -= mean; spread += o * o; }
-    spread = std::sqrt(spread / frames);
-    if (spread <= 0.0) return beats;
-    for (double& o : onsets) o /= spread;
-
-    // The tempo: the lag the attacks repeat at most, tempos near a common one favored
-    const int shortest = (int)(60.0 / FASTEST_BPM * BEAT_RATE), longest = (int)(60.0 / SLOWEST_BPM * BEAT_RATE);
-    std::vector<double> scores(longest + 2, 0.0);
-    for (int lag = shortest; lag <= longest + 1; lag++){
-        double sum = 0.0;
-        for (int f = lag; f < frames; f++) sum += onsets[f] * onsets[f - lag];
-        double bpm = 60.0 * BEAT_RATE / lag, octaves = std::log2(bpm / LIKELY_BPM);
-        scores[lag] = sum * std::exp(-0.5 * octaves * octaves / (0.9 * 0.9));
-    }
-    int best = shortest;
-    for (int lag = shortest; lag <= longest; lag++) if (scores[lag] > scores[best]) best = lag;
-    double period = best;
-    if (best > shortest && best < longest){ // between frames, from the scores either side
-        double a = scores[best - 1], b = scores[best], c = scores[best + 1], bend = a - 2 * b + c;
-        if (bend < 0.0) period += 0.5 * (a - c) / bend;
-    }
-
-    // The beats, by dynamic programming (Ellis's beat tracker): each frame's best score as a beat is its attack plus
-    // the best beat a period or so before it, a period that strays from the tempo costing more the further it strays
-    std::vector<double> score(frames, 0.0);
-    std::vector<int> previous(frames, -1);
-    for (int f = 0; f < frames; f++){
-        int from = std::max(0, f - (int)std::lround(2.0 * period)), to = f - (int)std::lround(period / 2.0);
-        double bestScore = 0.0;
-        int bestFrame = -1;
-        for (int p = from; p <= to; p++){
-            double stray = std::log((double)(f - p) / period);
-            double candidate = score[p] - BEAT_TIGHTNESS * stray * stray;
-            if (bestFrame < 0 || candidate > bestScore){ bestScore = candidate; bestFrame = p; }
-        }
-        score[f] = onsets[f] + (bestFrame >= 0 ? bestScore : 0.0);
-        previous[f] = bestFrame;
-    }
-    // The last beat: the best in the last period; the rest, back from it
-    int last = std::max(0, frames - 1 - (int)period);
-    for (int f = last; f < frames; f++) if (score[f] > score[last]) last = f;
-    for (int f = last; f >= 0; f = previous[f]) beats.push_back((double)f / BEAT_RATE);
-    std::reverse(beats.begin(), beats.end());
+    std::vector<double> beats = trackBeats(onsets); // the tempo, then the beats themselves (core/beats)
     if (beats.size() < 2) return {};
-
-    // Smoothed: found on frames, each beat is a few milliseconds off, which reads as a tempo wobbling. A recording
-    // that keeps one tempo (most do: a click track) gets that tempo exactly, the line through all its beats; one
-    // that drifts, each beat evened out with the few either side of it.
-    auto lineThrough = [&](size_t from, size_t to, double& start, double& slope){
-        double n = (double)(to - from), meanIndex = 0.0, meanTime = 0.0;
-        for (size_t i = from; i < to; i++){ meanIndex += (double)i; meanTime += beats[i]; }
-        meanIndex /= n; meanTime /= n;
-        double covariance = 0.0, variance = 0.0;
-        for (size_t i = from; i < to; i++){ covariance += (i - meanIndex) * (beats[i] - meanTime); variance += (i - meanIndex) * (i - meanIndex); }
-        slope = variance > 0.0 ? covariance / variance : 0.0;
-        start = meanTime - slope * meanIndex;
-    };
-    double start, slope, worst = 0.0;
-    lineThrough(0, beats.size(), start, slope);
-    for (size_t i = 0; i < beats.size(); i++) worst = std::max(worst, std::fabs(beats[i] - (start + slope * i)));
-    std::vector<double> smoothed(beats.size());
-    for (size_t i = 0; i < beats.size(); i++){
-        if (worst < 0.015){
-            smoothed[i] = start + slope * i;
-        } else {
-            size_t from = i >= 4 ? i - 4 : 0, to = std::min(beats.size(), i + 5);
-            double localStart, localSlope;
-            lineThrough(from, to, localStart, localSlope);
-            smoothed[i] = localStart + localSlope * i;
-        }
-    }
-    beats = smoothed;
     // Carried on at the tempo before the first and after the last, so every note is between two beats
-    double step = period / BEAT_RATE;
-    while (beats.front() > notes.front().start - 1e-6) beats.insert(beats.begin(), beats.front() - step);
+    while (beats.front() > notes.front().start - 1e-6) beats.insert(beats.begin(), beats.front() - (beats[1] - beats[0]));
+    const double step = beats.back() - beats[beats.size() - 2];
     while (beats.back() < notes.back().end + step) beats.push_back(beats.back() + step);
     return beats;
 }
@@ -206,15 +131,11 @@ bool transcribeBass(const std::vector<float>& samples, int sampleRate, const std
     chart.version = 2;
     chart.title = title;
     chart.resolution = RESOLUTION;
-    chart.offset = beats.front();
     chart.timeSignatures = { { 0, 4, 4 } };
     chart.keys = { { 0, KeySignature{} } };
-    // The tempo, beat by beat, so the chart keeps with the recording as it speeds up or slows down
-    for (size_t i = 0; i + 1 < beats.size(); i++){
-        double bpm = 60.0 / (beats[i + 1] - beats[i]);
-        if (!chart.tempoMap.empty() && std::fabs(chart.tempoMap.back().bpm - bpm) < 0.01) continue;
-        chart.tempoMap.push_back({ (int)i * RESOLUTION, bpm });
-    }
+    // Tick 0 on that first beat, and the tempo beat by beat, so the chart keeps with the recording as it speeds up
+    // or slows down
+    fitChartToBeats(chart, beats, 0);
     out.bpm = 60.0 * (beats.size() - 1) / (beats.back() - beats.front());
 
     // The bass, its tuning low enough for every note: four strings, dropped to D, or five

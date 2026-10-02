@@ -131,6 +131,7 @@ endfunction()
 add_library(lahn_core STATIC
     src/core/addon.cpp
     src/core/backing.cpp
+    src/core/beats.cpp
     src/core/calibration.cpp
     src/core/chart.cpp
     src/core/chords.cpp
@@ -265,6 +266,7 @@ if(BUILD_TESTING)
     add_executable(lahn_tests
         tests/main.cpp
         tests/addon_test.cpp
+        tests/beats_test.cpp
         tests/calibration_test.cpp
         tests/chart_test.cpp
         tests/chords_test.cpp
