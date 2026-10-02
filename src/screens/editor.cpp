@@ -787,9 +787,7 @@ static void readPartsFile(const std::string& path){
     editor.importName = name;
     editor.importLeftOut = leftOut;
     editor.importChosen.assign(chart.frettedTracks.size(), 1);
-    // A song with no note yet has nothing its bars must stay under: the file's own are the likely wish
-    editor.importBars = std::all_of(editor.chart.frettedTracks.begin(), editor.chart.frettedTracks.end(),
-                                    [](const FrettedTrack& part){ return part.notes.empty(); });
+    editor.importBars = true; // the file says how its music is counted: the song follows it, unless told not to
     editor.openImportParts = true;
 }
 
@@ -801,11 +799,22 @@ static void bringPartsIn(){
     const int first = (int)editor.chart.frettedTracks.size();
     stopPlayback();
     importParts(editor.chart, editor.importChart, parts, editor.importBars);
+    if (editor.importBars && editor.songLoaded){
+        // The song's length in bars was counted at its old tempo: at the new one it's as long as its audio again
+        // (and no shorter than its notes need)
+        Chart& chart = editor.chart;
+        int audioEnd = (int)std::ceil(secondsToTick(chart, songEndSeconds()));
+        if (audioEnd > chart.endTick) chart.endTick = barStartTick(chart, barNumberAt(chart, audioEnd - 1) + 1);
+    }
     choosePart(first);
     editor.playheadTick = std::min(editor.playheadTick, editor.chart.endTick);
     markChanged();
-    editor.status = TextFormat("%d %s brought in from %s%s", (int)parts.size(), parts.size() == 1 ? "part" : "parts", editor.importName.c_str(),
-                               editor.importBars ? ", with its bars and tempos" : "");
+    editor.status = TextFormat("%d %s brought in from %s", (int)parts.size(), parts.size() == 1 ? "part" : "parts", editor.importName.c_str());
+    if (editor.importBars){
+        const TimeSignatureChange& time = editor.chart.timeSignatures[0];
+        editor.status += TextFormat(": the song is now at %.5g BPM in %d/%d", editor.chart.tempoMap[0].bpm, time.beats, time.beatUnit);
+        if (editor.songLoaded) editor.status += ". Drag the waveform so its first bar starts on bar 1";
+    }
     editor.importChart = Chart{};
 }
 
@@ -2175,10 +2184,16 @@ static void drawImportExportPopups(float s){
             chosen += on;
         }
         ImGui::Spacing();
-        ImGui::Checkbox("Its bars too: tempos, time signatures and key", &editor.importBars);
+        // What the file says of its music's count: the song takes it, unless this is unticked
+        const Chart& from = editor.importChart;
+        std::string counted = from.tempoMap.empty() ? "" : TextFormat("%.5g BPM", from.tempoMap[0].bpm);
+        if (!from.timeSignatures.empty()) counted += TextFormat("%s%d/%d", counted.empty() ? "" : ", ", from.timeSignatures[0].beats, from.timeSignatures[0].beatUnit);
+        int changes = (int)from.tempoMap.size() + (int)from.timeSignatures.size() - 2;
+        if (changes > 0) counted += TextFormat(", %d %s along the way", changes, changes == 1 ? "change" : "changes");
+        ImGui::Checkbox(TextFormat("The song takes its tempo and bars: %s", counted.c_str()), &editor.importBars);
         ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + width);
-        ImGui::TextDisabled("%s", editor.importBars ? "They replace this song's own. Notes already here stay on their bars and beats."
-                                                    : "The parts are laid on this song's own bars: bar 5, beat 2 stays bar 5, beat 2.");
+        ImGui::TextDisabled("%s", editor.importBars ? "Its tempos, time signatures and key replace this song's own, and the song's length in bars follows. Notes already here stay on their bars and beats."
+                                                    : "The song keeps its own tempo and bars, and the parts are laid on them: bar 5, beat 2 stays bar 5, beat 2.");
         if (!editor.importLeftOut.empty()){
             std::string left = "Not brought in: ";
             for (size_t i = 0; i < editor.importLeftOut.size(); i++) left += (i ? ", " : "") + editor.importLeftOut[i];

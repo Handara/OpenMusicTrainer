@@ -342,7 +342,12 @@ TEST_CASE("parts brought in from another chart keep their bars and beats"){
         CHECK(song.timeSignatures[0].beats == 3);
         CHECK(song.keys[0].key.fifths == 1);
         CHECK(song.offset == 1.25);                     // a tab has no audio: where bar one starts is the song's to say
-        CHECK(song.endTick == 6 * 3 * 480);
+        CHECK(song.endTick == 6 * 3 * 480);             // the tab's six bars of 3/4, not the song's four of 4/4
+    }
+    SUBCASE("with its bars, a note of the song's own past the tab's end keeps its bar"){
+        song.frettedTracks[0].notes = { { 7 * 3 * 480 + 240, 0, 0, 0 } }; // in what becomes the eighth bar of 3/4
+        importParts(song, tab, { 0 }, true);
+        CHECK(song.endTick == 8 * 3 * 480);
     }
     SUBCASE("from a chart lined up with a recording: where its first bar starts comes too"){
         tab.audioFile = "audio.mp3";

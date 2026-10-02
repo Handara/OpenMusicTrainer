@@ -407,7 +407,7 @@ void importParts(Chart& into, const Chart& from, const std::vector<int>& parts, 
         for (const TimeSignatureChange& time : from.timeSignatures) into.timeSignatures.push_back({ scaled(time.tick), time.beats, time.beatUnit });
         for (const KeyChange& key : from.keys) into.keys.push_back({ scaled(key.tick), key.key });
         if (!from.audioFile.empty()) into.offset = from.offset;
-        into.endTick = std::max(into.endTick, scaled(from.endTick));
+        into.endTick = scaled(from.endTick);
     }
     for (int part : parts){
         if (part < 0 || part >= (int)from.frettedTracks.size()) continue;
@@ -416,10 +416,12 @@ void importParts(Chart& into, const Chart& from, const std::vector<int>& parts, 
             note.tick = scaled(note.tick);
             note.duration = scaled(note.duration);
         }
-        // To the end of the bar its last note is in
+        into.frettedTracks.push_back(track);
+    }
+    // To the end of the bar the last note is in, the song's own parts' too
+    for (const FrettedTrack& track : into.frettedTracks){
         if (!track.notes.empty() && track.notes.back().tick >= into.endTick){
             into.endTick = barStartTick(into, barNumberAt(into, track.notes.back().tick) + 1);
         }
-        into.frettedTracks.push_back(track);
     }
 }
