@@ -20,6 +20,11 @@ std::vector<StringFret> positionsOf(int pitch, const std::vector<int>& tuning, i
 // place (string -1), the lowest fret. Nothing to choose from gives {-1, -1}.
 StringFret likeliestPosition(const std::vector<StringFret>& places, StringFret last);
 
+// Where notes played together sit: each on a string of its own, the first where likeliestPosition puts it and the
+// others as near it as their strings allow (a chord is one hand shape). In the pitches' order; {-1, -1} for a note
+// that's off the neck, or has no string left.
+std::vector<StringFret> chordPositions(const std::vector<int>& pitches, const std::vector<int>& tuning, int maxFret, StringFret last);
+
 // The part of the neck a song needs, for showing it whole: from the nut when the notes stay low (players find their
 // way from it), else from a fret below the lowest; to a fret past the highest, and at least `minFrets` wide
 struct FretSpan {

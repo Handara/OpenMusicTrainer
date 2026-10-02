@@ -25,6 +25,21 @@ StringFret likeliestPosition(const std::vector<StringFret>& places, StringFret l
     return best;
 }
 
+std::vector<StringFret> chordPositions(const std::vector<int>& pitches, const std::vector<int>& tuning, int maxFret, StringFret last){
+    std::vector<StringFret> chord;
+    for (int pitch : pitches){
+        std::vector<StringFret> places = positionsOf(pitch, tuning, maxFret);
+        // A string holds one note at a time
+        places.erase(std::remove_if(places.begin(), places.end(), [&](const StringFret& place){
+            return std::any_of(chord.begin(), chord.end(), [&](const StringFret& taken){ return taken.string == place.string; });
+        }), places.end());
+        StringFret place = likeliestPosition(places, last);
+        chord.push_back(place);
+        if (place.string >= 0) last = place; // the next note is looked for near this one
+    }
+    return chord;
+}
+
 FretSpan fretSpanFor(const std::vector<int>& frets, int minFrets, int maxFret){
     if (frets.empty()) return {0, std::min(minFrets, maxFret)};
     int lowest = *std::min_element(frets.begin(), frets.end()), highest = *std::max_element(frets.begin(), frets.end());

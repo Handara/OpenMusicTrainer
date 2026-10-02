@@ -23,6 +23,16 @@ const std::vector<PlayedNote>& updateNoteInput();
 // The attacks heard in that update, how long ago each (seconds), the moment they're heard: a note's pitch comes a
 // little later (core/notedetector). For reacting at once, and for rhythm mode, where any note counts.
 const std::vector<double>& noteInputAttacks();
+// A pluck that held several notes at once (a double stop, a chord): all of them, lowest first. The note detector
+// follows one note at a time, so for such a pluck updateNoteInput gave one of them, a note that's neither, or
+// nothing: whoever shows or writes down what's played puts these in that note's place (it has the same age, give or
+// take a few milliseconds). They're known a moment after the pluck (core/polyphony: NOTES_LISTEN_S).
+struct PlayedChord {
+    std::vector<int> pitches;
+    double age; // seconds from the pluck to the newest sample received, as a note's
+};
+// The plucks of several notes found by the last updateNoteInput
+const std::vector<PlayedChord>& noteInputChords();
 // The lowest note a song has due now (Hz), so pitches are known sooner; 0 for anything (core/notedetector)
 void expectLowestNote(float frequency);
 float noteInputLevelDb(); // loudness of the latest input, for a level meter

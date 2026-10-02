@@ -197,7 +197,7 @@ static void listenForChords(ChordListening& listening, std::vector<PlayNote>& no
 // input device's delay) and judged by its pitch. Rhythm mode needs no pitch: each attack is judged the moment it's
 // heard. Either way every attack is noted, for the hit line's flash.
 static void handleInstrument(std::vector<PlayNote>& notes, GameState& state, float songTime, float inputOffset,
-                             int& lastPlayedPitch, bool rhythmMode, double& lastAttackAt, bool anyOctave, TuningWatch* tuning,
+                             std::vector<int>& lastPlayed, bool rhythmMode, double& lastAttackAt, bool anyOctave, TuningWatch* tuning,
                              ChordListening& chords){
     // The note due nearest now, for the synth heard in place of the instrument to start at the pluck
     const PlayNote* nearest = nullptr;
@@ -225,7 +225,7 @@ static void handleInstrument(std::vector<PlayNote>& notes, GameState& state, flo
         if (result.judgement != Judgement::Ignored) scoreHit(state, result, judgementAnchor(notes, result.noteIndex));
     }
     for (const PlayedNote& note : played){
-        lastPlayedPitch = note.pitch;
+        lastPlayed = { note.pitch };
         if (rhythmMode) continue; // judged at its attack, above
         if (tuning) watchNoteTuning(*tuning, notes, note, songTime - (float)note.age - inputOffset, anyOctave);
         PlayerInput input;
@@ -235,6 +235,25 @@ static void handleInstrument(std::vector<PlayNote>& notes, GameState& state, flo
         input.anyOctave = anyOctave;
         JudgeResult result = judgeInput(notes, input);
         if (result.judgement != Judgement::Ignored) scoreHit(state, result, judgementAnchor(notes, result.noteIndex));
+    }
+    // Strings plucked together, heard unasked (core/polyphony): shown in full, and a chord due that listenForChords
+    // didn't find in the sound is still played if these are its notes
+    for (const PlayedChord& chord : noteInputChords()){
+        lastPlayed = chord.pitches;
+        if (rhythmMode || anyOctave) continue;
+        PlayerInput input;
+        input.time = songTime - chord.age - inputOffset;
+        if (std::fabs((float)input.time - chords.lastChordAt) < SAME_PLUCK_S) continue; // counted already
+        std::vector<int> due = chordDueAt(notes, (float)input.time);
+        bool held = !due.empty() && std::all_of(due.begin(), due.end(), [&](int index){
+            return std::count(chord.pitches.begin(), chord.pitches.end(), notes[index].pitch) > 0;
+        });
+        if (!held) continue;
+        input.pitch = notes[due[0]].pitch; // one of its notes completes the chord
+        JudgeResult result = judgeInput(notes, input);
+        if (result.judgement == Judgement::Ignored) continue;
+        scoreHit(state, result, judgementAnchor(notes, result.noteIndex));
+        chords.lastChordAt = (float)input.time;
     }
 }
 
@@ -246,7 +265,8 @@ static struct {
     GameState state;
     GameplayOptions options;
     float songTime = 0.0f;
-    int lastPlayedPitch = -1; // the latest note heard from the instrument, shown so the player can trust the input
+    std::vector<int> lastPlayed; // the latest note heard from the instrument (the notes, plucked together), shown so
+                                 // the player can trust the input
     double lastAttackAt = -10.0; // when the instrument was last plucked (GetTime): the hit line flashes with it
     bool anyOctave = false;      // the part is played on another instrument than its own: notes count in any octave
     float hitLineX = 180.0f;  // where the views put the hit line, for the judgements drawn at it
@@ -405,7 +425,7 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
     game.resumeAt = -1.0f;
     game.state.multiplier = 1;
     game.options = options;
-    game.lastPlayedPitch = -1;
+    game.lastPlayed.clear();
     game.anyOctave = false; // set below when the part is played on another instrument than its own
     // A keys part is played on a MIDI keyboard if one is connected, else on the computer keyboard, laid out from
     // the C at or below the part's lowest note
@@ -497,7 +517,7 @@ bool updateGameplay(){
     const FrettedTrack& track = game.chart.frettedTracks[0];
     if (game.options.rhythmMode) handleDrumKeys();
     else handleKeyboard(game.notes, game.state, game.songTime, (int)track.tuning.size(), game.options.hitSounds);
-    if (noteInputActive()) handleInstrument(game.notes, game.state, game.songTime, game.options.inputOffsetSeconds, game.lastPlayedPitch,
+    if (noteInputActive()) handleInstrument(game.notes, game.state, game.songTime, game.options.inputOffsetSeconds, game.lastPlayed,
                                             game.options.rhythmMode, game.lastAttackAt, game.anyOctave,
                                             game.watchingTuning ? &game.tuning : nullptr, game.chords);
     // Out of tune, the notes can't be played right: stop, so the player can tune rather than fight it
@@ -518,7 +538,7 @@ bool updateGameplay(){
             input.anyNote = game.options.rhythmMode;
             JudgeResult result = judgeInput(game.notes, input);
             if (result.judgement != Judgement::Ignored) scoreHit(game.state, result, judgementAnchor(game.notes, result.noteIndex));
-            game.lastPlayedPitch = played.pitch;
+            game.lastPlayed = { played.pitch };
         }
     }
     int missedNote = -1;
@@ -599,8 +619,10 @@ void drawGameplayHud(){
     draw->AddText(fonts.bold, 24 * s, ImVec2(margin, top), uiColor(UiColor::Ink), game.chart.title.c_str());
     std::string below = game.chart.artist;
     if (game.options.playWithInstrument){
-        std::string heard = game.lastPlayedPitch >= 0
-            ? TextFormat("You played %s%d", pitchClassName(game.lastPlayedPitch), pitchOctave(game.lastPlayedPitch)) : "Listening...";
+        std::string heard = game.lastPlayed.empty() ? "Listening..." : "You played";
+        for (size_t i = 0; i < game.lastPlayed.size(); i++){
+            heard += TextFormat("%s %s%d", i ? " +" : "", pitchClassName(game.lastPlayed[i]), pitchOctave(game.lastPlayed[i]));
+        }
         below += below.empty() ? heard : "  ·  " + heard;
     }
     draw->AddText(fonts.text, 16 * s, ImVec2(margin, top + 30 * s), uiColor(UiColor::Dim), below.c_str());

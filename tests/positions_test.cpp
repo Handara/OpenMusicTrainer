@@ -42,3 +42,20 @@ TEST_CASE("the part of the neck a song needs"){
     CHECK(all.last == 22);
     CHECK(fretSpanFor({}, 7, 22).last == 7);
 }
+
+TEST_CASE("notes played together each get a string of their own, near each other"){
+    const std::vector<int> bass = { 28, 33, 38, 43 };
+    // E2 and B2 with the hand around the 7th fret: the A string's 7th and the D string's 9th
+    std::vector<StringFret> fifth = chordPositions({ 40, 47 }, bass, 20, { 1, 7 });
+    REQUIRE(fifth.size() == 2);
+    CHECK(fifth[0] == StringFret{ 1, 7 });
+    CHECK(fifth[1] == StringFret{ 2, 9 });
+    // With no hand to go by: the lowest frets, on two strings
+    std::vector<StringFret> open = chordPositions({ 33, 38 }, bass, 20, { -1, -1 });
+    CHECK(open[0] == StringFret{ 1, 0 });
+    CHECK(open[1] == StringFret{ 2, 0 });
+    // Two notes only the low E string can play: the second has no string left
+    std::vector<StringFret> low = chordPositions({ 28, 30 }, bass, 20, { -1, -1 });
+    CHECK(low[0] == StringFret{ 0, 0 });
+    CHECK(low[1].string == -1);
+}

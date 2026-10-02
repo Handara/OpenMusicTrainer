@@ -32,11 +32,12 @@ const float SHAKE_S = 1.6f;        // how long a plucked string is seen shaking
 const int PIANO_LOW = 36, PIANO_KEYS = 61; // C2 to C7, a 61-key keyboard
 const float KEY_FADE_S = 0.35f;    // a released key's light going out
 const float GLOW_S = 0.45f;        // the glow rising from a key just pressed
+const double SAME_PLUCK_S = 0.06;  // notes this close in time were plucked together
 
 struct PlayedPlace {
     int pitch;
     StringFret place;
-    double at; // GetTime seconds
+    double at; // when it was plucked (GetTime seconds)
 };
 
 // Its name is used by no other file: Visual Studio names an unnamed struct after its variable, and two files'
@@ -177,25 +178,54 @@ static void drawListening(float right, float y, float s, const std::string& what
 }
 
 static void frettedScreen(float width, float height, float s){
+    const double now = GetTime();
+    std::deque<PlayedPlace>& played = instrumentView.played;
     for (const PlayedNote& note : updateNoteInput()){
         StringFret place = likeliestPosition(positionsOf(note.pitch, tuning(), frets()), instrumentView.hand);
         if (place.string < 0) continue; // off this neck: lower than its lowest string, or past its last fret
         instrumentView.hand = place;
         instrumentView.cents = note.cents;
-        instrumentView.played.push_front({note.pitch, place, GetTime()});
-        if ((int)instrumentView.played.size() > TRAIL + 1) instrumentView.played.pop_back();
+        played.push_front({note.pitch, place, now - note.age});
     }
-    ImDrawList* draw = ImGui::GetWindowDrawList();
-    const double now = GetTime();
-    const float left = width * 0.1f;
-    const PlayedPlace* newest = instrumentView.played.empty() ? nullptr : &instrumentView.played.front();
+    // A pluck of several notes: together they take the place of the one note heard for it (one of them, or a muddle)
+    for (const PlayedChord& chord : noteInputChords()){
+        const double at = now - chord.age;
+        played.erase(std::remove_if(played.begin(), played.end(), [&](const PlayedPlace& note){ return std::fabs(note.at - at) < SAME_PLUCK_S; }), played.end());
+        StringFret before = played.empty() ? StringFret{-1, -1} : played.front().place;
+        std::vector<StringFret> places = chordPositions(chord.pitches, tuning(), frets(), before);
+        for (size_t i = 0; i < places.size(); i++){
+            if (places[i].string < 0) continue;
+            played.push_front({chord.pitches[i], places[i], at});
+            instrumentView.hand = places[i];
+        }
+    }
+    // The newest pluck's notes are at the front (one, or the several of a chord); the trail is what came before
+    int together = 0;
+    while (together < (int)played.size() && std::fabs(played[together].at - played.front().at) < SAME_PLUCK_S) together++;
+    while ((int)played.size() > TRAIL + std::max(1, together)) played.pop_back();
 
-    if (newest){
-        std::string where = stringName(newest->place.string) + " string, " + (newest->place.fret == 0 ? std::string("open") : "fret " + std::to_string(newest->place.fret));
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    const float left = width * 0.1f;
+    if (together == 1){
+        const PlayedPlace& newest = played.front();
+        std::string where = stringName(newest.place.string) + " string, " + (newest.place.fret == 0 ? std::string("open") : "fret " + std::to_string(newest.place.fret));
         int cents = (int)std::lround(instrumentView.cents);
         bool inTune = std::abs(cents) <= 5;
         std::string tune = inTune ? "IN TUNE" : TextFormat("%d CENTS %s", std::abs(cents), cents > 0 ? "SHARP" : "FLAT");
-        drawHeading(ImVec2(left, height * 0.2f), s, noteName(newest->pitch), true, where, tune, inTune ? UiColor::Good : UiColor::Dim);
+        drawHeading(ImVec2(left, height * 0.2f), s, noteName(newest.pitch), true, where, tune, inTune ? UiColor::Good : UiColor::Dim);
+    } else if (together > 1){
+        // Lowest first: "E2 + B2", each on its string, and the chord they make if they make one
+        std::vector<PlayedPlace> chord(played.begin(), played.begin() + together);
+        std::sort(chord.begin(), chord.end(), [](const PlayedPlace& a, const PlayedPlace& b){ return a.pitch < b.pitch; });
+        std::string names, where;
+        std::vector<int> pitches;
+        for (const PlayedPlace& note : chord){
+            names += (names.empty() ? "" : " + ") + noteName(note.pitch);
+            where += (where.empty() ? "" : ", ") + stringName(note.place.string) + (note.place.fret == 0 ? std::string(" open") : " fret " + std::to_string(note.place.fret));
+            pitches.push_back(note.pitch);
+        }
+        std::string made = nameChord(pitches);
+        drawHeading(ImVec2(left, height * 0.2f), s, names, true, where, made.empty() ? TextFormat("%d NOTES TOGETHER", together) : made, UiColor::Good);
     } else {
         drawHeading(ImVec2(left, height * 0.2f), s, "Play a note", false, "", "", UiColor::Dim);
     }
@@ -203,18 +233,21 @@ static void frettedScreen(float width, float height, float s){
     FretboardLayout board = fretboardLayout(left, height * 0.43f, width * 0.82f, s, (int)tuning().size(), 0, frets());
     drawFretboard(board, tuning());
     // The notes before, oldest first so newer ones sit on top: a scale shows its shape
-    for (int i = (int)instrumentView.played.size() - 1; i >= 1; i--){
-        const PlayedPlace& note = instrumentView.played[i];
-        float fade = 1.0f - (float)i / (TRAIL + 1);
+    for (int i = (int)played.size() - 1; i >= together; i--){
+        const PlayedPlace& note = played[i];
+        float fade = 1.0f - (float)(i - together + 1) / (TRAIL + 1);
         drawFretDot(board, note.place.string, note.place.fret, 9 * s, uiColor(UiColor::Accent, 0.12f + 0.4f * fade), 0, nullptr);
     }
-    if (newest){
-        float t = (float)(now - newest->at);
-        const StringFret place = newest->place;
-        // The same note's other places: rings, since it may have been played there instead
-        for (StringFret other : positionsOf(newest->pitch, tuning(), frets())){
-            if (other == place) continue;
-            draw->AddCircle(ImVec2(board.fretX(other.fret), board.stringY(other.string)), 11 * s, uiColor(UiColor::Accent, 0.6f), 0, 1.5f * s);
+    for (int i = together - 1; i >= 0; i--){
+        const PlayedPlace& newest = played[i];
+        float t = (float)(now - newest.at);
+        const StringFret place = newest.place;
+        // A note alone: its other places as rings, since it may have been played there instead
+        if (together == 1){
+            for (StringFret other : positionsOf(newest.pitch, tuning(), frets())){
+                if (other == place) continue;
+                draw->AddCircle(ImVec2(board.fretX(other.fret), board.stringY(other.string)), 11 * s, uiColor(UiColor::Accent, 0.6f), 0, 1.5f * s);
+            }
         }
         // The string shakes from the fret to the bridge (past the board's right), settling
         if (t < SHAKE_S){
@@ -222,10 +255,10 @@ static void frettedScreen(float width, float height, float s){
             float x1 = board.left + board.width - 6 * s, y = board.stringY(place.string);
             float amplitude = 5.0f * s * std::exp(-t * 2.5f), alpha = 1.0f - t / SHAKE_S;
             ImVec2 points[64];
-            for (int i = 0; i < 64; i++){
-                float u = i / 63.0f;
+            for (int point = 0; point < 64; point++){
+                float u = point / 63.0f;
                 float dy = amplitude * (std::sin(PI * u) * std::cos(2 * PI * 7.0f * t) + 0.3f * std::sin(2 * PI * u) * std::cos(2 * PI * 11.0f * t));
-                points[i] = ImVec2(x0 + (x1 - x0) * u, y + dy);
+                points[point] = ImVec2(x0 + (x1 - x0) * u, y + dy);
             }
             draw->AddPolyline(points, 64, uiColor(UiColor::Accent, alpha), 0, 2.0f * s);
         }
@@ -236,10 +269,10 @@ static void frettedScreen(float width, float height, float s){
             draw->AddCircle(ImVec2(board.fretX(place.fret), board.stringY(place.string)), 13 * s + 26 * s * eased,
                             uiColor(UiColor::Accent, 0.6f * (1.0f - u)), 0, 2.0f * s);
         }
-        drawFretDot(board, place.string, place.fret, radius, uiColor(UiColor::Accent), uiColor(UiColor::Card), pitchClassName(newest->pitch));
+        drawFretDot(board, place.string, place.fret, radius, uiColor(UiColor::Accent), uiColor(UiColor::Card), pitchClassName(newest.pitch));
     }
     const UiFonts& fonts = uiFonts();
-    const char* explain = "The bright one: where it was most likely played, near your last note. Rings: the same note elsewhere.";
+    const char* explain = "The bright one: where it was most likely played, near your last note. Rings: the same note elsewhere. Strings plucked together show together.";
     draw->AddText(fonts.text, 15 * s, ImVec2(left, board.top + board.height + 34 * s), uiColor(UiColor::Dim), explain);
 
     InputRole role = instrumentView.instrument == Instrument::Bass ? InputRole::Bass : InputRole::Guitar;
