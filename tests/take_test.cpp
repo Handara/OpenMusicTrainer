@@ -2,6 +2,8 @@
 
 #include "core/take.h"
 
+#include <cstdlib>
+
 // A bass part at 120 beats a minute, 480 ticks to the beat: a beat is half a second, a sixteenth 120 ticks
 static Chart emptyChart(){
     Chart chart{};

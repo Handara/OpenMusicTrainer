@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <complex>
+#include <cstdlib>
 
 const float PI_F = 3.14159265358979f;
 const float TOP_HZ = 5000.0f;          // harmonics are looked for up to here: above, a string has little left
