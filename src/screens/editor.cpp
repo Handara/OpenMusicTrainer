@@ -5,9 +5,12 @@
 #include "core/files.h"
 #include "core/songpackage.h"
 #include "core/music.h"
+#include "core/take.h"
 #include "imgui.h"
 #include "imgui_stdlib.h"
+#include "input/noteinput.h"
 #include "raylib.h"
+#include "screens/tonewizard.h"
 #include "ui/menulist.h"
 #include "ui/settingsui.h"
 #include "ui/theme.h"
@@ -142,6 +145,10 @@ struct EditorState {
     double playStartTime = 0.0;// the engine time (audioTime) at which playFrom plays
     int scheduledTick = 0;     // clicks before this tick are already scheduled
     NoteKey scheduledNote;     // and the part's notes up to this one (a tick and a string: it needn't be a note's)
+
+    // Recording (R): the part played on its instrument while the song plays, written down as it's heard
+    bool recording = false;
+    Take take;                 // what this take has written so far (core/take)
 
     bool active = false;
 };
@@ -586,6 +593,75 @@ static void slideSong(double seconds){
     restartPlayback();
 }
 
+// --- Recording ----------------------------------------------------------------------------------------
+// The part played in (R): the song plays from the playhead, the instrument is listened to as in a song, and each
+// note heard is written where it was played: on the grid's nearest step, on its likeliest string and fret, held
+// until the next note or until it dies away (core/take). Strings plucked together are written together
+// (core/polyphony). The whole take is one step to undo, and is left selected: to move, to delete, to play again.
+
+// Where the song is for the player's ears: the engine's clock runs ahead of the speakers by the output's delay
+static double heardSeconds(){
+    return playbackSeconds() - editor.settings->globalOffsetMs / 1000.0;
+}
+
+static void stopRecording(){
+    if (!editor.recording) return;
+    editor.recording = false;
+    endTake(editor.take, editor.chart, track(), snapStep(), heardSeconds() - editor.settings->inputOffsetMs / 1000.0);
+    stopNoteInput();
+    stopPlayback();
+    editor.selection.clear();
+    for (const Take::Written& written : editor.take.written) editor.selection.insert({ written.tick, written.stringIndex });
+    pruneSelection();
+    if (editor.selection.empty()){
+        editor.status = "Nothing was heard: is the instrument's input the one chosen in Settings, Instruments?";
+        return;
+    }
+    markChanged(); // the notes' lengths moved until now
+    showTick(editor.selection.begin()->first); // the view followed the song: back to where the take starts
+    editor.status = TextFormat("%d notes recorded and selected: Ctrl + Z takes them back", (int)editor.selection.size());
+}
+
+static void startRecording(){
+    if (editor.recording) return;
+    commitChange(); // what was changed before stays its own step to undo
+    const FrettedTrack& part = track();
+    const InputRole role = part.type == InstrumentType::Bass ? InputRole::Bass : InputRole::Guitar;
+    const float lowest = midiToFrequency((float)*std::min_element(part.tuning.begin(), part.tuning.end())) * 0.9f; // a little under its lowest string
+    hearInstrument(*editor.settings, role); // through its own tone, as in a song
+    std::string error;
+    if (!startNoteInput(editor.settings->inputDevice, lowest, error, channelFor(*editor.settings, role))){
+        editor.status = "Recording: " + error + " (see Settings, Instruments)";
+        return;
+    }
+    editor.take = Take{};
+    editor.recording = true;
+    if (!editor.playing) startPlayback();
+    editor.status = "Recording: play the part. R or Space stops";
+}
+
+// Once a frame while recording: what the instrument played since the last one, into the part
+static void recordPlayed(){
+    struct Pluck {
+        double seconds;
+        std::vector<int> pitches;
+    };
+    // A note's place in the song: where the song is heard to be now, less how long ago the note started, less the
+    // input's own delay (the same sum a song's judging does)
+    const double now = heardSeconds() - editor.settings->inputOffsetMs / 1000.0;
+    std::vector<Pluck> plucks;
+    for (const PlayedNote& note : updateNoteInput()) plucks.push_back({ now - note.age, { note.pitch } });
+    for (const PlayedChord& chord : noteInputChords()) plucks.push_back({ now - chord.age, chord.pitches });
+    // In the order played: a chord is known later than a single note plucked after it may be
+    std::stable_sort(plucks.begin(), plucks.end(), [](const Pluck& a, const Pluck& b){ return a.seconds < b.seconds; });
+    for (const Pluck& pluck : plucks) takePluck(editor.take, editor.chart, track(), snapStep(), pluck.pitches, pluck.seconds);
+    takeLevel(editor.take, editor.chart, track(), snapStep(), noteInputLevelDb(), now);
+    if (!plucks.empty()){
+        coverNotes();
+        markChanged();
+    }
+}
+
 // --- Saving -------------------------------------------------------------------------------------------
 
 static bool saveEditorChart(){
@@ -680,7 +756,7 @@ static void barDivider(Bar& bar){
     barGap(bar, 14);
 }
 
-enum class Icon { None, Back, Play, Stop, Plus, Minus, Lamp, LampLit };
+enum class Icon { None, Back, Play, Stop, Record, Plus, Minus, Lamp, LampLit };
 
 // A rounded button: an icon, its text ("##name" for an icon alone) and its shortcut, dim. `on` fills it with the
 // accent: a choice that's active, or the thing to do next.
@@ -709,7 +785,8 @@ static bool barButton(Bar& bar, const char* text, const char* key, const char* t
     ImDrawList* draw = ImGui::GetWindowDrawList();
     const float alpha = enabled ? 1.0f : 0.38f;
     if (on){
-        draw->AddRectFilled(min, max, uiColor(UiColor::Accent, held ? 0.8f : 1.0f), height / 2);
+        // Recording is the one thing that fills its button red
+        draw->AddRectFilled(min, max, uiColor(icon == Icon::Record ? UiColor::Bad : UiColor::Accent, held ? 0.8f : 1.0f), height / 2);
         if (hovered) draw->AddRectFilled(min, max, uiColor(UiColor::Card, 0.12f), height / 2);
     } else {
         draw->AddRectFilled(min, max, uiColor(UiColor::Card, alpha), height / 2);
@@ -727,6 +804,7 @@ static bool barButton(Bar& bar, const char* text, const char* key, const char* t
         }
         case Icon::Play: draw->AddTriangleFilled(ImVec2(x, y - half - s), ImVec2(x + 2 * half, y), ImVec2(x, y + half + s), ink); break;
         case Icon::Stop: draw->AddRectFilled(ImVec2(x, y - half), ImVec2(x + 2 * half, y + half), ink, 2 * s); break;
+        case Icon::Record: draw->AddCircleFilled(ImVec2(x + half, y), half + s, on ? ink : uiColor(UiColor::Bad, alpha)); break;
         case Icon::Plus:
             verticalLine(draw, x + half, y - half, y + half, std::max(1.5f, 2 * s), ink);
             [[fallthrough]]; // then its bar, as a minus
@@ -849,6 +927,11 @@ static void drawToolBar(float s, float width){
                   editor.playing, true, editor.playing ? Icon::Stop : Icon::Play, "Stop")){
         if (editor.playing) stopPlayback();
         else startPlayback();
+    }
+    if (barButton(bar, editor.recording ? "Recording" : "Record", "R", "Play the part on your instrument over the song: every note you play is written where you played it",
+                  editor.recording, true, Icon::Record, "Recording")){
+        if (editor.recording) stopRecording();
+        else startRecording();
     }
 
     // Where the playhead is: bar and beat, then the time in the song
@@ -1469,7 +1552,7 @@ static void drawTimeline(ImVec2 min, ImVec2 max, float s){
 
     // The playhead's line goes under the notes, so one sitting on it can still be read
     const float playheadX = tickToX(playhead);
-    const ImU32 accent = uiColor(UiColor::Accent);
+    const ImU32 accent = uiColor(editor.recording ? UiColor::Bad : UiColor::Accent); // red while it records
     verticalLine(draw, playheadX, min.y, rowsBottom, 2.0f * s, accent);
 
     // Notes: a tail for as long as each is held, its fret on its string's color; the selected ones ringed
@@ -1598,8 +1681,12 @@ static void handleEditingKeys(){
     }
     if (ctrl && ImGui::IsKeyPressed(ImGuiKey_Y)) stepHistory(editor.redoStack, editor.undoStack);
     if (ImGui::IsKeyPressed(ImGuiKey_Space, false)){
-        if (editor.playing) stopPlayback();
+        if (editor.playing) stopPlayback(); // a take under way ends with it
         else startPlayback();
+    }
+    if (!ctrl && ImGui::IsKeyPressed(ImGuiKey_R, false)){
+        if (editor.recording) stopRecording();
+        else startRecording();
     }
     if (ImGui::IsKeyPressed(ImGuiKey_F1, false)) editor.openKeys = true;
 
@@ -1685,6 +1772,7 @@ static void drawKeysPopup(float s){
         { "Ctrl + A  C  X  V", "select all, copy, cut, paste at the playhead" },
         { "Ctrl + Z  Y", "undo, redo" },
         { "Space   Home  End", "play or stop; the playhead to the start, the end" },
+        { "R", "record: play the part on your instrument, over the song" },
         { "+  -", "zoom" },
         { "F5   Ctrl + S", "test play from the playhead; save" },
     };
@@ -1767,6 +1855,7 @@ bool openEditor(const SongEntry& song, const std::string& userSongsDir, const st
 
 void closeEditor(){
     if (!editor.active) return;
+    stopRecording();
     stopPlayback();
     unloadSong();
     setSongVolume(1.0f); // the editor's song volume is its own
@@ -1809,16 +1898,21 @@ EditorChoice editorScreen(){
     drawTimeline(ImVec2(0, top), ImVec2(right, overviewTop - 10 * s), s);
     drawOverview(ImVec2(editor.gridLeft, overviewTop), ImVec2(right - 12 * s, overviewTop + OVERVIEW_HEIGHT * s), s);
     if (editor.drawerOpen) drawDetails(ImVec2(right, top), ImVec2(width, bottom), s);
-    drawBottomBar(s, width, height, "Space  play      Wheel on a string  the fret of the next note      Shift + wheel  along the song      Ctrl + wheel  zoom      F1  every key");
+    drawBottomBar(s, width, height, "Space  play      R  record      Wheel on a string  the fret of the next note      Shift + wheel  along the song      Ctrl + wheel  zoom      F1  every key");
     drawKeysPopup(s);
 
     // Nothing held, and no run of wheel notches or key repeats under way: what changed is one undo step
-    if (!ImGui::IsAnyItemActive() && GetTime() >= editor.settleUntil) commitChange();
+    // (a take is one step too: nothing is committed while it's being played)
+    if (!ImGui::IsAnyItemActive() && GetTime() >= editor.settleUntil && !editor.recording) commitChange();
     if (editor.playing){
         schedulePlayback();
         // Past the end of both the chart and the song, playback stops on its own
         double end = std::max(tickToSeconds(editor.chart, editor.chart.endTick), editor.songLoaded ? songLength() : 0.0);
         if (playbackSeconds() > end + 0.5) stopPlayback();
+    }
+    if (editor.recording){
+        if (editor.playing) recordPlayed();
+        else stopRecording(); // the song stopped, or was stopped
     }
 
     if (!popupOpen){
@@ -1830,12 +1924,14 @@ EditorChoice editorScreen(){
     if (requestTestPlay){
         if (editor.chart.audioFile.empty() || !editor.songLoaded) editor.status = "Test play needs the song's audio";
         else {
+            stopRecording();
             stopPlayback();
             setSongVolume(1.0f); // the game plays it as it is
             choice = EditorChoice::TestPlay;
         }
     }
     if (requestBack){
+        stopRecording();
         if (editor.dirty) ImGui::OpenPopup(UNSAVED_POPUP);
         else choice = EditorChoice::Back;
     }

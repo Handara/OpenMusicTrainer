@@ -173,6 +173,7 @@ add_library(lahn_core STATIC
     src/core/songpackage.cpp
     src/core/stemsplit.cpp
     src/core/synth.cpp
+    src/core/take.cpp
     src/core/today.cpp
 )
 target_include_directories(lahn_core PUBLIC src)
@@ -295,6 +296,7 @@ if(BUILD_TESTING)
         tests/songpackage_test.cpp
         tests/stemsplit_test.cpp
         tests/synth_test.cpp
+        tests/take_test.cpp
         tests/tonechain_test.cpp
         tests/transcribe_test.cpp
         tests/tuningcheck_test.cpp
