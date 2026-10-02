@@ -136,6 +136,7 @@ add_library(lahn_core STATIC
     src/core/chords.cpp
     src/core/drill.cpp
     src/core/exercisefile.cpp
+    src/core/fft.cpp
     src/core/files.cpp
     src/core/fretboard.cpp
     src/core/guitarpro.cpp
@@ -150,6 +151,7 @@ add_library(lahn_core STATIC
     src/core/paths.cpp
     src/core/pianokeys.cpp
     src/core/pitch.cpp
+    src/core/polyphony.cpp
     src/core/positions.cpp
     src/core/quiz.cpp
     src/core/ranking.cpp
@@ -277,6 +279,7 @@ if(BUILD_TESTING)
         tests/notedetector_test.cpp
         tests/pianokeys_test.cpp
         tests/pitch_test.cpp
+        tests/polyphony_test.cpp
         tests/positions_test.cpp
         tests/ranking_test.cpp
         tests/reading_test.cpp

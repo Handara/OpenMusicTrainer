@@ -1,5 +1,7 @@
 #include "core/stemsplit.h"
 
+#include "core/fft.h"
+
 #include <algorithm>
 #include <cmath>
 #include <complex>
@@ -11,29 +13,6 @@ const int TRIM = N_FFT / 2;                    // a chunk's ends are thrown away
 const int KEPT = CHUNK - 2 * TRIM;             // what's kept of each chunk, and how far apart chunks start
 const float PI_F = 3.14159265358979f;
 
-// An in-place FFT (radix 2, n a power of two); the inverse isn't scaled
-static void fft(std::vector<std::complex<float>>& data, const std::vector<std::complex<float>>& twiddles, bool inverse){
-    const int n = (int)data.size();
-    for (int i = 1, j = 0; i < n; i++){
-        int bit = n >> 1;
-        for (; j & bit; bit >>= 1) j ^= bit;
-        j ^= bit;
-        if (i < j) std::swap(data[i], data[j]);
-    }
-    for (int length = 2; length <= n; length <<= 1){
-        const int half = length / 2, stride = n / length;
-        for (int start = 0; start < n; start += length){
-            for (int k = 0; k < half; k++){
-                std::complex<float> w = twiddles[k * stride];
-                if (inverse) w = std::conj(w);
-                std::complex<float> a = data[start + k], b = data[start + k + half] * w;
-                data[start + k] = a + b;
-                data[start + k + half] = a - b;
-            }
-        }
-    }
-}
-
 bool splitStem(const std::vector<float>& left, const std::vector<float>& right, const StemModel& model,
                std::vector<float>& stemLeft, std::vector<float>& stemRight, std::atomic<float>* progress,
                const std::atomic<bool>& cancel, std::string& error){
@@ -44,8 +23,7 @@ bool splitStem(const std::vector<float>& left, const std::vector<float>& right, 
     }
     std::vector<float> window(N_FFT);
     for (int i = 0; i < N_FFT; i++) window[i] = 0.5f - 0.5f * std::cos(2.0f * PI_F * i / N_FFT); // Hann
-    std::vector<std::complex<float>> twiddles(N_FFT / 2);
-    for (int k = 0; k < N_FFT / 2; k++) twiddles[k] = std::polar(1.0f, -2.0f * PI_F * k / N_FFT);
+    const std::vector<std::complex<float>> twiddles = fftTwiddles(N_FFT);
     // The overlapping frames' windows, squared and added up: what the sound is divided by, put back together
     std::vector<float> weight(CHUNK + N_FFT, 0.0f);
     for (int t = 0; t < STEM_FRAMES; t++) for (int i = 0; i < N_FFT; i++) weight[t * HOP + i] += window[i] * window[i];
