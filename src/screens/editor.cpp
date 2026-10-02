@@ -1,8 +1,10 @@
 #include "screens/editor.h"
 
+#include "app/filedialog.h"
 #include "audio/audio.h"
 #include "core/chart.h"
 #include "core/files.h"
+#include "core/guitarpro.h"
 #include "core/songpackage.h"
 #include "core/music.h"
 #include "core/take.h"
@@ -64,6 +66,11 @@ const std::vector<std::string> SNAP_LABELS = { "1/4", "1/8", "1/8 triplet", "1/1
 const char* const UNSAVED_POPUP = "Unsaved changes";
 const char* const KEYS_POPUP = "Editor keys";
 const char* const ADD_PART_POPUP = "Add a part";
+const char* const IMPORT_POPUP = "Import into this song";
+const char* const IMPORT_PARTS_POPUP = "Parts to bring in";
+const char* const EXPORT_POPUP = "Export this song";
+const std::vector<std::string> PARTS_PATTERNS = { "*.gp", "*.gpx", "*.gp5", "*.gp4", "*.gp3", "*.chart" };
+const std::vector<std::string> AUDIO_PATTERNS = { "*.mp3", "*.ogg", "*.flac", "*.wav" };
 const double LOOKAHEAD_S = 0.2;       // playback schedules clicks and notes this far ahead, on the audio clock
 const float FOLLOW_AT = 0.5f;         // while playing, the view scrolls to keep the playhead this far across
 const size_t MAX_UNDO_STEPS = 200;    // a chart is small (a few thousand notes at most): 200 copies is little memory
@@ -110,6 +117,14 @@ struct EditorState {
     float gridLeft = 0.0f, gridWidth = 1.0f; // where the timeline's grid was drawn last, in pixels
     bool drawerOpen = false;  // the song's details
     bool openKeys = false;    // the keys' list was asked for: its popup opens this frame
+    bool openImport = false, openExport = false, openImportParts = false; // and these popups
+
+    // Import: a tab or another song's chart, read, waiting for which of its parts to bring in
+    Chart importChart;
+    std::string importName;               // the file it's from
+    std::vector<std::string> importLeftOut; // what a tab holds that couldn't be read
+    std::vector<char> importChosen;       // per part: brought in or not
+    bool importBars = false;              // its tempos, time signatures and keys too
 
     // Editing
     int part = 0;             // which fretted track is being edited
@@ -696,11 +711,122 @@ static bool saveEditorChart(){
     return true;
 }
 
-// --- Sharing ------------------------------------------------------------------------------------------
+// --- Import and export --------------------------------------------------------------------------------
+// A song is pieces that come and go on their own: its parts (the notes, with the bars and tempos under them) and its
+// audio. Import brings one in from a file, into the song being edited; Export writes the song out whole, or its
+// chart alone for someone who has the recording.
+
+static std::string lowerExtension(const std::string& path){
+    std::string extension = fs::path(path).extension().string();
+    for (char& c : extension) c = (char)std::tolower((unsigned char)c);
+    return extension;
+}
+
+static bool matches(const std::string& path, const std::vector<std::string>& patterns){
+    std::string extension = lowerExtension(path);
+    for (const std::string& pattern : patterns) if (extension == pattern.substr(1)) return true; // "*.gp" is ".gp"
+    return false;
+}
+
+// A tab (Guitar Pro) or a lahn chart: read, then its parts are offered (drawImportPopups)
+static void readPartsFile(const std::string& path){
+    const std::string name = fs::path(path).filename().string();
+    Chart chart;
+    std::vector<std::string> leftOut;
+    std::string error;
+    bool ok;
+    if (lowerExtension(path) == ".chart"){
+        ok = loadChart(path, chart, error);
+        if (!ok && error.rfind(path, 0) == 0) error = error.substr(path.size() + 1); // the line and why, without the path
+    } else {
+        GuitarProImport tab;
+        ok = importGuitarPro(path, tab, error);
+        chart = tab.chart;
+        leftOut = tab.leftOut;
+    }
+    if (ok && chart.frettedTracks.empty()){
+        ok = false;
+        error = "no guitar or bass part in it";
+    }
+    if (!ok){
+        editor.status = name + ": " + error;
+        return;
+    }
+    editor.importChart = chart;
+    editor.importName = name;
+    editor.importLeftOut = leftOut;
+    editor.importChosen.assign(chart.frettedTracks.size(), 1);
+    // A song with no note yet has nothing its bars must stay under: the file's own are the likely wish
+    editor.importBars = std::all_of(editor.chart.frettedTracks.begin(), editor.chart.frettedTracks.end(),
+                                    [](const FrettedTrack& part){ return part.notes.empty(); });
+    editor.openImportParts = true;
+}
+
+// The parts chosen come in after the song's own, as one step to undo
+static void bringPartsIn(){
+    std::vector<int> parts;
+    for (int i = 0; i < (int)editor.importChosen.size(); i++) if (editor.importChosen[i]) parts.push_back(i);
+    if (parts.empty()) return;
+    const int first = (int)editor.chart.frettedTracks.size();
+    stopPlayback();
+    importParts(editor.chart, editor.importChart, parts, editor.importBars);
+    choosePart(first);
+    editor.playheadTick = std::min(editor.playheadTick, editor.chart.endTick);
+    markChanged();
+    editor.status = TextFormat("%d %s brought in from %s%s", (int)parts.size(), parts.size() == 1 ? "part" : "parts", editor.importName.c_str(),
+                               editor.importBars ? ", with its bars and tempos" : "");
+    editor.importChart = Chart{};
+}
+
+// The song's audio, from a file: copied into the song's folder beside the audio it had (which stays, so undoing
+// goes back to it), then loaded in its place
+static void importAudio(const std::string& path){
+    if (editor.builtIn){
+        editor.status = "Save first: a built-in song becomes your own copy, and the audio goes into that";
+        return;
+    }
+    const std::string extension = lowerExtension(path);
+    fs::path folder = editor.songFolder;
+    std::string name = "audio" + extension;
+    std::error_code ec;
+    for (int n = 2; fs::exists(folder / name, ec); n++) name = "audio " + std::to_string(n) + extension;
+    fs::copy_file(path, folder / name, ec);
+    if (ec){
+        editor.status = "Could not copy the audio: " + ec.message();
+        return;
+    }
+    stopPlayback();
+    stopWaveform();
+    unloadSong();
+    std::string error;
+    editor.songLoaded = loadSong((folder / name).string(), error);
+    if (!editor.songLoaded){
+        fs::remove(folder / name, ec);
+        editor.status = fs::path(path).filename().string() + ": " + error;
+        // Back to the audio it had
+        if (!editor.chart.audioFile.empty()){
+            editor.songLoaded = loadSong((folder / editor.chart.audioFile).string(), error);
+            if (editor.songLoaded) startWaveform((folder / editor.chart.audioFile).string());
+        }
+        return;
+    }
+    startWaveform((folder / name).string());
+    setSongVolume(editor.settings->editorSongVolume);
+    editor.chart.audioFile = name;
+    markChanged();
+    editor.status = "The song's audio is now " + fs::path(path).filename().string() + ": drag the waveform to line it up with the bars";
+}
+
+// A file chosen or dropped: what it is says what's brought in
+static void importFile(const std::string& path){
+    if (matches(path, AUDIO_PATTERNS)) importAudio(path);
+    else if (matches(path, PARTS_PATTERNS)) readPartsFile(path);
+    else editor.status = fs::path(path).filename().string() + " is neither a tab, a chart nor an audio file";
+}
 
 // The song as one file anyone can install (core/songpackage), in the packages folder, which then opens. It's made
 // from the saved song, so unsaved changes have to be saved first.
-static void shareSong(){
+static void exportPackage(){
     if (editor.dirty){
         editor.status = "Save first: the package is made from the saved song";
         return;
@@ -711,10 +837,26 @@ static void shareSong(){
     fs::path package = fs::path(editor.packagesDir) / ((name.empty() ? "Song" : name) + SONG_PACKAGE_EXTENSION);
     std::string error;
     if (!exportSongPackage(editor.songFolder, package.string(), error)){
-        editor.status = "Could not share: " + error;
+        editor.status = "Could not export: " + error;
         return;
     }
     editor.status = "Package ready: " + package.filename().string();
+    openFolder(editor.packagesDir);
+}
+
+// Its chart alone, beside the packages: the parts, the bars and the tempos, for someone who has the recording.
+// They bring it into a song of their own with Import.
+static void exportChart(){
+    std::error_code ec;
+    fs::create_directories(editor.packagesDir, ec);
+    std::string name = safeFolderName(editor.chart.title);
+    fs::path file = fs::path(editor.packagesDir) / ((name.empty() ? "Song" : name) + ".chart");
+    std::string error;
+    if (!saveChart(file.string(), editor.chart, error)){
+        editor.status = "Could not export: " + error;
+        return;
+    }
+    editor.status = "Chart ready: " + file.filename().string();
     openFolder(editor.packagesDir);
 }
 
@@ -888,7 +1030,8 @@ static void drawTopBar(float s, float width, bool& requestBack, bool& requestTes
 
     Bar right{ width - 16 * s, TOP_BAR * s / 2, true, s };
     if (barButton(right, "Save", "Ctrl+S", editor.builtIn ? "Save: a built-in song is saved as your own copy" : "Save the song", editor.dirty)) saveEditorChart();
-    if (barButton(right, "Share", nullptr, "Make the saved song one file anyone can install, in your packages folder")) shareSong();
+    if (barButton(right, "Export", nullptr, "The song as one file anyone can install, or its chart alone")) editor.openExport = true;
+    if (barButton(right, "Import", nullptr, "Bring into this song: parts from a tab or another song, or its audio")) editor.openImport = true;
     if (barButton(right, "Test play", "F5", "Play it for real, from the playhead")) requestTestPlay = true;
     barGap(right, 8);
     if (barToggle(right, "Details", "The song's title, parts, tempo, offset, length, time signature and key", editor.drawerOpen)){
@@ -1814,6 +1957,102 @@ static void drawKeysPopup(float s){
     ImGui::PopStyleVar(2);
 }
 
+// --- Import and export, asked -------------------------------------------------------------------------
+
+// A choice in a popup: a button, and under it what it does
+static bool choiceButton(const char* label, const char* explanation, float width){
+    bool pressed = ImGui::Button(label, ImVec2(width, 0));
+    ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + width);
+    ImGui::TextDisabled("%s", explanation);
+    ImGui::PopTextWrapPos();
+    ImGui::Spacing();
+    return pressed;
+}
+
+static void drawImportExportPopups(float s){
+    if (editor.openImport) ImGui::OpenPopup(IMPORT_POPUP);
+    if (editor.openExport) ImGui::OpenPopup(EXPORT_POPUP);
+    editor.openImport = editor.openExport = false;
+    const float width = 420 * s;
+    const ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+    pushCompactStyle(s);
+
+    ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+    if (ImGui::BeginPopupModal(IMPORT_POPUP, nullptr, ImGuiWindowFlags_AlwaysAutoResize)){
+        std::string path, error;
+        if (choiceButton("Parts, from a tab or another song...", "A Guitar Pro tab (.gp, .gpx, .gp3 to .gp5) or a lahn chart (.chart): you choose which of its parts come in, and whether its bars and tempos do.", width)){
+            if (chooseFile("Choose a tab or a chart", "Tabs and charts", PARTS_PATTERNS, path, error)) readPartsFile(path);
+            else if (!error.empty()) editor.status = error;
+            ImGui::CloseCurrentPopup();
+        }
+        if (choiceButton("Its audio...", "An mp3, ogg, flac or wav file: copied into the song, in place of the audio it has.", width)){
+            if (chooseFile("Choose the song's audio", "Audio", AUDIO_PATTERNS, path, error)) importAudio(path);
+            else if (!error.empty()) editor.status = error;
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::TextDisabled("Or drop the file on the editor.");
+        ImGui::Spacing();
+        if (ImGui::Button("Close") || ImGui::IsKeyPressed(ImGuiKey_Escape, false)) ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+    }
+
+    if (editor.openImportParts) ImGui::OpenPopup(IMPORT_PARTS_POPUP);
+    editor.openImportParts = false;
+    ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+    if (ImGui::BeginPopupModal(IMPORT_PARTS_POPUP, nullptr, ImGuiWindowFlags_AlwaysAutoResize)){
+        ImGui::Text("%s", editor.importName.c_str());
+        ImGui::Spacing();
+        int chosen = 0;
+        for (int i = 0; i < (int)editor.importChart.frettedTracks.size(); i++){
+            const FrettedTrack& part = editor.importChart.frettedTracks[i];
+            bool on = editor.importChosen[i] != 0;
+            ImGui::PushID(i);
+            if (ImGui::Checkbox(TextFormat("%s   %s, %d strings, %d notes", part.name.empty() ? "Part" : part.name.c_str(),
+                                           part.type == InstrumentType::Bass ? "bass" : "guitar", (int)part.tuning.size(), (int)part.notes.size()), &on)){
+                editor.importChosen[i] = on;
+            }
+            ImGui::PopID();
+            chosen += on;
+        }
+        ImGui::Spacing();
+        ImGui::Checkbox("Its bars too: tempos, time signatures and key", &editor.importBars);
+        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + width);
+        ImGui::TextDisabled("%s", editor.importBars ? "They replace this song's own. Notes already here stay on their bars and beats."
+                                                    : "The parts are laid on this song's own bars: bar 5, beat 2 stays bar 5, beat 2.");
+        if (!editor.importLeftOut.empty()){
+            std::string left = "Not brought in: ";
+            for (size_t i = 0; i < editor.importLeftOut.size(); i++) left += (i ? ", " : "") + editor.importLeftOut[i];
+            ImGui::TextDisabled("%s", left.c_str());
+        }
+        ImGui::PopTextWrapPos();
+        ImGui::Spacing();
+        ImGui::BeginDisabled(chosen == 0);
+        if (ImGui::Button(TextFormat(chosen == 1 ? "Bring in %d part" : "Bring in %d parts", chosen))){
+            bringPartsIn();
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndDisabled();
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape, false)) ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+    }
+
+    ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+    if (ImGui::BeginPopupModal(EXPORT_POPUP, nullptr, ImGuiWindowFlags_AlwaysAutoResize)){
+        if (choiceButton("The whole song, one file (.lahn)", "Its chart and its audio. Anyone with lahn installs it by dropping it on their song list.", width)){
+            exportPackage();
+            ImGui::CloseCurrentPopup();
+        }
+        if (choiceButton("Its chart alone (.chart)", "The parts, the bars and the tempos, without the audio: for someone who has the recording. They bring it into their own song with Import.", width)){
+            exportChart();
+            ImGui::CloseCurrentPopup();
+        }
+        if (ImGui::Button("Close") || ImGui::IsKeyPressed(ImGuiKey_Escape, false)) ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+    }
+    popCompactStyle();
+}
+
 // --- Screen -------------------------------------------------------------------------------------------
 
 bool openEditor(const SongEntry& song, const std::string& userSongsDir, const std::string& packagesDir, Settings& settings,
@@ -1900,6 +2139,13 @@ EditorChoice editorScreen(){
     if (editor.drawerOpen) drawDetails(ImVec2(right, top), ImVec2(width, bottom), s);
     drawBottomBar(s, width, height, "Space  play      R  record      Wheel on a string  the fret of the next note      Shift + wheel  along the song      Ctrl + wheel  zoom      F1  every key");
     drawKeysPopup(s);
+    drawImportExportPopups(s);
+    // A file dropped on the editor is brought into the song
+    if (IsFileDropped()){
+        FilePathList dropped = LoadDroppedFiles();
+        if (dropped.count > 0 && !popupOpen) importFile(dropped.paths[0]);
+        UnloadDroppedFiles(dropped);
+    }
 
     // Nothing held, and no run of wheel notches or key repeats under way: what changed is one undo step
     // (a take is one step too: nothing is committed while it's being played)

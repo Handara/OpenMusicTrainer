@@ -88,6 +88,13 @@ bool loadChart(const std::string& path, Chart& out, std::string& error);
 // written, so a crash or full disk mid-save never leaves a half-written chart behind.
 bool saveChart(const std::string& path, const Chart& chart, std::string& error);
 
+// Parts brought into a song from another chart (a tab, another song's): the fretted tracks numbered in `parts` are
+// added after the song's own, their notes on the same bars and beats (ticks are rescaled when the two charts count
+// a beat differently). `withBars`: the other chart's tempos, time signatures and keys replace the song's; and its
+// offset too if it has audio it was lined up with (a tab has none: the song keeps where its own first bar starts).
+// The song is made long enough for what came in.
+void importParts(Chart& into, const Chart& from, const std::vector<int>& parts, bool withBars);
+
 // Without the notes the trim leaves out: those before the song's start or from its end on, in every part
 void dropTrimmedNotes(Chart& chart);
 

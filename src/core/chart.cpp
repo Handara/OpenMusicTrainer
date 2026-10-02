@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <charconv>
+#include <cmath>
 #include <fstream>
 #include <sstream>
 
@@ -385,4 +386,32 @@ std::vector<int> barTicks(const Chart& chart){
     std::vector<int> bars;
     for (int bar = 0, tick = 0; (tick = barStartTick(chart, bar)) <= chart.endTick; bar++) bars.push_back(tick);
     return bars;
+}
+
+void importParts(Chart& into, const Chart& from, const std::vector<int>& parts, bool withBars){
+    if (into.resolution <= 0 || from.resolution <= 0) return;
+    auto scaled = [&](int tick){ return (int)std::llround((double)tick * into.resolution / from.resolution); };
+    if (withBars){
+        into.tempoMap.clear();
+        into.timeSignatures.clear();
+        into.keys.clear();
+        for (const TempoChange& tempo : from.tempoMap) into.tempoMap.push_back({ scaled(tempo.tick), tempo.bpm });
+        for (const TimeSignatureChange& time : from.timeSignatures) into.timeSignatures.push_back({ scaled(time.tick), time.beats, time.beatUnit });
+        for (const KeyChange& key : from.keys) into.keys.push_back({ scaled(key.tick), key.key });
+        if (!from.audioFile.empty()) into.offset = from.offset;
+        into.endTick = std::max(into.endTick, scaled(from.endTick));
+    }
+    for (int part : parts){
+        if (part < 0 || part >= (int)from.frettedTracks.size()) continue;
+        FrettedTrack track = from.frettedTracks[part];
+        for (FrettedNote& note : track.notes){
+            note.tick = scaled(note.tick);
+            note.duration = scaled(note.duration);
+        }
+        // To the end of the bar its last note is in
+        if (!track.notes.empty() && track.notes.back().tick >= into.endTick){
+            into.endTick = barStartTick(into, barNumberAt(into, track.notes.back().tick) + 1);
+        }
+        into.frettedTracks.push_back(track);
+    }
 }

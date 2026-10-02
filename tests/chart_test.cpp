@@ -287,3 +287,67 @@ TEST_CASE("a trimmed song: its trim saved and read back, the notes outside it le
     dropTrimmedNotes(whole);
     CHECK(whole.frettedTracks[0].notes.size() == 6);
 }
+
+TEST_CASE("parts brought in from another chart keep their bars and beats"){
+    // The song: 480 ticks to the beat, 120 beats a minute, four bars, a guitar part of its own
+    Chart song{};
+    song.resolution = 480;
+    song.offset = 1.25;
+    song.endTick = 4 * 4 * 480;
+    song.tempoMap = { { 0, 120.0 } };
+    song.timeSignatures = { { 0, 4, 4 } };
+    song.keys = { { 0, KeySignature{} } };
+    FrettedTrack guitar;
+    guitar.name = "Guitar";
+    guitar.tuning = { 40, 45, 50, 55, 59, 64 };
+    song.frettedTracks = { guitar };
+    // The tab: 960 ticks to the beat, 90 beats a minute in 3/4, a bass and a guitar, six bars
+    Chart tab{};
+    tab.resolution = 960;
+    tab.endTick = 6 * 3 * 960;
+    tab.tempoMap = { { 0, 90.0 }, { 3 * 960, 100.0 } };
+    tab.timeSignatures = { { 0, 3, 4 } };
+    tab.keys = { { 0, KeySignature{ 1, false } } };
+    FrettedTrack bass;
+    bass.type = InstrumentType::Bass;
+    bass.name = "Bass";
+    bass.tuning = { 28, 33, 38, 43 };
+    bass.notes = { { 0, 0, 3, 960 }, { 1440, 1, 5, 480 }, { 17 * 960, 2, 0, 0 } }; // the last in the tab's sixth bar
+    FrettedTrack lead;
+    lead.name = "Lead";
+    lead.tuning = guitar.tuning;
+    tab.frettedTracks = { bass, lead };
+
+    SUBCASE("the parts alone: on the song's own bars"){
+        importParts(song, tab, { 0 }, false);
+        REQUIRE(song.frettedTracks.size() == 2);
+        const FrettedTrack& added = song.frettedTracks[1];
+        CHECK(added.name == "Bass");
+        CHECK(added.type == InstrumentType::Bass);
+        REQUIRE(added.notes.size() == 3);
+        CHECK(added.notes[0].duration == 480);          // a beat stays a beat
+        CHECK(added.notes[1].tick == 720);              // and a beat and a half, a beat and a half
+        CHECK(added.notes[1].duration == 240);
+        CHECK(song.tempoMap.size() == 1);               // the song's own tempo
+        CHECK(song.tempoMap[0].bpm == 120.0);
+        CHECK(song.offset == 1.25);
+        CHECK(song.endTick == 5 * 4 * 480);             // longer: to the end of the bar the last note is in (beat 17)
+    }
+    SUBCASE("with its bars: the tab's tempos, time signature and key"){
+        importParts(song, tab, { 0, 1, 7 }, true);      // a part it doesn't have is passed over
+        REQUIRE(song.frettedTracks.size() == 3);
+        REQUIRE(song.tempoMap.size() == 2);
+        CHECK(song.tempoMap[1].tick == 3 * 480);
+        CHECK(song.tempoMap[1].bpm == 100.0);
+        CHECK(song.timeSignatures[0].beats == 3);
+        CHECK(song.keys[0].key.fifths == 1);
+        CHECK(song.offset == 1.25);                     // a tab has no audio: where bar one starts is the song's to say
+        CHECK(song.endTick == 6 * 3 * 480);
+    }
+    SUBCASE("from a chart lined up with a recording: where its first bar starts comes too"){
+        tab.audioFile = "audio.mp3";
+        tab.offset = 0.4;
+        importParts(song, tab, { 0 }, true);
+        CHECK(song.offset == 0.4);
+    }
+}
