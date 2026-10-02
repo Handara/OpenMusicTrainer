@@ -416,6 +416,12 @@ void importParts(Chart& into, const Chart& from, const std::vector<int>& parts, 
             note.tick = scaled(note.tick);
             note.duration = scaled(note.duration);
         }
+        // Two parts of one name can't be told apart where parts are chosen
+        auto taken = [&](const std::string& name){
+            return std::any_of(into.frettedTracks.begin(), into.frettedTracks.end(), [&](const FrettedTrack& other){ return other.name == name; });
+        };
+        const std::string name = track.name;
+        for (int n = 2; taken(track.name); n++) track.name = name + " " + std::to_string(n);
         into.frettedTracks.push_back(track);
     }
     // To the end of the bar the last note is in, the song's own parts' too

@@ -344,6 +344,15 @@ TEST_CASE("parts brought in from another chart keep their bars and beats"){
         CHECK(song.offset == 1.25);                     // a tab has no audio: where bar one starts is the song's to say
         CHECK(song.endTick == 6 * 3 * 480);             // the tab's six bars of 3/4, not the song's four of 4/4
     }
+    SUBCASE("brought in twice: the second of a name gets a number"){
+        importParts(song, tab, { 0, 1 }, false);
+        importParts(song, tab, { 0 }, false);
+        importParts(song, tab, { 0 }, false);
+        REQUIRE(song.frettedTracks.size() == 5);
+        CHECK(song.frettedTracks[1].name == "Bass");
+        CHECK(song.frettedTracks[3].name == "Bass 2");
+        CHECK(song.frettedTracks[4].name == "Bass 3");
+    }
     SUBCASE("with its bars, a note of the song's own past the tab's end keeps its bar"){
         song.frettedTracks[0].notes = { { 7 * 3 * 480 + 240, 0, 0, 0 } }; // in what becomes the eighth bar of 3/4
         importParts(song, tab, { 0 }, true);

@@ -69,6 +69,7 @@ const std::vector<std::string> SNAP_LABELS = { "1/4", "1/8", "1/8 triplet", "1/1
 const char* const UNSAVED_POPUP = "Unsaved changes";
 const char* const KEYS_POPUP = "Editor keys";
 const char* const ADD_PART_POPUP = "Add a part";
+const char* const PART_POPUP = "This part";
 const char* const IMPORT_POPUP = "Import into this song";
 const char* const IMPORT_PARTS_POPUP = "Parts to bring in";
 const char* const EXPORT_POPUP = "Export this song";
@@ -322,11 +323,17 @@ static void addPart(InstrumentType type){
     markChanged();
 }
 
+static void stopRecording();
+
+// The part being edited is taken out of the song, its notes with it: one step to undo
 static void removePart(){
     if (editor.chart.frettedTracks.size() < 2) return; // a song keeps at least one part
+    stopRecording(); // a take under way is this part's
+    const std::string name = track().name.empty() ? "The part" : track().name;
     editor.chart.frettedTracks.erase(editor.chart.frettedTracks.begin() + editor.part);
     choosePart(editor.part);
     markChanged();
+    editor.status = name + " taken out of the song: Ctrl + Z brings it back";
 }
 
 // The chart must end after its last note: at the end of that note's bar
@@ -1235,16 +1242,41 @@ static void drawToolBar(float s, float width){
     barGap(bar, 138);
     barDivider(bar);
 
-    // The song's parts: the one being edited, and adding one (taking one away is in Details)
+    // The song's parts: the one being edited, adding one, and taking the one being edited out (a right click on a
+    // part does that too)
+    const bool severalParts = chart.frettedTracks.size() > 1;
+    bool openPartMenu = false;
+    ImVec2 partMenuAt;
     for (int i = 0; i < (int)chart.frettedTracks.size(); i++){
         const FrettedTrack& part = chart.frettedTracks[i];
+        const float partX = bar.x;
         ImGui::PushID(i);
         if (barButton(bar, part.name.empty() ? "Part" : part.name.c_str(), nullptr,
-                      part.type == InstrumentType::Bass ? "Edit this bass part" : "Edit this guitar part", i == editor.part)) choosePart(i);
+                      part.type == InstrumentType::Bass ? "Edit this bass part      Right click  take it out of the song"
+                                                        : "Edit this guitar part      Right click  take it out of the song", i == editor.part)) choosePart(i);
+        if (ImGui::IsItemClicked(ImGuiMouseButton_Right)){
+            choosePart(i);
+            openPartMenu = true;
+            partMenuAt = ImVec2(partX, bar.middle + BUTTON_HEIGHT * s / 2 + 4 * s);
+        }
         ImGui::PopID();
     }
+    if (openPartMenu){
+        ImGui::OpenPopup(PART_POPUP);
+        ImGui::SetNextWindowPos(partMenuAt);
+    }
+    pushCompactStyle(s);
+    if (ImGui::BeginPopup(PART_POPUP)){
+        ImGui::BeginDisabled(!severalParts); // a song keeps at least one part
+        if (ImGui::Selectable(TextFormat("Take %s out of the song", track().name.empty() ? "this part" : track().name.c_str()))) removePart();
+        ImGui::EndDisabled();
+        ImGui::EndPopup();
+    }
+    popCompactStyle();
     const float addX = bar.x;
     if (barButton(bar, "##addpart", nullptr, "Add a guitar or a bass part", false, true, Icon::Plus)) ImGui::OpenPopup(ADD_PART_POPUP);
+    if (barButton(bar, "##removepart", nullptr, severalParts ? "Take the part being edited out of the song (Ctrl + Z brings it back)" : "A song keeps at least one part",
+                  false, severalParts, Icon::Minus)) removePart();
     ImGui::SetNextWindowPos(ImVec2(addX, bar.middle + BUTTON_HEIGHT * s / 2 + 4 * s));
     pushCompactStyle(s);
     if (ImGui::BeginPopup(ADD_PART_POPUP)){
