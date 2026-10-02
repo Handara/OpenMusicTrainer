@@ -23,6 +23,7 @@ static struct {
     std::string title;
     std::string artist;
     double bpm = 120.0;
+    bool findTempo = true;     // the editor listens to the song for its tempo and beats as it opens
     bool titleFromFile = true; // the title is still the file's name, so a new file renames it
     std::string error;
     std::string chartPath;     // the song made
@@ -49,6 +50,10 @@ std::string newSongChartPath(){
 
 std::string newSongVideoPath(){
     return form.videoPath;
+}
+
+bool newSongFindsTempo(){
+    return form.findTempo;
 }
 
 static void audioChosen(){
@@ -147,8 +152,17 @@ NewSongChoice newSongScreen(){
     field("Artist");
     if (ImGui::InputText("##artist", &form.artist, ImGuiInputTextFlags_EnterReturnsTrue)) enter = true;
     ImGui::Dummy(ImVec2(0, 8 * s));
-    field("Tempo (BPM): set it closer in the editor, with the metronome");
-    if (ImGui::InputDouble("##bpm", &form.bpm, 1.0, 10.0, "%.2f", ImGuiInputTextFlags_EnterReturnsTrue)) enter = true;
+    ImGui::SetCursorPosX(left);
+    ImGui::Checkbox("Find the tempo and the bars from the song", &form.findTempo);
+    if (!form.findTempo){
+        field("Tempo (BPM): set it closer in the editor, with the metronome");
+        if (ImGui::InputDouble("##bpm", &form.bpm, 1.0, 10.0, "%.2f", ImGuiInputTextFlags_EnterReturnsTrue)) enter = true;
+    } else {
+        ImGui::SetCursorPosX(left);
+        ImGui::PushTextWrapPos(left + fieldWidth);
+        ImGui::TextColored(uiColorVec(UiColor::Dim), "As the editor opens, the song is listened to for its beats and its bars are laid on them. Details has what to do if they start on the wrong beat.");
+        ImGui::PopTextWrapPos();
+    }
 
     ImGui::Dummy(ImVec2(0, 16 * s));
     ImGui::SetCursorPosX(left);

@@ -513,6 +513,8 @@ static void runMenus(){
                     for (const SongEntry& song : app.songs) if (song.chartPath == newSongChartPath()) editSong(song);
                     // Made from a video: its pictures are brought in now, the editor showing how far along
                     if (app.screen == Screen::Editor && !newSongVideoPath().empty()) editorImportFile(newSongVideoPath());
+                    // Its tempo and bars, found from the song itself (after the video, if there's one)
+                    if (app.screen == Screen::Editor && newSongFindsTempo()) editorFindTempo();
                     break;
                 }
                 case NewSongChoice::None: break;

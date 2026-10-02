@@ -4,6 +4,7 @@
 #include "app/videoconvert.h"
 #include "audio/audio.h"
 #include "core/addon.h"
+#include "core/beats.h"
 #include "core/chart.h"
 #include "core/files.h"
 #include "core/guitarpro.h"
@@ -74,6 +75,8 @@ const char* const IMPORT_POPUP = "Import into this song";
 const char* const IMPORT_PARTS_POPUP = "Parts to bring in";
 const char* const EXPORT_POPUP = "Export this song";
 const char* const VIDEO_POPUP = "Bringing in a video";
+const char* const TEMPO_POPUP = "Listening to the song";
+const int LISTEN_RATE = 22050;        // the song is listened to at this rate for its beat: plenty, and quick
 const std::vector<std::string> VIDEO_PATTERNS = { "*.mp4", "*.m4v", "*.mkv", "*.webm", "*.mov", "*.avi", "*.wmv", "*.flv", "*.mpg", "*.mpeg" };
 const std::vector<std::string> PARTS_PATTERNS = { "*.gp", "*.gpx", "*.gp5", "*.gp4", "*.gp3", "*.chart" };
 const std::vector<std::string> AUDIO_PATTERNS = { "*.mp3", "*.ogg", "*.flac", "*.wav" };
@@ -133,6 +136,12 @@ struct EditorState {
     std::vector<char> importChosen;       // per part: brought in or not
     bool importBars = false;              // its tempos, time signatures and keys too
     bool importVideoSound = false;        // a video brought in: its sound too, as the song's audio
+
+    // The song's beats, as last found from its sound (core/beats), and the one bar 1 is laid on: kept so the bars
+    // can be moved a beat, or the tempo halved or doubled, without listening again
+    std::vector<double> foundBeats;
+    int foundFirst = 0;
+    bool findTempoNext = false;           // asked for while something else was at work: started once that's done
     bool exportVideo = true;              // the package made with the song's video in it
 
     // Editing
@@ -224,6 +233,25 @@ static struct {
     std::string error;
     bool ok = false;
 } bringingVideo;
+
+// The song listened to for its beat, on a thread too: reading the whole of it takes a second or two
+static struct {
+    std::thread thread;
+    std::atomic<bool> working{false};
+    std::atomic<bool> cancel{false};
+    std::atomic<bool> done{false};     // set last by the thread: what's below is then the main thread's to read
+    SongBeats found;
+    std::string error;
+    bool ok = false;
+} findingTempo;
+
+static void stopTempoWork(){
+    findingTempo.cancel = true;
+    if (findingTempo.thread.joinable()) findingTempo.thread.join();
+    findingTempo.cancel = false;
+    findingTempo.working = false;
+    findingTempo.done = false;
+}
 
 static void stopVideoWork(){
     bringingVideo.cancel = true;
@@ -715,6 +743,112 @@ static void recordPlayed(){
     }
 }
 
+// --- The song's own beat ------------------------------------------------------------------------------
+// The song is listened to for its tempo and its beats (core/beats), and the chart's bars are laid on them: bar 1
+// on the beat that most likely starts a bar, the tempo the song's own (one for a steady recording, following it
+// beat by beat for one that drifts). Which beat starts the bar is a guess, and a tempo can be heard at half or
+// twice what a musician would count: both are put right from what was found, without listening again.
+
+// The song's length in bars, counted at the tempo it has now: to the end of its audio, and of its notes
+static void fitLengthToAudio(){
+    Chart& chart = editor.chart;
+    int last = 1;
+    if (editor.songLoaded) last = std::max(last, (int)std::ceil(secondsToTick(chart, songEndSeconds())));
+    for (const FrettedTrack& part : chart.frettedTracks) if (!part.notes.empty()) last = std::max(last, part.notes.back().tick + 1);
+    chart.endTick = barStartTick(chart, barNumberAt(chart, last - 1) + 1);
+}
+
+// The bars laid on the beats found, bar 1 on the beat numbered `first`
+static void layBarsOnBeats(int first){
+    if (editor.foundBeats.size() < 2) return;
+    stopPlayback();
+    editor.foundFirst = std::clamp(first, 0, (int)editor.foundBeats.size() - 2);
+    fitChartToBeats(editor.chart, editor.foundBeats, editor.foundFirst);
+    fitLengthToAudio();
+    editor.playheadTick = std::min(editor.playheadTick, editor.chart.endTick);
+    markChanged();
+    const std::vector<TempoChange>& tempos = editor.chart.tempoMap;
+    if (tempos.size() == 1){
+        editor.status = TextFormat("The song is at %.5g BPM, steady: its bars are on its beats, bar 1 at %.3f s", tempos[0].bpm, editor.chart.offset);
+    } else {
+        auto slowest = std::min_element(tempos.begin(), tempos.end(), [](const TempoChange& a, const TempoChange& b){ return a.bpm < b.bpm; });
+        auto fastest = std::max_element(tempos.begin(), tempos.end(), [](const TempoChange& a, const TempoChange& b){ return a.bpm < b.bpm; });
+        editor.status = TextFormat("The song's tempo moves (%.4g to %.4g BPM): its bars follow it beat by beat, bar 1 at %.3f s", slowest->bpm, fastest->bpm, editor.chart.offset);
+    }
+}
+
+// Half as many beats (every other one, bar 1's among them) or twice as many (one more between each two)
+static void halveBeats(){
+    std::vector<double> beats;
+    const int start = editor.foundFirst % 2;
+    for (size_t i = start; i < editor.foundBeats.size(); i += 2) beats.push_back(editor.foundBeats[i]);
+    if (beats.size() < 2) return;
+    int first = (editor.foundFirst - start) / 2;
+    editor.foundBeats = beats;
+    layBarsOnBeats(first);
+}
+
+static void doubleBeats(){
+    std::vector<double> beats;
+    for (size_t i = 0; i < editor.foundBeats.size(); i++){
+        beats.push_back(editor.foundBeats[i]);
+        if (i + 1 < editor.foundBeats.size()) beats.push_back((editor.foundBeats[i] + editor.foundBeats[i + 1]) / 2);
+    }
+    int first = 2 * editor.foundFirst;
+    editor.foundBeats = beats;
+    layBarsOnBeats(first);
+}
+
+static void findTempo(){
+    if (findingTempo.working) return;
+    if (!editor.songLoaded || editor.chart.audioFile.empty()){
+        editor.status = "The tempo is found from the song's audio, and this song has none";
+        return;
+    }
+    if (bringingVideo.working){ // one thing at a time: a video being brought in may be about to change the audio
+        editor.findTempoNext = true;
+        return;
+    }
+    stopTempoWork();
+    findingTempo.working = true;
+    const std::string audioPath = (fs::path(editor.songFolder) / editor.chart.audioFile).string();
+    const int beatsPerBar = editor.chart.timeSignatures[0].beats;
+    findingTempo.thread = std::thread([audioPath, beatsPerBar]{
+        std::vector<float> samples;
+        std::string error;
+        SongBeats found;
+        bool ok = decodeAudioFile(audioPath, LISTEN_RATE, 1, samples, error, findingTempo.cancel);
+        if (ok && !findSongBeats(samples, LISTEN_RATE, beatsPerBar, found, findingTempo.cancel)){
+            ok = false;
+            error = "no steady beat could be heard in it";
+        }
+        findingTempo.ok = ok;
+        findingTempo.error = error;
+        findingTempo.found = found;
+        findingTempo.done = true;
+    });
+}
+
+// The listening done: the bars go on the beats found
+static void takeTempoWork(){
+    if (editor.findTempoNext && !bringingVideo.working && !findingTempo.working){
+        editor.findTempoNext = false;
+        findTempo();
+    }
+    if (!findingTempo.done) return;
+    if (findingTempo.thread.joinable()) findingTempo.thread.join();
+    const bool stopped = findingTempo.cancel;
+    findingTempo.done = false;
+    findingTempo.working = false;
+    findingTempo.cancel = false;
+    if (!findingTempo.ok){
+        editor.status = stopped ? "The tempo wasn't looked for" : "The song's tempo: " + findingTempo.error;
+        return;
+    }
+    editor.foundBeats = findingTempo.found.beats;
+    layBarsOnBeats(findingTempo.found.downbeat);
+}
+
 // --- Saving -------------------------------------------------------------------------------------------
 
 static bool saveEditorChart(){
@@ -806,13 +940,9 @@ static void bringPartsIn(){
     const int first = (int)editor.chart.frettedTracks.size();
     stopPlayback();
     importParts(editor.chart, editor.importChart, parts, editor.importBars);
-    if (editor.importBars && editor.songLoaded){
-        // The song's length in bars was counted at its old tempo: at the new one it's as long as its audio again
-        // (and no shorter than its notes need)
-        Chart& chart = editor.chart;
-        int audioEnd = (int)std::ceil(secondsToTick(chart, songEndSeconds()));
-        if (audioEnd > chart.endTick) chart.endTick = barStartTick(chart, barNumberAt(chart, audioEnd - 1) + 1);
-    }
+    // The song's length in bars was counted at its old tempo: at the new one it's as long as its audio again (and
+    // no shorter than its notes need)
+    if (editor.importBars && editor.songLoaded) fitLengthToAudio();
     choosePart(first);
     editor.playheadTick = std::min(editor.playheadTick, editor.chart.endTick);
     markChanged();
@@ -1416,6 +1546,24 @@ static void drawDetails(ImVec2 min, ImVec2 max, float s){
         markChanged();
     }
     if (chart.tempoMap.size() > 1) note(TextFormat("+ %d tempo changes", (int)chart.tempoMap.size() - 1));
+    // The song's own beat, found from its sound; then, from what was found, the two things a guess can get wrong
+    ImGui::BeginDisabled(!editor.songLoaded || findingTempo.working);
+    if (ImGui::Button("Find the tempo from the song")) findTempo();
+    ImGui::EndDisabled();
+    if (editor.foundBeats.empty()){
+        note(editor.songLoaded ? "Listens to the song for its beats and lays the bars on them: its tempo (following it if it drifts) and where bar 1 starts"
+                               : "Needs the song's audio");
+    } else {
+        note("If the bars start on the wrong beat, or the tempo is half or twice the one you count:");
+        ImGui::BeginDisabled(editor.foundFirst <= 0);
+        if (ImGui::Button("Bar 1 a beat earlier")) layBarsOnBeats(editor.foundFirst - 1);
+        ImGui::EndDisabled();
+        ImGui::SameLine();
+        if (ImGui::Button("a beat later")) layBarsOnBeats(editor.foundFirst + 1);
+        if (ImGui::Button("Half the tempo")) halveBeats();
+        ImGui::SameLine();
+        if (ImGui::Button("Twice the tempo")) doubleBeats();
+    }
     field("Offset: where the first bar starts in the audio (s)");
     if (ImGui::InputDouble("##offset", &chart.offset, 0.001, 0.01, "%.3f")) markChanged();
     if (editor.songLoaded){
@@ -2263,6 +2411,19 @@ static void drawImportExportPopups(float s){
         if (ImGui::Button("Close") || ImGui::IsKeyPressed(ImGuiKey_Escape, false)) ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
     }
+    // The song being listened to for its beat
+    takeTempoWork();
+    if (findingTempo.working && !ImGui::IsPopupOpen(TEMPO_POPUP)) ImGui::OpenPopup(TEMPO_POPUP);
+    ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+    if (ImGui::BeginPopupModal(TEMPO_POPUP, nullptr, ImGuiWindowFlags_AlwaysAutoResize)){
+        ImGui::Text("Finding its tempo and its beats...");
+        ImGui::TextDisabled("A second or two for a whole song.");
+        ImGui::Spacing();
+        if (ImGui::Button("Stop")) findingTempo.cancel = true;
+        if (!findingTempo.working) ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+    }
+
     // A video being converted: how far along, and a way out
     takeVideoWork();
     if (bringingVideo.working && !ImGui::IsPopupOpen(VIDEO_POPUP)) ImGui::OpenPopup(VIDEO_POPUP);
@@ -2321,6 +2482,7 @@ bool openEditor(const SongEntry& song, const std::string& userSongsDir, const st
 
 void closeEditor(){
     if (!editor.active) return;
+    stopTempoWork();
     stopVideoWork();
     stopRecording();
     stopPlayback();
@@ -2434,4 +2596,8 @@ EditorChoice editorScreen(){
 
 void editorImportFile(const std::string& path){
     if (editor.active) importFile(path);
+}
+
+void editorFindTempo(){
+    if (editor.active) findTempo();
 }

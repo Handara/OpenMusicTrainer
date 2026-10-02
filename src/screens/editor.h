@@ -17,6 +17,8 @@ bool openEditor(const SongEntry& song, const std::string& userSongsDir, const st
                 Settings& settings, std::string& error);
 // A file brought into the song being edited, as if dropped on it: a tab or a chart (its parts), an audio file, a video
 void editorImportFile(const std::string& path);
+// The song being edited listened to for its tempo and beats, its bars laid on them (as its Details' button does)
+void editorFindTempo();
 
 enum class EditorChoice { None, Back, TestPlay };
 EditorChoice editorScreen(); // full-screen ImGui; handles its own Esc so it can warn about unsaved changes

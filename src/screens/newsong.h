@@ -13,4 +13,5 @@ void openNewSongScreen(const std::string& userSongsDir, const std::string& addon
 enum class NewSongChoice { None, Back, Created };
 NewSongChoice newSongScreen();
 std::string newSongChartPath(); // after Created: the new song's chart
+bool newSongFindsTempo();        // and whether its tempo and bars are to be found from the song, in the editor
 std::string newSongVideoPath(); // and the video it was made from ("" for a song from audio): its pictures are still to bring in
