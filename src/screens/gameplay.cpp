@@ -244,12 +244,12 @@ static void handleInstrument(std::vector<PlayNote>& notes, GameState& state, flo
         PlayerInput input;
         input.time = songTime - chord.age - inputOffset;
         if (std::fabs((float)input.time - chords.lastChordAt) < SAME_PLUCK_S) continue; // counted already
-        std::vector<int> due = chordDueAt(notes, (float)input.time);
-        bool held = !due.empty() && std::all_of(due.begin(), due.end(), [&](int index){
+        std::vector<int> dueChord = chordDueAt(notes, (float)input.time);
+        bool held = !dueChord.empty() && std::all_of(dueChord.begin(), dueChord.end(), [&](int index){
             return std::count(chord.pitches.begin(), chord.pitches.end(), notes[index].pitch) > 0;
         });
         if (!held) continue;
-        input.pitch = notes[due[0]].pitch; // one of its notes completes the chord
+        input.pitch = notes[dueChord[0]].pitch; // one of its notes completes the chord
         JudgeResult result = judgeInput(notes, input);
         if (result.judgement == Judgement::Ignored) continue;
         scoreHit(state, result, judgementAnchor(notes, result.noteIndex));
