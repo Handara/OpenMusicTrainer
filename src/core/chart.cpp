@@ -56,6 +56,10 @@ bool loadChart(const std::string& path, Chart& out, std::string& error){
             std::getline(ss >> std::ws, out.artist);
         } else if (keyword == "audio"){
             std::getline(ss >> std::ws, out.audioFile);
+        } else if (keyword == "video"){
+            std::getline(ss >> std::ws, out.videoFile);
+        } else if (keyword == "video_offset"){
+            if (!(ss >> out.videoOffset)) return lineError("expected: video_offset <seconds into the video where the audio starts>");
         } else if (keyword == "resolution"){
             if (!(ss >> out.resolution)) return lineError("expected: resolution <ticks per beat>");
         } else if (keyword == "offset"){
@@ -262,6 +266,10 @@ bool saveChart(const std::string& path, const Chart& chart, std::string& error){
     if (!chart.title.empty()) out << "title " << chart.title << "\n";
     if (!chart.artist.empty()) out << "artist " << chart.artist << "\n";
     if (!chart.audioFile.empty()) out << "audio " << chart.audioFile << "\n";
+    if (!chart.videoFile.empty()){
+        out << "video " << chart.videoFile << "\n";
+        if (chart.videoOffset != 0.0) out << "video_offset " << formatNumber(chart.videoOffset) << "\n";
+    }
     out << "resolution " << chart.resolution << "\n";
     out << "offset " << formatNumber(chart.offset) << "\n";
     out << "end " << chart.endTick << "\n";

@@ -351,3 +351,24 @@ TEST_CASE("parts brought in from another chart keep their bars and beats"){
         CHECK(song.offset == 0.4);
     }
 }
+
+TEST_CASE("a song's video: its file and where the audio starts in it, saved and read back"){
+    Chart chart;
+    std::string error;
+    REQUIRE_MESSAGE(loadChart(writeTemp("video.chart", "version 2\nvideo clip.mpg\nvideo_offset 1.5\nresolution 480\noffset 0\nend 1920\ntempo 0 120\n"
+                                                       "track bass Bass\ntuning 28 33 38 43\nn 0 0 3\n"), chart, error), error);
+    CHECK(chart.videoFile == "clip.mpg");
+    CHECK(chart.videoOffset == doctest::Approx(1.5));
+    std::string path = writeTemp("video-saved.chart", "");
+    REQUIRE_MESSAGE(saveChart(path, chart, error), error);
+    Chart again;
+    REQUIRE_MESSAGE(loadChart(path, again, error), error);
+    CHECK(again.videoFile == "clip.mpg");
+    CHECK(again.videoOffset == doctest::Approx(1.5));
+    // A song without one says nothing of it
+    again.videoFile.clear();
+    REQUIRE_MESSAGE(saveChart(path, again, error), error);
+    REQUIRE_MESSAGE(loadChart(path, chart, error), error);
+    CHECK(chart.videoFile.empty());
+    CHECK(chart.videoOffset == 0.0);
+}

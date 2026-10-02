@@ -103,3 +103,31 @@ TEST_CASE("a package is refused, leaving nothing behind, when"){
     CHECK(fs::is_empty(songs));
     CHECK_FALSE(fs::exists(songs.parent_path() / "evil.txt"));
 }
+
+TEST_CASE("a song's video goes in its package, or stays out of it"){
+    fs::path song = freshDir("video-source") / "Clip";
+    fs::create_directories(song);
+    std::ofstream(song / "song.chart", std::ios::binary) << "version 2\ntitle Clip\naudio track.ogg\nvideo video.mpg\nvideo_offset 0.25\nresolution 480\nend 1920\n"
+                                                            "tempo 0 120\ntrack guitar Lead\ntuning 40 45 50 55 59 64\nn 0 0 3\n";
+    std::ofstream(song / "track.ogg", std::ios::binary) << "sound";
+    std::ofstream(song / "video.mpg", std::ios::binary) << std::string(3000, 'v');
+    std::string error, installed;
+
+    fs::path with = freshDir("video-out") / "with.lahn";
+    REQUIRE_MESSAGE(exportSongPackage(song.string(), with.string(), error), error);
+    fs::path songs = freshDir("video-songs");
+    REQUIRE_MESSAGE(installSongPackage(with.string(), songs.string(), installed, error), error);
+    CHECK(readFile(fs::path(installed) / "video.mpg") == std::string(3000, 'v'));
+    Chart chart;
+    REQUIRE_MESSAGE(loadChart((fs::path(installed) / "song.chart").string(), chart, error), error);
+    CHECK(chart.videoFile == "video.mpg");
+    CHECK(chart.videoOffset == doctest::Approx(0.25));
+
+    // Without it: the chart still names it, the file isn't there, and the song installs all the same
+    fs::path without = freshDir("video-out2") / "without.lahn";
+    REQUIRE_MESSAGE(exportSongPackage(song.string(), without.string(), error, false), error);
+    CHECK(fs::file_size(without) < fs::file_size(with)); // smaller: its video isn't in it
+    REQUIRE_MESSAGE(installSongPackage(without.string(), songs.string(), installed, error), error);
+    CHECK_FALSE(fs::exists(fs::path(installed) / "video.mpg"));
+    CHECK(fs::exists(fs::path(installed) / "track.ogg"));
+}

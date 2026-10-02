@@ -11,14 +11,15 @@ namespace fs = std::filesystem;
 const char* const CHART_FILE = "song.chart";
 const char* const COVER_FILES[] = { "cover.png", "cover.jpg" };
 
-bool exportSongPackage(const std::string& songFolder, const std::string& packagePath, std::string& error){
+bool exportSongPackage(const std::string& songFolder, const std::string& packagePath, std::string& error, bool withVideo){
     fs::path folder = songFolder;
     Chart chart;
     if (!loadChart((folder / CHART_FILE).string(), chart, error)) return false;
 
-    // The chart, its audio, and a cover if there's one
+    // The chart, its audio, its video, and a cover if there's one
     std::vector<std::string> files = { CHART_FILE };
     if (!chart.audioFile.empty()) files.push_back(chart.audioFile);
+    if (withVideo && !chart.videoFile.empty()) files.push_back(chart.videoFile);
     for (const char* cover : COVER_FILES) if (fs::is_regular_file(folder / cover)) files.push_back(cover);
     for (const std::string& file : files){
         if (!fs::is_regular_file(folder / file)){

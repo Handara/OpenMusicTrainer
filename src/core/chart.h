@@ -74,6 +74,10 @@ struct Chart {
     // game starts and stops there, and leaves out the notes that fall outside. 0 = not trimmed at that end.
     double trimStart = 0.0;
     double trimEnd = 0.0;
+    // A video to show behind the notes while the song plays, in the chart's folder (MPEG-1: see src/video); empty
+    // for none. A song plays the same without it: a chart naming a video that isn't there just has no picture.
+    std::string videoFile;
+    double videoOffset = 0.0; // seconds into the video where the audio starts: 0 when they were made together
 };
 
 // A song's parts are its fretted tracks, then its keys tracks: part numbers count through both in that order
