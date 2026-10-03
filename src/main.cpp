@@ -476,7 +476,7 @@ static void handleBackKey(bool backClicked){
         case Screen::Settings: if (!settingsUsedEscape()) leaveSettings(); break;
         case Screen::Calibration: leaveCalibration(); break;
         case Screen::TuningCheck: leaveTuningCheck(false); break;
-        case Screen::Practice: goToSongSelect(); break;
+        case Screen::Practice: closePracticeScreen(); goToSongSelect(); break;
         case Screen::ImportSong:
             closeImportScreen();
             goToSongList(app.importForEditor ? Screen::EditorSelect : Screen::SongSelect); // back where it was opened from

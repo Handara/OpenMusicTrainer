@@ -756,8 +756,13 @@ void drawGameplayHud(){
     if (game.options.practice.on){
         const PracticeOptions& practice = game.options.practice;
         const PracticeProgress& progress = game.progress;
-        int firstBar = barNumberAt(game.chart, practice.fromTick) + 1, lastBar = barNumberAt(game.chart, std::max(practice.fromTick, practice.toTick - 1)) + 1;
-        std::string line = firstBar == lastBar ? TextFormat("PRACTICE  ·  BAR %d", firstBar) : TextFormat("PRACTICE  ·  BARS %d-%d", firstBar, lastBar);
+        // Where it is: "2" for a bar line, "2.3" for bar 2's third beat
+        auto place = [&](int tick){
+            const int bar = barNumberAt(game.chart, tick), start = barStartTick(game.chart, bar);
+            const int beat = (tick - start) / std::max(1, game.chart.resolution * 4 / timeSignatureAt(game.chart, start).beatUnit);
+            return beat == 0 ? std::to_string(bar + 1) : std::string(TextFormat("%d.%d", bar + 1, beat + 1));
+        };
+        std::string line = "PRACTICE  ·  FROM " + place(practice.fromTick) + " TO " + place(practice.toTick);
         line += TextFormat("  ·  %d%% TEMPO  ·  PASS %d", (int)std::lround(progress.speed * 100.0f), progress.passes + 1);
         if (practice.passes > 0) line += TextFormat(" OF %d", practice.passes);
         if (progress.passes > 0) line += TextFormat("  ·  LAST %d%%", (int)std::lround(progress.lastAccuracy * 100.0f));
