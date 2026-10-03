@@ -15,7 +15,7 @@
 const int AROUND_BARS = 4;          // from the pause menu: this many bars, from the one it was paused in
 const float EDGE_GRIP = 8.0f;       // pixels either side of the section's edge that take hold of it
 const int TEMPOS[] = { 40, 50, 60, 70, 80, 90, 100 };
-const int PASSES[] = { 0, 3, 5, 10 }; // 0: until mastered
+const int REPEATS[] = { 0, 3, 5, 10, -1 }; // 0: until mastered; -1: a number of the player's own
 
 static struct PracticeState {
     SongEntry song;
@@ -31,7 +31,8 @@ static struct PracticeState {
     bool gradual = true;
     int step = 0;                   // +5% or +10%
     bool noteByNote = false;
-    int passes = 0;                 // into PASSES
+    int repeat = 0;                 // into REPEATS
+    int ownRepeats = 20;            // the number of the player's own (1 to 100)
     // The mouse on the timeline
     enum class Drag { None, Select, From, To } drag = Drag::None;
     int anchorBar = 0;
@@ -83,7 +84,7 @@ PracticeOptions practiceChoice(){
     options.gradual = practice.gradual && practice.tempo < (int)(sizeof TEMPOS / sizeof TEMPOS[0]) - 1;
     options.step = practice.step == 0 ? 0.05f : 0.10f;
     options.noteByNote = practice.noteByNote;
-    options.passes = PASSES[practice.passes];
+    options.passes = REPEATS[practice.repeat] < 0 ? practice.ownRepeats : REPEATS[practice.repeat];
     return options;
 }
 
@@ -214,7 +215,7 @@ PracticeChoice practiceScreen(){
                   "Drag across bars to choose them, or drag the section's edges.   Left/Right  move it    Shift + Left/Right  its length");
 
     // How it's practised
-    const float cardTop = timelineTop + 186 * s, cardBottom = height - 64 * s, cardWidth = (right - left) * 0.62f;
+    const float cardTop = timelineTop + 186 * s, cardBottom = height - 64 * s, cardWidth = (right - left) * 0.74f;
     ImGui::SetCursorScreenPos(ImVec2(left, cardTop));
     ImGui::PushStyleColor(ImGuiCol_ChildBg, uiColorVec(UiColor::Card));
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 10 * s);
@@ -229,7 +230,9 @@ PracticeChoice practiceScreen(){
     ImGui::EndDisabled();
     ImGui::EndDisabled();
     settingToggle("Note by note", "The song waits on each note until you play it", &practice.noteByNote);
-    settingSegments("Passes", "Until 100%: until a pass plays every note at the tempo aimed for", &practice.passes, { "Until 100%", "3", "5", "10" });
+    settingSegments("Repeat", "How many times the section is played. Until 100%: until every note is played, at the tempo aimed for",
+                    &practice.repeat, { "Until 100%", "3 times", "5 times", "10 times", "Other" });
+    if (REPEATS[practice.repeat] < 0) settingSliderInt("Times", "Any number, 1 to 100", &practice.ownRepeats, 1, 100, "%d times");
     ImGui::EndChild();
     ImGui::PopStyleVar(3);
     ImGui::PopStyleColor();

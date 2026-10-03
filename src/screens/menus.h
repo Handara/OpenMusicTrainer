@@ -41,7 +41,7 @@ void selectSongInList(int songIndex);
 // the screen stays)
 bool songSelectBack();
 
-enum class PauseChoice { None, Resume, Retry, SwitchMode, Tune, Quit };
+enum class PauseChoice { None, Resume, Retry, PracticeSettings, SwitchMode, Tune, Quit };
 // Over the paused play screen: the song, and what to do
 // `practising`: the pause is in a practice (its rows say so). `instrument`: "bass" or "guitar", to offer tuning it;
 // null for none (a keys part)

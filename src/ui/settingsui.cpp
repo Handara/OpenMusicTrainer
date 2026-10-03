@@ -113,13 +113,24 @@ bool settingSegments(const char* label, const char* hint, int* chosen, const std
     ImDrawList* draw = ImGui::GetWindowDrawList();
     const UiFonts& fonts = uiFonts();
     const float alpha = fade(), count = (float)std::max<size_t>(1, options.size());
-    const float width = (row.max.x - row.min.x) / count;
+    // Each choice as wide as its words, and the room left over shared out evenly: a long one ("Until 100%") isn't
+    // cut off beside short ones ("3 times")
+    std::vector<float> widths(options.size());
+    float words = 0.0f;
+    for (size_t i = 0; i < options.size(); i++){
+        widths[i] = (fonts.bold ? fonts.bold->CalcTextSizeA(15 * s, FLT_MAX, 0.0f, options[i]).x : 40 * s) + 14 * s;
+        words += widths[i];
+    }
+    const float spare = (row.max.x - row.min.x - words) / count;
+    for (float& width : widths) width += spare;
     draw->AddRectFilled(row.min, row.max, uiColor(UiColor::Background, alpha), RADIUS * s);
+    float x = row.min.x;
     bool changed = false;
     ImGui::PushID(label);
     for (size_t i = 0; i < options.size(); i++){
         const ImGuiID id = ImGui::GetID((int)i);
-        const ImRect box(ImVec2(row.min.x + width * i, row.min.y), ImVec2(row.min.x + width * (i + 1), row.max.y));
+        const ImRect box(ImVec2(x, row.min.y), ImVec2(x + widths[i], row.max.y));
+        x += widths[i];
         if (!ImGui::ItemAdd(box, id)) continue;
         bool hovered = false, held = false;
         if (ImGui::ButtonBehavior(box, id, &hovered, &held) && *chosen != (int)i){

@@ -280,15 +280,19 @@ PauseChoice pauseScreen(const std::string& song, bool practising, const char* in
     // Resume, start over, switch between playing it through and practising part of it, tune, leave
     std::vector<MenuRow> rows = { actionRow("Resume", "Esc"), actionRow(practising ? "Start the practice over" : "Retry") };
     std::vector<PauseChoice> choices = { PauseChoice::Resume, PauseChoice::Retry };
+    if (practising){
+        rows.push_back(actionRow("Practice settings"));
+        choices.push_back(PauseChoice::PracticeSettings);
+    }
     if (canSwitch){
-        rows.push_back(actionRow(practising ? "Play the whole song" : "Practise this part"));
+        rows.push_back(actionRow(practising ? "Quit practice mode" : "Practise this part")); // quitting it, the song is played through
         choices.push_back(PauseChoice::SwitchMode);
     }
     if (instrument){
         rows.push_back(actionRow(TextFormat("Tune your %s", instrument)));
         choices.push_back(PauseChoice::Tune);
     }
-    rows.push_back(actionRow(practising ? "Back to the practice" : "Quit to songs"));
+    rows.push_back(actionRow("Quit to songs"));
     choices.push_back(PauseChoice::Quit);
     PauseChoice choice = PauseChoice::None;
     beginMenu("Paused");

@@ -676,6 +676,7 @@ static void runMenus(){
                         else if (app.currentPractice){ stopGameplay(); startPractice(); }
                         else startSong(app.currentSong, app.currentPart);
                         break;
+                    case PauseChoice::PracticeSettings: stopGameplay(); goToPractice(app.currentSong, app.currentPart, -1, ""); break;
                     case PauseChoice::SwitchMode:
                         if (app.currentPractice){ stopGameplay(); startSong(app.currentSong, app.currentPart); }
                         else {
@@ -693,7 +694,6 @@ static void runMenus(){
                     }
                     case PauseChoice::Quit:
                         if (app.testPlaying) backToEditor();
-                        else if (app.currentPractice){ stopGameplay(); goToPractice(app.currentSong, app.currentPart, -1, ""); }
                         else { stopGameplay(); goToSongSelect(); }
                         break;
                     case PauseChoice::None: break;

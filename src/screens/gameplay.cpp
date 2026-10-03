@@ -759,6 +759,7 @@ void drawGameplayHud(){
         int firstBar = barNumberAt(game.chart, practice.fromTick) + 1, lastBar = barNumberAt(game.chart, std::max(practice.fromTick, practice.toTick - 1)) + 1;
         std::string line = firstBar == lastBar ? TextFormat("PRACTICE  ·  BAR %d", firstBar) : TextFormat("PRACTICE  ·  BARS %d-%d", firstBar, lastBar);
         line += TextFormat("  ·  %d%% TEMPO  ·  PASS %d", (int)std::lround(progress.speed * 100.0f), progress.passes + 1);
+        if (practice.passes > 0) line += TextFormat(" OF %d", practice.passes);
         if (progress.passes > 0) line += TextFormat("  ·  LAST %d%%", (int)std::lround(progress.lastAccuracy * 100.0f));
         draw->AddText(fonts.mono, 14 * s, ImVec2(margin, top + 56 * s), uiColor(UiColor::Accent), line.c_str());
         if (game.waiting){
