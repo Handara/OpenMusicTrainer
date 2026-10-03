@@ -51,7 +51,7 @@ void expectLowestFrequency(NoteDetector& detector, float frequency){
     int lag = detector.pitch.maxLag;
     // A little below the note, for one played flat
     if (frequency > 0.0f) lag = (int)std::ceil(detector.sampleRate / (frequency * 0.9f));
-    detector.analysisLag = std::clamp(lag, detector.pitch.minLag + 4, detector.pitch.maxLag);
+    detector.analysisLag = std::clamp(lag, std::min(detector.pitch.minLag + 4, detector.pitch.maxLag), detector.pitch.maxLag);
 }
 
 // The pitch of the latest samples (two of the longest periods looked for), as a fractional MIDI number; negative if

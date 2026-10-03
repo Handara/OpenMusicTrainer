@@ -80,7 +80,7 @@ static LessonStep& selectedStep(){
 
 static void selectStep(int index){
     releaseLessonMedia(ed.media); // the old step's picture and sound
-    ed.selected = std::clamp(index, 0, (int)ed.lesson.steps.size() - 1);
+    ed.selected = std::clamp(index, 0, std::max(0, (int)ed.lesson.steps.size() - 1)); // a lesson with no steps: 0
     std::string joined;
     for (const std::string& paragraph : selectedStep().paragraphs) joined += (joined.empty() ? "" : "\n") + paragraph;
     ed.paragraphs = joined;

@@ -117,6 +117,11 @@ static void sector(Vector2 center, float radius, float start, float end, Color c
 
 void smoothRoundedRect(Rectangle rect, float radius, Color color){
     if (rect.width <= 0.0f || rect.height <= 0.0f || color.a == 0) return;
+    // Thinner than its edges' fade (a bar just starting to fill): too small for corners, a plain rectangle
+    if (std::min(rect.width, rect.height) < 2 * FEATHER){
+        DrawRectangleRec(rect, color);
+        return;
+    }
     const float r = std::clamp(radius, FEATHER, std::min(rect.width, rect.height) / 2);
     const float half = FEATHER / 2, x = rect.x, y = rect.y, w = rect.width, h = rect.height;
     const Color none = clear(color);

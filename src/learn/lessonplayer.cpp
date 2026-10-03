@@ -20,7 +20,7 @@ LessonPlayer::LessonPlayer(const LessonEntry& entry, std::vector<ExerciseEntry> 
       playOptions(playOptions), progressPath(progressPath){
     progress = loadLessonProgress(progressPath);
     // Reopens where the student was; a finished lesson starts over from the top
-    current = progress.completed ? 0 : std::clamp(progress.reached, 0, (int)lesson.steps.size() - 1);
+    current = progress.completed ? 0 : std::clamp(progress.reached, 0, std::max(0, (int)lesson.steps.size() - 1));
 }
 
 LessonPlayer::~LessonPlayer(){
@@ -49,7 +49,7 @@ void LessonPlayer::save(){
 void LessonPlayer::goTo(int index){
     stopStep();
     releaseLessonMedia(media); // the old step's picture, clip or video
-    current = std::clamp(index, 0, (int)lesson.steps.size() - 1);
+    current = std::clamp(index, 0, std::max(0, (int)lesson.steps.size() - 1)); // a lesson with no steps: 0
     progress.reached = std::max(progress.reached, current);
     save();
 }
