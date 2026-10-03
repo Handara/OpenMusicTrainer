@@ -1,5 +1,6 @@
 #include "raylib.h"
 #include "app/crashreport.h"
+#include "app/screenrecorder.h"
 #include "app/videoconvert.h"
 #include "audio/audio.h"
 #include "core/judge.h"
@@ -849,6 +850,7 @@ int main(void){
             app.screen = Screen::Results;
         }
         drawTransition();
+        captureScreen(); // a check's video, recording (F9 in a song): the frame as it will be shown
         if (app.screen != shown && app.sameScreen) app.sameScreen = false;
         else if (app.screen != shown){
             startTransition(app.zoomTo.x, app.zoomTo.y);
@@ -859,6 +861,7 @@ int main(void){
 
     saveAppSettings(); // what changed outside the settings screen too (the instrument played last)
     stopGameplay();
+    waitForChecks();
     stopTuner();
     closeInstrumentScreen();
     closeEditor();

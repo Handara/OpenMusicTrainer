@@ -1,5 +1,7 @@
 #include "screens/gameplay.h"
 
+#include "app/screenrecorder.h"
+#include "app/videoconvert.h"
 #include "audio/audio.h"
 #include "core/chart.h"
 #include "core/chords.h"
@@ -26,11 +28,13 @@
 #include "views/rhythmlane.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstring>
 #include <ctime>
 #include <filesystem>
 #include <fstream>
+#include <thread>
 #include <vector>
 
 struct GameState {
@@ -84,6 +88,13 @@ static float checkSongTime = 0.0f;  // the song's time this frame, for the lines
 static double lastSync = -1.0;
 static std::string checkSaved;      // where the last one went, shown a moment
 static double checkSavedAt = -100.0;
+// ...and the screen with it, when FFmpeg is there (the video add-on): its pictures as the song goes, then the sound
+// put under them (the instrument as recorded, and the song's audio) on a worker thread, as <base>.mp4
+static std::string checkBase;       // the files' path, without their endings
+static std::string checkSongAudio;  // the song's audio file
+static double firstSyncRecording = -1.0, firstSyncSong = 0.0;
+static std::thread checkVideo;
+static std::atomic<bool> checkVideoBusy{false};
 static void logCheck(const std::string& line){
     if (inputRecording()) checkLog.push_back(line);
 }
@@ -430,6 +441,7 @@ bool startGameplay(const std::string& chartPath, const GameplayOptions& options,
 bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, const GameplayOptions& options, int fromTick,
                             std::string& error){
     stopGameplay();
+    checkSongAudio = audioPath;
     if (options.practice.on) fromTick = options.practice.fromTick; // practising: its section only
     if (options.part < 0 || options.part >= partCount(chart)){
         error = "the chart has no part " + std::to_string(options.part + 1) + " to play";
@@ -726,6 +738,10 @@ bool updateGameplay(){
     if (inputRecording() && (lastSync < 0.0 || inputRecordingSeconds() - lastSync >= 0.25)){
         lastSync = inputRecordingSeconds();
         checkLog.push_back(TextFormat("sync %.3f %.3f", lastSync, game.songTime));
+        if (firstSyncRecording < 0.0){
+            firstSyncRecording = lastSync;
+            firstSyncSong = game.songTime;
+        }
     }
     // Out of tune, the notes can't be played right: stop, so the player can tune rather than fight it
     if (game.watchingTuning && looksOutOfTune(game.tuning, game.outOfTuneCents)){
@@ -954,18 +970,31 @@ void drawGameplayHud(){
 
 static void beginCheck(){
     if (!noteInputActive()) return;
+    char stamp[32];
+    std::time_t clock = std::time(nullptr);
+    std::strftime(stamp, sizeof stamp, "%Y-%m-%d-%H%M%S", std::localtime(&clock));
+    checkBase = userDataDir() + "/check-song-" + stamp;
     startInputRecording();
     checkLog.clear();
     lastSync = -1.0;
+    firstSyncRecording = -1.0;
+    // The screen too, if FFmpeg is there
+    const std::string ffmpeg = findFfmpeg(userDataDir() + "/addons");
+    std::string error;
+    if (!ffmpeg.empty() && !startScreenRecording(ffmpeg, checkBase + "-pictures.mp4", error)) TraceLog(LOG_WARNING, "Recording the screen: %s", error.c_str());
+}
+
+void waitForChecks(){
+    if (checkVideo.joinable()) checkVideo.join();
 }
 
 static void saveCheck(){
     if (!inputRecording()) return;
-    char stamp[32];
-    std::time_t clock = std::time(nullptr);
-    std::strftime(stamp, sizeof stamp, "%Y-%m-%d-%H%M%S", std::localtime(&clock));
-    const std::string base = userDataDir() + "/check-song-" + stamp;
+    const std::string base = checkBase;
     std::string error;
+    std::string screenError;
+    const bool filmed = screenRecording() && stopScreenRecording(screenError);
+    if (!screenError.empty()) TraceLog(LOG_WARNING, "Recording the screen: %s", screenError.c_str());
     if (!saveInputRecording(base, error)){
         checkSaved = "Check not saved: " + error;
         checkSavedAt = GetTime();
@@ -987,6 +1016,25 @@ static void saveCheck(){
     checkLog.clear();
     checkSaved = "Check saved: " + base + ".wav and .txt";
     checkSavedAt = GetTime();
+    if (!filmed) return;
+
+    // The sound under the pictures: the instrument from the start, and the song's audio where it played, from the two
+    // clocks side by side (at the song's own speed only: a practice's slowed song isn't the file's)
+    std::vector<VideoSound> sounds = { { base + ".wav", 0.0, 1.0f } };
+    if (firstSyncRecording >= 0.0 && songSpeed() == 1.0f && !options.practice.noteByNote && !checkSongAudio.empty()){
+        const double audioAtStart = firstSyncSong - firstSyncRecording + options.offsetSeconds; // into the audio file, when the recording began
+        sounds.push_back({ checkSongAudio, -audioAtStart, 0.7f });
+    }
+    waitForChecks();
+    checkVideoBusy = true;
+    checkSaved += ", and the video as .mp4 in a moment";
+    checkVideo = std::thread([ffmpeg = findFfmpeg(userDataDir() + "/addons"), base, sounds]{
+        std::string error;
+        std::error_code ignored;
+        if (addSoundToVideo(ffmpeg, base + "-pictures.mp4", sounds, base + ".mp4", error)) std::filesystem::remove(base + "-pictures.mp4", ignored);
+        else TraceLog(LOG_WARNING, "The check's video: %s", error.c_str());
+        checkVideoBusy = false;
+    });
 }
 
 void stopGameplay(){

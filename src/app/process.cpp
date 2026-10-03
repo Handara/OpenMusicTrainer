@@ -1,5 +1,6 @@
 #include "app/process.h"
 
+#include <algorithm>
 #include <filesystem>
 
 // What the program prints comes in pieces of any size: lines are cut out of them, at \n or \r (a progress line
@@ -116,6 +117,64 @@ bool runProgram(const std::vector<std::string>& arguments, const std::function<v
     return !stopped && code == 0;
 }
 
+struct FedProgram {
+    HANDLE process = nullptr;
+    HANDLE input = nullptr; // the writing end of its input
+};
+
+FedProgram* startFedProgram(const std::vector<std::string>& arguments, std::string& error){
+    if (arguments.empty()) return nullptr;
+    std::wstring commandLine;
+    for (const std::string& argument : arguments) commandLine += (commandLine.empty() ? L"" : L" ") + quoted(wide(argument));
+    SECURITY_ATTRIBUTES inherit{ sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE };
+    HANDLE readEnd = nullptr, writeEnd = nullptr;
+    if (!CreatePipe(&readEnd, &writeEnd, &inherit, 1 << 20)){
+        error = "could not start " + arguments[0];
+        return nullptr;
+    }
+    SetHandleInformation(writeEnd, HANDLE_FLAG_INHERIT, 0); // only its reading end goes to the program
+    HANDLE nothing = CreateFileW(L"NUL", GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, &inherit, OPEN_EXISTING, 0, nullptr);
+    STARTUPINFOW startup{};
+    startup.cb = sizeof startup;
+    startup.dwFlags = STARTF_USESTDHANDLES;
+    startup.hStdInput = readEnd;
+    startup.hStdOutput = nothing;
+    startup.hStdError = nothing;
+    PROCESS_INFORMATION process{};
+    BOOL started = CreateProcessW(nullptr, commandLine.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr, nullptr, &startup, &process);
+    CloseHandle(readEnd);
+    if (nothing != INVALID_HANDLE_VALUE) CloseHandle(nothing);
+    if (!started){
+        CloseHandle(writeEnd);
+        error = "could not start " + arguments[0];
+        return nullptr;
+    }
+    CloseHandle(process.hThread);
+    return new FedProgram{ process.hProcess, writeEnd };
+}
+
+bool feedProgram(FedProgram* program, const void* data, size_t size){
+    const char* at = (const char*)data;
+    while (size > 0){
+        DWORD wrote = 0;
+        if (!WriteFile(program->input, at, (DWORD)std::min<size_t>(size, 1 << 20), &wrote, nullptr) || wrote == 0) return false;
+        at += wrote;
+        size -= wrote;
+    }
+    return true;
+}
+
+bool finishFedProgram(FedProgram* program, std::string& error){
+    CloseHandle(program->input); // the end of what it's given
+    WaitForSingleObject(program->process, INFINITE);
+    DWORD code = 1;
+    GetExitCodeProcess(program->process, &code);
+    CloseHandle(program->process);
+    delete program;
+    if (code != 0) error = "it ended with " + std::to_string(code);
+    return code == 0;
+}
+
 std::string findProgram(const std::string& name){
     wchar_t path[MAX_PATH * 4];
     DWORD length = SearchPathW(nullptr, wide(name).c_str(), L".exe", (DWORD)(sizeof path / sizeof path[0]), path, nullptr);
@@ -187,6 +246,63 @@ bool runProgram(const std::vector<std::string>& arguments, const std::function<v
     if (stopped) error = "stopped";
     else if (WIFEXITED(status) && WEXITSTATUS(status) == 127) error = "could not start " + arguments[0];
     return !stopped && WIFEXITED(status) && WEXITSTATUS(status) == 0;
+}
+
+struct FedProgram {
+    pid_t child = -1;
+    int input = -1; // the writing end of its input
+};
+
+FedProgram* startFedProgram(const std::vector<std::string>& arguments, std::string& error){
+    if (arguments.empty()) return nullptr;
+    int ends[2];
+    if (pipe(ends) != 0){
+        error = "could not start " + arguments[0];
+        return nullptr;
+    }
+    std::vector<char*> argv;
+    for (const std::string& argument : arguments) argv.push_back(const_cast<char*>(argument.c_str()));
+    argv.push_back(nullptr);
+    pid_t child = fork();
+    if (child < 0){
+        close(ends[0]);
+        close(ends[1]);
+        error = "could not start " + arguments[0];
+        return nullptr;
+    }
+    if (child == 0){
+        dup2(ends[0], STDIN_FILENO);
+        close(ends[0]);
+        close(ends[1]);
+        if (!freopen("/dev/null", "w", stdout) || !freopen("/dev/null", "w", stderr)) _exit(127);
+        execvp(argv[0], argv.data());
+        _exit(127);
+    }
+    close(ends[0]);
+    signal(SIGPIPE, SIG_IGN); // a program that ended makes writing fail, not this one stop
+    return new FedProgram{ child, ends[1] };
+}
+
+bool feedProgram(FedProgram* program, const void* data, size_t size){
+    const char* at = (const char*)data;
+    while (size > 0){
+        ssize_t wrote = write(program->input, at, size);
+        if (wrote < 0 && errno == EINTR) continue;
+        if (wrote <= 0) return false;
+        at += wrote;
+        size -= (size_t)wrote;
+    }
+    return true;
+}
+
+bool finishFedProgram(FedProgram* program, std::string& error){
+    close(program->input);
+    int status = 0;
+    waitpid(program->child, &status, 0);
+    delete program;
+    const bool ok = WIFEXITED(status) && WEXITSTATUS(status) == 0;
+    if (!ok) error = WIFEXITED(status) && WEXITSTATUS(status) == 127 ? "could not start it" : "it didn't end well";
+    return ok;
 }
 
 std::string findProgram(const std::string& name){

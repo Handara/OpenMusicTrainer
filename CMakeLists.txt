@@ -188,6 +188,7 @@ add_executable(lahn
     src/app/crashreport.cpp
     src/app/filedialog.cpp
     src/app/process.cpp
+    src/app/screenrecorder.cpp
     src/app/stemmodel.cpp
     src/app/videoconvert.cpp
     src/audio/audio.cpp

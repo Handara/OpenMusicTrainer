@@ -115,7 +115,9 @@ bool gameplayPaused();
 // Paused because the instrument sounds out of tune: its notes kept coming off the same way (core/tuningcheck).
 // `cents`: by how much (+ sharp). Resuming plays on, out of tune, and isn't stopped for it again.
 bool gameplayOutOfTune(float& cents);
-void stopGameplay();   // stops and releases the song; safe to call more than once
+void stopGameplay();
+// A check's video being finished (F9) on a worker thread: waited for, before lahn closes
+void waitForChecks();   // stops and releases the song; safe to call more than once
 GameResult gameplayResult();
 bool gameplayPractising();
 PracticeProgress practiceProgress(); // after a practice is over too: how it went
