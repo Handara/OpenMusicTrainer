@@ -4,17 +4,18 @@
 
 const float UI_FONT_SIZE = 26.0f;
 
-// The palettes, from the design mockups: cool neutrals, and brass as the one accent
+// The palettes. Dark (the default) is night-time and electric: near-black with a blue cast, cool greys, and one neon
+// accent, cyan, for what matters right now; judgements in neon green and hot red. Light is the same in daylight.
 struct Palette {
     Color background, card, ink, dim, staffLine, accent, good, bad;
 };
 const Palette LIGHT = {
-    {242, 243, 245, 255}, {255, 255, 255, 255}, {19, 22, 27, 255}, {122, 128, 140, 255},
-    {225, 228, 233, 255}, {217, 138, 0, 255}, {31, 138, 76, 255}, {200, 64, 47, 255},
+    {240, 242, 246, 255}, {255, 255, 255, 255}, {14, 18, 28, 255}, {112, 122, 140, 255},
+    {222, 227, 236, 255}, {0, 150, 190, 255}, {0, 160, 100, 255}, {220, 40, 80, 255},
 };
 const Palette DARK = {
-    {15, 19, 23, 255}, {21, 27, 33, 255}, {238, 241, 244, 255}, {109, 120, 131, 255},
-    {27, 34, 41, 255}, {255, 200, 97, 255}, {111, 214, 138, 255}, {255, 138, 118, 255},
+    {7, 9, 15, 255}, {13, 17, 27, 255}, {226, 234, 246, 255}, {100, 114, 138, 255},
+    {28, 36, 52, 255}, {0, 229, 255, 255}, {57, 255, 160, 255}, {255, 61, 105, 255},
 };
 
 static struct {

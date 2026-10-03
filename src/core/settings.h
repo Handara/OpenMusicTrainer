@@ -60,7 +60,7 @@ struct Settings {
     NoteViews noteViews;
     bool lowStringOnTop = true;        // string order on the highway and in the editor: low E at the top (on the left when the
                                        // highway falls), or at the bottom like tab
-    bool darkTheme = false;            // lahn's colors: light (the default) or dark
+    bool darkTheme = true;             // lahn's colors: dark (the default) or light
     bool songVideo = true;             // a song's video, when it has one, behind the notes
     bool fullscreen = false;
     int frameRateLimit = 60;           // 0 = unlimited

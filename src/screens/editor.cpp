@@ -2055,11 +2055,17 @@ static void drawTimeline(ImVec2 min, ImVec2 max, float s){
             draw->AddRectFilled(ImVec2(x - 2 * s, center.y - 8 * s), ImVec2(x + 2 * s, center.y + 8 * s),
                                 grabbed ? uiColor(UiColor::Accent) : stringInk(note.stringIndex, selected ? 1.0f : 0.8f), 2 * s);
         }
+        // As in a song: dark glass edged in the string's neon (by day, tinted glass), the selected ones lit
+        const Color color = stringColor(note.stringIndex), card = themeColor(UiColor::Card);
+        const bool night = currentTheme() == ThemeMode::Dark;
+        const Color fill = selected ? ColorLerp(card, color, 0.45f) : ColorLerp(card, color, night ? 0.16f : 0.14f);
+        const Color ink = night ? ColorLerp(color, WHITE, selected ? 0.75f : 0.35f) : ColorLerp(color, BLACK, 0.2f);
         draw->AddCircleFilled(center, radius + 1.5f * s, uiColor(UiColor::Card)); // a rim, so notes side by side stay apart
-        draw->AddCircleFilled(center, radius, stringInk(note.stringIndex));
+        draw->AddCircleFilled(center, radius, IM_COL32(fill.r, fill.g, fill.b, 255));
+        draw->AddCircle(center, radius - 1.0f * s, stringInk(note.stringIndex), 0, 2.0f * s);
         if (selected) draw->AddCircle(center, radius + 3.5f * s, uiColor(UiColor::Accent), 0, 2.5f * s);
         else if (under) draw->AddCircle(center, radius + 3.0f * s, uiColor(UiColor::Ink, 0.5f), 0, 1.5f * s);
-        label(center, note.stringIndex, note.fret, IM_COL32_WHITE);
+        label(center, note.stringIndex, note.fret, IM_COL32(ink.r, ink.g, ink.b, 255));
         if (under && editor.drag == Drag::None){
             int pitch = track().tuning[note.stringIndex] + note.fret;
             if (overGrip) hoverTip = "Drag  how long the note is held";

@@ -17,7 +17,7 @@ enum class UiColor {
     Ink,        // text and marks
     Dim,        // secondary text, what isn't selected
     StaffLine,  // the faint lines the screen sits on, and quiet borders
-    Accent,     // brass: the one bright color, for what matters right now
+    Accent,     // the one bright color (cyan), for what matters right now
     Good,       // right, passed, in tune
     Bad,        // wrong, missed
 };

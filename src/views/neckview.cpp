@@ -163,7 +163,6 @@ const float NOTE_HEIGHT = 0.27f;   // a note's half-height, in the strings' spac
 const float NOTE_WIDTH = 0.38f;    // ...and its half-width at most, in a fret's: room is left between notes on
                                    // neighboring strings and frets for the path between them
 const float RIM = 4.5f;            // at a 720-pixel-tall window: from a note's edge to its ring's and slider's
-const float RING_WIDTH = 3.2f;     // at a 720-pixel-tall window
 const float BURST_GROW = 0.5f;     // a note played swells by this much of its size as it fades: osu!'s hit
 const float MAX_PATH_S = 2.0f;     // two notes further apart in time than this aren't joined
 const float DOT_GAP = 15.0f;       // at a 720-pixel-tall window: between the path's dots
@@ -226,7 +225,11 @@ void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std:
     };
 
     BeginScissorMode((int)area.x, (int)area.y, (int)area.width, (int)area.height);
-    smoothRoundedRect({ boardLeft - 6 * s, top, boardRight - boardLeft + 12 * s, boardHeight }, 10 * s, themeColor(UiColor::Card));
+    // The board: a dark pane with a fine edge, its strings lit faintly in their colors
+    const bool night = currentTheme() == ThemeMode::Dark;
+    const Rectangle pane = { boardLeft - 6 * s, top, boardRight - boardLeft + 12 * s, boardHeight };
+    smoothRoundedRect({ pane.x - 1.0f * s, pane.y - 1.0f * s, pane.width + 2.0f * s, pane.height + 2.0f * s }, 6 * s, themeColor(UiColor::StaffLine));
+    smoothRoundedRect(pane, 5 * s, themeColor(UiColor::Card));
     const float middle = top + boardHeight / 2;
     const Color line = themeColor(UiColor::StaffLine);
     for (int fret = firstFretted; fret <= span.last; fret++){
@@ -236,15 +239,17 @@ void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std:
             smoothCircle({ fretX(fret), middle + spacing }, 5 * s, line);
         }
         float wire = std::round(nut + (fret - firstFretted + 1) * fretWidth);
-        if (fret < span.last) DrawRectangleRec({ wire - 0.75f * s, top + 4 * s, 1.5f * s, boardHeight - 8 * s }, Fade(themeColor(UiColor::Dim), 0.5f));
+        if (fret < span.last) DrawRectangleRec({ wire - 0.75f * s, top + 4 * s, 1.5f * s, boardHeight - 8 * s }, Fade(themeColor(UiColor::Dim), 0.35f));
         drawViewText(TextFormat("%d", fret), fretX(fret), top + boardHeight + numbersHeight / 2 + 2 * s, 13 * s, themeColor(UiColor::Dim));
     }
     // The nut, thick, when the open strings are shown; else the first shown fret's wire
     DrawRectangleRec({ nut - (open ? 2.0f : 0.75f) * s, top + 4 * s, (open ? 4.0f : 1.5f) * s, boardHeight - 8 * s },
-                     open ? themeColor(UiColor::Ink) : Fade(themeColor(UiColor::Dim), 0.5f));
+                     open ? Fade(themeColor(UiColor::Ink), 0.85f) : Fade(themeColor(UiColor::Dim), 0.35f));
     for (int string = 0; string < strings; string++){
         float y = stringY(string), thickness = (1.0f + 0.3f * (strings - 1 - string)) * s; // lower strings are thicker
-        DrawRectangleRec({ boardLeft, y - thickness / 2, boardRight - boardLeft, thickness }, Fade(themeColor(UiColor::Ink), 0.45f));
+        const Color lit = stringColor(string);
+        if (night) DrawRectangleRec({ boardLeft, y - thickness * 2.0f, boardRight - boardLeft, thickness * 4.0f }, Fade(lit, 0.06f)); // its glow
+        DrawRectangleRec({ boardLeft, y - thickness / 2, boardRight - boardLeft, thickness }, Fade(lit, night ? 0.55f : 0.7f));
         drawViewText(pitchClassName(tuning[string]), area.x + pad + labelWidth / 2, y, 15 * s, themeColor(UiColor::Dim));
     }
 
@@ -327,7 +332,7 @@ void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std:
             float alpha = std::min(in, out);
             if (alpha <= 0.0f) continue;
             float slide = (1.0f - in) * dotGap * 1.5f;
-            smoothCircle({ a.at.x + ux * (d - slide), a.at.y + uy * (d - slide) }, 3.2f * s, Fade(themeColor(UiColor::Ink), 0.5f * alpha));
+            smoothCircle({ a.at.x + ux * (d - slide), a.at.y + uy * (d - slide) }, 3.0f * s, Fade(themeColor(UiColor::Accent), 0.65f * alpha));
         }
         // Two notes close in time: a light leaves the one played when it's due, and lands on the next as it is
         if (gap <= FAST_S && now >= a.time && now <= b.time){
@@ -342,8 +347,12 @@ void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std:
     }
 
     // The notes still to play, the last due first, so each is drawn over the ones after it: the one to play now is
-    // on top.
-    const Color card = themeColor(UiColor::Card);
+    // on top. Each is a pane of dark glass edged in its string's neon, glowing; the next to play (all of a chord's
+    // notes) is lit almost white, so it's found at once among the rest. By day: tinted glass, and the next one solid.
+    float nextTime = 1e9f;
+    for (auto it = from; it != to; ++it) if (!it->judged && !it->hit){ nextTime = it->time; break; }
+    const Color card = themeColor(UiColor::Card), background = themeColor(UiColor::Background);
+    const Color whiteHot = { 236, 246, 255, 255 };
     for (auto it = to; it != from; ){
         --it;
         const PlayNote& note = *it;
@@ -351,15 +360,29 @@ void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std:
         const Vector2 at = centerOf(note);
         const Color color = stringColor(note.stringIndex);
         const float alpha = alphaOf(note), until = note.time - now;
+        const bool next = note.time - nextTime < 0.01f;
         if (isSlider(note)) drawOutline(noteShape(at, rim), 0.0f, std::min(1.0f, note.beats / WHOLE_NOTE_BEATS), SLIDER_WIDTH * s, Fade(color, TRACK_ALPHA * alpha)); // how long it rings
-        fillShape(noteShape({ at.x + 1.5f * s, at.y + 2.5f * s }, 0.0f), Fade(themeColor(UiColor::Ink), 0.16f * alpha)); // its shadow on the board
-        fillShape(noteShape(at, 2.0f * s), Fade(card, alpha)); // a rim that keeps notes apart
-        fillShape(noteShape(at, 0.0f), Fade(color, alpha));
-        drawNoteLabel(note.fret, note.pitch, label, at.x, at.y, radius * 1.45f, Fade(WHITE, alpha));
+        // Its glow, fading out from its edge (stronger on the next one)
+        const float glow = next ? 0.4f : 0.22f;
+        for (int k = 1; k <= 3; k++) drawOutline(noteShape(at, 1.6f * k * s), 0.0f, 1.0f, 2.0f * s, Fade(next ? whiteHot : color, alpha * glow / k));
+        fillShape(noteShape(at, 1.0f * s), Fade(background, alpha)); // a dark rim that keeps notes apart
+        Color fill, ink;
+        if (next){
+            fill = night ? whiteHot : color;
+            ink = night ? background : WHITE;
+        } else {
+            fill = ColorLerp(card, color, night ? 0.16f : 0.14f);
+            ink = night ? ColorLerp(color, WHITE, 0.35f) : ColorLerp(color, BLACK, 0.2f);
+        }
+        fillShape(noteShape(at, 0.0f), Fade(fill, alpha));
+        drawOutline(noteShape(at, -1.0f * s), 0.0f, 1.0f, (next ? 2.6f : 2.0f) * s, Fade(color, alpha)); // its neon edge
+        drawNoteLabel(note.fret, note.pitch, label, at.x, at.y, radius * 1.45f, Fade(ink, alpha));
         if (until > 0.0f){
             // Its ring, closing onto its rim: when they meet, play it (and a long note's slider begins)
             float ring = rim + ((RING_START - 1.0f) * radius - rim) * until / approach;
-            drawOutline(noteShape(at, ring), 0.0f, 1.0f, RING_WIDTH * s, Fade(color, 0.9f * alpha));
+            const Color ringColor = next && night ? ColorLerp(color, whiteHot, 0.5f) : color;
+            drawOutline(noteShape(at, ring + 2.0f * s), 0.0f, 1.0f, 4.0f * s, Fade(ringColor, 0.12f * alpha)); // its glow
+            drawOutline(noteShape(at, ring), 0.0f, 1.0f, 2.2f * s, Fade(ringColor, 0.95f * alpha));
         }
     }
 

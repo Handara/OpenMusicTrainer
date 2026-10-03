@@ -58,8 +58,13 @@ void drawNoteLabel(int fret, int pitch, NoteLabel label, float x, float y, float
     }
 }
 
-// Each string its own color, lowest first, as on the neck: red, orange, yellow, green, blue, purple
-static const Color STRING_COLORS[] = { {200, 70, 62, 255}, {214, 120, 40, 255}, {190, 145, 30, 255},
-                                       {52, 140, 90, 255}, {50, 120, 190, 255}, {128, 90, 190, 255} };
+// Each string its own color, lowest first, as on the neck: red, orange, yellow, green, blue, purple. At night they're
+// neon, lit from within; by day, deeper, to stand on white.
+static const Color NEON_STRINGS[] = { {255, 56, 110, 255}, {255, 150, 40, 255}, {250, 225, 70, 255},
+                                      {40, 255, 170, 255}, {40, 190, 255, 255}, {175, 110, 255, 255} };
+static const Color DAY_STRINGS[] = { {214, 40, 90, 255}, {222, 110, 10, 255}, {190, 150, 0, 255},
+                                     {0, 165, 110, 255}, {0, 130, 210, 255}, {130, 70, 220, 255} };
 
-Color stringColor(int stringIndex){ return STRING_COLORS[stringIndex % 6]; }
+Color stringColor(int stringIndex){
+    return (currentTheme() == ThemeMode::Dark ? NEON_STRINGS : DAY_STRINGS)[stringIndex % 6];
+}
