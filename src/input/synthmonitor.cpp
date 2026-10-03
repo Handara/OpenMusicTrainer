@@ -50,6 +50,7 @@ void updateSynthMonitor(bool on, float volume){
         synth.startedEarly = synth.expected;
     }
     synth.detector.attacks.clear();
+    synth.detector.changes.clear();
     // Each note found: played, unless it's the one already started at its attack
     for (const DetectedNote& note : synth.notes){
         bool alreadyPlaying = note.pitch == synth.startedEarly;

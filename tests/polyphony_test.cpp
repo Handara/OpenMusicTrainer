@@ -119,8 +119,9 @@ static std::vector<PluckNotes> listenTo(const std::vector<Laid>& sounds, int rat
         int count = (int)std::min(frame, stream.size() - at);
         notes.clear();
         feedNoteDetector(detector, stream.data() + at, count, notes);
-        feedPluckListener(listener, stream.data() + at, count, detector.attacks, notes, found);
+        feedPluckListener(listener, stream.data() + at, count, detector.attacks, detector.changes, found);
         detector.attacks.clear();
+        detector.changes.clear();
     }
     return found;
 }

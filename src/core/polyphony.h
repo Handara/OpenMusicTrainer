@@ -29,8 +29,8 @@ std::vector<HeardPitch> notesInSound(const float* samples, int count, int sample
                                      int maxNotes = 3);
 
 // Plucks in a stream that held several notes. It's fed the same samples as a note detector, and what that found in
-// them: its attacks say where the plucks are, and its notes that came with no attack (a hammer-on, a slide) say where
-// one note followed another instead of sounding with it.
+// them: its attacks say where the plucks are, and its pitch changes with no attack (a hammer-on, a slide, or the
+// fretting hand getting ready) say where one note followed another instead of sounding with it.
 struct PluckNotes {
     long long sample;         // the pluck, in the stream
     std::vector<int> pitches; // two or more, lowest first
@@ -43,15 +43,14 @@ struct PluckListener {
     std::vector<float> recent;       // the latest samples, oldest first
     long long position = 0;          // samples fed so far
     std::vector<long long> plucks;   // heard, and waiting for enough sound after them
-    std::vector<long long> attacks;  // the latest attacks, waiting or not: a note found on one isn't a legato one
-    std::vector<long long> changes;  // where notes started with no attack
+    std::vector<long long> changes;  // the latest pitch changes with no attack
 };
 
 void initPluckListener(PluckListener& listener, int sampleRate, int lowestPitch, int highestPitch);
 
-// Feeds the next samples of the stream, with the attacks and notes the note detector found in them (or before: a
-// note's pitch is known a moment after its attack). Plucks that held two notes or more are appended to `out`, each
+// Feeds the next samples of the stream, with the attacks and pitch changes the note detector found in them (its
+// `attacks` and `changes`). Plucks that held two notes or more are appended to `out`, each
 // once NOTES_LISTEN_S of sound has come after it. Only notes that started with the pluck count: one still ringing
 // from before isn't played again.
 void feedPluckListener(PluckListener& listener, const float* samples, int count, const std::vector<long long>& attacks,
-                       const std::vector<DetectedNote>& notes, std::vector<PluckNotes>& out);
+                       const std::vector<long long>& changes, std::vector<PluckNotes>& out);

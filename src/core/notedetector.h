@@ -37,6 +37,11 @@ struct NoteDetector {
     float envelope = 0.0f;       // the signal's level: jumps up at once, falls back slowly
     float envelopeRelease = 0.0f; // how much of the envelope is kept each sample while it falls
 
+    std::vector<float> recentPower; // the mean square of the last few hops, oldest first
+    float beforeOnsetPower = 0.0f;  // the sound's power just before the latest onset...
+    double sinceOnsetPower = 0.0;   // ...and since it (summed, over sinceOnsetHops hops): a pluck makes it louder
+    int sinceOnsetHops = 0;
+    bool soundingBeforeOnset = false;
     bool pitchPending = false;   // an onset happened, its pitch isn't known yet
     long long onsetSample = 0;
     long long lastOnsetSample = -1000000;
@@ -46,11 +51,20 @@ struct NoteDetector {
     int candidatePitch = -1;     // a different pitch seen while ringing (a possible legato change)...
     int candidateCount = 0;      // ...and in how many analyses in a row
     long long candidateSample = 0;
+    // A legato change confirmed, held back a moment: a pluck soon after means it was the fretting hand getting ready
+    // for that pluck (a bass player frets the next note while this one rings), and only the pluck counts
+    bool legatoHeld = false;
+    long long legatoSample = 0;
+    float legatoMidi = 0.0f;
+    long long legatoDue = 0;     // when it's let out, if no pluck came
     int hopsSinceAnalysis = 0;
     int analysisLag = 0;         // the longest period looked for now (see expectLowestFrequency)
     // Every attack heard (its sample), the moment it's heard: before its pitch is known, for reacting at once (a
     // flash on the pluck; rhythm mode, where any note counts). The caller takes them and clears the list.
     std::vector<long long> attacks;
+    // Every change of pitch with no attack (its sample), the moment it's believed, whether it turns out a note or the
+    // hand getting ready for a pluck: where one note followed another (core/polyphony). Taken and cleared by the caller.
+    std::vector<long long> changes;
 };
 
 void initNoteDetector(NoteDetector& detector, int sampleRate, const NoteDetectorConfig& config);

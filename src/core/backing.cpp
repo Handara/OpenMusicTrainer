@@ -7,6 +7,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
+#include <fstream>
+#include <iterator>
 
 const double TAIL_S = 2.0;           // after the last note, for it to ring out
 const float MIN_NOTE_S = 0.15f;      // the shortest a note sounds
@@ -91,4 +94,41 @@ bool writeWav(const std::string& path, const std::vector<float>& samples, int sa
     put32(data, bytes);
     for (float sample : samples) put16(data, (int)std::lround(std::clamp(sample, -1.0f, 1.0f) * 32767.0f));
     return writeFileAtomically(path, data, error);
+}
+
+bool readWav(const std::string& path, std::vector<float>& samples, int& sampleRate, std::string& error){
+    std::ifstream in(path, std::ios::binary);
+    const std::vector<char> data((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    if (data.size() < 12 || std::memcmp(data.data(), "RIFF", 4) != 0 || std::memcmp(data.data() + 8, "WAVE", 4) != 0){
+        error = "not a WAV file: " + path;
+        return false;
+    }
+    auto get16 = [&](size_t at){ return (int)(uint8_t)data[at] | ((int)(uint8_t)data[at + 1] << 8); };
+    auto get32 = [&](size_t at){ return (uint32_t)get16(at) | ((uint32_t)get16(at + 2) << 16); };
+    int channels = 0, bits = 0;
+    for (size_t at = 12; at + 8 <= data.size();){
+        const uint32_t size = get32(at + 4);
+        if (std::memcmp(&data[at], "fmt ", 4) == 0 && at + 24 <= data.size()){
+            channels = get16(at + 10);
+            sampleRate = (int)get32(at + 12);
+            bits = get16(at + 22);
+        } else if (std::memcmp(&data[at], "data", 4) == 0){
+            if (bits != 16 || channels < 1){
+                error = "only 16-bit WAV files are read: " + path;
+                return false;
+            }
+            const size_t frames = std::min<size_t>(size, data.size() - at - 8) / (2 * channels);
+            samples.assign(frames, 0.0f);
+            for (size_t frame = 0; frame < frames; frame++){
+                for (int channel = 0; channel < channels; channel++){
+                    const int value = (int16_t)get16(at + 8 + (frame * channels + channel) * 2);
+                    samples[frame] += value / 32768.0f / channels;
+                }
+            }
+            return true;
+        }
+        at += 8 + size + (size & 1);
+    }
+    error = "no sound in " + path;
+    return false;
 }

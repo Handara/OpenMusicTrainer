@@ -214,22 +214,15 @@ void initPluckListener(PluckListener& listener, int sampleRate, int lowestPitch,
 }
 
 void feedPluckListener(PluckListener& listener, const float* samples, int count, const std::vector<long long>& attacks,
-                       const std::vector<DetectedNote>& notes, std::vector<PluckNotes>& out){
+                       const std::vector<long long>& changes, std::vector<PluckNotes>& out){
     listener.recent.insert(listener.recent.end(), samples, samples + count);
     listener.position += count;
     const size_t kept = (size_t)(HISTORY_S * listener.sampleRate);
     if (listener.recent.size() > 2 * kept) listener.recent.erase(listener.recent.begin(), listener.recent.end() - kept);
     const long long oldest = listener.position - (long long)listener.recent.size();
 
-    for (long long attack : attacks){
-        listener.plucks.push_back(attack);
-        listener.attacks.push_back(attack);
-    }
-    if (listener.attacks.size() > 32) listener.attacks.erase(listener.attacks.begin(), listener.attacks.end() - 16);
-    for (const DetectedNote& note : notes){
-        bool plucked = std::count(listener.attacks.begin(), listener.attacks.end(), note.sample) > 0;
-        if (!plucked) listener.changes.push_back(note.sample);
-    }
+    listener.plucks.insert(listener.plucks.end(), attacks.begin(), attacks.end());
+    listener.changes.insert(listener.changes.end(), changes.begin(), changes.end());
     if (listener.changes.size() > 32) listener.changes.erase(listener.changes.begin(), listener.changes.end() - 16);
 
     const int listen = listener.listen;
@@ -241,7 +234,7 @@ void feedPluckListener(PluckListener& listener, const float* samples, int count,
         listener.plucks.erase(listener.plucks.begin());
         if (pluck < oldest) continue; // its sound is gone: the game stood still too long
         // Another pluck, or a note following without one, before enough was heard: notes one after the other
-        if (between(listener.attacks, pluck, pluck + listen)) continue;
+        if (between(listener.plucks, pluck, pluck + listen)) continue;
         if (between(listener.changes, pluck + (long long)(LEGATO_AFTER_S * listener.sampleRate), pluck + listen)) continue;
 
         const float* sound = listener.recent.data() + (pluck - oldest);

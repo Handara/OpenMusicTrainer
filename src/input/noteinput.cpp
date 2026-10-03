@@ -82,7 +82,8 @@ const std::vector<PlayedNote>& updateNoteInput(){
     }
     if (total > 0) input.levelDb = 20.0f * std::log10(std::max(std::sqrt(sumSquares / total), 1e-6f));
 
-    feedPluckListener(input.listener, input.latest.data(), (int)input.latest.size(), input.detector.attacks, input.detected, input.plucked);
+    feedPluckListener(input.listener, input.latest.data(), (int)input.latest.size(), input.detector.attacks, input.detector.changes, input.plucked);
+    input.detector.changes.clear();
     for (const PluckNotes& pluck : input.plucked){
         input.chords.push_back({ pluck.pitches, (double)(input.detector.position - pluck.sample) / input.detector.sampleRate });
     }

@@ -254,6 +254,11 @@ add_executable(make_song EXCLUDE_FROM_ALL tools/make_song.cpp)
 target_link_libraries(make_song PRIVATE lahn_core)
 enable_warnings(make_song)
 
+# Plays a recording from the Instrument screen's "Record a check" through the note detectors (tools/hear_check.cpp)
+add_executable(hear_check EXCLUDE_FROM_ALL tools/hear_check.cpp)
+target_link_libraries(hear_check PRIVATE lahn_core)
+enable_warnings(hear_check)
+
 # Copy game data next to the executable on every build (only files that changed are copied)
 add_custom_target(copy_resources ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
@@ -288,6 +293,7 @@ if(BUILD_TESTING)
         tests/pianokeys_test.cpp
         tests/pitch_test.cpp
         tests/polyphony_test.cpp
+        tests/realbass_test.cpp
         tests/positions_test.cpp
         tests/ranking_test.cpp
         tests/reading_test.cpp
@@ -312,6 +318,7 @@ if(BUILD_TESTING)
     )
     target_link_libraries(lahn_tests PRIVATE lahn_core doctest::doctest miniz) # miniz: to make broken packages
     target_compile_definitions(lahn_tests PRIVATE LAHN_RESOURCES_DIR="${CMAKE_SOURCE_DIR}/resources/")
+target_compile_definitions(lahn_tests PRIVATE LAHN_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/tests/data/")
     enable_warnings(lahn_tests)
     add_test(NAME core_tests COMMAND lahn_tests)
 endif()

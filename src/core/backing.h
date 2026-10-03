@@ -12,3 +12,5 @@ std::vector<float> renderBacking(const Chart& chart, int sampleRate);
 
 // A WAV file (16-bit), replaced whole: mono, or stereo with its samples left, right, left, right...
 bool writeWav(const std::string& path, const std::vector<float>& samples, int sampleRate, std::string& error, int channels = 1);
+// A 16-bit WAV file read back, its channels mixed to one (as writeWav writes, and the Instrument screen's checks)
+bool readWav(const std::string& path, std::vector<float>& samples, int& sampleRate, std::string& error);

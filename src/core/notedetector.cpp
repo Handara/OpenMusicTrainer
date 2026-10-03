@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <numeric>
 
 const float HOP_SECONDS = 0.0027f;       // hops of ~2.7 ms: onsets are placed to within one hop, then refined
 const int RECENT_HOPS = 4;               // "recent" = the last ~11 ms: a pluck jumps that fast, while a ringing
@@ -14,6 +15,17 @@ const float ATTACK_SKIP_S = 0.01f;       // the pick's scrape right after an ons
 const float PITCH_TIMEOUT_S = 0.15f;     // no pitch this long after an onset: it was a noise, not a note
 const int LEGATO_ANALYSIS_HOPS = 4;      // while a note rings, look for pitch changes every ~11 ms...
 const int LEGATO_CONFIRMATIONS = 3;      // ...and believe a change once it holds for 3 looks in a row
+// ...and once believed, wait this long for a pluck: on a real bass, the fretting hand lands on the next note (or
+// mutes this one) 50 to 200 ms before that note is plucked, and the ringing string changes pitch under it. A pluck
+// in that time makes it the hand getting ready, not a note; with none, it's a hammer-on or a slide, stamped when it
+// happened. Measured on recordings of a bass played through a Scarlett (tests/data/bass-*.wav).
+const float LEGATO_HOLD_S = 0.25f;
+// An onset must not leave the sound quieter than just before it, over the time its pitch is read; and one that gives
+// the pitch already ringing must make it louder by this much. A pluck of the same note again does (14 dB and more on
+// the bass recorded); a finger touching the ringing string, a click of a few ms, doesn't (2.6 dB).
+const float MIN_ONSET_GAIN_DB = 0.0f;
+const float MIN_REPLUCK_GAIN_DB = 6.0f;
+const int POWER_HOPS = 8;                // "just before": the last ~22 ms
 const float MIN_CLARITY = 0.85f;         // how periodic a sound must be to count as a note
 // A legato change must move this far from where the note started, not just round to another note: a string tuned
 // between two notes (a bass's low E a quarter-tone flat) wobbles across the line between them as it rings
@@ -37,6 +49,7 @@ void initNoteDetector(NoteDetector& detector, int sampleRate, const NoteDetector
     detector.analysisLag = detector.pitch.maxLag;
     detector.hop.reserve(detector.hopSize);
     detector.recentDb.assign(RECENT_HOPS, -120.0f);
+    detector.recentPower.assign(POWER_HOPS, 0.0f);
     float release = std::max(ENVELOPE_RELEASE_S, ENVELOPE_RELEASE_CYCLES / config.minFrequency);
     detector.envelopeRelease = std::exp(-1.0f / (release * sampleRate));
 }
@@ -84,9 +97,26 @@ static void processHop(NoteDetector& detector, std::vector<DetectedNote>& out){
     std::copy(hop.begin(), hop.end(), window.end() - hopSize);
 
     float level = followEnvelope(detector, hop);
+    float power = 0.0f;
+    for (float s : hop) power += s * s;
+    power /= (float)hopSize;
+    const float powerBefore = std::accumulate(detector.recentPower.begin(), detector.recentPower.end(), 0.0f) / POWER_HOPS;
+    detector.recentPower.erase(detector.recentPower.begin());
+    detector.recentPower.push_back(power);
+    if (detector.pitchPending){
+        detector.sinceOnsetPower += power;
+        detector.sinceOnsetHops++;
+    }
     float recentMin = *std::min_element(detector.recentDb.begin(), detector.recentDb.end());
     detector.recentDb.erase(detector.recentDb.begin());
     detector.recentDb.push_back(level);
+
+    // A held legato change with no pluck since: a note after all
+    if (detector.legatoHeld && detector.position >= detector.legatoDue){
+        int pitch = (int)std::lround(detector.legatoMidi);
+        out.push_back({detector.legatoSample, pitch, (detector.legatoMidi - pitch) * 100.0f});
+        detector.legatoHeld = false;
+    }
 
     if (level < detector.config.silenceDb){
         detector.sounding = false; // the note has died away
@@ -104,6 +134,11 @@ static void processHop(NoteDetector& detector, std::vector<DetectedNote>& out){
         detector.onsetSample = hopStart + offset;
         detector.lastOnsetSample = detector.onsetSample;
         detector.attacks.push_back(detector.onsetSample);
+        detector.legatoHeld = false; // the hand was getting ready for this pluck
+        detector.beforeOnsetPower = powerBefore;
+        detector.sinceOnsetPower = power;
+        detector.sinceOnsetHops = 1;
+        detector.soundingBeforeOnset = detector.sounding;
         detector.pitchPending = true;
         detector.sounding = false;
     }
@@ -113,6 +148,14 @@ static void processHop(NoteDetector& detector, std::vector<DetectedNote>& out){
         long long ready = detector.onsetSample + (long long)(ATTACK_SKIP_S * detector.sampleRate) + 2LL * detector.analysisLag;
         if (detector.position < ready) return;
         float midi = analyzePitch(detector);
+        // Hardly louder than before it: a touch or a click on a string that rings on, not a pluck
+        const float gain = 10.0f * std::log10(std::max(1e-12, detector.sinceOnsetPower / detector.sinceOnsetHops) / std::max(1e-12f, detector.beforeOnsetPower));
+        const bool samePitch = detector.soundingBeforeOnset && midi >= 0.0f && (int)std::lround(midi) == detector.currentPitch;
+        if (gain < (samePitch ? MIN_REPLUCK_GAIN_DB : MIN_ONSET_GAIN_DB)){
+            detector.pitchPending = false;
+            detector.sounding = detector.soundingBeforeOnset;
+            return;
+        }
         if (midi >= 0.0f){
             emit(detector, detector.onsetSample, midi, out);
             detector.pitchPending = false;
@@ -139,7 +182,17 @@ static void processHop(NoteDetector& detector, std::vector<DetectedNote>& out){
         // The change happened somewhere in this window: its middle is the best guess
         detector.candidateSample = detector.position - detector.analysisLag;
     }
-    if (++detector.candidateCount >= LEGATO_CONFIRMATIONS) emit(detector, detector.candidateSample, midi, out);
+    if (++detector.candidateCount >= LEGATO_CONFIRMATIONS){
+        // It's ringing at this pitch now (so it isn't confirmed again), but only told once no pluck follows
+        detector.currentPitch = pitch;
+        detector.currentMidi = midi;
+        detector.candidateCount = 0;
+        detector.legatoHeld = true;
+        detector.changes.push_back(detector.candidateSample);
+        detector.legatoSample = detector.candidateSample;
+        detector.legatoMidi = midi;
+        detector.legatoDue = detector.candidateSample + (long long)(LEGATO_HOLD_S * detector.sampleRate);
+    }
 }
 
 void feedNoteDetector(NoteDetector& detector, const float* samples, int count, std::vector<DetectedNote>& out){
