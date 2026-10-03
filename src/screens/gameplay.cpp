@@ -594,6 +594,21 @@ static bool endPass(){
     return true;
 }
 
+// Practising strictly: a miss, or any hit short of perfect, and the pass starts over at once (it isn't counted)
+static bool passFailed(){
+    using StartOver = PracticeOptions::StartOver;
+    const StartOver strict = game.options.practice.startOver;
+    return (strict != StartOver::Never && game.state.missCount > 0) ||
+           (strict == StartOver::UnlessPerfect && game.state.nearCount > 0);
+}
+static void startPassOver(){
+    stopSong();
+    game.progress.startedOver++;
+    game.progress.startedOverAt = GetTime();
+    setSongSpeed(game.progress.speed);
+    startPass();
+}
+
 void pauseGameplay(){
     if (!game.active || game.paused) return;
     stopSong();
@@ -699,6 +714,10 @@ bool updateGameplay(){
 
     // Practising: at the section's end, the pass is counted and the next begins (or the practice is over)
     if (game.options.practice.on){
+        if (passFailed()){
+            startPassOver();
+            return true;
+        }
         if (game.songTime < game.sectionEnd + PASS_TAIL_S && !songEnded()) return true;
         scoreMisses(game.state, markMisses(game.notes, game.songTime + 1e9));
         return endPass();
@@ -809,6 +828,7 @@ void drawGameplayHud(){
         line += TextFormat("  ·  %d%% TEMPO  ·  PASS %d", (int)std::lround(progress.speed * 100.0f), progress.passes + 1);
         if (practice.passes > 0) line += TextFormat(" OF %d", practice.passes);
         if (progress.passes > 0) line += TextFormat("  ·  LAST %d%%", (int)std::lround(progress.lastAccuracy * 100.0f));
+        if (progress.startedOver > 0) line += TextFormat("  ·  STARTED OVER %d", progress.startedOver);
         draw->AddText(fonts.mono, 14 * s, ImVec2(margin, top + 56 * s), uiColor(UiColor::Accent), line.c_str());
         if (game.waiting){
             std::string waiting = "WAITING FOR";
@@ -816,6 +836,15 @@ void drawGameplayHud(){
                 if (std::fabs(note.time - game.waitTime) < 0.001f && !note.hit) waiting += TextFormat("  %s%d", pitchClassName(note.pitch), pitchOctave(note.pitch));
             }
             draw->AddText(fonts.bold, 20 * s, ImVec2(margin, top + 78 * s), uiColor(UiColor::Ink), waiting.c_str());
+        }
+        // Started over: AGAIN, big, for a moment
+        const float sinceOver = (float)(GetTime() - progress.startedOverAt);
+        if (sinceOver >= 0.0f && sinceOver < TEMPO_BANNER_S){
+            const float fade = 1.0f - sinceOver / TEMPO_BANNER_S;
+            const char* banner = "AGAIN";
+            const float size = 46 * s * (1.0f + 0.15f * fade * fade);
+            draw->AddText(fonts.heavy, size, ImVec2(ImGui::GetIO().DisplaySize.x / 2 - textWidth(fonts.heavy, size, banner) / 2, top + 70 * s),
+                          uiColor(UiColor::Bad, std::min(1.0f, fade * 2.0f)), banner);
         }
         // A pass with every note played, and faster now: the new tempo, big, for a moment
         float since = (float)(GetTime() - progress.raisedAt);

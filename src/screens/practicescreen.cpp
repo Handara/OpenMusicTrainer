@@ -37,6 +37,7 @@ static struct PracticeState {
     bool noteByNote = false;
     int repeat = 0;                 // into REPEATS
     int ownRepeats = 20;            // the number of the player's own (1 to 100)
+    int startOver = 0;              // PracticeOptions::StartOver: never, on a miss, unless perfect
     // The mouse on the timeline
     enum class Drag { None, Select, From, To } drag = Drag::None;
     int anchorTick = 0;
@@ -144,6 +145,7 @@ PracticeOptions practiceChoice(){
     options.step = practice.step == 0 ? 0.05f : 0.10f;
     options.noteByNote = practice.noteByNote;
     options.passes = REPEATS[practice.repeat] < 0 ? practice.ownRepeats : REPEATS[practice.repeat];
+    options.startOver = (PracticeOptions::StartOver)practice.startOver;
     return options;
 }
 
@@ -309,6 +311,8 @@ PracticeChoice practiceScreen(){
     settingSegments("Repeat", "How many times the section is played. Until 100%: until every note is played, at the tempo aimed for",
                     &practice.repeat, { "Until 100%", "3 times", "5 times", "10 times", "Other" });
     if (REPEATS[practice.repeat] < 0) settingSliderInt("Times", "Any number, 1 to 100", &practice.ownRepeats, 1, 100, "%d times");
+    settingSegments("Start over", "The section starts again at once on a miss, or on any note not played perfectly. Only passes that get through count",
+                    &practice.startOver, { "Never", "On a miss", "If not perfect" });
     ImGui::EndChild();
     ImGui::PopStyleVar(3);
     ImGui::PopStyleColor();

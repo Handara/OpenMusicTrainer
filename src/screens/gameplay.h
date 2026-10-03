@@ -55,6 +55,8 @@ struct PracticeOptions {
     float step = 0.05f;
     bool noteByNote = false;
     int passes = 0;               // how many; 0 for until a pass plays every note at the song's own tempo
+    enum class StartOver { Never, OnMiss, UnlessPerfect };
+    StartOver startOver = StartOver::Never; // strict: a miss (or any hit short of perfect) starts the pass over at once
 };
 
 // How the practice is going
@@ -65,6 +67,8 @@ struct PracticeProgress {
     float bestAccuracy = 0.0f;
     bool mastered = false;        // every note played, at the tempo it was aiming for
     double raisedAt = -100.0;     // when the last pass raised the tempo (GetTime)
+    int startedOver = 0;          // passes started over for a miss or a hit short of perfect (not counted as passes)
+    double startedOverAt = -100.0;
 };
 
 struct GameplayOptions {
