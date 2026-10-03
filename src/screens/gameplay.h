@@ -29,6 +29,29 @@ struct GameResult {
     std::vector<RunRecord> history; // every run of the part, as played: this one last
 };
 
+// Practice: a section of the song (whole bars) played over and over. Slower if asked (the song keeps its pitch:
+// audio setSongSpeed), and each pass that plays every note moves the tempo up until it's the song's own, if asked;
+// or note by note, the song waiting on each note until it's played. Nothing is recorded.
+struct PracticeOptions {
+    bool on = false;
+    int fromTick = 0, toTick = 0; // the section
+    float speed = 1.0f;           // its tempo, against the song's: 0.7 is 70%
+    bool gradual = false;         // every note played at a tempo under the song's: the next pass is faster, by `step`
+    float step = 0.05f;
+    bool noteByNote = false;
+    int passes = 0;               // how many; 0 for until a pass plays every note at the song's own tempo
+};
+
+// How the practice is going
+struct PracticeProgress {
+    int passes = 0;
+    float speed = 1.0f;           // the tempo now
+    float lastAccuracy = 0.0f;    // the share of the section's notes played in the last pass, 0 to 1
+    float bestAccuracy = 0.0f;
+    bool mastered = false;        // every note played, at the tempo it was aiming for
+    double raisedAt = -100.0;     // when the last pass raised the tempo (GetTime)
+};
+
 struct GameplayOptions {
     int part = 0;              // which of the chart's parts to play
     bool rhythmMode = false;   // taiko-style: only the rhythm counts (core/rhythmmode)
@@ -47,6 +70,7 @@ struct GameplayOptions {
     std::string midiDevice;           // for keys parts: a MIDI keyboard (empty = the first connected)...
     std::vector<std::string> pianoKeys; // ...or else the computer keys that play piano (core/pianokeys)
     float inputOffsetSeconds = 0.0f;  // the input device's own delay (see calibration)
+    PracticeOptions practice;
 };
 
 // The play screen: one song played once, judged against the chart's first fretted track.
@@ -70,3 +94,6 @@ bool gameplayPaused();
 bool gameplayOutOfTune(float& cents);
 void stopGameplay();   // stops and releases the song; safe to call more than once
 GameResult gameplayResult();
+bool gameplayPractising();
+PracticeProgress practiceProgress(); // after a practice is over too: how it went
+float gameplaySongTime();            // where in the song it is (seconds): to practise from there

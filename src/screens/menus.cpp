@@ -21,7 +21,7 @@ static MenuListArea listArea(float widthShare){
 }
 
 // The selected song on a card beside the list: its parts, and the best run on each
-static bool rhythmMode = false; // the song list's mode: notes, or taiko-style rhythm
+static bool practiceMode = false; // the song list's mode: playing a song, or practising part of it
 
 static void drawSongCard(const SongEntry& song, float s){
     ImDrawList* draw = ImGui::GetWindowDrawList();
@@ -47,11 +47,11 @@ static void drawSongCard(const SongEntry& song, float s){
                                : TextFormat("%s, %d STRINGS", part.type == InstrumentType::Bass ? "BASS" : "GUITAR", part.stringCount);
         draw->AddText(fonts.mono, 13 * s, ImVec2(x, y), uiColor(UiColor::Dim), TextFormat("%s  ·  %s", part.name.c_str(), instrument.c_str()));
         float rowY = y + 20 * s;
-        bool played = rhythmMode ? part.playedRhythm : part.played;
+        bool played = part.played;
         if (!played){
-            draw->AddText(fonts.text, 18 * s, ImVec2(x, rowY + 4 * s), uiColor(UiColor::Dim), rhythmMode ? "Not played in rhythm yet" : "Not played yet");
+            draw->AddText(fonts.text, 18 * s, ImVec2(x, rowY + 4 * s), uiColor(UiColor::Dim), "Not played yet");
         } else {
-            const RunRecord& best = rhythmMode ? part.bestRhythm : part.best;
+            const RunRecord& best = part.best;
             draw->AddText(fonts.heavy, 30 * s, ImVec2(x, rowY - 2 * s), uiColor(gradeColor(best.grade())), gradeName(best.grade()));
             draw->AddText(fonts.bold, 20 * s, ImVec2(x + 56 * s, rowY + 4 * s), uiColor(UiColor::Ink),
                           TextFormat("%.2f%%   %d", best.accuracy, best.score));
@@ -59,7 +59,7 @@ static void drawSongCard(const SongEntry& song, float s){
                 draw->AddText(fonts.mono, 13 * s, ImVec2(x + inner - 30 * s, rowY + 9 * s), uiColor(UiColor::Accent), "FC");
             }
             // How the runs went, oldest first: a small line of their scores
-            const std::vector<RunRecord>& history = rhythmMode ? part.historyRhythm : part.history;
+            const std::vector<RunRecord>& history = part.history;
             if (history.size() >= 2){
                 RunGraphLook small;
                 small.labels = false;
@@ -102,7 +102,7 @@ static void partList(const SongEntry& song, SongSelectChoice& choice, const Inst
     float s = menuScale();
     menuScreenTitle(song.title.c_str(), s);
     ImGui::GetWindowDrawList()->AddText(uiFonts().text, 18 * s, ImVec2(ImGui::GetWindowWidth() * 0.07f, ImGui::GetWindowHeight() * 0.09f + 52 * s),
-                                        uiColor(UiColor::Dim), rhythmMode ? "Rhythm: choose a part" : "Choose your instrument");
+                                        uiColor(UiColor::Dim), practiceMode ? "Practice: choose your instrument" : "Choose your instrument");
     if (partsJustOpened){
         // The first one that can be played
         partsJustOpened = false;
@@ -110,7 +110,7 @@ static void partList(const SongEntry& song, SongSelectChoice& choice, const Inst
         for (int i = (int)song.parts.size() - 1; i >= 0; i--){
             const SongPart& part = song.parts[i];
             const InstrumentStatus* status = part.type == InstrumentType::Bass ? &bass : part.type == InstrumentType::Guitar ? &guitar : nullptr;
-            if (!status || status->ready || rhythmMode) list.selected = i;
+            if (!status || status->ready) list.selected = i;
         }
     }
     std::vector<MenuRow> rows;
@@ -123,7 +123,7 @@ static void partList(const SongEntry& song, SongSelectChoice& choice, const Inst
         row.detail = part.type == InstrumentType::Keys ? name + "a MIDI keyboard, or the computer's"
                                                        : name + TextFormat("%d strings", part.stringCount);
         const InstrumentStatus* status = part.type == InstrumentType::Bass ? &bass : part.type == InstrumentType::Guitar ? &guitar : nullptr;
-        if (status && !status->ready && !rhythmMode){
+        if (status && !status->ready){
             row.disabled = true;
             row.note = status->problem;
         }
@@ -132,7 +132,7 @@ static void partList(const SongEntry& song, SongSelectChoice& choice, const Inst
     int confirmed = menuList(list, rows, listArea(0.45f));
     drawSongCard(song, s);
     if (confirmed >= 0){
-        choice.rhythmMode = rhythmMode;
+        choice.practice = practiceMode;
         choice.songIndex = choosingPartOf;
         choice.part = confirmed;
         choosingPartOf = -1;
@@ -209,11 +209,11 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
     choosingPartOf = -1;
     menuScreenTitle(title, s);
     if (!forEditing){
-        // Beside the title, how the song is played: its notes, or only its rhythm (Tab)
+        // Beside the title: playing the song through, or practising part of it (Tab)
         float x = ImGui::GetWindowWidth() * 0.55f, y = ImGui::GetWindowHeight() * 0.09f + 14 * s;
-        const char* const modes[] = { "NOTES", "RHYTHM" };
-        int mode = rhythmMode ? 1 : 0;
-        if (switchRow("MODE", modes, 2, mode, x, y, s) || ImGui::IsKeyPressed(ImGuiKey_Tab)) rhythmMode = !rhythmMode;
+        const char* const modes[] = { "PLAY", "PRACTICE" };
+        int mode = practiceMode ? 1 : 0;
+        if (switchRow("MODE", modes, 2, mode, x, y, s) || ImGui::IsKeyPressed(ImGuiKey_Tab)) practiceMode = !practiceMode;
     }
 
     // The songs, then the data folder
@@ -252,7 +252,7 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
             choice.partsOpened = true;
         } else {
             choice.songIndex = confirmed;
-            choice.rhythmMode = rhythmMode;
+            choice.practice = practiceMode;
         }
     }
     if (confirmed == newSong) choice.newSong = true;
@@ -270,26 +270,36 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
         else ImGui::TextColored(uiColorVec(UiColor::Good), "%s", notice.c_str());
     }
     menuScreenHint(forEditing ? "Up/Down  choose    Enter  edit    Drop audio, a video, a tab or a .lahn to add a song    Esc  back"
-                              : "Up/Down  choose    Enter  choose    Tab  notes or rhythm    Drop a tab or a song to import it    Esc  back", s);
+                              : "Up/Down  choose    Enter  choose    Tab  play or practice    Drop a tab or a song to import it    Esc  back", s);
     ImGui::End();
     return choice;
 }
 
-PauseChoice pauseScreen(const std::string& song){
+PauseChoice pauseScreen(const std::string& song, bool practising, const char* instrument, bool canSwitch){
     static MenuList list;
-    static const std::vector<MenuRow> rows = { actionRow("Resume", "Esc"), actionRow("Retry"), actionRow("Quit to songs") };
+    // Resume, start over, switch between playing it through and practising part of it, tune, leave
+    std::vector<MenuRow> rows = { actionRow("Resume", "Esc"), actionRow(practising ? "Start the practice over" : "Retry") };
+    std::vector<PauseChoice> choices = { PauseChoice::Resume, PauseChoice::Retry };
+    if (canSwitch){
+        rows.push_back(actionRow(practising ? "Play the whole song" : "Practise this part"));
+        choices.push_back(PauseChoice::SwitchMode);
+    }
+    if (instrument){
+        rows.push_back(actionRow(TextFormat("Tune your %s", instrument)));
+        choices.push_back(PauseChoice::Tune);
+    }
+    rows.push_back(actionRow(practising ? "Back to the practice" : "Quit to songs"));
+    choices.push_back(PauseChoice::Quit);
     PauseChoice choice = PauseChoice::None;
     beginMenu("Paused");
     float s = menuScale(), width = ImGui::GetWindowWidth(), height = ImGui::GetWindowHeight();
     if (ImGui::IsWindowAppearing()) list.selected = 0; // Resume first, every time
     // The play screen stays in sight, dimmed behind the menu
     ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(0, 0), ImVec2(width, height), uiColor(UiColor::Background, 0.88f));
-    menuScreenTitle("Paused", s);
+    menuScreenTitle(practising ? "Paused  ·  practice" : "Paused", s);
     ImGui::GetWindowDrawList()->AddText(uiFonts().text, 18 * s, ImVec2(width * 0.07f, height * 0.09f + 50 * s), uiColor(UiColor::Dim), song.c_str());
-    int confirmed = menuList(list, rows, {ImVec2(width * 0.07f, height * 0.25f), width * 0.45f, 3 * 48 * s, s});
-    if (confirmed == 0) choice = PauseChoice::Resume;
-    if (confirmed == 1) choice = PauseChoice::Retry;
-    if (confirmed == 2) choice = PauseChoice::Quit;
+    int confirmed = menuList(list, rows, {ImVec2(width * 0.07f, height * 0.25f), width * 0.45f, rows.size() * 48 * s, s});
+    if (confirmed >= 0 && confirmed < (int)choices.size()) choice = choices[confirmed];
     menuScreenHint("Enter  choose    Esc  resume", s);
     ImGui::End();
     return choice;

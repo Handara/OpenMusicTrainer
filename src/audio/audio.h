@@ -37,6 +37,12 @@ void stopSong(); // pauses where it is; playSong or playSongFrom starts it again
 // The song's own volume (0..1, 1 as it starts): the editor turns it down to hear the notes over it. It stays until
 // it's set again, through the songs loaded after.
 void setSongVolume(float volume);
+// The song played slower or faster without its pitch changing (core/timestretch), for practising: 0.7 is 70% of its
+// tempo. songPosition and playSongFrom stay in the song's own seconds; only the wall clock between them changes.
+// It's opened again for it (stopped: start it again from where it's wanted), and it stays until set again, through
+// the songs loaded after: set it back to 1 when done. Not for a song from a reader.
+void setSongSpeed(float speed);
+float songSpeed();
 bool songEnded();      // true once a non-looping song has played to its end
 double songLength();   // seconds
 double songPosition(); // seconds, smoothed between audio updates; call once per frame

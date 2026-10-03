@@ -18,7 +18,7 @@ struct SongSelectChoice {
     bool newSong = false; // editing only: make a new song from an audio file
     int songIndex = -1; // index into the songs list, -1 if nothing was picked this frame
     int part = 0;       // which of the song's parts to play
-    bool rhythmMode = false; // taiko-style, only the rhythm (Tab switches it on the song list)
+    bool practice = false;   // practising part of it rather than playing it through (Tab switches it on the song list)
     bool partsOpened = false; // the instruments to play the song with were just listed: see whether they're connected
     bool importSong = false;  // bring in a song: from a Guitar Pro tab, a recording of its bass, or the song itself
     int deleteSong = -1;      // the song to delete (the player's own, confirmed already), -1 for none
@@ -30,7 +30,7 @@ struct InstrumentStatus {
 };
 // forEditing marks built-in songs, since editing one creates a copy.
 // Playing, confirming a song lists its parts by instrument (its guitar, its bass, its keys): each is played on its
-// own instrument, and one that isn't connected (`guitar`, `bass`) can't be chosen, with why. Rhythm mode needs none.
+// own instrument, and one that isn't connected (`guitar`, `bass`) can't be chosen, with why.
 // `notice` is good news to show (a song just added), `error` bad news.
 SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry>& songs, const std::string& error,
                                   const std::string& notice, bool forEditing, const InstrumentStatus& guitar = {},
@@ -41,9 +41,12 @@ void selectSongInList(int songIndex);
 // the screen stays)
 bool songSelectBack();
 
-enum class PauseChoice { None, Resume, Retry, Quit };
+enum class PauseChoice { None, Resume, Retry, SwitchMode, Tune, Quit };
 // Over the paused play screen: the song, and what to do
-PauseChoice pauseScreen(const std::string& song);
+// `practising`: the pause is in a practice (its rows say so). `instrument`: "bass" or "guitar", to offer tuning it;
+// null for none (a keys part)
+// `canSwitch`: practising and playing through can be switched between (not in a test play from the editor)
+PauseChoice pauseScreen(const std::string& song, bool practising, const char* instrument, bool canSwitch = true);
 
 // Over the play screen, paused because the instrument sounds out of tune (`cents` off, + sharp): tune it and start
 // the song over, or play on

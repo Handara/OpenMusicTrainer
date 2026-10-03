@@ -18,6 +18,7 @@
 #include "screens/mainmenu.h"
 #include "screens/menus.h"
 #include "screens/newsong.h"
+#include "screens/practicescreen.h"
 #include "screens/settingsscreen.h"
 #include "screens/tuner.h"
 #include "screens/tuningscreen.h"
@@ -38,10 +39,10 @@
 namespace fs = std::filesystem;
 
 enum class Screen { MainMenu, SongSelect, Playing, Results, Tuner, Instrument, EditorSelect, NewSong, Editor, LessonEditor, Settings, Learn, Calibration,
-                    TuningCheck, ToneWizard, ImportSong };
+                    TuningCheck, ToneWizard, ImportSong, Practice };
 
 // App-wide state shared between screens
-static struct {
+static struct App {
     Screen screen = Screen::MainMenu;
     bool quit = false;
     std::string resourcesDir;     // shipped with the game, read-only
@@ -56,7 +57,7 @@ static struct {
     std::vector<SongEntry> songs;
     SongEntry currentSong;        // the song being played, kept for Retry and its records
     int currentPart = 0;          // and which of its parts
-    bool currentRhythm = false;   // and in which mode
+    bool currentPractice = false; // and whether it's being practised
     std::string songSelectError;  // why the last song failed to start (or a package failed to install)
     std::string songSelectNotice; // a song package just installed
     std::string packagesDir;      // song packages the player made, to share
@@ -69,9 +70,9 @@ static struct {
     bool importForEditor = false; // the import was opened from the editor's song list: what comes in opens in the editor
     InstrumentStatus guitar, bass; // whether each can be played now: looked at as a song's instruments are listed
     bool tuned[2] = {false, false}; // the guitar and the bass were checked in tune (or the player skipped it) this session
-    SongEntry tuningFor;          // the song, part and mode to start once the instrument is tuned
+    SongEntry tuningFor;          // the song and part to go on with once the instrument is tuned...
     int tuningPart = 0;
-    bool tuningRhythm = false;
+    enum class AfterTuning { Play, ChoosePractice, Practise } afterTuning = AfterTuning::Play; // ...and how
 } app;
 
 // --- Screen transitions -----------------------------------------------------------------------------
@@ -296,13 +297,10 @@ static void checkInstruments(){
     }
 }
 
-static void startSong(const SongEntry& song, int part, bool rhythmMode){
-    std::string error;
-    app.testPlaying = false;
+// How a song's part is played: on its own instrument when it's connected (heard through its tone)
+static GameplayOptions songOptions(const SongEntry& song, int part){
     GameplayOptions options = gameplayOptions();
     options.part = part;
-    options.rhythmMode = rhythmMode;
-    // On its own instrument; in rhythm mode, on the keyboard's drums when the instrument isn't there
     InputRole role;
     if (partInstrument(song, part, role) && statusOf(role).ready){
         hearInstrument(app.settings, role); // through its own tone
@@ -310,8 +308,14 @@ static void startSong(const SongEntry& song, int part, bool rhythmMode){
         options.instrument = role;
         options.hitSounds = false;
     }
-    if (startGameplay(song.chartPath, options, error)){
-        app.currentRhythm = rhythmMode;
+    return options;
+}
+
+static void startSong(const SongEntry& song, int part){
+    std::string error;
+    app.testPlaying = false;
+    if (startGameplay(song.chartPath, songOptions(song, part), error)){
+        app.currentPractice = false;
         app.currentSong = song;
         app.currentPart = part;
         app.songSelectError.clear();
@@ -322,8 +326,47 @@ static void startSong(const SongEntry& song, int part, bool rhythmMode){
     }
 }
 
+// The practice screen for a part; `around`: the place in the song to choose bars around (-1: the last ones)
+static void goToPractice(const SongEntry& song, int part, double around, const std::string& message){
+    std::string error;
+    if (!openPracticeScreen(song, part, around, message, error)){
+        app.songSelectError = error;
+        goToSongSelect();
+        return;
+    }
+    app.currentSong = song;
+    app.currentPart = part;
+    app.screen = Screen::Practice;
+}
+
+// The practice chosen on its screen, started
+static void startPractice(){
+    std::string error;
+    app.testPlaying = false;
+    GameplayOptions options = songOptions(app.currentSong, app.currentPart);
+    options.practice = practiceChoice();
+    if (startGameplay(app.currentSong.chartPath, options, error)){
+        app.currentPractice = true;
+        app.screen = Screen::Playing;
+    } else {
+        goToPractice(app.currentSong, app.currentPart, -1, "Couldn't start: " + error);
+    }
+}
+
+// A practice over: back on its screen, with how it went
+static void endPractice(){
+    PracticeProgress progress = practiceProgress();
+    stopGameplay();
+    std::string message;
+    if (progress.mastered) message = TextFormat("Mastered at %d%% tempo, after %d %s.", (int)std::lround(progress.speed * 100.0f), progress.passes,
+                                                progress.passes == 1 ? "pass" : "passes");
+    else message = TextFormat("%d %s, the best with %d%% of the notes, at up to %d%% tempo.", progress.passes, progress.passes == 1 ? "pass" : "passes",
+                              (int)std::lround(progress.bestAccuracy * 100.0f), (int)std::lround(progress.speed * 100.0f));
+    goToPractice(app.currentSong, app.currentPart, -1, message);
+}
+
 // The tuning check for a part's instrument; `reason` says why when it isn't the first time (it went out of tune)
-static bool goToTuningCheck(const SongEntry& song, int part, bool rhythmMode, const std::string& reason){
+static bool goToTuningCheck(const SongEntry& song, int part, App::AfterTuning after, const std::string& reason){
     InputRole role;
     if (!partInstrument(song, part, role)) return false;
     std::string error;
@@ -335,17 +378,19 @@ static bool goToTuningCheck(const SongEntry& song, int part, bool rhythmMode, co
     }
     app.tuningFor = song;
     app.tuningPart = part;
-    app.tuningRhythm = rhythmMode;
+    app.afterTuning = after;
     app.screen = Screen::TuningCheck;
     return true;
 }
 
 // A part chosen on the song list: the first time an instrument is played in a session, it's checked in tune first
-static void chooseSong(const SongEntry& song, int part, bool rhythmMode){
+static void chooseSong(const SongEntry& song, int part, bool practice){
     InputRole role;
-    if (!rhythmMode && partInstrument(song, part, role) && statusOf(role).ready && !app.tuned[(int)role]
-        && goToTuningCheck(song, part, rhythmMode, "")) return;
-    startSong(song, part, rhythmMode);
+    App::AfterTuning after = practice ? App::AfterTuning::ChoosePractice : App::AfterTuning::Play;
+    if (partInstrument(song, part, role) && statusOf(role).ready && !app.tuned[(int)role]
+        && goToTuningCheck(song, part, after, "")) return;
+    if (practice) goToPractice(song, part, -1, "");
+    else startSong(song, part);
 }
 
 static void leaveTuningCheck(bool tuned){
@@ -356,7 +401,11 @@ static void leaveTuningCheck(bool tuned){
         return;
     }
     if (partInstrument(app.tuningFor, app.tuningPart, role)) app.tuned[(int)role] = true;
-    startSong(app.tuningFor, app.tuningPart, app.tuningRhythm);
+    switch (app.afterTuning){
+        case App::AfterTuning::Play: startSong(app.tuningFor, app.tuningPart); break;
+        case App::AfterTuning::ChoosePractice: goToPractice(app.tuningFor, app.tuningPart, -1, ""); break;
+        case App::AfterTuning::Practise: app.currentSong = app.tuningFor; app.currentPart = app.tuningPart; startPractice(); break;
+    }
 }
 
 static void startTestPlay(){
@@ -427,6 +476,7 @@ static void handleBackKey(bool backClicked){
         case Screen::Settings: if (!settingsUsedEscape()) leaveSettings(); break;
         case Screen::Calibration: leaveCalibration(); break;
         case Screen::TuningCheck: leaveTuningCheck(false); break;
+        case Screen::Practice: goToSongSelect(); break;
         case Screen::ImportSong:
             closeImportScreen();
             goToSongList(app.importForEditor ? Screen::EditorSelect : Screen::SongSelect); // back where it was opened from
@@ -487,7 +537,7 @@ static void runMenus(){
             else if (choice.deleteSong >= 0) deleteSong(choice.deleteSong);
             else if (choice.back) app.screen = Screen::MainMenu;
             else if (choice.openDataFolder) openDataFolder();
-            else if (choice.songIndex >= 0) chooseSong(app.songs[choice.songIndex], choice.part, choice.rhythmMode);
+            else if (choice.songIndex >= 0) chooseSong(app.songs[choice.songIndex], choice.part, choice.practice);
             break;
         }
         case Screen::EditorSelect: {
@@ -538,7 +588,7 @@ static void runMenus(){
             break;
         case Screen::Results:
             switch (resultsScreen(app.lastResult)){
-                case ResultsChoice::Retry: startSong(app.currentSong, app.currentPart, app.currentRhythm); break;
+                case ResultsChoice::Retry: startSong(app.currentSong, app.currentPart); break;
                 case ResultsChoice::BackToSongs: goToSongSelect(); break;
                 case ResultsChoice::None: break;
             }
@@ -583,6 +633,9 @@ static void runMenus(){
                 }
             }
             break;
+        case Screen::Practice:
+            if (practiceScreen() == PracticeChoice::Start) startPractice();
+            break;
         case Screen::TuningCheck:
             switch (tuningScreen()){
                 case TuningChoice::Tuned: case TuningChoice::Skipped: leaveTuningCheck(true); break;
@@ -603,7 +656,8 @@ static void runMenus(){
                         stopGameplay();
                         std::string reason = TextFormat("It sounded about %.0f cents %s. Once it's in tune, the song starts over.",
                                                         std::fabs(cents), cents > 0 ? "sharp" : "flat");
-                        if (!goToTuningCheck(app.currentSong, app.currentPart, app.currentRhythm, reason)) goToSongSelect();
+                        App::AfterTuning after = app.currentPractice ? App::AfterTuning::Practise : App::AfterTuning::Play;
+                        if (!goToTuningCheck(app.currentSong, app.currentPart, after, reason)) goToSongSelect();
                         break;
                     }
                     case OutOfTuneChoice::PlayOn: resumeGameplay(); break;
@@ -612,14 +666,34 @@ static void runMenus(){
                 }
             } else {
                 std::string song = app.currentSong.title;
-                switch (pauseScreen(song)){
+                InputRole role;
+                const bool tunable = !app.testPlaying && partInstrument(app.currentSong, app.currentPart, role) && statusOf(role).ready;
+                const char* instrument = tunable ? (role == InputRole::Bass ? "bass" : "guitar") : nullptr;
+                switch (pauseScreen(song, app.currentPractice, instrument, !app.testPlaying)){
                     case PauseChoice::Resume: resumeGameplay(); break;
                     case PauseChoice::Retry:
                         if (app.testPlaying){ stopGameplay(); startTestPlay(); }
-                        else startSong(app.currentSong, app.currentPart, app.currentRhythm);
+                        else if (app.currentPractice){ stopGameplay(); startPractice(); }
+                        else startSong(app.currentSong, app.currentPart);
                         break;
+                    case PauseChoice::SwitchMode:
+                        if (app.currentPractice){ stopGameplay(); startSong(app.currentSong, app.currentPart); }
+                        else {
+                            double around = gameplaySongTime();
+                            stopGameplay();
+                            goToPractice(app.currentSong, app.currentPart, around, "");
+                        }
+                        break;
+                    case PauseChoice::Tune: {
+                        stopGameplay();
+                        App::AfterTuning after = app.currentPractice ? App::AfterTuning::Practise : App::AfterTuning::Play;
+                        std::string reason = app.currentPractice ? "Once it's in tune, the practice starts again." : "Once it's in tune, the song starts over.";
+                        if (!goToTuningCheck(app.currentSong, app.currentPart, after, reason)) goToSongSelect();
+                        break;
+                    }
                     case PauseChoice::Quit:
                         if (app.testPlaying) backToEditor();
+                        else if (app.currentPractice){ stopGameplay(); goToPractice(app.currentSong, app.currentPart, -1, ""); }
                         else { stopGameplay(); goToSongSelect(); }
                         break;
                     case PauseChoice::None: break;
@@ -707,6 +781,7 @@ int main(void){
         // the transition starts from it. Esc only counts if the menus didn't already use it to change screens.
         if (app.screen == shown) handleBackKey(backClicked);
         if (songOver && app.screen == Screen::Playing && app.testPlaying) backToEditor();
+        else if (songOver && app.screen == Screen::Playing && app.currentPractice) endPractice();
         else if (songOver && app.screen == Screen::Playing){
             app.lastResult = gameplayResult();
             stopGameplay();

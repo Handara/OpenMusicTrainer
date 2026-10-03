@@ -5,6 +5,7 @@
 #include "core/pitch.h"
 #include "core/settings.h"
 #include "core/synth.h"
+#include "core/timestretch.h"
 #include "core/tonechain.h"
 #include "miniaudio.h"
 
@@ -73,6 +74,23 @@ struct ReaderSource {
     std::atomic<ma_uint64> cursor{0}; // frames read so far: written by the audio thread, read by songPosition()
 };
 
+// The song at another speed than its own (setSongSpeed), as a data source: its file decoded and stretched in time
+// (core/timestretch) as the audio thread reads it. Its cursor is in the song's own frames, so the game's clock stays
+// the song's: at half speed it simply moves half as fast.
+struct StretchSource {
+    ma_data_source_base base; // must come first, as for ReaderSource
+    ma_decoder decoder;
+    TimeStretch stretch;
+    ma_uint32 sampleRate = 0;
+    ma_uint32 channels = 0;
+    ma_uint64 length = 0;               // the song's frames
+    long long from = 0;                 // the song frame it last started from (a seek)
+    ma_uint64 made = 0;                 // frames played out since
+    std::atomic<ma_uint64> cursor{0};   // the song frame being heard: written by the audio thread, read by songPosition()
+    std::vector<float> scratch;         // decoded frames on their way in: sized once, so the audio thread doesn't allocate
+    bool decoderEnded = false;
+};
+
 // The instrument being heard (setMonitor), as a data source the engine plays: it reads what the capture thread mixed
 // into the monitor buffer and puts it through the tone. It never ends: with nothing played it gives silence.
 struct MonitorSource {
@@ -102,6 +120,10 @@ static struct {
     ma_uint32 captureChannels = 1; // the input device's inputs, kept apart in the capture buffer
     ReaderSource readerSource; // the song's source when it comes from a function
     bool songFromReader = false;
+    StretchSource stretchSource; // or when it's played at another speed than its own
+    bool songStretched = false;
+    std::string songPath;        // the song's file, to open it again at another speed
+    float songSpeed = 1.0f;      // see setSongSpeed
     bool looping = false;
     double songStartTime = 0.0;     // playSongFrom: the engine time (audioTime) the song starts playing at...
     double songStartPosition = 0.0; // ...and the song position it starts from
@@ -371,16 +393,128 @@ const char* audioBackendName(){
     return audio.contextReady ? ma_get_backend_name(audio.context.backend) : "none";
 }
 
-bool loadSong(const std::string& path, std::string& error){
-    unloadSong();
-    // STREAM decodes a little at a time instead of the whole file up front
-    // (a 5 minute song fully decoded is ~100 MB). NO_SPATIALIZATION skips unneeded 3D audio processing.
-    ma_uint32 flags = MA_SOUND_FLAG_STREAM | MA_SOUND_FLAG_NO_SPATIALIZATION;
-    ma_result result = ma_sound_init_from_file(&audio.engine, path.c_str(), flags, nullptr, nullptr, &audio.song);
+static const ma_uint32 STRETCH_BLOCK = 4096; // frames decoded at a time for the stretch
+
+static ma_result stretchRead(ma_data_source* source, void* out, ma_uint64 frameCount, ma_uint64* framesRead){
+    StretchSource* self = (StretchSource*)source;
+    TimeStretch& stretch = self->stretch;
+    ma_uint64 done = 0;
+    float* to = (float*)out;
+    while (done < frameCount){
+        int got = takeTimeStretch(stretch, to + done * self->channels, (int)(frameCount - done));
+        done += (ma_uint64)got;
+        if (done == frameCount) break;
+        int wants = timeStretchWants(stretch);
+        if (wants == 0 && got == 0) break; // played out
+        if (wants > 0){
+            ma_uint64 decoded = 0;
+            ma_uint64 asked = std::min<ma_uint64>((ma_uint64)wants, STRETCH_BLOCK);
+            if (!self->decoderEnded) ma_decoder_read_pcm_frames(&self->decoder, self->scratch.data(), asked, &decoded);
+            if (decoded > 0) feedTimeStretch(stretch, self->scratch.data(), (int)decoded);
+            if (decoded < asked){
+                self->decoderEnded = true;
+                endTimeStretch(stretch);
+            }
+        }
+    }
+    self->made += done;
+    const double heard = self->from + self->made * (double)stretch.speed + timeStretchLag(stretch);
+    self->cursor = (ma_uint64)std::max((double)self->from, std::min(heard, (double)self->length));
+    *framesRead = done;
+    return done == 0 ? MA_AT_END : MA_SUCCESS;
+}
+
+static ma_result stretchSeek(ma_data_source* source, ma_uint64 frame){
+    StretchSource* self = (StretchSource*)source;
+    ma_result result = ma_decoder_seek_to_pcm_frame(&self->decoder, frame);
+    resetTimeStretch(self->stretch, (long long)frame);
+    self->from = (long long)frame;
+    self->made = 0;
+    self->cursor = frame;
+    self->decoderEnded = false;
+    return result;
+}
+
+static ma_result stretchFormat(ma_data_source* source, ma_format* format, ma_uint32* channels, ma_uint32* sampleRate,
+                               ma_channel* channelMap, size_t channelMapCapacity){
+    StretchSource* self = (StretchSource*)source;
+    *format = ma_format_f32;
+    *channels = self->channels;
+    *sampleRate = self->sampleRate;
+    ma_channel_map_init_standard(ma_standard_channel_map_default, channelMap, channelMapCapacity, self->channels);
+    return MA_SUCCESS;
+}
+
+static ma_result stretchCursor(ma_data_source* source, ma_uint64* cursor){
+    *cursor = ((StretchSource*)source)->cursor;
+    return MA_SUCCESS;
+}
+
+static ma_result stretchLength(ma_data_source* source, ma_uint64* length){
+    *length = ((StretchSource*)source)->length;
+    return MA_SUCCESS;
+}
+
+static ma_data_source_vtable STRETCH_VTABLE = { stretchRead, stretchSeek, stretchFormat, stretchCursor, stretchLength, nullptr, 0 };
+
+// The song's file opened as the sound the engine plays: streamed as it is, or through the stretch at another speed
+static bool openSongSound(const std::string& path, std::string& error){
+    if (audio.songSpeed == 1.0f){
+        // STREAM decodes a little at a time instead of the whole file up front
+        // (a 5 minute song fully decoded is ~100 MB). NO_SPATIALIZATION skips unneeded 3D audio processing.
+        ma_uint32 flags = MA_SOUND_FLAG_STREAM | MA_SOUND_FLAG_NO_SPATIALIZATION;
+        ma_result result = ma_sound_init_from_file(&audio.engine, path.c_str(), flags, nullptr, nullptr, &audio.song);
+        if (result != MA_SUCCESS){
+            error = path + ": could not load audio: " + ma_result_description(result);
+            return false;
+        }
+        return true;
+    }
+    StretchSource& source = audio.stretchSource;
+    ma_decoder_config decoderConfig = ma_decoder_config_init(ma_format_f32, 0, 0); // its own channels and rate
+    ma_result result = ma_decoder_init_file(path.c_str(), &decoderConfig, &source.decoder);
     if (result != MA_SUCCESS){
         error = path + ": could not load audio: " + ma_result_description(result);
         return false;
     }
+    source.channels = source.decoder.outputChannels;
+    source.sampleRate = source.decoder.outputSampleRate;
+    ma_uint64 length = 0;
+    ma_decoder_get_length_in_pcm_frames(&source.decoder, &length);
+    source.length = length;
+    source.scratch.assign((size_t)STRETCH_BLOCK * source.channels, 0.0f);
+    initTimeStretch(source.stretch, (int)source.channels, (int)source.sampleRate, audio.songSpeed);
+    source.from = 0;
+    source.made = 0;
+    source.cursor = 0;
+    source.decoderEnded = false;
+    ma_data_source_config config = ma_data_source_config_init();
+    config.vtable = &STRETCH_VTABLE;
+    result = ma_data_source_init(&config, &source.base);
+    if (result == MA_SUCCESS) result = ma_sound_init_from_data_source(&audio.engine, &source.base, MA_SOUND_FLAG_NO_SPATIALIZATION, nullptr, &audio.song);
+    if (result != MA_SUCCESS){
+        ma_decoder_uninit(&source.decoder);
+        error = path + ": could not play it at another speed: " + ma_result_description(result);
+        return false;
+    }
+    audio.songStretched = true;
+    return true;
+}
+
+static void closeSongSound(){
+    // Uninitializing the sound detaches it from the audio thread, so its source is never read after this
+    if (audio.songReady) ma_sound_uninit(&audio.song);
+    if (audio.songStretched){
+        ma_data_source_uninit(&audio.stretchSource.base);
+        ma_decoder_uninit(&audio.stretchSource.decoder);
+    }
+    audio.songStretched = false;
+}
+
+bool loadSong(const std::string& path, std::string& error){
+    unloadSong();
+    if (!openSongSound(path, error)) return false;
+    audio.songPath = path;
     ma_sound_get_data_format(&audio.song, nullptr, nullptr, &audio.songSampleRate, nullptr, 0);
     ma_uint64 lengthFrames = 0;
     ma_sound_get_length_in_pcm_frames(&audio.song, &lengthFrames);
@@ -398,6 +532,24 @@ bool loadSong(const std::string& path, std::string& error){
     audio.songReady = true;
     ma_sound_set_volume(&audio.song, audio.songVolume);
     return true;
+}
+
+void setSongSpeed(float speed){
+    speed = std::clamp(speed, 0.25f, 2.0f);
+    if (speed == audio.songSpeed) return;
+    audio.songSpeed = speed;
+    // The song open now is opened again, to be played the new way (stopped: it's started again from where it's wanted)
+    if (!audio.songReady || audio.songFromReader || audio.songPath.empty()) return;
+    closeSongSound();
+    audio.songReady = false;
+    std::string error;
+    if (!openSongSound(audio.songPath, error)) return;
+    audio.songReady = true;
+    ma_sound_set_volume(&audio.song, audio.songVolume);
+}
+
+float songSpeed(){
+    return audio.songSpeed;
 }
 
 static ma_result readerRead(ma_data_source* source, void* out, ma_uint64 frameCount, ma_uint64* framesRead){
@@ -464,8 +616,9 @@ bool loadSongFromReader(SongReader reader, void* user, int sampleRate, int chann
 
 void unloadSong(){
     // Uninitializing the sound detaches it from the audio thread, so the reader is never called after this
-    if (audio.songReady) ma_sound_uninit(&audio.song);
+    closeSongSound();
     if (audio.songFromReader) ma_data_source_uninit(&audio.readerSource.base);
+    audio.songPath.clear();
     audio.songReady = false;
     audio.songFromReader = false;
     audio.songStartTime = 0.0;
@@ -493,7 +646,7 @@ double playSongFrom(double seconds, double notBefore){
     const double from = std::max(0.0, notBefore), early = std::max(0.0, from - seconds);
     ma_sound_seek_to_pcm_frame(&audio.song, (ma_uint64)std::llround(std::max(from, seconds) * audio.songSampleRate));
     ma_uint32 engineRate = ma_engine_get_sample_rate(&audio.engine);
-    double wait = SONG_START_LEAD_S + early;
+    double wait = SONG_START_LEAD_S + early / audio.songSpeed; // the song's seconds, slower or faster as it plays
     ma_uint64 start = ma_engine_get_time_in_pcm_frames(&audio.engine) + (ma_uint64)std::llround(wait * engineRate);
     ma_sound_set_start_time_in_pcm_frames(&audio.song, start);
     audio.songStartTime = (double)start / engineRate;
@@ -501,7 +654,7 @@ double playSongFrom(double seconds, double notBefore){
     audio.smoothTime = seconds;
     audio.lastWallTime = wallClockSeconds();
     ma_sound_start(&audio.song);
-    return (double)(start - (ma_uint64)std::llround(early * engineRate)) / engineRate;
+    return (double)(start - (ma_uint64)std::llround(early / audio.songSpeed * engineRate)) / engineRate;
 }
 
 void stopSong(){
@@ -535,7 +688,7 @@ double songPosition(){
     if (audio.songStartTime > 0.0){
         double untilStart = audio.songStartTime - ::audioTime();
         if (untilStart > 0.0){
-            audio.smoothTime = audio.songStartPosition - untilStart;
+            audio.smoothTime = audio.songStartPosition - untilStart * audio.songSpeed; // the song's seconds
             audio.lastWallTime = now;
             return audio.smoothTime;
         }
@@ -546,7 +699,7 @@ double songPosition(){
         return audioTime;
     }
 
-    double advance = now - audio.lastWallTime;
+    double advance = (now - audio.lastWallTime) * audio.songSpeed; // in the song's seconds
     double previous = audio.smoothTime;
     audio.smoothTime += advance;
     audio.lastWallTime = now;

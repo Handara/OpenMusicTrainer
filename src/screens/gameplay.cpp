@@ -54,7 +54,20 @@ const double MIN_COUNT_IN_S = 1.5; // from the top, a bar is counted in; two whe
 const double TRIM_FADE_S = 0.4;    // a trimmed song's end fades out over this long rather than being cut
 const double RESUME_RUNUP_S = 1.5; // resuming, the song picks up this long before where it was paused
 
+const float PASS_TAIL_S = 0.35f;   // practising, a pass ends this long after its section does: its last note's judgement
+const float TEMPO_BANNER_S = 2.0f; // how long the new tempo shows after a pass raises it
+
 static HitFeedback feedback; // the judgements, timing bar and combo shown over the play screen
+// Played slower (practising), the song's seconds go by slower than the clock's: a note heard 0.1 s ago (the clock's)
+// is 0.07 s back in a song at 70%. And waiting on a note (note by note), the song stands still: whatever's played is
+// played now, at the note.
+static float inputScale = 1.0f;
+static bool frozenTime = false;
+
+// When in the song something played `age` seconds ago (the clock's) was played, the input's own delay counted
+static double heardAt(float songTime, double age, float inputOffset){
+    return frozenTime ? (double)songTime : songTime - (age + inputOffset) * inputScale;
+}
 static bool instrumentHitSounds = false; // a drop on each hit: playing an instrument, which gives no sound of its own to the game
 
 // Where a judgement is shown: over its note on the neck, when the neck is drawn, else over it in the sheet music;
@@ -171,7 +184,7 @@ static void listenForChords(ChordListening& listening, std::vector<PlayNote>& no
     listening.soundEnd += (long long)fresh.size();
     if ((int)listening.sound.size() > rate) listening.sound.erase(listening.sound.begin(), listening.sound.end() - rate);
     for (double age : noteInputAttacks()){
-        float time = songTime - (float)age - inputOffset;
+        float time = (float)heardAt(songTime, age, inputOffset);
         if (chordDueAt(notes, time).empty()) continue;
         listening.plucks.push_back({ listening.soundEnd - (long long)(age * rate), time });
     }
@@ -221,7 +234,7 @@ static void handleInstrument(std::vector<PlayNote>& notes, GameState& state, flo
         lastAttackAt = GetTime() - age;
         if (!rhythmMode) continue;
         PlayerInput input;
-        input.time = songTime - age - inputOffset;
+        input.time = heardAt(songTime, age, inputOffset);
         input.anyNote = true;
         JudgeResult result = judgeInput(notes, input);
         if (result.judgement != Judgement::Ignored) scoreHit(state, result, judgementAnchor(notes, result.noteIndex));
@@ -229,9 +242,9 @@ static void handleInstrument(std::vector<PlayNote>& notes, GameState& state, flo
     for (const PlayedNote& note : played){
         lastPlayed = { note.pitch };
         if (rhythmMode) continue; // judged at its attack, above
-        if (tuning) watchNoteTuning(*tuning, notes, note, songTime - (float)note.age - inputOffset, anyOctave);
+        if (tuning) watchNoteTuning(*tuning, notes, note, (float)heardAt(songTime, note.age, inputOffset), anyOctave);
         PlayerInput input;
-        input.time = songTime - note.age - inputOffset;
+        input.time = heardAt(songTime, note.age, inputOffset);
         if (std::fabs((float)input.time - chords.lastChordAt) < SAME_PLUCK_S) continue; // that chord's own pluck, counted
         input.pitch = note.pitch;
         input.anyOctave = anyOctave;
@@ -244,7 +257,7 @@ static void handleInstrument(std::vector<PlayNote>& notes, GameState& state, flo
         lastPlayed = chord.pitches;
         if (rhythmMode || anyOctave) continue;
         PlayerInput input;
-        input.time = songTime - chord.age - inputOffset;
+        input.time = heardAt(songTime, chord.age, inputOffset);
         if (std::fabs((float)input.time - chords.lastChordAt) < SAME_PLUCK_S) continue; // counted already
         std::vector<int> dueChord = chordDueAt(notes, (float)input.time);
         bool held = !dueChord.empty() && std::all_of(dueChord.begin(), dueChord.end(), [&](int index){
@@ -287,6 +300,13 @@ static struct {
     bool watchingTuning = false; // with a guitar or a bass, until the player chooses to play on out of tune
     bool outOfTune = false;   // paused for it
     float outOfTuneCents = 0.0f;
+    // Practising (options.practice): the section's notes as they are before a pass, where it starts and ends, how
+    // it's going; and, note by note, the note the song is waiting on
+    std::vector<PlayNote> sectionNotes;
+    float sectionStart = 0.0f, sectionEnd = 0.0f;
+    PracticeProgress progress;
+    bool waiting = false;
+    float waitTime = 0.0f;
     bool active = false;
 } game;
 
@@ -308,20 +328,20 @@ static void handleDrumKeys(){
 // From the top, a bar is counted in (two for a fast song), clicking on each beat with the count on screen: a note on
 // the very first beat isn't a surprise, and the first notes' rings are already closing in while it counts. The song
 // is started that long before its start (its clock counts up from below it): the audio's own, or where it's trimmed to.
-static void startWithCountIn(){
-    const int startTick = std::max(0, (int)secondsToTick(game.chart, game.startsAt));
+static void startWithCountIn(float from){
+    const int startTick = std::max(0, (int)std::lround(secondsToTick(game.chart, from)));
     const TimeSignatureChange& time = timeSignatureAt(game.chart, startTick);
     const double bar = tickToSeconds(game.chart, startTick + ticksPerBar(game.chart, time)) - tickToSeconds(game.chart, startTick);
     const int bars = bar < MIN_COUNT_IN_S ? 2 : 1;
     const double countIn = bar * bars, beat = bar / std::max(1, time.beats);
-    double begins = playSongFrom(game.startsAt - countIn, game.startsAt); // on the engine's clock, when the count starts
+    double begins = playSongFrom(from - countIn, game.startsAt); // on the engine's clock, when the count starts
     if (begins < 0.0){
         playSong(false); // a song that can't be started ahead (read as it plays): from the top at once
         return;
     }
     game.countInBeat = (float)beat;
     game.countInBeats = time.beats * bars;
-    for (int k = 0; k < game.countInBeats; k++) playClickAt(begins + k * beat, k % time.beats == 0);
+    for (int k = 0; k < game.countInBeats; k++) playClickAt(begins + k * beat / songSpeed(), k % time.beats == 0); // the song's beats, at its speed
 }
 
 bool startGameplay(const std::string& chartPath, const GameplayOptions& options, std::string& error){
@@ -339,6 +359,7 @@ bool startGameplay(const std::string& chartPath, const GameplayOptions& options,
 bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, const GameplayOptions& options, int fromTick,
                             std::string& error){
     stopGameplay();
+    if (options.practice.on) fromTick = options.practice.fromTick; // practising: its section only
     if (options.part < 0 || options.part >= partCount(chart)){
         error = "the chart has no part " + std::to_string(options.part + 1) + " to play";
         return false;
@@ -371,6 +392,10 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
     std::vector<FrettedNote>& chartNotes = game.chart.frettedTracks[0].notes;
     chartNotes.erase(chartNotes.begin(), std::lower_bound(chartNotes.begin(), chartNotes.end(), fromTick,
                      [](const FrettedNote& note, int tick){ return note.tick < tick; }));
+    if (options.practice.on){
+        chartNotes.erase(std::lower_bound(chartNotes.begin(), chartNotes.end(), options.practice.toTick,
+                         [](const FrettedNote& note, int tick){ return note.tick < tick; }), chartNotes.end());
+    }
     const FrettedTrack& track = game.chart.frettedTracks[0];
     if (!game.keys && (int)track.tuning.size() > MAX_LANES){
         error = "track '" + track.name + "' has " + std::to_string(track.tuning.size())
@@ -378,6 +403,7 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
         return false;
     }
 
+    setSongSpeed(options.practice.on ? options.practice.speed : 1.0f); // before loading: it's opened to be played so
     if (!loadSong(audioPath, error)) return false;
     // Its video, for behind the notes. A song plays the same without one: a video that's missing (a package made
     // without it) or can't be read is only noted.
@@ -474,9 +500,54 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
     game.outOfTune = false;
     game.active = true;
     game.countInBeats = 0;
+    game.waiting = false;
     setSongVolume(1.0f);
-    if (fromTick > 0) playSongFrom(tickToSeconds(game.chart, fromTick) - LEAD_IN_S, game.startsAt);
-    else startWithCountIn();
+    if (options.practice.on){
+        game.sectionNotes = game.notes;
+        game.sectionStart = (float)tickToSeconds(game.chart, options.practice.fromTick);
+        game.sectionEnd = (float)tickToSeconds(game.chart, options.practice.toTick);
+        game.progress = PracticeProgress{};
+        game.progress.speed = options.practice.speed;
+        startWithCountIn(game.sectionStart);
+    }
+    else if (fromTick > 0) playSongFrom(tickToSeconds(game.chart, fromTick) - LEAD_IN_S, game.startsAt);
+    else startWithCountIn(game.startsAt);
+    return true;
+}
+
+// Practising: the section again from the top, its notes as new, counted in at the speed it's at
+static void startPass(){
+    game.notes = game.sectionNotes;
+    game.state = {};
+    game.state.multiplier = 1;
+    game.chords = {};
+    game.waiting = false;
+    startWithCountIn(game.sectionStart);
+}
+
+// A pass over: how much of it was played; a pass with every note played moves the tempo up (gradually) or masters
+// the section. False when the practice is over: mastered, or as many passes as were asked for.
+static bool endPass(){
+    const PracticeOptions& practice = game.options.practice;
+    PracticeProgress& progress = game.progress;
+    int hits = 0;
+    for (const PlayNote& note : game.notes) hits += note.hit;
+    const int total = (int)game.notes.size();
+    progress.passes++;
+    progress.lastAccuracy = total > 0 ? (float)hits / total : 1.0f;
+    progress.bestAccuracy = std::max(progress.bestAccuracy, progress.lastAccuracy);
+    if (hits == total){
+        if (practice.gradual && progress.speed < 0.999f){
+            progress.speed = std::min(1.0f, std::round((progress.speed + practice.step) * 100.0f) / 100.0f);
+            progress.raisedAt = GetTime();
+        } else {
+            progress.mastered = true;
+        }
+    }
+    stopSong();
+    if ((practice.passes > 0 && progress.passes >= practice.passes) || (practice.passes == 0 && progress.mastered)) return false;
+    setSongSpeed(progress.speed);
+    startPass();
     return true;
 }
 
@@ -493,7 +564,8 @@ void resumeGameplay(){
     game.outOfTune = false;
     game.paused = false;
     game.resumeAt = game.songTime;
-    playSongFrom(game.songTime + game.options.offsetSeconds - RESUME_RUNUP_S, game.startsAt);
+    if (game.waiting) return; // waiting on a note: it starts again when that's played
+    playSongFrom(game.songTime + game.options.offsetSeconds * songSpeed() - RESUME_RUNUP_S, game.startsAt);
 }
 
 bool gameplayPaused(){
@@ -519,7 +591,20 @@ bool updateGameplay(){
     // The song's playback position is the clock: notes stay in sync with the music even if frames stutter
     // The offset shifts the whole game against the audio: if sound reaches your ears late (Bluetooth,
     // slow drivers), a positive offset moves notes and judging later to match what you hear
-    game.songTime = (float)(songPosition() - game.options.offsetSeconds);
+    // Note by note: the song stops on each note until it's played
+    const float speed = songSpeed();
+    inputScale = speed;
+    if (game.options.practice.on && game.options.practice.noteByNote && !game.waiting){
+        float heard = (float)(songPosition() - game.options.offsetSeconds * speed);
+        auto due = std::find_if(game.notes.begin(), game.notes.end(), [](const PlayNote& note){ return !note.judged; });
+        if (due != game.notes.end() && heard >= due->time){
+            game.waiting = true;
+            game.waitTime = due->time;
+            stopSong();
+        }
+    }
+    frozenTime = game.waiting;
+    game.songTime = game.waiting ? game.waitTime : (float)(songPosition() - game.options.offsetSeconds * speed);
 
     for (PlayNote& note : game.notes){
         if (note.hitFlash > 0.0f) note.hitFlash -= GetFrameTime();
@@ -542,7 +627,7 @@ bool updateGameplay(){
         for (const PlayedNote& played : midiInputActive() ? updateMidiInput() : updatePianoKeys()){
             playKeysNote(midiToFrequency((float)played.pitch));
             PlayerInput input;
-            input.time = game.songTime - played.age;
+            input.time = heardAt(game.songTime, played.age, 0.0f);
             input.pitch = played.pitch;
             input.completesChord = false;
             input.anyNote = game.options.rhythmMode;
@@ -551,14 +636,35 @@ bool updateGameplay(){
             game.lastPlayed = { played.pitch };
         }
     }
-    int missedNote = -1;
-    int missed = markMisses(game.notes, game.songTime, &missedNote);
-    scoreMisses(game.state, missed, judgementAnchor(game.notes, missedNote));
+    // Waiting on a note: once it's played (all of a chord), the song goes on from it
+    if (game.waiting){
+        bool played = std::all_of(game.notes.begin(), game.notes.end(), [](const PlayNote& note){
+            return std::fabs(note.time - game.waitTime) > 0.001f || note.hit;
+        });
+        if (played){
+            game.waiting = false;
+            frozenTime = false;
+            playSongFrom(game.waitTime + game.options.offsetSeconds * speed, game.startsAt);
+        }
+        return true;
+    }
+    if (!(game.options.practice.on && game.options.practice.noteByNote)){ // note by note, nothing goes by unplayed
+        int missedNote = -1;
+        int missed = markMisses(game.notes, game.songTime, &missedNote);
+        scoreMisses(game.state, missed, judgementAnchor(game.notes, missedNote));
+    }
+
+    // Practising: at the section's end, the pass is counted and the next begins (or the practice is over)
+    if (game.options.practice.on){
+        if (game.songTime < game.sectionEnd + PASS_TAIL_S && !songEnded()) return true;
+        scoreMisses(game.state, markMisses(game.notes, game.songTime + 1e9));
+        return endPass();
+    }
 
     // A trimmed song fades out into its end, and ends there
     bool trimmedEnd = false;
     if (game.endsAt > 0.0f){
-        double left = game.endsAt - (game.songTime + game.options.offsetSeconds); // against the audio's own time
+        double left = game.endsAt - (game.songTime + game.options.offsetSeconds * speed); // against the audio's own time
         setSongVolume((float)std::clamp(left / TRIM_FADE_S, 0.0, 1.0));
         trimmedEnd = left <= 0.0;
     }
@@ -646,6 +752,32 @@ void drawGameplayHud(){
         below += below.empty() ? heard : "  ·  " + heard;
     }
     draw->AddText(fonts.text, 16 * s, ImVec2(margin, top + 30 * s), uiColor(UiColor::Dim), below.c_str());
+    // Practising: the section, the tempo, the pass, how the last one went; and note by note, the note it waits on
+    if (game.options.practice.on){
+        const PracticeOptions& practice = game.options.practice;
+        const PracticeProgress& progress = game.progress;
+        int firstBar = barNumberAt(game.chart, practice.fromTick) + 1, lastBar = barNumberAt(game.chart, std::max(practice.fromTick, practice.toTick - 1)) + 1;
+        std::string line = firstBar == lastBar ? TextFormat("PRACTICE  ·  BAR %d", firstBar) : TextFormat("PRACTICE  ·  BARS %d-%d", firstBar, lastBar);
+        line += TextFormat("  ·  %d%% TEMPO  ·  PASS %d", (int)std::lround(progress.speed * 100.0f), progress.passes + 1);
+        if (progress.passes > 0) line += TextFormat("  ·  LAST %d%%", (int)std::lround(progress.lastAccuracy * 100.0f));
+        draw->AddText(fonts.mono, 14 * s, ImVec2(margin, top + 56 * s), uiColor(UiColor::Accent), line.c_str());
+        if (game.waiting){
+            std::string waiting = "WAITING FOR";
+            for (const PlayNote& note : game.notes){
+                if (std::fabs(note.time - game.waitTime) < 0.001f && !note.hit) waiting += TextFormat("  %s%d", pitchClassName(note.pitch), pitchOctave(note.pitch));
+            }
+            draw->AddText(fonts.bold, 20 * s, ImVec2(margin, top + 78 * s), uiColor(UiColor::Ink), waiting.c_str());
+        }
+        // A pass with every note played, and faster now: the new tempo, big, for a moment
+        float since = (float)(GetTime() - progress.raisedAt);
+        if (since >= 0.0f && since < TEMPO_BANNER_S){
+            float fade = 1.0f - since / TEMPO_BANNER_S;
+            const char* banner = TextFormat("TEMPO %d%%", (int)std::lround(progress.speed * 100.0f));
+            float size = 46 * s * (1.0f + 0.15f * fade * fade);
+            draw->AddText(fonts.heavy, size, ImVec2(ImGui::GetIO().DisplaySize.x / 2 - textWidth(fonts.heavy, size, banner) / 2, top + 70 * s),
+                          uiColor(UiColor::Accent, std::min(1.0f, fade * 2.0f)), banner);
+        }
+    }
 
     // The score on the right, the combo and multiplier under it: the multiplier in brass once it's working
     const char* score = TextFormat("%d", state.score);
@@ -691,6 +823,9 @@ void drawGameplayHud(){
 
 void stopGameplay(){
     closeSongVideo();
+    setSongSpeed(1.0f); // practice over: songs play at their own speed again
+    inputScale = 1.0f;
+    frozenTime = false;
     stopNoteInput();
     stopMidiInput();
     stopPianoKeys();
@@ -717,4 +852,16 @@ GameResult gameplayResult(){
     result.errorsMs = state.errorsMs;
     result.distributionFrom = game.distribution;
     return result;
+}
+
+bool gameplayPractising(){
+    return game.active && game.options.practice.on;
+}
+
+PracticeProgress practiceProgress(){
+    return game.progress;
+}
+
+float gameplaySongTime(){
+    return game.songTime;
 }

@@ -224,6 +224,7 @@ add_executable(lahn
     src/learn/singingexercise.cpp
     src/screens/menus.cpp
     src/screens/newsong.cpp
+    src/screens/practicescreen.cpp
     src/screens/settingsscreen.cpp
     src/screens/tuner.cpp
     src/screens/tuningscreen.cpp
