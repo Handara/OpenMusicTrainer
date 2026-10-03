@@ -206,6 +206,7 @@ add_executable(lahn
     src/ui/transition.cpp
     src/ui/ui.cpp
     src/screens/calibration.cpp
+    src/screens/comparison.cpp
     src/screens/editor.cpp
     src/screens/gameplay.cpp
     src/screens/importsong.cpp

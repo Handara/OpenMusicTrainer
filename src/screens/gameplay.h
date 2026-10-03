@@ -7,6 +7,18 @@
 
 #include <string>
 
+// For the end of a song: what was written, and what was played. A written note, as it went...
+struct WrittenNote {
+    float time, length;      // seconds into the song
+    int pitch, stringIndex;
+    bool hit = false, perfect = false;
+};
+// ...and every note heard from the instrument (or a MIDI keyboard), wrong ones included
+struct HeardPitch {
+    float time;              // seconds into the song, when it was played
+    int pitch;
+};
+
 struct GameResult {
     std::string title;
     std::string partName;
@@ -27,6 +39,9 @@ struct GameResult {
     int place = -1;
     std::vector<RunRecord> records;
     std::vector<RunRecord> history; // every run of the part, as played: this one last
+    std::vector<WrittenNote> written; // the part's notes, and which were played
+    std::vector<HeardPitch> heard;    // what was played, note by note (none from the computer keyboard: it has no pitch)
+    std::vector<int> tuning;          // the instrument's strings, lowest first (empty for keys)
 };
 
 // Practice: a section of the song (whole bars) played over and over. Slower if asked (the song keeps its pitch:

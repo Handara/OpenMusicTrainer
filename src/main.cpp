@@ -473,7 +473,7 @@ static void handleBackKey(bool backClicked){
             else if (gameplayPaused()) resumeGameplay();
             else pauseGameplay();
             break;
-        case Screen::Results: goToSongSelect(); break;
+        case Screen::Results: if (!resultsBack()) goToSongSelect(); break;
         case Screen::Tuner: leaveTuner(); break;
         case Screen::Instrument: leaveInstrument(); break;
         case Screen::Settings: if (!settingsUsedEscape()) leaveSettings(); break;

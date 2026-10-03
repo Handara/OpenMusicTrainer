@@ -55,5 +55,6 @@ OutOfTuneChoice outOfTuneScreen(const std::string& song, const char* instrument,
 
 enum class ResultsChoice { None, Retry, BackToSongs };
 ResultsChoice resultsScreen(const GameResult& result);
+bool resultsBack(); // Esc on the results: closes the note-by-note view if it's open (true: it was, nothing else to do)
 
 void tunerScreen();

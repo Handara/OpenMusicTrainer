@@ -63,6 +63,14 @@ static HitFeedback feedback; // the judgements, timing bar and combo shown over 
 // played now, at the note.
 static float inputScale = 1.0f;
 static bool frozenTime = false;
+// Every note heard from the instrument in this run, for the comparison at its end
+static std::vector<HeardPitch> heardLog;
+
+static void logHeard(double time, int pitch){
+    // A pluck of several notes is heard twice: one note at once, all of them a moment later
+    for (auto it = heardLog.rbegin(); it != heardLog.rend() && time - it->time < 0.08; ++it) if (it->pitch == pitch && std::fabs(it->time - time) < 0.08) return;
+    heardLog.push_back({ (float)time, pitch });
+}
 
 // When in the song something played `age` seconds ago (the clock's) was played, the input's own delay counted
 static double heardAt(float songTime, double age, float inputOffset){
@@ -243,6 +251,7 @@ static void handleInstrument(std::vector<PlayNote>& notes, GameState& state, flo
     }
     for (const PlayedNote& note : played){
         lastPlayed = { note.pitch };
+        logHeard(heardAt(songTime, note.age, inputOffset), note.pitch);
         if (rhythmMode) continue; // judged at its attack, above
         if (tuning) watchNoteTuning(*tuning, notes, note, (float)heardAt(songTime, note.age, inputOffset), anyOctave);
         PlayerInput input;
@@ -257,6 +266,7 @@ static void handleInstrument(std::vector<PlayNote>& notes, GameState& state, flo
     // didn't find in the sound is still played if these are its notes
     for (const PlayedChord& chord : noteInputChords()){
         lastPlayed = chord.pitches;
+        for (int pitch : chord.pitches) logHeard(heardAt(songTime, chord.age, inputOffset), pitch);
         if (rhythmMode || anyOctave) continue;
         PlayerInput input;
         input.time = heardAt(songTime, chord.age, inputOffset);
@@ -487,6 +497,7 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
     game.state.multiplier = 1;
     game.options = options;
     game.lastPlayed.clear();
+    heardLog.clear();
     game.anyOctave = false; // set below when the part is played on another instrument than its own
     // A keys part is played on a MIDI keyboard if one is connected, else on the computer keyboard, laid out from
     // the C at or below the part's lowest note
@@ -659,6 +670,7 @@ bool updateGameplay(){
             JudgeResult result = judgeInput(game.notes, input);
             if (result.judgement != Judgement::Ignored) scoreHit(game.state, result, judgementAnchor(game.notes, result.noteIndex));
             game.lastPlayed = { played.pitch };
+            logHeard(input.time, played.pitch);
         }
     }
     // Waiting on a note: once it's played (all of a chord), the song goes on from it
@@ -882,6 +894,11 @@ GameResult gameplayResult(){
     result.fingerprint = game.fingerprint;
     result.errorsMs = state.errorsMs;
     result.distributionFrom = game.distribution;
+    for (const PlayNote& note : game.notes){
+        result.written.push_back({ note.time, std::max(note.length, note.writtenLength), note.pitch, note.stringIndex, note.hit, note.hit && note.wasPerfect });
+    }
+    result.heard = heardLog;
+    if (!game.keys) result.tuning = game.chart.frettedTracks[0].tuning;
     return result;
 }
 

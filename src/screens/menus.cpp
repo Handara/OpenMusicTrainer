@@ -1,5 +1,7 @@
 #include "screens/menus.h"
 
+#include "screens/comparison.h"
+
 #include "raylib.h"
 #include "screens/tuner.h"
 #include "ui/hitfeedback.h"
@@ -332,9 +334,18 @@ OutOfTuneChoice outOfTuneScreen(const std::string& song, const char* instrument,
     return choice;
 }
 
+// Looking at the run note by note (What you played): Esc goes back to the rest of the results
+static bool comparingNotes = false;
+
+bool resultsBack(){
+    if (!comparingNotes) return false;
+    comparingNotes = false;
+    return true;
+}
+
 ResultsChoice resultsScreen(const GameResult& result){
     static MenuList list;
-    static const std::vector<MenuRow> rows = { actionRow("Retry"), actionRow("Back to songs", "Esc") };
+    static const std::vector<MenuRow> rows = { actionRow("Retry"), actionRow("What you played"), actionRow("Back to songs", "Esc") };
     ResultsChoice choice = ResultsChoice::None;
     Grade grade = gradeFor(result.accuracy, result.missCount);
 
@@ -342,10 +353,50 @@ ResultsChoice resultsScreen(const GameResult& result){
     float s = menuScale(), width = ImGui::GetWindowWidth(), height = ImGui::GetWindowHeight();
     std::string title = result.title + (result.partName.empty() ? "" : "  ·  " + result.partName);
     menuScreenTitle(title.c_str(), s);
-    if (ImGui::IsWindowAppearing()) list.selected = 0; // Retry first, every time
+    if (ImGui::IsWindowAppearing()){
+        list.selected = 0; // Retry first, every time
+        comparingNotes = false;
+        resetNoteComparison();
+    }
 
     ImDrawList* draw = ImGui::GetWindowDrawList();
     const UiFonts& fonts = uiFonts();
+    if (comparingNotes){
+        // The run note by note: what was written against what was played
+        int right = 0, missed = 0, wrong = 0;
+        for (const WrittenNote& note : result.written) (note.hit ? right : missed)++;
+        for (const HeardPitch& heard : result.heard){
+            bool matched = false;
+            for (const WrittenNote& note : result.written){
+                if (note.pitch == heard.pitch && heard.time > note.time - 0.15f && heard.time < note.time + std::max(note.length, 0.15f)){ matched = true; break; }
+            }
+            wrong += !matched;
+        }
+        const float left = width * 0.07f, top = height * 0.17f;
+        draw->AddText(fonts.mono, 14 * s, ImVec2(left, top), uiColor(UiColor::Dim),
+                      TextFormat("%d NOTES WRITTEN  ·  %d PLAYED  ·  %d MISSED  ·  %d WRONG NOTES", (int)result.written.size(), right, missed, wrong));
+        const float legendY = top + 22 * s;
+        float lx = left;
+        auto legend = [&](ImU32 color, bool dot, const char* text){
+            if (dot) draw->AddCircleFilled(ImVec2(lx + 5 * s, legendY + 8 * s), 5 * s, color);
+            else draw->AddRect(ImVec2(lx, legendY + 3 * s), ImVec2(lx + 22 * s, legendY + 13 * s), color, 3 * s, 0, 2 * s);
+            lx += (dot ? 16 : 30) * s;
+            draw->AddText(fonts.text, 15 * s, ImVec2(lx, legendY), uiColor(UiColor::Dim), text);
+            lx += (fonts.text ? fonts.text->CalcTextSizeA(15 * s, FLT_MAX, 0.0f, text).x : 100 * s) + 24 * s;
+        };
+        legend(uiColor(UiColor::Good), false, "written, played perfect");
+        legend(uiColor(UiColor::Accent), false, "played");
+        legend(uiColor(UiColor::Bad), false, "missed");
+        legend(uiColor(UiColor::Good), true, "you played it");
+        legend(uiColor(UiColor::Bad), true, "a wrong note");
+        if (result.heard.empty() && !result.withInstrument){
+            draw->AddText(fonts.text, 15 * s, ImVec2(left, legendY + 22 * s), uiColor(UiColor::Dim), "Played on the computer keyboard: there are no pitches to show, only which notes were hit.");
+        }
+        drawNoteComparison(result, ImVec2(left, top + 70 * s), ImVec2(width * 0.93f, height - 64 * s), s);
+        menuScreenHint("Wheel, drag or Left/Right  along the song    Esc  back to the results", s);
+        ImGui::End();
+        return choice;
+    }
     auto textWidth = [](ImFont* font, float size, const char* text){ return font ? font->CalcTextSizeA(size, FLT_MAX, 0.0f, text).x : size * 3; };
 
     // The run, on a card: the grade big, the accuracy by it, then the score, the combo and the timing
@@ -407,11 +458,12 @@ ResultsChoice resultsScreen(const GameResult& result){
 
     // Retry and Back, and under them the part's best runs, this one highlighted
     float left = width * 0.07f, listTop = height * 0.25f;
-    int confirmed = menuList(list, rows, {ImVec2(left, listTop), width * 0.4f, 2 * 48 * s, s});
+    int confirmed = menuList(list, rows, {ImVec2(left, listTop), width * 0.4f, 3 * 48 * s, s});
     if (confirmed == 0) choice = ResultsChoice::Retry;
-    if (confirmed == 1) choice = ResultsChoice::BackToSongs;
+    if (confirmed == 1) comparingNotes = true;
+    if (confirmed == 2) choice = ResultsChoice::BackToSongs;
     if (!result.records.empty()){
-        float boardY = listTop + 2 * 48 * s + 36 * s;
+        float boardY = listTop + 3 * 48 * s + 36 * s;
         draw->AddText(fonts.mono, 13 * s, ImVec2(left, boardY), uiColor(UiColor::Dim), "YOUR BEST RUNS");
         boardY += 13 * s + 12 * s;
         for (int i = 0; i < (int)result.records.size() && i < 5; i++){
