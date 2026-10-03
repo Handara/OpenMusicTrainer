@@ -40,3 +40,12 @@ float noteInputLevelDb(); // loudness of the latest input, for a level meter
 // (chords). At noteInputSampleRate.
 const std::vector<float>& latestInputSamples();
 int noteInputSampleRate();
+
+// A check of what's heard: from now, everything the input reads and every attack, note and pluck of several notes the
+// detectors find is kept (up to a few minutes), to be saved as <base>.wav (the samples, as the detector gets them)
+// and <base>.txt (what was found, in seconds into the recording). For finding out why a note was misheard.
+void startInputRecording();
+bool inputRecording();
+double inputRecordingSeconds();
+bool saveInputRecording(const std::string& basePath, std::string& error); // stops it too
+void cancelInputRecording();

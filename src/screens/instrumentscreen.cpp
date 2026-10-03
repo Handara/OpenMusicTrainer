@@ -3,6 +3,7 @@
 #include "screens/tonewizard.h"
 
 #include "audio/audio.h"
+#include "core/paths.h"
 #include "core/chords.h"
 #include "core/music.h"
 #include "core/positions.h"
@@ -19,6 +20,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <ctime>
 #include <deque>
 
 enum class Instrument { Guitar, Bass, Piano };
@@ -48,6 +50,7 @@ static struct {
     Instrument instrument = Instrument::Guitar; // kept between visits
     bool listening = false;
     std::string error;
+    std::string recordingSaved;      // where the last check was saved, to say so
     // Guitar and bass
     std::deque<PlayedPlace> played; // the newest first
     StringFret hand{-1, -1};        // where the last note was played: the next is looked for near it
@@ -279,6 +282,29 @@ static void frettedScreen(float width, float height, float s){
     int channel = channelFor(instrumentView.settings, role);
     std::string device = instrumentView.settings.inputDevice.empty() ? "default input" : instrumentView.settings.inputDevice;
     drawListening(width * 0.93f, height - 40 * s, s, device + (channel < 0 ? "  ·  all inputs" : "  ·  input " + std::to_string(channel + 1)), instrumentView.listening);
+
+    // A check: what's played recorded, with what was heard in it, for finding out why a note is misheard
+    if (instrumentView.listening){
+        const bool recording = inputRecording();
+        const double seconds = inputRecordingSeconds();
+        const std::string text = recording ? TextFormat("Recording %d:%02d  ·  stop and save", (int)seconds / 60, (int)seconds % 60) : "Record a check";
+        if (menuPill(text.c_str(), "R", ImVec2(left, height - 88 * s), false, 0, s) || ImGui::IsKeyPressed(ImGuiKey_R, false)){
+            if (!recording){
+                startInputRecording();
+                instrumentView.recordingSaved.clear();
+            } else {
+                char stamp[32];
+                std::time_t clock = std::time(nullptr);
+                std::strftime(stamp, sizeof stamp, "%Y-%m-%d-%H%M%S", std::localtime(&clock));
+                const std::string base = userDataDir() + "/check-" + (instrumentView.instrument == Instrument::Bass ? "bass-" : "guitar-") + stamp;
+                std::string error;
+                instrumentView.recordingSaved = saveInputRecording(base, error) ? "Saved: " + base + ".wav and .txt" : "Not saved: " + error;
+            }
+        }
+        if (recording) draw->AddCircleFilled(ImVec2(left - 14 * s, height - 73 * s), 5 * s, uiColor(UiColor::Bad, 0.6f + 0.4f * (float)std::sin(now * 6.0)));
+        if (!instrumentView.recordingSaved.empty())
+            draw->AddText(fonts.text, 14 * s, ImVec2(left + 230 * s, height - 80 * s), uiColor(UiColor::Dim), instrumentView.recordingSaved.c_str());
+    }
 }
 
 static ImU32 mix(ImU32 from, ImU32 to, float t){
@@ -368,7 +394,7 @@ void instrumentScreen(){
         menuScreenHint("Tab  instrument    Up Down  octave of the computer keys    Esc  back", s);
     } else {
         frettedScreen(width, height, s);
-        menuScreenHint("Tab  instrument    Esc  back", s);
+        menuScreenHint("Tab  instrument    R  record a check    Esc  back", s);
     }
     ImGui::End();
 }

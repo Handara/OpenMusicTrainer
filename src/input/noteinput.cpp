@@ -1,12 +1,15 @@
 #include "input/noteinput.h"
 
 #include "audio/audio.h"
+#include "core/backing.h"
 #include "core/music.h"
 #include "core/notedetector.h"
 #include "core/polyphony.h"
+#include "raylib.h"
 
 #include <algorithm>
 #include <cmath>
+#include <fstream>
 
 static struct {
     NoteDetector detector;
@@ -20,8 +23,16 @@ static struct {
     std::vector<float> latest;             // everything read by the last update
     float levelDb = -100.0f;
     int channel = -1;                      // the device's input listened to, -1 for all mixed
+    float minFrequency = 0.0f;
     bool active = false;
+    // A check being recorded (startInputRecording)
+    bool recording = false;
+    long long recordFrom = 0;              // the detector's position when it began
+    std::vector<float> recorded;
+    std::vector<std::string> found;        // one line each: what was found, and when
 } input;
+
+const double RECORD_MAX_S = 300.0;
 
 bool startNoteInput(const std::string& inputDevice, float minFrequency, std::string& error, int channel){
     stopNoteInput();
@@ -35,12 +46,14 @@ bool startNoteInput(const std::string& inputDevice, float minFrequency, std::str
     input.buffer.assign(4096, 0.0f);
     input.levelDb = -100.0f;
     input.channel = channel;
+    input.minFrequency = minFrequency;
     input.active = true;
     return true;
 }
 
 void stopNoteInput(){
     if (!input.active) return;
+    input.recording = false;
     stopCapture();
     input.active = false;
 }
@@ -72,6 +85,20 @@ const std::vector<PlayedNote>& updateNoteInput(){
     feedPluckListener(input.listener, input.latest.data(), (int)input.latest.size(), input.detector.attacks, input.detected, input.plucked);
     for (const PluckNotes& pluck : input.plucked){
         input.chords.push_back({ pluck.pitches, (double)(input.detector.position - pluck.sample) / input.detector.sampleRate });
+    }
+
+    if (input.recording){
+        const int rate = input.detector.sampleRate;
+        auto seconds = [&](long long sample){ return (double)(sample - input.recordFrom) / rate; };
+        for (long long attack : input.detector.attacks) input.found.push_back(TextFormat("%9.3f  attack", seconds(attack)));
+        for (const DetectedNote& note : input.detected)
+            input.found.push_back(TextFormat("%9.3f  note   %s%d %+.0f cents", seconds(note.sample), pitchClassName(note.pitch), pitchOctave(note.pitch), note.cents));
+        for (const PluckNotes& pluck : input.plucked){
+            std::string names;
+            for (int pitch : pluck.pitches) names += TextFormat(" %s%d", pitchClassName(pitch), pitchOctave(pitch));
+            input.found.push_back(TextFormat("%9.3f  pluck of several:%s", seconds(pluck.sample), names.c_str()));
+        }
+        if (input.recorded.size() < (size_t)(RECORD_MAX_S * rate)) input.recorded.insert(input.recorded.end(), input.latest.begin(), input.latest.end());
     }
 
     // How long ago each attack and note started, counted back from the newest sample the detector has seen
@@ -106,4 +133,44 @@ int noteInputSampleRate(){
 
 float noteInputLevelDb(){
     return input.levelDb;
+}
+
+void startInputRecording(){
+    if (!input.active) return;
+    input.recording = true;
+    input.recordFrom = input.detector.position;
+    input.recorded.clear();
+    input.found.clear();
+}
+
+bool inputRecording(){
+    return input.recording;
+}
+
+double inputRecordingSeconds(){
+    return input.recording && input.detector.sampleRate > 0 ? (double)input.recorded.size() / input.detector.sampleRate : 0.0;
+}
+
+void cancelInputRecording(){
+    input.recording = false;
+    input.recorded.clear();
+    input.found.clear();
+}
+
+bool saveInputRecording(const std::string& basePath, std::string& error){
+    input.recording = false;
+    if (!writeWav(basePath + ".wav", input.recorded, input.detector.sampleRate, error)) return false;
+    std::ofstream out(basePath + ".txt");
+    if (!out){
+        error = "could not write " + basePath + ".txt";
+        return false;
+    }
+    out << "# what lahn's note detector found in " << basePath << ".wav\n";
+    out << "# " << input.detector.sampleRate << " Hz, input " << (input.channel < 0 ? std::string("all mixed") : std::to_string(input.channel + 1))
+        << ", notes looked for down to " << input.minFrequency << " Hz\n";
+    out << "#  seconds  what\n";
+    for (const std::string& line : input.found) out << line << "\n";
+    input.recorded.clear();
+    input.found.clear();
+    return true;
 }
