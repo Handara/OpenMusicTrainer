@@ -20,13 +20,11 @@ struct Item {
     MainMenuChoice choice;
 };
 const Item ITEMS[] = {
-    {"Play", "1", MainMenuChoice::Play},
-    {"Learn", "2", MainMenuChoice::Learn},
-    {"Song editor", "3", MainMenuChoice::Editor},
-    {"Lesson editor", "4", MainMenuChoice::LessonEditor},
-    {"Tuner", "5", MainMenuChoice::Tuner},
-    {"Instrument", "6", MainMenuChoice::Instrument},
-    {"Settings", "7", MainMenuChoice::Settings},
+    {"Play", "1", MainMenuChoice::Play},       // and practise, and edit songs (the song list's mode)
+    {"Learn", "2", MainMenuChoice::Learn},     // and make lessons
+    {"Tuner", "3", MainMenuChoice::Tuner},
+    {"Instrument", "4", MainMenuChoice::Instrument},
+    {"Settings", "5", MainMenuChoice::Settings},
     {"Quit", "Esc", MainMenuChoice::Quit},
 };
 const int ITEM_COUNT = sizeof(ITEMS) / sizeof(ITEMS[0]);

@@ -142,28 +142,6 @@ static void partList(const SongEntry& song, SongSelectChoice& choice, const Inst
     menuScreenHint("Up/Down  choose    Enter  play    Esc  back to songs", s);
 }
 
-// A labelled row of choices, the chosen one underlined in brass; true when a click chose another
-static bool switchRow(const char* label, const char* const* names, int count, int& chosen, float x, float y, float s){
-    ImDrawList* draw = ImGui::GetWindowDrawList();
-    const UiFonts& fonts = uiFonts();
-    draw->AddText(fonts.mono, 13 * s, ImVec2(x, y + 4 * s), uiColor(UiColor::Dim), label);
-    float at = x + 100 * s;
-    bool changed = false;
-    for (int i = 0; i < count; i++){
-        bool on = i == chosen;
-        ImVec2 size = fonts.bold ? fonts.bold->CalcTextSizeA(20 * s, FLT_MAX, 0.0f, names[i]) : ImVec2(60 * s, 20 * s);
-        draw->AddText(fonts.bold, 20 * s, ImVec2(at, y), uiColor(on ? UiColor::Ink : UiColor::Dim), names[i]);
-        if (on) draw->AddRectFilled(ImVec2(at, y + size.y + 3 * s), ImVec2(at + size.x, y + size.y + 5 * s), uiColor(UiColor::Accent));
-        ImVec2 mouse = ImGui::GetMousePos();
-        if (!on && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && mouse.x >= at && mouse.x <= at + size.x && mouse.y >= y && mouse.y <= y + size.y){
-            chosen = i;
-            changed = true;
-        }
-        at += size.x + 22 * s;
-    }
-    return changed;
-}
-
 static int songToSelect = -1; // selectSongInList
 
 void selectSongInList(int songIndex){
@@ -173,8 +151,7 @@ void selectSongInList(int songIndex){
 SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry>& songs, const std::string& error,
                                   const std::string& notice, bool forEditing, const InstrumentStatus& guitar,
                                   const InstrumentStatus& bass){
-    static MenuList playList, editList; // each list keeps its selection
-    MenuList& list = forEditing ? editList : playList;
+    static MenuList list; // one for playing and editing: switching keeps the song chosen
     if (!forEditing && songToSelect >= 0){
         list.selected = songToSelect; // rows are the songs first, in order
         songToSelect = -1;
@@ -210,12 +187,18 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
     }
     choosingPartOf = -1;
     menuScreenTitle(title, s);
-    if (!forEditing){
-        // Beside the title: playing the song through, or practising part of it (Tab)
+    {
+        // Beside the title: playing the song through, practising part of it, or editing it (Tab goes round them)
         float x = ImGui::GetWindowWidth() * 0.55f, y = ImGui::GetWindowHeight() * 0.09f + 14 * s;
-        const char* const modes[] = { "PLAY", "PRACTICE" };
-        int mode = practiceMode ? 1 : 0;
-        if (switchRow("MODE", modes, 2, mode, x, y, s) || ImGui::IsKeyPressed(ImGuiKey_Tab)) practiceMode = !practiceMode;
+        const char* const modes[] = { "PLAY", "PRACTICE", "EDIT" };
+        const int was = forEditing ? 2 : practiceMode ? 1 : 0;
+        int mode = was;
+        if (ImGui::IsKeyPressed(ImGuiKey_Tab)) mode = (mode + 1) % 3;
+        menuSwitchRow("MODE", modes, 3, mode, x, y, s);
+        if (mode != was){
+            if (mode < 2) practiceMode = mode == 1;
+            choice.switchEditing = (mode == 2) != forEditing;
+        }
     }
 
     // The songs, then the data folder
@@ -271,8 +254,8 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
         if (!error.empty()) ImGui::TextColored(uiColorVec(UiColor::Bad), "%s", error.c_str());
         else ImGui::TextColored(uiColorVec(UiColor::Good), "%s", notice.c_str());
     }
-    menuScreenHint(forEditing ? "Up/Down  choose    Enter  edit    Drop audio, a video, a tab or a .lahn to add a song    Esc  back"
-                              : "Up/Down  choose    Enter  choose    Tab  play or practice    Drop a tab or a song to import it    Esc  back", s);
+    menuScreenHint(forEditing ? "Up/Down  choose    Enter  edit    Tab  mode    Drop audio, a video, a tab or a .lahn to add a song    Esc  back"
+                              : "Up/Down  choose    Enter  choose    Tab  mode    Drop a tab or a song to import it    Esc  back", s);
     ImGui::End();
     return choice;
 }

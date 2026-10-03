@@ -247,3 +247,24 @@ bool menuBackButton(float s){
     float left = ImGui::GetIO().DisplaySize.x * 0.07f - 12 * s - 5 * s - 10 * s;
     return menuPill("Back", "Esc", ImVec2(left, 21 * s), false, -1, s);
 }
+
+bool menuSwitchRow(const char* label, const char* const* names, int count, int& chosen, float x, float y, float s){
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    const UiFonts& fonts = uiFonts();
+    draw->AddText(fonts.mono, 13 * s, ImVec2(x, y + 4 * s), uiColor(UiColor::Dim), label);
+    float at = x + 100 * s;
+    bool changed = false;
+    for (int i = 0; i < count; i++){
+        bool on = i == chosen;
+        ImVec2 size = fonts.bold ? fonts.bold->CalcTextSizeA(20 * s, FLT_MAX, 0.0f, names[i]) : ImVec2(60 * s, 20 * s);
+        draw->AddText(fonts.bold, 20 * s, ImVec2(at, y), uiColor(on ? UiColor::Ink : UiColor::Dim), names[i]);
+        if (on) draw->AddRectFilled(ImVec2(at, y + size.y + 3 * s), ImVec2(at + size.x, y + size.y + 5 * s), uiColor(UiColor::Accent));
+        ImVec2 mouse = ImGui::GetMousePos();
+        if (!on && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && mouse.x >= at && mouse.x <= at + size.x && mouse.y >= y && mouse.y <= y + size.y){
+            chosen = i;
+            changed = true;
+        }
+        at += size.x + 22 * s;
+    }
+    return changed;
+}

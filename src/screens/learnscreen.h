@@ -17,5 +17,6 @@ struct LearnSetup {
 
 void openLearnScreen(const LearnSetup& setup); // scans both exercise folders
 void learnScreen();  // draws the menu or the running exercise
+bool learnWantsEditor(); // the mode switch beside the title chose EDIT: the lesson editor, this frame
 bool learnBack();    // Esc: ends the running exercise, or (from the menu) returns true to leave learn mode
 void closeLearnScreen();

@@ -64,6 +64,7 @@ static struct App {
     std::string mainMenuError;    // why the last main menu action failed (e.g. no input device)
     GameResult lastResult;
     Vector2 zoomTo = {-1.0f, -1.0f}; // the next change of screen zooms into this point (the end of a song)
+    bool sameScreen = false;         // the next change of screen is a mode of the same one (the song list's): no transition
     bool testPlaying = false;     // playing the editor's chart: the end or Esc goes back to the editor
     CalibrationMode calibrationMode = CalibrationMode::Tap;
     std::string settingsError;    // why calibration couldn't start (e.g. no input device)
@@ -89,6 +90,12 @@ static void goToSongList(Screen listScreen){
     app.songs.insert(app.songs.end(), userSongs.begin(), userSongs.end());
     loadBestRuns(app.songs, recordsDir());
     app.screen = listScreen;
+}
+
+static void goToLearn(){
+    openLearnScreen({app.resourcesDir + "exercises", app.userExercisesDir, app.resourcesDir + "lessons", app.userLessonsDir,
+                     app.progressDir, app.settings});
+    app.screen = Screen::Learn;
 }
 
 // Where add-ons are installed (the stems add-on, the video add-on)
@@ -525,16 +532,7 @@ static void runMenus(){
             switch (mainMenuScreen({app.settings.inputDevice, app.resourcesDir + "exercises", app.userExercisesDir, app.progressDir},
                                    app.mainMenuError)){
                 case MainMenuChoice::Play: goToSongSelect(); break;
-                case MainMenuChoice::Learn:
-                    openLearnScreen({app.resourcesDir + "exercises", app.userExercisesDir, app.resourcesDir + "lessons", app.userLessonsDir,
-                                     app.progressDir, app.settings});
-                    app.screen = Screen::Learn;
-                    break;
-                case MainMenuChoice::Editor: goToSongList(Screen::EditorSelect); break;
-                case MainMenuChoice::LessonEditor:
-                    openLessonEditor({app.resourcesDir + "lessons", app.userLessonsDir, app.resourcesDir + "exercises", app.userExercisesDir});
-                    app.screen = Screen::LessonEditor;
-                    break;
+                case MainMenuChoice::Learn: goToLearn(); break;
                 case MainMenuChoice::Tuner: goToTuner(); break;
                 case MainMenuChoice::Instrument:
                     openInstrumentScreen(app.settings);
@@ -554,6 +552,7 @@ static void runMenus(){
             else if (choice.deleteSong >= 0) deleteSong(choice.deleteSong);
             else if (choice.back) app.screen = Screen::MainMenu;
             else if (choice.openDataFolder) openDataFolder();
+            else if (choice.switchEditing){ app.screen = Screen::EditorSelect; app.sameScreen = true; }
             else if (choice.songIndex >= 0) chooseSong(app.songs[choice.songIndex], choice.part, choice.practice);
             break;
         }
@@ -561,6 +560,7 @@ static void runMenus(){
             installDroppedPackages();
             SongSelectChoice choice = songSelectScreen("Edit a song", app.songs, app.songSelectError, app.songSelectNotice, true);
             if (choice.back) app.screen = Screen::MainMenu;
+            else if (choice.switchEditing){ app.screen = Screen::SongSelect; app.sameScreen = true; }
             else if (choice.importSong) goToImport("");
             else if (choice.deleteSong >= 0) deleteSong(choice.deleteSong);
             else if (choice.openDataFolder) openDataFolder();
@@ -600,7 +600,7 @@ static void runMenus(){
         case Screen::LessonEditor:
             if (lessonEditorScreen() == LessonEditorChoice::Back){
                 closeLessonEditor();
-                app.screen = Screen::MainMenu;
+                goToLearn(); // where it's opened from: rescanned, so a lesson just made is there
             }
             break;
         case Screen::Results:
@@ -661,6 +661,11 @@ static void runMenus(){
             break;
         case Screen::Learn:
             learnScreen();
+            if (learnWantsEditor()){
+                closeLearnScreen();
+                openLessonEditor({app.resourcesDir + "lessons", app.userLessonsDir, app.resourcesDir + "exercises", app.userExercisesDir});
+                app.screen = Screen::LessonEditor;
+            }
             break;
         case Screen::Playing: // the note views are drawn before the UI, with raylib
             float cents;
@@ -810,7 +815,8 @@ int main(void){
             app.screen = Screen::Results;
         }
         drawTransition();
-        if (app.screen != shown){
+        if (app.screen != shown && app.sameScreen) app.sameScreen = false;
+        else if (app.screen != shown){
             startTransition(app.zoomTo.x, app.zoomTo.y);
             app.zoomTo = {-1.0f, -1.0f};
         }

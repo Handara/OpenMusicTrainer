@@ -59,6 +59,10 @@ void menuScreenTitle(const char* title, float scale);
 void menuScreenHint(const char* hint, float scale);
 float menuScale(); // the window's height against 720 pixels, the size the menus are designed at
 
+// A labelled row of choices beside a screen's title ("MODE  PLAY  PRACTICE  EDIT"), the chosen one underlined in the
+// accent; true when a click chose another
+bool menuSwitchRow(const char* label, const char* const* names, int count, int& chosen, float x, float y, float scale);
+
 // A small rounded button in the menus' style: its text, a chevron (`arrow` -1 before it pointing left, +1 after it
 // pointing right, 0 none) and its shortcut key shown dim beside it (null for none). `anchor` is its top left, or its
 // top right when `alignRight`. Drawn over everything; true when clicked.

@@ -280,9 +280,24 @@ static void drawAbout(const LearnRow& row, float s){
     if (!progress.empty()) draw->AddText(fonts.bold, 18 * s, ImVec2(x, y), uiColor(UiColor::Accent), progress.c_str());
 }
 
+static bool wantsEditor = false;
+
+bool learnWantsEditor(){
+    const bool wants = wantsEditor;
+    wantsEditor = false;
+    return wants;
+}
+
 static void exerciseMenu(){
     float s = menuScale();
     menuScreenTitle("Learn", s);
+    {
+        // Beside the title: learning, or making lessons (Tab)
+        const char* const modes[] = { "LEARN", "EDIT LESSONS" };
+        int mode = 0;
+        menuSwitchRow("MODE", modes, 2, mode, ImGui::GetWindowWidth() * 0.55f, ImGui::GetWindowHeight() * 0.09f + 14 * s, s);
+        wantsEditor = mode == 1 || ImGui::IsKeyPressed(ImGuiKey_Tab);
+    }
 
     // The rows: lessons first (where a beginner starts), then each category of exercises, then the folders
     std::vector<MenuRow> rows;
@@ -331,7 +346,7 @@ static void exerciseMenu(){
     float width = ImGui::GetWindowWidth(), height = ImGui::GetWindowHeight();
     int confirmed = menuList(learn.list, rows, {ImVec2(width * 0.07f, height * 0.2f), width * 0.48f, height * 0.72f - 20 * s, s});
     if (learn.list.selected >= 0) drawAbout(targets[learn.list.selected], s);
-    menuScreenHint("Up/Down  choose    Enter  start    Esc  back", s);
+    menuScreenHint("Up/Down  choose    Enter  start    Tab  edit lessons    Esc  back", s);
     if (confirmed < 0) return;
     const LearnRow& target = targets[confirmed];
     switch (target.kind){

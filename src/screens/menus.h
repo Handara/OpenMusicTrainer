@@ -10,7 +10,7 @@
 // They never switch to another screen themselves: main.cpp decides what happens next,
 // so the whole flow of the app reads in one place.
 
-enum class MainMenuChoice { None, Play, Learn, Editor, LessonEditor, Tuner, Instrument, Settings, Quit }; // see screens/mainmenu
+enum class MainMenuChoice { None, Play, Learn, Tuner, Instrument, Settings, Quit }; // see screens/mainmenu
 
 struct SongSelectChoice {
     bool back = false;
@@ -22,6 +22,7 @@ struct SongSelectChoice {
     bool partsOpened = false; // the instruments to play the song with were just listed: see whether they're connected
     bool importSong = false;  // bring in a song: from a Guitar Pro tab, a recording of its bass, or the song itself
     int deleteSong = -1;      // the song to delete (the player's own, confirmed already), -1 for none
+    bool switchEditing = false; // the mode switch went from playing to editing, or back
 };
 // Whether an instrument can be played now: its input device is there. `problem` says why not, for the player.
 struct InstrumentStatus {
