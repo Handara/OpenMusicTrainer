@@ -77,7 +77,9 @@ TEST_CASE("a note whose octave overtone is louder than it isn't read an octave h
     // A bass through its pickups: the second harmonic often far stronger than the fundamental lines up well enough
     // at half the period to pass first. A thousand string-like notes across a bass's range, each with overtones of
     // random strength, a little inharmonicity (overtones slightly sharp, as on real strings), decay and noise: before
-    // the octave check, about 2 in 100 read an octave high.
+    // the octave check, about 2 in 100 read an octave high. The fundamental is at most 10 dB under the octave: a real
+    // bass's low notes measured within 2.5 dB of it (tests/data), and a note with another string ringing in sympathy,
+    // which must not be read an octave low, lines up as if its fundamental were 10 to 12 dB under (core/pitch).
     const int rate = 48000;
     PitchDetector detector;
     initPitchDetector(detector, rate, 37.0f, 1400.0f);
@@ -88,7 +90,7 @@ TEST_CASE("a note whose octave overtone is louder than it isn't read an octave h
     int octaveOff = 0;
     for (int note = 0; note < 1000; note++){
         double f = 41.4 * std::pow(2.0, uni(rng) * 4.0);
-        double h1 = 0.3 + uni(rng), h2 = uni(rng) * 2.0, h3 = uni(rng), h4 = uni(rng) * 0.5;
+        double h1 = 0.64 + uni(rng), h2 = uni(rng) * 2.0, h3 = uni(rng), h4 = uni(rng) * 0.5;
         double stretch = 1.0 + uni(rng) * 0.004, noise = uni(rng) * 0.15, decay = uni(rng) * 8.0;
         for (int i = 0; i < count; i++){
             double t = (double)i / rate, w = 2 * 3.14159265 * f * t;

@@ -8,6 +8,13 @@ const float YIN_THRESHOLD = 0.15f;
 // The octave check (step 3b): only a lag that lines up imperfectly is doubted, and twice it must line up this much better
 const float OCTAVE_CHECK_FLOOR = 0.03f;
 const float OCTAVE_CHECK_RATIO = 0.2f;
+// ...and the note an octave down must really sound: its fundamental no more than OCTAVE_DOWN_MIN_DB below the higher
+// note, or its third harmonic (half again above the higher note) no more than OCTAVE_DOWN_THIRD_MIN_DB. Measured on
+// a real bass: the low notes the check is for have them at -2.5 dB and -10 dB or more; a note with another string
+// ringing along in sympathy (an open A under an F2) lines up at twice its period too, with them at -10 and -23 dB
+// and less
+const float OCTAVE_DOWN_MIN_DB = -6.0f;
+const float OCTAVE_DOWN_THIRD_MIN_DB = -15.0f;
 
 const double PI_D = 3.14159265358979323846;
 
@@ -87,6 +94,18 @@ int pitchWindowSize(const PitchDetector& detector){
     return 2 * detector.maxLag;
 }
 
+// The power of one frequency in the samples (Hann-windowed, so a strong neighbour doesn't leak into it)
+static double powerAt(const float* samples, int count, double frequency, int sampleRate){
+    const double step = 2.0 * PI_D * frequency / sampleRate;
+    double re = 0.0, im = 0.0;
+    for (int i = 0; i < count; i++){
+        const double window = 0.5 - 0.5 * std::cos(2.0 * PI_D * i / (count - 1));
+        re += samples[i] * window * std::cos(step * i);
+        im -= samples[i] * window * std::sin(step * i);
+    }
+    return re * re + im * im;
+}
+
 // The idea: a periodic signal lines up with itself when shifted by exactly one period.
 // So for each candidate shift ("lag"), measure how different the signal is from its shifted copy,
 // and the first lag where the difference nearly vanishes is the period.
@@ -133,7 +152,13 @@ PitchResult detectPitch(PitchDetector& detector, const float* samples, int count
     if (d[bestLag] > OCTAVE_CHECK_FLOOR && doubled + 2 < maxLag){
         int lowest = doubled;
         for (int lag = doubled - 2; lag <= doubled + 2; lag++) if (d[lag] < d[lowest]) lowest = lag;
-        if (d[lowest] < d[bestLag] * OCTAVE_CHECK_RATIO) bestLag = lowest;
+        if (d[lowest] < d[bestLag] * OCTAVE_CHECK_RATIO){
+            const double frequency = (double)detector.sampleRate / bestLag;
+            const double here = powerAt(samples, count, frequency, detector.sampleRate);
+            const double down = powerAt(samples, count, frequency / 2.0, detector.sampleRate);
+            const double third = powerAt(samples, count, frequency * 1.5, detector.sampleRate);
+            if (down >= here * std::pow(10.0, OCTAVE_DOWN_MIN_DB / 10.0) || third >= here * std::pow(10.0, OCTAVE_DOWN_THIRD_MIN_DB / 10.0)) bestLag = lowest;
+        }
     }
 
     // Step 4: the true period usually falls between two samples. Fit a parabola through the dip and its

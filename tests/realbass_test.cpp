@@ -69,3 +69,18 @@ TEST_CASE("a real bass: muting a note isn't a note, nor a finger touching a stri
     CHECK(again[0].pitch == 47);
     CHECK(again[0].at == doctest::Approx(2.68).epsilon(0.01));
 }
+
+TEST_CASE("a real bass: hammer-ons and pull-offs are notes, in the octave they're played"){
+    // tests/data/bass-legato.wav: plucked, then hammered on or pulled off a fret or two, the next pluck well after
+    // (1.2 s cut from the recording's start). An open string rang along in sympathy, and made the A2s and the F2 read
+    // an octave low before
+    std::vector<Heard> heard = hear("bass-legato.wav");
+    std::vector<int> pitches;
+    for (const Heard& note : heard) pitches.push_back(note.pitch);
+    // B1 C#2, E2 F#2, F#2 E2, C#2 B1, A2 B2, ... E2 F2, F2 E2
+    const std::vector<int> played = { 35, 37, 40, 42, 42, 40, 37, 35, 45, 47 };
+    REQUIRE(pitches.size() >= played.size());
+    CHECK(std::vector<int>(pitches.begin(), pitches.begin() + (long)played.size()) == played);
+    CHECK(std::vector<int>(pitches.end() - 4, pitches.end()) == std::vector<int>{ 40, 41, 41, 40 });
+    for (int pitch : pitches) CHECK(pitch >= 35); // nothing an octave low
+}
