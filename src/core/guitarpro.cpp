@@ -169,7 +169,7 @@ bool buildChart(const GpScore& score, GuitarProImport& out, std::string& error){
         bool bassNamed = contains(kind, "bass");
         bool stringed = kind.empty() || bassNamed || contains(kind, "guitar") || contains(kind, "gtr");
         if (drums){ out.leftOut.push_back(name + " (drums)"); continue; }
-        if (!stringed || track.pitches.empty() || track.pitches.size() > 7){ out.leftOut.push_back(name + " (not a guitar or a bass)"); continue; }
+        if (!stringed || track.pitches.empty() || track.pitches.size() > 8){ out.leftOut.push_back(name + " (not a guitar or a bass)"); continue; }
         FrettedTrack fretted;
         fretted.name = name;
         fretted.tuning = track.pitches;

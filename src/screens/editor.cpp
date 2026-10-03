@@ -74,7 +74,7 @@ const char* const PART_POPUP = "This part";
 const char* const IMPORT_POPUP = "Import into this song";
 const char* const IMPORT_PARTS_POPUP = "Parts to bring in";
 const char* const CUSTOM_PART_POPUP = "A part of your own";
-const int MAX_PART_STRINGS = 6; // what the game plays (gameplay: MAX_LANES)
+const int MAX_PART_STRINGS = 8; // what the game plays (gameplay: MAX_LANES)
 const char* const EXPORT_POPUP = "Export this song";
 const char* const VIDEO_POPUP = "Bringing in a video";
 const char* const TEMPO_POPUP = "Listening to the song";
@@ -2442,25 +2442,28 @@ static void drawImportExportPopups(float s){
         ImGui::InputText("##customname", &part.name);
         ImGui::Spacing();
         ImGui::TextDisabled("Sound: in the editor and the game, and the instrument it's played on");
-        if (ImGui::RadioButton("Guitar", !bass)) part.type = InstrumentType::Guitar;
+        if (ImGui::RadioButton("Guitar##sound", !bass)) part.type = InstrumentType::Guitar;
         ImGui::SameLine();
-        if (ImGui::RadioButton("Bass", bass)) part.type = InstrumentType::Bass;
+        if (ImGui::RadioButton("Bass##sound", bass)) part.type = InstrumentType::Bass;
         ImGui::Spacing();
         ImGui::TextDisabled("Start from");
         struct Preset { const char* name; bool bass; std::vector<int> tuning; };
         static const Preset PRESETS[] = {
             { "Standard", false, GUITAR_TUNING }, { "Drop D", false, { 38, 45, 50, 55, 59, 64 } }, { "DADGAD", false, { 38, 45, 50, 55, 57, 62 } },
-            { "Open G", false, { 38, 43, 50, 55, 59, 62 } }, { "Bass", true, BASS_TUNING }, { "5-string bass", true, { 23, 28, 33, 38, 43 } },
-            { "Drop D bass", true, { 26, 33, 38, 43 } },
+            { "Open G", false, { 38, 43, 50, 55, 59, 62 } }, { "7-string", false, { 35, 40, 45, 50, 55, 59, 64 } },
+            { "8-string", false, { 30, 35, 40, 45, 50, 55, 59, 64 } }, { "Bass", true, BASS_TUNING },
+            { "5-string bass", true, { 23, 28, 33, 38, 43 } }, { "6-string bass", true, { 23, 28, 33, 38, 43, 48 } }, { "Drop D bass", true, { 26, 33, 38, 43 } },
         };
         for (int i = 0; i < (int)(sizeof PRESETS / sizeof PRESETS[0]); i++){
-            if (i > 0) ImGui::SameLine();
+            if (i > 0 && !PRESETS[i].bass == !PRESETS[i - 1].bass) ImGui::SameLine(); // guitars on one line, basses on the next
+            ImGui::PushID(i);
             if (ImGui::Button(PRESETS[i].name)){
                 const bool wasNamed = part.name == "Guitar" || part.name == "Bass";
                 part.type = PRESETS[i].bass ? InstrumentType::Bass : InstrumentType::Guitar;
                 part.tuning = PRESETS[i].tuning;
                 if (wasNamed) part.name = PRESETS[i].bass ? "Bass" : "Guitar";
             }
+            ImGui::PopID();
         }
         ImGui::Spacing();
         ImGui::TextDisabled("Strings, lowest first: click a note to hear it");

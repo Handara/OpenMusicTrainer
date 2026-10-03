@@ -42,11 +42,11 @@ struct GameState {
     std::vector<float> errorsMs; // every hit's timing (+ early, - late): for the run's stats
 };
 
-const int MAX_LANES = 6; // limited by the number keys and the vertical layout for now
+const int MAX_LANES = 8; // an 8-string guitar; on the keyboard, the number keys 1 to 8
 const int HIT_LINE_X = 180;
 const float RHYTHM_FILL_PER_PERFECT = 0.12f;
 
-const int laneKeys[MAX_LANES] = { KEY_ONE, KEY_TWO, KEY_THREE, KEY_FOUR, KEY_FIVE, KEY_SIX };
+const int laneKeys[MAX_LANES] = { KEY_ONE, KEY_TWO, KEY_THREE, KEY_FOUR, KEY_FIVE, KEY_SIX, KEY_SEVEN, KEY_EIGHT };
 
 const int MAX_MULTIPLIER = 4;
 const double LEAD_IN_S = 2.0; // starting part-way into a song, it plays this long before the first note
@@ -129,7 +129,7 @@ static void scoreHit(GameState& state, const JudgeResult& result, ImVec2 anchor)
     if (instrumentHitSounds) soundHit(result, false);
 }
 
-// Number keys 1 to 6 stand for the strings, lowest first
+// Number keys 1 to 8 stand for the strings, lowest first
 static void handleKeyboard(std::vector<PlayNote>& notes, GameState& state, float songTime, int laneCount, bool hitSounds){
     for (int lane = 0; lane < laneCount; lane++){
         if (!IsKeyPressed(laneKeys[lane])) continue;
