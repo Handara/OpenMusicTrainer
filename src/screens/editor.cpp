@@ -73,6 +73,8 @@ const char* const ADD_PART_POPUP = "Add a part";
 const char* const PART_POPUP = "This part";
 const char* const IMPORT_POPUP = "Import into this song";
 const char* const IMPORT_PARTS_POPUP = "Parts to bring in";
+const char* const CUSTOM_PART_POPUP = "A part of your own";
+const int MAX_PART_STRINGS = 6; // what the game plays (gameplay: MAX_LANES)
 const char* const EXPORT_POPUP = "Export this song";
 const char* const VIDEO_POPUP = "Bringing in a video";
 const char* const TEMPO_POPUP = "Listening to the song";
@@ -127,7 +129,8 @@ struct EditorState {
     float gridLeft = 0.0f, gridWidth = 1.0f; // where the timeline's grid was drawn last, in pixels
     bool drawerOpen = false;  // the song's details
     bool openKeys = false;    // the keys' list was asked for: its popup opens this frame
-    bool openImport = false, openExport = false, openImportParts = false; // and these popups
+    bool openImport = false, openExport = false, openImportParts = false, openCustomPart = false; // and these popups
+    FrettedTrack customPart;  // a part of the player's own, being set up in its popup: its strings and their notes
 
     // Import: a tab or another song's chart, read, waiting for which of its parts to bring in
     Chart importChart;
@@ -1425,7 +1428,7 @@ static void drawToolBar(float s, float width){
     }
     popCompactStyle();
     const float addX = bar.x;
-    if (barButton(bar, "##addpart", nullptr, "Add a guitar or a bass part", false, true, Icon::Plus)) ImGui::OpenPopup(ADD_PART_POPUP);
+    if (barButton(bar, "##addpart", nullptr, "Add a guitar or a bass part, or one of your own (its strings and their notes)", false, true, Icon::Plus)) ImGui::OpenPopup(ADD_PART_POPUP);
     if (barButton(bar, "##removepart", nullptr, severalParts ? "Take the part being edited out of the song (Ctrl + Z brings it back)" : "A song keeps at least one part",
                   false, severalParts, Icon::Minus)) removePart();
     ImGui::SetNextWindowPos(ImVec2(addX, bar.middle + BUTTON_HEIGHT * s / 2 + 4 * s));
@@ -1433,6 +1436,12 @@ static void drawToolBar(float s, float width){
     if (ImGui::BeginPopup(ADD_PART_POPUP)){
         if (ImGui::Selectable("Guitar part")) addPart(InstrumentType::Guitar);
         if (ImGui::Selectable("Bass part")) addPart(InstrumentType::Bass);
+        if (ImGui::Selectable("Custom...")){
+            editor.customPart = FrettedTrack{};
+            editor.customPart.name = "Guitar";
+            editor.customPart.tuning = GUITAR_TUNING;
+            editor.openCustomPart = true;
+        }
         ImGui::EndPopup();
     }
     popCompactStyle();
@@ -2417,6 +2426,81 @@ static void drawImportExportPopups(float s){
         ImGui::TextDisabled("Or drop the file on the editor.");
         ImGui::Spacing();
         if (ImGui::Button("Close") || ImGui::IsKeyPressed(ImGuiKey_Escape, false)) ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+    }
+
+    // A part of the player's own: its sound, how many strings, and each string's note (or a tuning to start from)
+    if (editor.openCustomPart) ImGui::OpenPopup(CUSTOM_PART_POPUP);
+    editor.openCustomPart = false;
+    ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+    if (ImGui::BeginPopupModal(CUSTOM_PART_POPUP, nullptr, ImGuiWindowFlags_AlwaysAutoResize)){
+        FrettedTrack& part = editor.customPart;
+        const bool bass = part.type == InstrumentType::Bass;
+        auto ring = [&](int pitch){ playStringNote(midiToFrequency((float)pitch), part.type == InstrumentType::Bass, 0.8f, 1.0f); };
+        ImGui::TextDisabled("Name");
+        ImGui::SetNextItemWidth(width * 0.6f);
+        ImGui::InputText("##customname", &part.name);
+        ImGui::Spacing();
+        ImGui::TextDisabled("Sound: in the editor and the game, and the instrument it's played on");
+        if (ImGui::RadioButton("Guitar", !bass)) part.type = InstrumentType::Guitar;
+        ImGui::SameLine();
+        if (ImGui::RadioButton("Bass", bass)) part.type = InstrumentType::Bass;
+        ImGui::Spacing();
+        ImGui::TextDisabled("Start from");
+        struct Preset { const char* name; bool bass; std::vector<int> tuning; };
+        static const Preset PRESETS[] = {
+            { "Standard", false, GUITAR_TUNING }, { "Drop D", false, { 38, 45, 50, 55, 59, 64 } }, { "DADGAD", false, { 38, 45, 50, 55, 57, 62 } },
+            { "Open G", false, { 38, 43, 50, 55, 59, 62 } }, { "Bass", true, BASS_TUNING }, { "5-string bass", true, { 23, 28, 33, 38, 43 } },
+            { "Drop D bass", true, { 26, 33, 38, 43 } },
+        };
+        for (int i = 0; i < (int)(sizeof PRESETS / sizeof PRESETS[0]); i++){
+            if (i > 0) ImGui::SameLine();
+            if (ImGui::Button(PRESETS[i].name)){
+                const bool wasNamed = part.name == "Guitar" || part.name == "Bass";
+                part.type = PRESETS[i].bass ? InstrumentType::Bass : InstrumentType::Guitar;
+                part.tuning = PRESETS[i].tuning;
+                if (wasNamed) part.name = PRESETS[i].bass ? "Bass" : "Guitar";
+            }
+        }
+        ImGui::Spacing();
+        ImGui::TextDisabled("Strings, lowest first: click a note to hear it");
+        const int count = (int)part.tuning.size();
+        ImGui::BeginDisabled(count <= 1);
+        if (ImGui::Button("-##strings")) part.tuning.pop_back();
+        ImGui::EndDisabled();
+        ImGui::SameLine();
+        ImGui::Text("%d %s", count, count == 1 ? "string" : "strings");
+        ImGui::SameLine();
+        ImGui::BeginDisabled(count >= MAX_PART_STRINGS);
+        if (ImGui::Button("+##strings")) part.tuning.push_back(std::min(127, part.tuning.back() + 5)); // a fourth above, as most strings are
+        ImGui::EndDisabled();
+        for (int i = 0; i < (int)part.tuning.size(); i++){
+            int& pitch = part.tuning[i];
+            ImGui::PushID(i);
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextDisabled("%d", i + 1);
+            ImGui::SameLine(40 * ImGui::GetFontSize() / 16);
+            if (ImGui::Button("-12")){ pitch = std::max(0, pitch - 12); ring(pitch); }
+            ImGui::SameLine();
+            if (ImGui::Button("-")){ pitch = std::max(0, pitch - 1); ring(pitch); }
+            ImGui::SameLine();
+            if (ImGui::Button(TextFormat("%s##note", pitchText(pitch)), ImVec2(ImGui::GetFontSize() * 3.0f, 0))) ring(pitch);
+            ImGui::SameLine();
+            if (ImGui::Button("+")){ pitch = std::min(127, pitch + 1); ring(pitch); }
+            ImGui::SameLine();
+            if (ImGui::Button("+12")){ pitch = std::min(127, pitch + 12); ring(pitch); }
+            ImGui::PopID();
+        }
+        ImGui::Spacing();
+        if (ImGui::Button("Add the part")){
+            if (part.name.empty()) part.name = part.type == InstrumentType::Bass ? "Bass" : "Guitar";
+            editor.chart.frettedTracks.push_back(part);
+            choosePart((int)editor.chart.frettedTracks.size() - 1);
+            markChanged();
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape, false)) ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
     }
 
