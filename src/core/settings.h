@@ -43,7 +43,8 @@ struct Settings {
     float editorSongVolume = 1.0f;
     bool editorNoteNames = true;       // each note's name in it, under its fret, in the editor
     std::string previewSound = "drop";  // a built-in sound, or a file name in the user's sounds folder
-    float hitSoundVolume = 0.5f;       // the drop on each note hit with an instrument (0 for none)
+    float hitSoundVolume = 0.5f;       // the sound on each note hit with an instrument (0 for none)...
+    bool hitSoundIsNote = true;        // ...the note itself on the part's own instrument (lahn's bass or guitar), or a drop
     // Hearing the instrument through lahn wherever the player is (audio.h: setMonitor)
     bool monitorOn = true;
     bool monitorSynth = false;         // heard as a synth bass playing the notes found (input/synthmonitor), not its own sound

@@ -33,7 +33,8 @@ TEST_CASE("settings survive a save and load"){
     original.editorNoteNames = false;
     original.previewSound = "my rain.wav";
     original.fullscreen = true;
-    original.darkTheme = true;
+    original.darkTheme = false; // dark is the default: light must come back as light
+    original.hitSoundIsNote = false;
     original.lowStringOnTop = false;
     original.noteViews.staff = true; // with the neck
     original.frameRateLimit = 144;
@@ -58,7 +59,8 @@ TEST_CASE("settings survive a save and load"){
     CHECK_FALSE(loaded.editorNoteNames);
     CHECK(loaded.previewSound == "my rain.wav");
     CHECK(loaded.fullscreen);
-    CHECK(loaded.darkTheme);
+    CHECK_FALSE(loaded.darkTheme);
+    CHECK_FALSE(loaded.hitSoundIsNote);
     CHECK_FALSE(loaded.lowStringOnTop);
     CHECK(loaded.noteViews.staff);
     CHECK(loaded.noteViews.neck);

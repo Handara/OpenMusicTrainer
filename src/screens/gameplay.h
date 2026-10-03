@@ -64,6 +64,9 @@ struct GameplayOptions {
     InputRole instrument = InputRole::Guitar; // which: its input and its range are listened to. A part of another
                                               // instrument's (a guitar melody on a bass) counts its notes in any octave
     bool hitSounds = true;            // a key that hits plays its note (with an instrument, it's heard already)
+    bool hitSoundIsNote = true;       // a note hit sounds as itself, on the part's own instrument (lahn's bass or guitar)...
+    float hitSoundVolume = 0.5f;      // ...that loud (with an instrument; keys hitting play it at keyVolume)
+    float keyVolume = 0.6f;
     std::string inputDevice;
     int guitarChannel = -1;           // the device's input each instrument is plugged into (-1: all mixed)
     int bassChannel = -1;

@@ -236,8 +236,19 @@ static void audioSection(Settings& settings, const std::string& soundsDir, Setti
     settingsGroup("VOLUME");
     if (percentSlider("Everything", nullptr, &settings.masterVolume)) setMasterVolume(settings.masterVolume);
     if (percentSlider("Preview sounds", "Notes you play on the keyboard, drums and ear training (the song editor has its own volumes)", &settings.previewVolume)) setPreviewVolume(settings.previewVolume);
-    if (percentSlider("Hit sound", "A drop on every note you hit with your instrument", &settings.hitSoundVolume)) setHitSoundVolume(settings.hitSoundVolume);
-    if (ImGui::IsItemDeactivatedAfterEdit()) playHitSound(true); // heard at the level just set
+    if (percentSlider("Hit sound", "On every note you hit with your instrument", &settings.hitSoundVolume)) setHitSoundVolume(settings.hitSoundVolume);
+    // Heard at the level just set, the way it's set
+    auto hearHitSound = [&]{
+        if (settings.hitSoundIsNote) playStringNote(midiToFrequency(settings.heardInstrument == InputRole::Guitar ? 52.0f : 40.0f),
+                                                    settings.heardInstrument != InputRole::Guitar, 0.6f, settings.hitSoundVolume);
+        else playHitSound(true);
+    };
+    if (ImGui::IsItemDeactivatedAfterEdit()) hearHitSound();
+    int hitKind = settings.hitSoundIsNote ? 0 : 1;
+    if (settingSegments("Hit sound is", "The note you hit, on your instrument's own sound (as in the song editor), or a drop", &hitKind, { "The note", "A drop" })){
+        settings.hitSoundIsNote = hitKind == 0;
+        hearHitSound();
+    }
 
     settingsGroup("PREVIEW SOUND");
     chosen = 0;

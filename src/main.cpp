@@ -260,6 +260,9 @@ static GameplayOptions gameplayOptions(){
     options.pianoKeys = app.settings.pianoKeys;
     options.inputOffsetSeconds = app.settings.inputOffsetMs / 1000.0f;
     options.hitSounds = true;
+    options.hitSoundIsNote = app.settings.hitSoundIsNote;
+    options.hitSoundVolume = app.settings.hitSoundVolume;
+    options.keyVolume = app.settings.previewVolume;
     return options;
 }
 
