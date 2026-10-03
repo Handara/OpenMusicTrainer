@@ -29,99 +29,96 @@ const float SLIDER_WIDTH = 3.5f;        // at a 720-pixel-tall window
 const float TRACK_ALPHA = 0.35f;        // a slider's track before it's played
 const float HELD_FLASH_S = 0.15f;       // a held note's solid flash at the hit, before it goes hollow
 
-// A note's shape: a rounded square, which fills a fret's cell between two strings better than a circle (it can be
-// big and still leave room between notes on neighboring strings), or a circle. Everything drawn around a note (its
-// ring, its slider, its burst) follows the same shape.
-const bool SQUARE_NOTES = true;
-const float CORNER = 0.32f; // a square's corners, rounded by this much of its half-width
+// A note's shape: a rectangle with rounded corners, wider than tall, like the fret's cell it sits in. A circle is the
+// same shape with as wide as tall and corners rounded all the way: NOTE_ASPECT 1 and CORNER 1. Everything drawn
+// around a note (its ring, its slider, its burst) is the same shape, grown or shrunk by a margin.
+const float NOTE_ASPECT = 1.5f; // width against height
+const float CORNER = 0.4f;      // corners rounded by this much of the half-height
 
-static void fillShape(Vector2 at, float half, Color color){
-    if (SQUARE_NOTES) smoothRoundedRect({ at.x - half, at.y - half, 2 * half, 2 * half }, CORNER * half, color);
-    else smoothCircle(at, half, color);
-}
-
-// The way round a shape's outline, `half` from its middle, clockwise from the top: at `along` (0 to 1, one loop)
-// where it is; and drawn from `from` to `to`, `width` thick. A square's outline is its straight sides and its rounded
-// corners, each drawn on its own, end to end.
+// A shape: its middle, half its width and height, and its corners' radius
 struct Outline {
     Vector2 at;
-    float half;
-    float straight() const { return half * (1.0f - CORNER); } // half a side's straight part
-    float corner() const { return half * CORNER; }
-    float length() const { return SQUARE_NOTES ? 8 * straight() + 2 * PI * corner() : 2 * PI * half; }
+    float w, h, c;
 };
 
+static void fillShape(const Outline& o, Color color){
+    smoothRoundedRect({ o.at.x - o.w, o.at.y - o.h, 2 * o.w, 2 * o.h }, o.c, color);
+}
+
+// Its outline, clockwise from the top's middle: straight sides and quarter-rounds at the corners. A straight piece
+// runs from a to b; a round one turns about `center` from `angle` (degrees, 0 right, clockwise) through 90.
+struct Piece {
+    bool round;
+    Vector2 a, b, center;
+    float angle, length;
+};
+
+static int piecesOf(const Outline& o, Piece pieces[9]){
+    const float x = o.at.x, y = o.at.y, w = o.w, h = o.h, c = o.c;
+    const float iw = std::max(0.0f, w - c), ih = std::max(0.0f, h - c), arc = PI / 2 * c;
+    const Piece all[9] = {
+        { false, { x, y - h }, { x + iw, y - h }, {}, 0, iw },
+        { true, {}, {}, { x + iw, y - ih }, 270, arc },
+        { false, { x + w, y - ih }, { x + w, y + ih }, {}, 0, 2 * ih },
+        { true, {}, {}, { x + iw, y + ih }, 0, arc },
+        { false, { x + iw, y + h }, { x - iw, y + h }, {}, 0, 2 * iw },
+        { true, {}, {}, { x - iw, y + ih }, 90, arc },
+        { false, { x - w, y + ih }, { x - w, y - ih }, {}, 0, 2 * ih },
+        { true, {}, {}, { x - iw, y - ih }, 180, arc },
+        { false, { x - iw, y - h }, { x, y - h }, {}, 0, iw },
+    };
+    std::copy(all, all + 9, pieces);
+    return 9;
+}
+
+static float outlineLength(const Outline& o){
+    Piece pieces[9];
+    float total = 0.0f;
+    for (int i = 0, n = piecesOf(o, pieces); i < n; i++) total += pieces[i].length;
+    return total;
+}
+
+static Vector2 pointOn(const Piece& piece, float c, float u){
+    if (!piece.round) return { piece.a.x + (piece.b.x - piece.a.x) * u, piece.a.y + (piece.b.y - piece.a.y) * u };
+    float r = (piece.angle + 90 * u) * DEG2RAD;
+    return { piece.center.x + c * std::cos(r), piece.center.y + c * std::sin(r) };
+}
+
+// The outline from `from` to `to` (0 to 1: one loop), `width` thick
 static void drawOutline(const Outline& o, float from, float to, float width, Color color){
     if (to <= from) return;
-    if (!SQUARE_NOTES){
-        smoothRing(o.at, o.half - width / 2, o.half + width / 2, -90.0f + 360.0f * from, -90.0f + 360.0f * to, color);
-        return;
-    }
-    const float i = o.straight(), c = o.corner(), arc = PI / 2 * c, total = o.length();
-    const float x = o.at.x, y = o.at.y, h = o.half;
-    // The pieces, clockwise from the top's middle: a straight piece from a to b, or a corner's quarter round about
-    // its center from an angle (0 right, clockwise)
-    struct Piece { bool round; Vector2 a, b; Vector2 center; float angle; float length; };
-    const Piece pieces[] = {
-        { false, { x, y - h }, { x + i, y - h }, {}, 0, i },
-        { true, {}, {}, { x + i, y - i }, 270, arc },
-        { false, { x + h, y - i }, { x + h, y + i }, {}, 0, 2 * i },
-        { true, {}, {}, { x + i, y + i }, 0, arc },
-        { false, { x + i, y + h }, { x - i, y + h }, {}, 0, 2 * i },
-        { true, {}, {}, { x - i, y + i }, 90, arc },
-        { false, { x - h, y + i }, { x - h, y - i }, {}, 0, 2 * i },
-        { true, {}, {}, { x - i, y - i }, 180, arc },
-        { false, { x - i, y - h }, { x, y - h }, {}, 0, i },
-    };
+    Piece pieces[9];
+    const int n = piecesOf(o, pieces);
+    const float total = outlineLength(o);
     float start = 0.0f;
-    for (const Piece& piece : pieces){
+    for (int i = 0; i < n; i++){
+        const Piece& piece = pieces[i];
         float a = std::max(from * total, start), b = std::min(to * total, start + piece.length);
         if (b > a && piece.length > 0.0f){
             float u0 = (a - start) / piece.length, u1 = (b - start) / piece.length;
-            if (piece.round){
-                smoothRing(piece.center, c - width / 2, c + width / 2, piece.angle + 90 * u0, piece.angle + 90 * u1, color);
-            } else {
-                Vector2 p0 = { piece.a.x + (piece.b.x - piece.a.x) * u0, piece.a.y + (piece.b.y - piece.a.y) * u0 };
-                Vector2 p1 = { piece.a.x + (piece.b.x - piece.a.x) * u1, piece.a.y + (piece.b.y - piece.a.y) * u1 };
-                smoothLine(p0, p1, width, color);
-            }
+            if (piece.round) smoothRing(piece.center, o.c - width / 2, o.c + width / 2, piece.angle + 90 * u0, piece.angle + 90 * u1, color);
+            else smoothLine(pointOn(piece, o.c, u0), pointOn(piece, o.c, u1), width, color);
         }
         start += piece.length;
     }
 }
 
+// Where on the outline `along` is (0 to 1: one loop, clockwise from the top's middle)
 static Vector2 outlinePoint(const Outline& o, float along){
-    if (!SQUARE_NOTES){
-        float angle = (-90.0f + 360.0f * along) * DEG2RAD;
-        return { o.at.x + o.half * std::cos(angle), o.at.y + o.half * std::sin(angle) };
+    Piece pieces[9];
+    const int n = piecesOf(o, pieces);
+    float d = std::clamp(along, 0.0f, 1.0f) * outlineLength(o);
+    for (int i = 0; i < n; i++){
+        if (d <= pieces[i].length || i == n - 1) return pointOn(pieces[i], o.c, pieces[i].length > 0 ? std::min(1.0f, d / pieces[i].length) : 0.0f);
+        d -= pieces[i].length;
     }
-    const float i = o.straight(), c = o.corner(), arc = PI / 2 * c, x = o.at.x, y = o.at.y, h = o.half;
-    float d = std::clamp(along, 0.0f, 1.0f) * o.length();
-    const float lengths[] = { i, arc, 2 * i, arc, 2 * i, arc, 2 * i, arc, i };
-    int piece = 0;
-    while (piece < 8 && d > lengths[piece]){ d -= lengths[piece]; piece++; }
-    float u = lengths[piece] > 0 ? d / lengths[piece] : 0.0f;
-    auto corner = [&](float cx, float cy, float angle){
-        float r = (angle + 90 * u) * DEG2RAD;
-        return Vector2{ cx + c * std::cos(r), cy + c * std::sin(r) };
-    };
-    switch (piece){
-        case 0: return { x + i * u, y - h };
-        case 1: return corner(x + i, y - i, 270);
-        case 2: return { x + h, y - i + 2 * i * u };
-        case 3: return corner(x + i, y + i, 0);
-        case 4: return { x + i - 2 * i * u, y + h };
-        case 5: return corner(x - i, y + i, 90);
-        case 6: return { x - h, y + i - 2 * i * u };
-        case 7: return corner(x - i, y - i, 180);
-        default: return { x - i + i * u, y - h };
-    }
+    return o.at;
 }
 
-// How far from a note's middle its outline is, going in a direction (a unit vector)
-static float edgeToward(float half, float ux, float uy){
-    if (!SQUARE_NOTES) return half;
-    return half / std::max(0.7f, std::max(std::fabs(ux), std::fabs(uy))); // the corners, rounded, don't reach the square's
+// How far from its middle the shape's edge is, going in a direction (a unit vector); its corners aside
+static float edgeToward(const Outline& o, float ux, float uy){
+    float across = std::fabs(ux) > 1e-4f ? o.w / std::fabs(ux) : 1e9f, down = std::fabs(uy) > 1e-4f ? o.h / std::fabs(uy) : 1e9f;
+    return std::min(across, down);
 }
 
 // What the song needs, worked out once per song rather than every frame: the part of the neck, and how long its
@@ -157,13 +154,15 @@ static const SongShape& shapeOf(const std::vector<PlayNote>& notes){
     return shape;
 }
 
-// osu!'s way, on the neck: each note fades in on its own place and a big ring closes onto it; when the ring
+// osu!'s way, on the neck: each note fades in on its own place and a big ring (the note's shape) closes onto it; when the ring
 // meets its rim, play it. The hand's path runs from each note to the next: dots that come in toward the next note
 // and go as the song reaches them, so the eye is led on; between two notes close in time, a light runs along it from
 // the one played to the one to play, landing on it as it's due. Notes repeated on one spot sit exactly on it, the
 // one to play now on top, each with its own ring around it: the rings, one inside the other, say how many are coming.
-const float NOTE_SIZE = 0.34f;     // a note's half-width, in the smaller of a fret's width and the strings' spacing: room
-                                   // is left between notes on neighboring strings and frets for the path between them
+const float NOTE_HEIGHT = 0.27f;   // a note's half-height, in the strings' spacing...
+const float NOTE_WIDTH = 0.38f;    // ...and its half-width at most, in a fret's: room is left between notes on
+                                   // neighboring strings and frets for the path between them
+const float RIM = 4.5f;            // at a 720-pixel-tall window: from a note's edge to its ring's and slider's
 const float RING_WIDTH = 3.2f;     // at a 720-pixel-tall window
 const float BURST_GROW = 0.5f;     // a note played swells by this much of its size as it fades: osu!'s hit
 const float MAX_PATH_S = 2.0f;     // two notes further apart in time than this aren't joined
@@ -212,7 +211,13 @@ void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std:
     const float spacing = std::min(MAX_STRING_SPACING * s, (area.height - 2 * pad - numbersHeight) / strings);
     const float boardHeight = spacing * strings;
     const float top = area.y + (area.height - boardHeight - numbersHeight) / 2;
-    const float radius = std::min(spacing, fretWidth) * NOTE_SIZE;
+    const float noteW = std::min(spacing * NOTE_HEIGHT * NOTE_ASPECT, fretWidth * NOTE_WIDTH), noteH = noteW / NOTE_ASPECT;
+    const float radius = noteH; // what's sized by the note (a burst, a ring's travel) goes by its height
+    // The note's shape at `at`, grown by `grow` pixels all round (shrunk, below 0), its corners growing with it
+    auto noteShape = [&](Vector2 at, float grow){
+        float w = std::max(0.5f, noteW + grow), h = std::max(0.5f, noteH + grow);
+        return Outline{ at, w, h, std::min(std::max(0.0f, CORNER * noteH + grow), std::min(w, h)) };
+    };
     lastNeck = { GetTime(), boardLeft, nut, fretWidth, top, spacing, radius, strings, firstFretted, lowStringOnTop };
     auto stringY = [&](int string){ return top + spacing * (0.5f + (lowStringOnTop ? string : strings - 1 - string)); };
     auto fretX = [&](int fret){
@@ -256,7 +261,7 @@ void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std:
     // Held notes first, under everything: only their slider is left, so a note due next on the same fret shows
     // through. After the hit's flash the note itself is gone (it's not one to play any more, and it mustn't hide
     // one that is); the slider's ball eats its track, greying and fading, until the note is over.
-    const float rim = radius + 4.5f * s;
+    const float rim = RIM * s; // the margin, from a note's edge, of its slider and its ring once closed
     auto isSlider = [](const PlayNote& note){ return note.beats >= MIN_SLIDER_BEATS && note.writtenLength > 0.0f; };
     for (auto it = from; it != to; ++it){
         const PlayNote& note = *it;
@@ -269,10 +274,10 @@ void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std:
         float flash = std::max(0.0f, 1.0f - held / HELD_FLASH_S);
         float fade = 1.0f - 0.6f * progress;
         Color grey = ColorLerp(lit, themeColor(UiColor::Dim), 0.3f + 0.7f * progress);
-        if (flash > 0.0f) fillShape(at, radius * (0.6f + 0.4f * flash), Fade(lit, flash));
+        if (flash > 0.0f) fillShape(noteShape(at, -0.4f * (1.0f - flash) * radius), Fade(lit, flash));
         float played = share * progress;
-        drawOutline({ at, rim }, played, share, SLIDER_WIDTH * s, Fade(grey, 0.85f * fade));
-        smoothCircle(outlinePoint({ at, rim }, played), SLIDER_WIDTH * 1.4f * s, Fade(lit, fade)); // the ball
+        drawOutline(noteShape(at, rim), played, share, SLIDER_WIDTH * s, Fade(grey, 0.85f * fade));
+        smoothCircle(outlinePoint(noteShape(at, rim), played), SLIDER_WIDTH * 1.4f * s, Fade(lit, fade)); // the ball
     }
 
     // Under the notes: a missed note fading where it should have been played, and the burst of one just played
@@ -284,12 +289,12 @@ void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std:
             // The note swells and fades where it was played, quickly at first, then easing out (its ring: below)
             float t = note.hitFlash / HIT_FLASH_DURATION; // 1 at the hit, 0 when it's over
             float eased = 1.0f - t * t * t;               // 0 at the hit, rushing toward 1
-            float size = radius * (1.0f + BURST_GROW * eased);
-            fillShape(at, size, Fade(stringColor(note.stringIndex), 0.85f * t * t));
-            fillShape(at, size, Fade(WHITE, 0.35f * t * t * t)); // a flash on the hit itself
+            const Outline swollen = noteShape(at, radius * BURST_GROW * eased);
+            fillShape(swollen, Fade(stringColor(note.stringIndex), 0.85f * t * t));
+            fillShape(swollen, Fade(WHITE, 0.35f * t * t * t)); // a flash on the hit itself
         } else if (note.judged){
             float fade = 0.45f * (1.0f - (now - note.time) / MISS_FADE_S);
-            if (fade > 0.0f) fillShape(at, radius * 0.8f, Fade(stringColor(note.stringIndex), fade));
+            if (fade > 0.0f) fillShape(noteShape(at, -0.2f * radius), Fade(stringColor(note.stringIndex), fade));
         }
     }
 
@@ -309,8 +314,8 @@ void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std:
         float dx = b.at.x - a.at.x, dy = b.at.y - a.at.y, length = std::sqrt(dx * dx + dy * dy);
         if (gap > MAX_PATH_S || length < 1e-3f) continue; // far apart in time, or on the same spot
         const float ux = dx / length, uy = dy / length;
-        const float edge = edgeToward(rim, ux, uy);
-        if (length < 2 * edgeToward(radius, ux, uy) + 4 * s) continue; // touching: there's no way between them to draw
+        const float edge = edgeToward(noteShape(a.at, rim), ux, uy);
+        if (length < 2 * edgeToward(noteShape(a.at, 0.0f), ux, uy) + 4 * s) continue; // touching: there's no way between them to draw
         float start = edge + 4 * s, end = length - edge - 4 * s;
         if (end - start < dotGap){ start = end = length / 2; } // close: one dot, midway, still says which way
         // The dots: each has its own moment, along the way from one note's time to the next's. It comes in a note's
@@ -346,16 +351,15 @@ void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std:
         const Vector2 at = centerOf(note);
         const Color color = stringColor(note.stringIndex);
         const float alpha = alphaOf(note), until = note.time - now;
-        if (isSlider(note)) drawOutline({ at, rim }, 0.0f, std::min(1.0f, note.beats / WHOLE_NOTE_BEATS), SLIDER_WIDTH * s, Fade(color, TRACK_ALPHA * alpha)); // how long it rings
-        fillShape({ at.x + 1.5f * s, at.y + 2.5f * s }, radius, Fade(themeColor(UiColor::Ink), 0.16f * alpha)); // its shadow on the board
-        fillShape(at, radius + 2.0f * s, Fade(card, alpha)); // a rim that keeps notes apart
-        fillShape(at, radius, Fade(color, alpha));
-        if (!SQUARE_NOTES) smoothRing(at, radius * 0.72f, radius * 0.82f, 200.0f, 330.0f, Fade(WHITE, 0.3f * alpha)); // a glint: a thing, not a mark
-        drawNoteLabel(note.fret, note.pitch, label, at.x, at.y, radius * 1.3f, Fade(WHITE, alpha));
+        if (isSlider(note)) drawOutline(noteShape(at, rim), 0.0f, std::min(1.0f, note.beats / WHOLE_NOTE_BEATS), SLIDER_WIDTH * s, Fade(color, TRACK_ALPHA * alpha)); // how long it rings
+        fillShape(noteShape({ at.x + 1.5f * s, at.y + 2.5f * s }, 0.0f), Fade(themeColor(UiColor::Ink), 0.16f * alpha)); // its shadow on the board
+        fillShape(noteShape(at, 2.0f * s), Fade(card, alpha)); // a rim that keeps notes apart
+        fillShape(noteShape(at, 0.0f), Fade(color, alpha));
+        drawNoteLabel(note.fret, note.pitch, label, at.x, at.y, radius * 1.45f, Fade(WHITE, alpha));
         if (until > 0.0f){
             // Its ring, closing onto its rim: when they meet, play it (and a long note's slider begins)
-            float ring = rim + (radius * RING_START - rim) * until / approach;
-            drawOutline({ at, ring }, 0.0f, 1.0f, RING_WIDTH * s, Fade(color, 0.9f * alpha));
+            float ring = rim + ((RING_START - 1.0f) * radius - rim) * until / approach;
+            drawOutline(noteShape(at, ring), 0.0f, 1.0f, RING_WIDTH * s, Fade(color, 0.9f * alpha));
         }
     }
 
@@ -365,8 +369,8 @@ void drawNeckView(Rectangle area, const std::vector<PlayNote>& notes, const std:
         const PlayNote& note = *it;
         if (!note.hit || note.hitFlash <= 0.0f || (isSlider(note) && now < note.time + note.writtenLength)) continue;
         float t = note.hitFlash / HIT_FLASH_DURATION, eased = 1.0f - t * t * t;
-        float burst = rim + eased * 30 * s;
-        drawOutline({ centerOf(note), burst - (3.5f * s * t + 0.5f * s) / 2 }, 0.0f, 1.0f, 3.5f * s * t + 0.5f * s, Fade(themeColor(note.wasPerfect ? UiColor::Good : UiColor::Accent), t));
+        float width = 3.5f * s * t + 0.5f * s, burst = rim + eased * 30 * s - width / 2;
+        drawOutline(noteShape(centerOf(note), burst), 0.0f, 1.0f, width, Fade(themeColor(note.wasPerfect ? UiColor::Good : UiColor::Accent), t));
     }
     EndScissorMode();
 }
