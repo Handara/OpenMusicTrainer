@@ -198,6 +198,20 @@ static void saveAppSettings(){
     if (!saveSettings(app.settingsPath, app.settings, error)) TraceLog(LOG_WARNING, "Settings: %s", error.c_str());
 }
 
+// Hearing the instrument, on or off from anywhere: F2, or the pill at the top right of the menus and the pause menu
+static void toggleHearing(){
+    app.settings.monitorOn = !app.settings.monitorOn;
+    std::string error;
+    applyMonitor(app.settings, error);
+    if (!error.empty()) TraceLog(LOG_WARNING, "Hearing the instrument: %s", error.c_str());
+    saveAppSettings();
+}
+static bool hearingButton(float s){
+    const char* instrument = app.settings.heardInstrument == InputRole::Guitar ? "guitar" : "bass";
+    const std::string text = TextFormat("Hear my %s: %s", instrument, app.settings.monitorOn ? "on" : "off");
+    return menuPill(text.c_str(), "F2", ImVec2(ImGui::GetIO().DisplaySize.x * 0.93f, 21 * s), true, 0, s);
+}
+
 static void leaveSettings(){
     closeSettingsScreen();
     std::string monitorError;
@@ -778,6 +792,8 @@ int main(void){
         beginUiFrame();
         runMenus();
         bool backClicked = app.screen == shown && hasBackButton(shown) && menuBackButton(menuScale());
+        const bool hearingShown = hasBackButton(shown) || (shown == Screen::Playing && gameplayPaused());
+        if ((app.screen == shown && hearingShown && hearingButton(menuScale())) || IsKeyPressed(KEY_F2)) toggleHearing();
         endUiFrame();
 
         // Changes of screen from outside the menus come after drawing, so this frame still shows the old screen and
