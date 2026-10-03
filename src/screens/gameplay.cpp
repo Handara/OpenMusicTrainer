@@ -5,6 +5,7 @@
 #include "core/chords.h"
 #include "core/judge.h"
 #include "core/music.h"
+#include "core/paths.h"
 #include "core/pianokeys.h"
 #include "core/rhythmmode.h"
 #include "core/score.h"
@@ -27,7 +28,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <ctime>
 #include <filesystem>
+#include <fstream>
 #include <vector>
 
 struct GameState {
@@ -72,7 +75,26 @@ static float frozenAt = 0.0f; // waiting on a note: whatever's played counts as 
 // Every note heard from the instrument in this run, for the comparison at its end
 static std::vector<HeardPitch> heardLog;
 
+// A check being recorded (F9: this song and every one after, until pressed again): the instrument as it came in
+// (input/noteinput: <base>.wav, and what the detectors found in it, in seconds into the recording) and, here, what
+// was heard and judged on the song's clock, with the two clocks side by side now and then. Saved when the song stops.
+static bool recordChecks = false;
+static std::vector<std::string> checkLog;
+static float checkSongTime = 0.0f;  // the song's time this frame, for the lines written where it isn't known
+static double lastSync = -1.0;
+static std::string checkSaved;      // where the last one went, shown a moment
+static double checkSavedAt = -100.0;
+static void logCheck(const std::string& line){
+    if (inputRecording()) checkLog.push_back(line);
+}
+static void beginCheck(); // further down: they need the song
+static void saveCheck();
+static std::string pitchText(int pitch){
+    return pitch < 0 ? std::string("?") : std::string(TextFormat("%s%d", pitchClassName(pitch), pitchOctave(pitch)));
+}
+
 static void logHeard(double time, int pitch){
+    logCheck(TextFormat("%9.3f  heard   %s", time, pitchText(pitch).c_str()));
     // A pluck of several notes is heard twice: one note at once, all of them a moment later
     for (auto it = heardLog.rbegin(); it != heardLog.rend() && time - it->time < 0.08; ++it) if (it->pitch == pitch && std::fabs(it->time - time) < 0.08) return;
     heardLog.push_back({ (float)time, pitch });
@@ -96,6 +118,7 @@ static ImVec2 judgementAnchor(const std::vector<PlayNote>& notes, int index){
 
 static void scoreMisses(GameState& state, int count, ImVec2 anchor = ImVec2(-1.0f, -1.0f)){
     if (count == 0) return;
+    logCheck(TextFormat("%9.3f  missed  %d %s", checkSongTime, count, count == 1 ? "note" : "notes"));
     feedbackMiss(feedback, state.combo, anchor);
     state.combo = 0;
     state.multiplier = 1;
@@ -110,6 +133,8 @@ static void scoreHit(GameState& state, const JudgeResult& result, ImVec2 anchor)
     const Judgement judgement = result.judgement;
     const int notesHit = result.notesHit;
     const double error = result.error;
+    logCheck(TextFormat("%9.3f  hit     %s %s %+.0f ms", checkSongTime, pitchText(result.pitch).c_str(),
+                        judgement == Judgement::Perfect ? "perfect" : "good", error * 1000.0));
     state.errorsMs.push_back((float)(error * 1000.0));
     for (int i = 0; i < notesHit; i++){
         state.combo++;
@@ -540,6 +565,7 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
             unloadSong();
             return false;
         }
+        if (recordChecks) beginCheck();
     }
     game.songTime = 0.0f;
     game.tuning = {};
@@ -679,6 +705,13 @@ bool updateGameplay(){
     inputScale = speed;
     frozenTime = game.waiting;
     frozenAt = game.waitTime;
+    checkSongTime = game.songTime;
+    // F9: recording a check, or not
+    if (IsKeyPressed(KEY_F9) && noteInputActive()){
+        recordChecks = !recordChecks;
+        if (recordChecks) beginCheck();
+        else saveCheck();
+    }
 
     for (PlayNote& note : game.notes){
         if (note.hitFlash > 0.0f) note.hitFlash -= GetFrameTime();
@@ -689,6 +722,11 @@ bool updateGameplay(){
     if (noteInputActive()) handleInstrument(game.notes, game.state, game.songTime, game.options.inputOffsetSeconds, game.lastPlayed,
                                             game.options.rhythmMode, game.lastAttackAt, game.anyOctave,
                                             game.watchingTuning ? &game.tuning : nullptr, game.chords);
+    // The two clocks side by side, four times a second: the recording's end is what was read this frame
+    if (inputRecording() && (lastSync < 0.0 || inputRecordingSeconds() - lastSync >= 0.25)){
+        lastSync = inputRecordingSeconds();
+        checkLog.push_back(TextFormat("sync %.3f %.3f", lastSync, game.songTime));
+    }
     // Out of tune, the notes can't be played right: stop, so the player can tune rather than fight it
     if (game.watchingTuning && looksOutOfTune(game.tuning, game.outOfTuneCents)){
         game.outOfTune = true;
@@ -804,6 +842,16 @@ void drawGameplayHud(){
         return font ? font->CalcTextSizeA(size, FLT_MAX, 0.0f, text).x : size * 0.6f * std::strlen(text);
     };
 
+    // Recording a check (F9): a red dot and REC at the top, under the score; then where it was saved, a moment
+    if (inputRecording()){
+        const float pulse = 0.6f + 0.4f * (float)std::sin(GetTime() * 6.0);
+        draw->AddCircleFilled(ImVec2(width * 0.5f - 34 * s, top + 9 * s), 5 * s, uiColor(UiColor::Bad, pulse));
+        draw->AddText(fonts.mono, 14 * s, ImVec2(width * 0.5f - 24 * s, top + 1 * s), uiColor(UiColor::Bad), "REC  F9");
+    } else if (GetTime() - checkSavedAt < 4.0){
+        draw->AddText(fonts.mono, 13 * s, ImVec2(width * 0.5f - textWidth(fonts.mono, 13 * s, checkSaved.c_str()) / 2, top + 1 * s),
+                      uiColor(UiColor::Dim), checkSaved.c_str());
+    }
+
     // The rhythm meter: a thin brass line along the top edge, filling as perfect hits keep coming
     draw->AddRectFilled(ImVec2(0, 0), ImVec2(width, 4 * s), uiColor(UiColor::StaffLine));
     draw->AddRectFilled(ImVec2(0, 0), ImVec2(width * state.rhythm, 4 * s), uiColor(UiColor::Accent));
@@ -904,7 +952,45 @@ void drawGameplayHud(){
     game.distribution = { area.x, area.y, size.x, size.y };
 }
 
+static void beginCheck(){
+    if (!noteInputActive()) return;
+    startInputRecording();
+    checkLog.clear();
+    lastSync = -1.0;
+}
+
+static void saveCheck(){
+    if (!inputRecording()) return;
+    char stamp[32];
+    std::time_t clock = std::time(nullptr);
+    std::strftime(stamp, sizeof stamp, "%Y-%m-%d-%H%M%S", std::localtime(&clock));
+    const std::string base = userDataDir() + "/check-song-" + stamp;
+    std::string error;
+    if (!saveInputRecording(base, error)){
+        checkSaved = "Check not saved: " + error;
+        checkSavedAt = GetTime();
+        return;
+    }
+    std::ofstream out(base + ".txt", std::ios::app);
+    const GameplayOptions& options = game.options;
+    out << "\n# the song: " << game.chart.title << ", part " << options.part << (game.options.practice.on ? ", practising" : "")
+        << "; input offset " << options.inputOffsetSeconds * 1000.0f << " ms, offset " << options.offsetSeconds * 1000.0f << " ms\n";
+    out << "# on the song's clock: what was heard and judged; sync <seconds into the recording> <song time> now and then\n";
+    for (const std::string& line : checkLog) out << line << "\n";
+    out << "\n# the notes as they stand at the end (a practice's: its last pass)\n#     time  note   how\n";
+    for (const PlayNote& note : game.notes){
+        out << TextFormat("%9.3f  %-5s  %s", note.time, pitchText(note.pitch).c_str(),
+                          !note.judged ? "not reached" : !note.hit ? "missed" : note.wasPerfect ? "perfect" : "good");
+        if (note.hit) out << TextFormat(" %+.0f ms", note.error * 1000.0f);
+        out << "\n";
+    }
+    checkLog.clear();
+    checkSaved = "Check saved: " + base + ".wav and .txt";
+    checkSavedAt = GetTime();
+}
+
 void stopGameplay(){
+    saveCheck();
     closeSongVideo();
     keepSongStretched(false);
     setSongSpeed(1.0f); // practice over: songs play at their own speed again
