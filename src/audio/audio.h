@@ -43,6 +43,12 @@ void setSongVolume(float volume);
 // the songs loaded after: set it back to 1 when done. Not for a song from a reader.
 void setSongSpeed(float speed);
 float songSpeed();
+// The same, while it plays: smoothly, from the sound's next few hundredths of a second. Only for a song opened to be
+// stretched (keepSongStretched, or at another speed than 1); any other is opened again, stopped, as setSongSpeed does.
+void setSongSpeedLive(float speed);
+// Songs loaded from now on are opened to be stretched even at their own speed, so the speed can change as they play
+// (practising note by note). Set it back to false when done.
+void keepSongStretched(bool on);
 bool songEnded();      // true once a non-looping song has played to its end
 double songLength();   // seconds
 double songPosition(); // seconds, smoothed between audio updates; call once per frame

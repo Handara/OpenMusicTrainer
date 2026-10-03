@@ -9,7 +9,7 @@ const float SEARCH_S = 0.012f; // a piece's place is nudged by up to this either
 void initTimeStretch(TimeStretch& stretch, int channels, int sampleRate, float speed){
     stretch = TimeStretch{};
     stretch.channels = std::max(1, channels);
-    stretch.speed = std::clamp(speed, 0.25f, 2.0f);
+    stretch.speed = std::clamp(speed, 0.02f, 2.0f); // it may be changed as it goes (a crawl: note by note)
     int window = 256;
     while (window < PIECE_S * sampleRate) window <<= 1;
     stretch.window = window;

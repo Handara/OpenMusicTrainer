@@ -56,6 +56,12 @@ const double RESUME_RUNUP_S = 1.5; // resuming, the song picks up this long befo
 
 const float PASS_TAIL_S = 0.35f;   // practising, a pass ends this long after its section does: its last note's judgement
 const float TEMPO_BANNER_S = 2.0f; // how long the new tempo shows after a pass raises it
+// Note by note, the song slows as a note still to play comes near, down to a crawl, its sound going on all the time;
+// once the note's played, it eases back up
+const float SLOW_FROM_S = 0.5f;   // song seconds before the note: slowing begins
+const float CRAWL = 0.03f;        // the slowest, against the practice's tempo
+const float EASE_UP_S = 0.25f;    // back up to speed over about this long
+const float WAITING_S = 0.06f;    // this close to the note, it's waiting on it
 
 static HitFeedback feedback; // the judgements, timing bar and combo shown over the play screen
 // Played slower (practising), the song's seconds go by slower than the clock's: a note heard 0.1 s ago (the clock's)
@@ -63,6 +69,7 @@ static HitFeedback feedback; // the judgements, timing bar and combo shown over 
 // played now, at the note.
 static float inputScale = 1.0f;
 static bool frozenTime = false;
+static float frozenAt = 0.0f; // waiting on a note: whatever's played counts as played on it
 // Every note heard from the instrument in this run, for the comparison at its end
 static std::vector<HeardPitch> heardLog;
 
@@ -74,7 +81,7 @@ static void logHeard(double time, int pitch){
 
 // When in the song something played `age` seconds ago (the clock's) was played, the input's own delay counted
 static double heardAt(float songTime, double age, float inputOffset){
-    return frozenTime ? (double)songTime : songTime - (age + inputOffset) * inputScale;
+    return frozenTime ? (double)frozenAt : songTime - (age + inputOffset) * inputScale;
 }
 static bool instrumentHitSounds = false; // a drop on each hit: playing an instrument, which gives no sound of its own to the game
 
@@ -438,6 +445,7 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
         return false;
     }
 
+    keepSongStretched(options.practice.on && options.practice.noteByNote); // its speed changes as it plays
     setSongSpeed(options.practice.on ? options.practice.speed : 1.0f); // before loading: it's opened to be played so
     if (!loadSong(audioPath, error)) return false;
     // Its video, for behind the notes. A song plays the same without one: a video that's missing (a package made
@@ -600,7 +608,6 @@ void resumeGameplay(){
     game.outOfTune = false;
     game.paused = false;
     game.resumeAt = game.songTime;
-    if (game.waiting) return; // waiting on a note: it starts again when that's played
     playSongFrom(game.songTime + game.options.offsetSeconds * songSpeed() - RESUME_RUNUP_S, game.startsAt);
 }
 
@@ -627,20 +634,32 @@ bool updateGameplay(){
     // The song's playback position is the clock: notes stay in sync with the music even if frames stutter
     // The offset shifts the whole game against the audio: if sound reaches your ears late (Bluetooth,
     // slow drivers), a positive offset moves notes and judging later to match what you hear
-    // Note by note: the song stops on each note until it's played
-    const float speed = songSpeed();
-    inputScale = speed;
-    if (game.options.practice.on && game.options.practice.noteByNote && !game.waiting){
-        float heard = (float)(songPosition() - game.options.offsetSeconds * speed);
+    // Note by note: the song slows into each note still to play, never quite stopping, until it's played
+    float speed = songSpeed();
+    game.songTime = (float)(songPosition() - game.options.offsetSeconds * speed);
+    game.waiting = false;
+    if (game.options.practice.on && game.options.practice.noteByNote){
+        const float tempo = game.progress.speed;
         auto due = std::find_if(game.notes.begin(), game.notes.end(), [](const PlayNote& note){ return !note.judged; });
-        if (due != game.notes.end() && heard >= due->time){
-            game.waiting = true;
+        float target = tempo;
+        if (due != game.notes.end()){
+            const float until = due->time - game.songTime;
+            target = tempo * std::clamp(until / SLOW_FROM_S, CRAWL, 1.0f);
+            game.waiting = until <= WAITING_S;
             game.waitTime = due->time;
-            stopSong();
+            // The sound crawls on past the note; the notes on screen, and a key pressed, stay on it
+            if (game.waiting) game.songTime = std::min(game.songTime, due->time);
+        }
+        // Slowing follows the note at once; speeding up again eases in
+        float next = target < speed ? target : speed + (target - speed) * std::min(1.0f, GetFrameTime() / EASE_UP_S);
+        if (std::fabs(next - speed) > 1e-4f){
+            setSongSpeedLive(next);
+            speed = next;
         }
     }
+    inputScale = speed;
     frozenTime = game.waiting;
-    game.songTime = game.waiting ? game.waitTime : (float)(songPosition() - game.options.offsetSeconds * speed);
+    frozenAt = game.waitTime;
 
     for (PlayNote& note : game.notes){
         if (note.hitFlash > 0.0f) note.hitFlash -= GetFrameTime();
@@ -672,18 +691,6 @@ bool updateGameplay(){
             game.lastPlayed = { played.pitch };
             logHeard(input.time, played.pitch);
         }
-    }
-    // Waiting on a note: once it's played (all of a chord), the song goes on from it
-    if (game.waiting){
-        bool played = std::all_of(game.notes.begin(), game.notes.end(), [](const PlayNote& note){
-            return std::fabs(note.time - game.waitTime) > 0.001f || note.hit;
-        });
-        if (played){
-            game.waiting = false;
-            frozenTime = false;
-            playSongFrom(game.waitTime + game.options.offsetSeconds * speed, game.startsAt);
-        }
-        return true;
     }
     if (!(game.options.practice.on && game.options.practice.noteByNote)){ // note by note, nothing goes by unplayed
         int missedNote = -1;
@@ -866,6 +873,7 @@ void drawGameplayHud(){
 
 void stopGameplay(){
     closeSongVideo();
+    keepSongStretched(false);
     setSongSpeed(1.0f); // practice over: songs play at their own speed again
     inputScale = 1.0f;
     frozenTime = false;

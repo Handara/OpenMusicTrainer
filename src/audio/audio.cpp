@@ -84,8 +84,8 @@ struct StretchSource {
     ma_uint32 sampleRate = 0;
     ma_uint32 channels = 0;
     ma_uint64 length = 0;               // the song's frames
-    long long from = 0;                 // the song frame it last started from (a seek)
-    ma_uint64 made = 0;                 // frames played out since
+    double position = 0.0;              // the song frame reached, played out frame by frame at the speed of the moment
+    std::atomic<float> speed{1.0f};     // the speed wanted: set by the main thread (setSongSpeedLive), taken up by the audio thread
     std::atomic<ma_uint64> cursor{0};   // the song frame being heard: written by the audio thread, read by songPosition()
     std::vector<float> scratch;         // decoded frames on their way in: sized once, so the audio thread doesn't allocate
     bool decoderEnded = false;
@@ -124,6 +124,7 @@ static struct {
     bool songStretched = false;
     std::string songPath;        // the song's file, to open it again at another speed
     float songSpeed = 1.0f;      // see setSongSpeed
+    bool alwaysStretch = false;  // see keepSongStretched
     bool looping = false;
     double songStartTime = 0.0;     // playSongFrom: the engine time (audioTime) the song starts playing at...
     double songStartPosition = 0.0; // ...and the song position it starts from
@@ -398,6 +399,7 @@ static const ma_uint32 STRETCH_BLOCK = 4096; // frames decoded at a time for the
 static ma_result stretchRead(ma_data_source* source, void* out, ma_uint64 frameCount, ma_uint64* framesRead){
     StretchSource* self = (StretchSource*)source;
     TimeStretch& stretch = self->stretch;
+    stretch.speed = self->speed.load(std::memory_order_relaxed); // a new speed takes over from the next piece
     ma_uint64 done = 0;
     float* to = (float*)out;
     while (done < frameCount){
@@ -417,9 +419,9 @@ static ma_result stretchRead(ma_data_source* source, void* out, ma_uint64 frameC
             }
         }
     }
-    self->made += done;
-    const double heard = self->from + self->made * (double)stretch.speed + timeStretchLag(stretch);
-    self->cursor = (ma_uint64)std::max((double)self->from, std::min(heard, (double)self->length));
+    self->position += done * (double)stretch.speed;
+    const double heard = self->position + timeStretchLag(stretch);
+    self->cursor = (ma_uint64)std::max(0.0, std::min(heard, (double)self->length));
     *framesRead = done;
     return done == 0 ? MA_AT_END : MA_SUCCESS;
 }
@@ -428,8 +430,7 @@ static ma_result stretchSeek(ma_data_source* source, ma_uint64 frame){
     StretchSource* self = (StretchSource*)source;
     ma_result result = ma_decoder_seek_to_pcm_frame(&self->decoder, frame);
     resetTimeStretch(self->stretch, (long long)frame);
-    self->from = (long long)frame;
-    self->made = 0;
+    self->position = (double)frame;
     self->cursor = frame;
     self->decoderEnded = false;
     return result;
@@ -459,7 +460,7 @@ static ma_data_source_vtable STRETCH_VTABLE = { stretchRead, stretchSeek, stretc
 
 // The song's file opened as the sound the engine plays: streamed as it is, or through the stretch at another speed
 static bool openSongSound(const std::string& path, std::string& error){
-    if (audio.songSpeed == 1.0f){
+    if (audio.songSpeed == 1.0f && !audio.alwaysStretch){
         // STREAM decodes a little at a time instead of the whole file up front
         // (a 5 minute song fully decoded is ~100 MB). NO_SPATIALIZATION skips unneeded 3D audio processing.
         ma_uint32 flags = MA_SOUND_FLAG_STREAM | MA_SOUND_FLAG_NO_SPATIALIZATION;
@@ -484,8 +485,8 @@ static bool openSongSound(const std::string& path, std::string& error){
     source.length = length;
     source.scratch.assign((size_t)STRETCH_BLOCK * source.channels, 0.0f);
     initTimeStretch(source.stretch, (int)source.channels, (int)source.sampleRate, audio.songSpeed);
-    source.from = 0;
-    source.made = 0;
+    source.position = 0.0;
+    source.speed = audio.songSpeed;
     source.cursor = 0;
     source.decoderEnded = false;
     ma_data_source_config config = ma_data_source_config_init();
@@ -535,8 +536,8 @@ bool loadSong(const std::string& path, std::string& error){
 }
 
 void setSongSpeed(float speed){
-    speed = std::clamp(speed, 0.25f, 2.0f);
-    if (speed == audio.songSpeed) return;
+    speed = std::clamp(speed, 0.02f, 2.0f);
+    if (speed == audio.songSpeed && (audio.songStretched || !audio.alwaysStretch)) return;
     audio.songSpeed = speed;
     // The song open now is opened again, to be played the new way (stopped: it's started again from where it's wanted)
     if (!audio.songReady || audio.songFromReader || audio.songPath.empty()) return;
@@ -550,6 +551,20 @@ void setSongSpeed(float speed){
 
 float songSpeed(){
     return audio.songSpeed;
+}
+
+void setSongSpeedLive(float speed){
+    speed = std::clamp(speed, 0.02f, 2.0f);
+    if (!audio.songStretched){
+        setSongSpeed(speed);
+        return;
+    }
+    audio.songSpeed = speed; // the clock follows at once; the sound, from its next piece
+    audio.stretchSource.speed.store(speed, std::memory_order_relaxed);
+}
+
+void keepSongStretched(bool on){
+    audio.alwaysStretch = on;
 }
 
 static ma_result readerRead(ma_data_source* source, void* out, ma_uint64 frameCount, ma_uint64* framesRead){

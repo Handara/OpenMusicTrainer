@@ -11,7 +11,7 @@
 
 struct TimeStretch {
     int channels = 1;
-    float speed = 1.0f;          // song frames per frame out: 0.5 plays at half speed
+    float speed = 1.0f;          // song frames per frame out: 0.5 plays at half speed (it may change as it goes)
     int window = 0;              // a piece's length, in frames
     int hop = 0;                 // how far apart pieces are laid down: half a piece
     int search = 0;              // how far either way a piece's place is nudged to line up

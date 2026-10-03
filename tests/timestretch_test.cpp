@@ -100,3 +100,42 @@ TEST_CASE("starting again somewhere else drops what was made"){
     std::vector<float> out(100);
     CHECK(takeTimeStretch(stretch, out.data(), 100) == 0); // nothing until the new place is fed
 }
+
+TEST_CASE("the speed can change as it plays: down to a crawl, the pitch kept and the sound going on"){
+    const int rate = 44100;
+    TimeStretch stretch;
+    initTimeStretch(stretch, 1, rate, 1.0f);
+    std::vector<float> tone(rate * 3);
+    for (size_t i = 0; i < tone.size(); i++) tone[i] = 0.5f * std::sin(2.0 * 3.14159265358979 * 110.0 * i / rate);
+    size_t fed = 0;
+    std::vector<float> out, block(441);
+    auto play = [&](float seconds){
+        for (int made = 0; made < seconds * rate; ){
+            while (timeStretchWants(stretch) > 0 && fed < tone.size()){
+                int count = std::min<int>(timeStretchWants(stretch), (int)(tone.size() - fed));
+                feedTimeStretch(stretch, tone.data() + fed, count);
+                fed += count;
+            }
+            int got = takeTimeStretch(stretch, block.data(), 441);
+            if (got == 0) break;
+            out.insert(out.end(), block.begin(), block.begin() + got);
+            made += got;
+        }
+    };
+    play(0.5f);
+    const size_t before = fed;
+    stretch.speed = 0.03f; // a crawl, from the next piece
+    play(2.0f);
+    // Two seconds out at 3%: about 0.06 s of the song went by, not 2
+    CHECK(fed - before < (size_t)(0.25 * rate));
+    // Still sounding, still 110 Hz, as loud as before
+    std::vector<float> crawl(out.begin() + rate, out.end());
+    CHECK(crossingsPerSecond(crawl, 1, 0, rate, 0, crawl.size()) == doctest::Approx(110.0).epsilon(0.02));
+    float lowest = 1.0f;
+    for (size_t start = 0; start + rate / 50 < crawl.size(); start += rate / 50){
+        float peak = 0.0f;
+        for (size_t i = start; i < start + rate / 50; i++) peak = std::max(peak, std::fabs(crawl[i]));
+        lowest = std::min(lowest, peak);
+    }
+    CHECK(lowest > 0.4f);
+}
