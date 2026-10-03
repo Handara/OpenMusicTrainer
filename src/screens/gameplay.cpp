@@ -58,10 +58,9 @@ const float PASS_TAIL_S = 0.35f;   // practising, a pass ends this long after it
 const float TEMPO_BANNER_S = 2.0f; // how long the new tempo shows after a pass raises it
 // Note by note, the song slows as a note still to play comes near, down to a crawl, its sound going on all the time;
 // once the note's played, it eases back up
-const float SLOW_FROM_S = 0.5f;   // song seconds before the note: slowing begins
+const float SLOW_FROM_S = (float)PERFECT_WINDOW_S; // slowing begins where a perfect hit would: played well, nothing slows
 const float CRAWL = 0.03f;        // the slowest, against the practice's tempo
-const float EASE_UP_S = 0.25f;    // back up to speed over about this long
-const float WAITING_S = 0.06f;    // this close to the note, it's waiting on it
+const float EASE_UP_S = 0.08f;    // back up to speed over about this long
 
 static HitFeedback feedback; // the judgements, timing bar and combo shown over the play screen
 // Played slower (practising), the song's seconds go by slower than the clock's: a note heard 0.1 s ago (the clock's)
@@ -645,7 +644,7 @@ bool updateGameplay(){
         if (due != game.notes.end()){
             const float until = due->time - game.songTime;
             target = tempo * std::clamp(until / SLOW_FROM_S, CRAWL, 1.0f);
-            game.waiting = until <= WAITING_S;
+            game.waiting = until <= SLOW_FROM_S * CRAWL; // down to the crawl: waiting on it
             game.waitTime = due->time;
             // The sound crawls on past the note; the notes on screen, and a key pressed, stay on it
             if (game.waiting) game.songTime = std::min(game.songTime, due->time);
