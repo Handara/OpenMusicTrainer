@@ -98,6 +98,7 @@ TEST_CASE("broken charts are rejected with a clear message"){
         {"no time at tick 0",   HEADER + "time 1920 3/4\n" + TRACK, "needs a time signature at tick 0"},
         {"time mid-bar",        HEADER + "time 0 4/4\ntime 960 3/4\n" + TRACK, "time signature at tick 960 isn't on a bar line"},
         {"unknown key",         HEADER + "key 0 G# major\n" + TRACK, "unknown key 'G# major'"},
+        {"unknown hit sound",   HEADER + TRACK + "hit_sound kazoo\n", "unknown hit sound 'kazoo'"},
         {"trim ends before it starts", HEADER + "trim 12 8\n" + TRACK, "trim needs a start >= 0 and an end after it"},
         {"key mid-bar",         HEADER + "key 0 C major\nkey 480 G major\n" + TRACK, "key at tick 480 isn't on a bar line"},
         {"no tempo at tick 0",  "version 1\nresolution 480\nend 9600\ntempo 480 120\n" + TRACK, "needs a tempo at tick 0"},
@@ -385,4 +386,22 @@ TEST_CASE("a song's video: its file and where the audio starts in it, saved and 
     REQUIRE_MESSAGE(loadChart(path, chart, error), error);
     CHECK(chart.videoFile.empty());
     CHECK(chart.videoOffset == 0.0);
+}
+
+TEST_CASE("a part's hit sound: saved and read back, and its own instrument says nothing"){
+    Chart chart;
+    std::string error;
+    REQUIRE_MESSAGE(loadChart(writeTemp("hitsound.chart", HEADER + TRACK + "hit_sound keys\nn 0 0 3\n" + "track bass Low\ntuning 28 33 38 43\n"), chart, error), error);
+    REQUIRE(chart.frettedTracks.size() == 2);
+    CHECK(chart.frettedTracks[0].hitSound == "keys");
+    CHECK(chart.frettedTracks[1].hitSound.empty());
+    std::string path = writeTemp("hitsound-saved.chart", "");
+    REQUIRE_MESSAGE(saveChart(path, chart, error), error);
+    Chart again;
+    REQUIRE_MESSAGE(loadChart(path, again, error), error);
+    CHECK(again.frettedTracks[0].hitSound == "keys");
+    CHECK(again.frettedTracks[1].hitSound.empty());
+    std::ifstream in(path);
+    std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    CHECK(text.find("hit_sound") == text.rfind("hit_sound")); // written once: the bass part says nothing
 }

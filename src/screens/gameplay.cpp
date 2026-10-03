@@ -328,26 +328,31 @@ static struct {
     bool active = false;
 } game;
 
-// The feedback for a hit: the note itself, on the part's own instrument as the song editor plays it (lahn's bass, its
-// clean guitar), as long as it's written to ring; a chord all of its notes. Or else, if that's the setting, a drop.
+// The feedback for a hit: the note itself, as long as it's written to ring, a chord all of its notes, on the sound the
+// song gives the part (the editor's choice: its own instrument unless it says otherwise, as the editor plays it).
+// Or else, if that's the player's setting or the song's, a drop; or nothing, if the song says so.
 const float MIN_HIT_NOTE_S = 0.2f, MAX_HIT_NOTE_S = 1.5f;
 
 static void soundHit(const JudgeResult& result, bool fromKeys){
     const GameplayOptions& options = game.options;
-    if (!options.hitSoundIsNote || game.keys || result.noteIndex < 0 || result.noteIndex >= (int)game.notes.size()){
+    const std::string& sound = game.chart.frettedTracks[0].hitSound;
+    if (sound == "none") return;
+    if (!options.hitSoundIsNote || sound == "drop" || game.keys || result.noteIndex < 0 || result.noteIndex >= (int)game.notes.size()){
         if (fromKeys) playPreview(midiToFrequency((float)result.pitch));
         else playHitSound(result.judgement == Judgement::Perfect);
         return;
     }
     const float volume = fromKeys ? options.keyVolume : options.hitSoundVolume;
     if (volume <= 0.0f) return;
-    const bool bass = game.chart.frettedTracks[0].type == InstrumentType::Bass;
+    const bool onString = sound.empty() || sound == "bass" || sound == "guitar";
+    const bool bass = sound.empty() ? game.chart.frettedTracks[0].type == InstrumentType::Bass : sound == "bass";
     const PlayNote& first = game.notes[result.noteIndex];
     for (size_t i = result.noteIndex; i < game.notes.size() && game.notes[i].time - first.time < 0.001f; i++){
         const PlayNote& note = game.notes[i];
         if (!note.hit || (i != (size_t)result.noteIndex && result.notesHit <= 1)) continue; // a chord's notes, when they all came
         float rings = note.writtenLength > 0.0f ? note.writtenLength : note.length;
-        playStringNote(midiToFrequency((float)note.pitch), bass, std::clamp(rings, MIN_HIT_NOTE_S, MAX_HIT_NOTE_S) / songSpeed(), volume);
+        if (onString) playStringNote(midiToFrequency((float)note.pitch), bass, std::clamp(rings, MIN_HIT_NOTE_S, MAX_HIT_NOTE_S) / songSpeed(), volume);
+        else playBuiltInNote(sound.c_str(), midiToFrequency((float)note.pitch), volume);
     }
 }
 

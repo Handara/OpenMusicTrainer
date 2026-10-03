@@ -1566,6 +1566,15 @@ static void startPreview(float frequency, ma_uint64 startFrame, const char* buil
     startVoice(voice, data, frames, pitchRatio, audio.previewVolume, startFrame);
 }
 
+void playBuiltInNote(const char* name, float frequency, float volume){
+    if (!audio.engineReady || volume <= 0.0f) return;
+    Voice& voice = takeVoice();
+    ma_uint32 sampleRate = ma_engine_get_sample_rate(&audio.engine);
+    voice.samples.resize((size_t)(PREVIEW_LENGTH_S * sampleRate));
+    renderBuiltInSound(name, voice.samples.data(), (int)voice.samples.size(), frequency, (int)sampleRate, (unsigned)audio.previewCount++);
+    startVoice(voice, voice.samples.data(), voice.samples.size(), 1.0f, volume, ma_engine_get_time_in_pcm_frames(&audio.engine));
+}
+
 void playKeysNote(float frequency){
     if (!audio.engineReady) return;
     startPreview(frequency, ma_engine_get_time_in_pcm_frames(&audio.engine), "keys");

@@ -118,6 +118,11 @@ bool loadChart(const std::string& path, Chart& out, std::string& error){
                 track->tuning.push_back(pitch);
             }
             if (track->tuning.empty()) return lineError("expected: tuning <midi pitch per string, low to high>");
+        } else if (keyword == "hit_sound" && track != nullptr){
+            std::string name;
+            ss >> name;
+            if (std::find(std::begin(HIT_SOUNDS), std::end(HIT_SOUNDS), name) == std::end(HIT_SOUNDS)) return lineError("unknown hit sound '" + name + "'");
+            track->hitSound = name;
         } else if (keyword == "n" && keysTrack != nullptr){
             KeysNote note{};
             if (!(ss >> note.tick >> note.pitch)) return lineError("expected: n <tick> <pitch> [duration]");
@@ -289,7 +294,9 @@ bool saveChart(const std::string& path, const Chart& chart, std::string& error){
         out << "\ntrack " << trackTypeName(track.type) << " " << track.name << "\n";
         out << "tuning";
         for (int pitch : track.tuning) out << " " << pitch;
-        out << "\n# n <tick> <string> <fret> [duration]\n";
+        out << "\n";
+        if (!track.hitSound.empty()) out << "hit_sound " << track.hitSound << "\n";
+        out << "# n <tick> <string> <fret> [duration]\n";
         for (const FrettedNote& note : track.notes){
             out << "n " << note.tick << " " << note.stringIndex << " " << note.fret;
             if (note.duration > 0) out << " " << note.duration;

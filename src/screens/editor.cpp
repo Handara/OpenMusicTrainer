@@ -1382,8 +1382,8 @@ static void drawToolBar(float s, float width){
         const float partX = bar.x;
         ImGui::PushID(i);
         if (barButton(bar, part.name.empty() ? "Part" : part.name.c_str(), nullptr,
-                      part.type == InstrumentType::Bass ? "Edit this bass part      Right click  take it out of the song"
-                                                        : "Edit this guitar part      Right click  take it out of the song", i == editor.part)) choosePart(i);
+                      part.type == InstrumentType::Bass ? "Edit this bass part      Right click  its hit sound, or take it out of the song"
+                                                        : "Edit this guitar part      Right click  its hit sound, or take it out of the song", i == editor.part)) choosePart(i);
         if (ImGui::IsItemClicked(ImGuiMouseButton_Right)){
             choosePart(i);
             openPartMenu = true;
@@ -1397,6 +1397,27 @@ static void drawToolBar(float s, float width){
     }
     pushCompactStyle(s);
     if (ImGui::BeginPopup(PART_POPUP)){
+        // What a note hit in the game sounds like: the part's own instrument unless chosen otherwise; heard as it's chosen
+        if (ImGui::BeginMenu("Hit sound")){
+            const bool bass = track().type == InstrumentType::Bass;
+            const char* labels[] = { "Bass", "Clean guitar", "Pluck", "Soft", "Keys", "Drop", "None" };
+            auto choose = [&](const std::string& name, const char* label){
+                if (!ImGui::MenuItem(label, nullptr, track().hitSound == name)) return;
+                track().hitSound = name;
+                markChanged();
+                const float frequency = midiToFrequency(bass ? 40.0f : 52.0f);
+                if (name.empty() || name == "bass" || name == "guitar") playStringNote(frequency, name.empty() ? bass : name == "bass", 0.6f, 1.0f);
+                else if (name == "drop") playHitSound(true);
+                else if (name != "none") playBuiltInNote(name.c_str(), frequency * 2.0f, 1.0f);
+            };
+            choose("", bass ? "Its instrument (bass)" : "Its instrument (clean guitar)");
+            ImGui::Separator();
+            for (int k = 0; k < (int)(sizeof HIT_SOUNDS / sizeof HIT_SOUNDS[0]); k++){
+                if ((bass && k == 0) || (!bass && k == 1)) continue; // its own instrument is the first choice
+                choose(HIT_SOUNDS[k], labels[k]);
+            }
+            ImGui::EndMenu();
+        }
         ImGui::BeginDisabled(!severalParts); // a song keeps at least one part
         if (ImGui::Selectable(TextFormat("Take %s out of the song", track().name.empty() ? "this part" : track().name.c_str()))) removePart();
         ImGui::EndDisabled();

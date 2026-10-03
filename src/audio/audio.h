@@ -84,6 +84,8 @@ void playPreviewAt(float frequency, double time); // at a time on the engine's c
 // editor's notes, each part heard as its instrument. It rings for `seconds` and is muted there. At its own volume
 // (0..1), not the preview volume; `time` is on the engine's clock (audioTime), like playClickAt.
 void playStringNote(float frequency, bool bass, float seconds, float volume);
+// A note on one of the built-in sounds (core/synth: renderBuiltInSound, "pluck", "keys"...) at its own volume
+void playBuiltInNote(const char* name, float frequency, float volume);
 void playStringNoteAt(float frequency, bool bass, float seconds, double time, float volume);
 // A note played on the game's piano (the built-in electric piano), whatever the preview sound: keys parts sound
 // it for every key the player presses, since most MIDI controllers and every computer keyboard make no sound
