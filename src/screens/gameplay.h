@@ -12,6 +12,7 @@ struct WrittenNote {
     float time, length;      // seconds into the song
     int pitch, stringIndex;
     bool hit = false, perfect = false;
+    float errorMs = 0.0f;    // hit: how early (negative: late)
 };
 // ...and every note heard from the instrument (or a MIDI keyboard), wrong ones included
 struct HeardPitch {

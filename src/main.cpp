@@ -2,6 +2,8 @@
 #include "app/crashreport.h"
 #include "app/videoconvert.h"
 #include "audio/audio.h"
+#include "core/judge.h"
+#include "core/music.h"
 #include "core/paths.h"
 #include "core/routine.h"
 #include "core/settings.h"
@@ -33,6 +35,7 @@
 #include <cctype>
 #include <cmath>
 #include <filesystem>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -239,6 +242,36 @@ static void editSong(const SongEntry& song){
 
 // A finished run goes into its part's records (not a test-play from the editor: that isn't a real run). The
 // result then knows where it placed, and shows the part's best runs.
+// What happened to every note of the last run, in the data folder (last-run.txt): each note's timing, and for a note
+// missed, what was heard nearest it. To see why notes go unplayed: heard as another pitch, heard too far off, or not
+// heard at all.
+static void writeRunLog(const GameResult& result){
+    std::ofstream out(fs::path(app.userDataDir) / "last-run.txt");
+    if (!out) return;
+    out << "# " << result.title << " (" << result.partName << ")\n";
+    out << "# perfect within " << (int)std::lround(PERFECT_WINDOW_S * 1000) << " ms, good within " << (int)std::lround(NEAR_WINDOW_S * 1000)
+        << " ms; input offset " << app.settings.inputOffsetMs << " ms\n";
+    out << TextFormat("# %d perfect, %d good, %d missed; timing: mean %+.1f ms (+ early, - late), unstable rate %.0f\n",
+                      result.perfectCount, result.nearCount, result.missCount, result.timing.meanMs, result.timing.unstableRate);
+    out << "# time      note   result    error / heard nearest\n";
+    auto name = [](int pitch){ return std::string(TextFormat("%s%d", pitchClassName(pitch), pitchOctave(pitch))); };
+    for (const WrittenNote& note : result.written){
+        out << TextFormat("%8.3f  %-5s  ", note.time, name(note.pitch).c_str());
+        if (note.hit){
+            out << TextFormat("%-8s  %+.0f ms\n", note.perfect ? "perfect" : "good", note.errorMs);
+            continue;
+        }
+        const HeardPitch* nearest = nullptr;
+        for (const HeardPitch& heard : result.heard){
+            if (std::fabs(heard.time - note.time) < 0.4f && (!nearest || std::fabs(heard.time - note.time) < std::fabs(nearest->time - note.time))) nearest = &heard;
+        }
+        if (!nearest) out << "MISSED    nothing heard within 400 ms\n";
+        else out << TextFormat("MISSED    heard %s at %+.0f ms%s\n", name(nearest->pitch).c_str(), (note.time - nearest->time) * 1000.0f,
+                               nearest->pitch == note.pitch ? " (the right pitch: too far off)" :
+                               (nearest->pitch - note.pitch) % 12 == 0 ? " (another octave)" : "");
+    }
+}
+
 static void recordRun(GameResult& result){
     std::error_code ec;
     fs::create_directories(recordsDir(), ec);
@@ -810,6 +843,7 @@ int main(void){
             app.lastResult = gameplayResult();
             stopGameplay();
             recordRun(app.lastResult);
+            writeRunLog(app.lastResult);
             const Rectangle& from = app.lastResult.distributionFrom;
             app.zoomTo = { from.x + from.width / 2, from.y + from.height / 2 }; // into the timing distribution
             app.screen = Screen::Results;

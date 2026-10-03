@@ -936,7 +936,8 @@ GameResult gameplayResult(){
     result.errorsMs = state.errorsMs;
     result.distributionFrom = game.distribution;
     for (const PlayNote& note : game.notes){
-        result.written.push_back({ note.time, std::max(note.length, note.writtenLength), note.pitch, note.stringIndex, note.hit, note.hit && note.wasPerfect });
+        result.written.push_back({ note.time, std::max(note.length, note.writtenLength), note.pitch, note.stringIndex, note.hit, note.hit && note.wasPerfect,
+                                  note.error * 1000.0f });
     }
     result.heard = heardLog;
     if (!game.keys) result.tuning = game.chart.frettedTracks[0].tuning;

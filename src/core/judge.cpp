@@ -33,6 +33,7 @@ JudgeResult judgeInput(std::vector<PlayNote>& notes, const PlayerInput& input){
         note.judged = true;
         note.hit = true;
         note.wasPerfect = perfect;
+        note.error = (float)(note.time - input.time);
         note.hitFlash = HIT_FLASH_DURATION;
         result.notesHit++;
     };

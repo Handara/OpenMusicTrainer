@@ -5,7 +5,7 @@
 // Judging: matching what the player did to the notes they were meant to play, and how well-timed it was.
 // Shared by gameplay and learn-mode drills, whatever the input (keyboard or a real instrument).
 
-const double PERFECT_WINDOW_S = 0.040; // an input this close to a note's time is perfect...
+const double PERFECT_WINDOW_S = 0.050; // an input this close to a note's time is perfect...
 const double NEAR_WINDOW_S = 0.100;    // ...this close still counts; later than this after it, the note is missed
 const float HIT_FLASH_DURATION = 0.2f; // seconds a hit note stays lit on screen
 
@@ -22,6 +22,7 @@ struct PlayNote {
     bool judged = false;     // hit or missed already
     bool hit = false;        // judged and hit (judged without hit = missed)
     bool wasPerfect = false;
+    float error = 0.0f;      // hit: how early it was, in seconds (negative: late)
 };
 
 // Something the player did. A keyboard knows which string's key was pressed but not the pitch;
