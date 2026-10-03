@@ -2112,19 +2112,56 @@ static void drawTimeline(ImVec2 min, ImVec2 max, float s){
 
 // The whole song, small: its waveform, its notes, the part on screen (dragged, it moves the view) and the playhead
 static void drawOverview(ImVec2 min, ImVec2 max, float s){
-    const Chart& chart = editor.chart;
+    Chart& chart = editor.chart;
     const int strings = (int)track().tuning.size();
     const float width = max.x - min.x, height = max.y - min.y;
-    const double total = std::max(1, chart.endTick);
+    // All of the song: its bars, and its audio if that goes on past them
+    const double total = std::max({ 1.0, (double)chart.endTick, editor.songLoaded ? secondsToTick(chart, audioSeconds()) : 0.0 });
     auto tickAt = [&](float x){ return (double)(x - min.x) / width * total; };
     auto xAt = [&](double tick){ return min.x + (float)(tick / total) * width; };
 
+    // Its trim's edges can be dragged here too, where the whole song is in sight (a bar line takes them when close)
+    const float trimStartX = xAt(secondsToTick(chart, chart.trimStart)), trimEndX = std::min(max.x, xAt(secondsToTick(chart, songEndSeconds())));
+    static int trimming = 0; // 0: the view follows the mouse; 1 the start, 2 the end being dragged
+    const float mouseX = ImGui::GetIO().MousePos.x;
+    const bool overStart = editor.songLoaded && std::fabs(mouseX - trimStartX) <= TRIM_GRIP * s;
+    const bool overEnd = editor.songLoaded && !overStart && std::fabs(mouseX - trimEndX) <= TRIM_GRIP * s;
+
     ImGui::SetCursorScreenPos(min);
     ImGui::InvisibleButton("overview", ImVec2(width, height));
-    if (ImGui::IsItemHovered()) hoverTip = "The whole song: click or drag to go there";
+    if (ImGui::IsItemHovered()){
+        if (overStart || overEnd || trimming) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+        hoverTip = overStart ? "Drag  where the song starts in its audio"
+                 : overEnd ? "Drag  where the song ends in its audio"
+                 : "The whole song: click or drag to go there      Drag its faded ends' edges  trim it";
+    }
+    if (ImGui::IsItemActivated()) trimming = overStart ? 1 : overEnd ? 2 : 0;
     if (ImGui::IsItemActive()){
-        editor.viewStartTick = tickAt(ImGui::GetIO().MousePos.x) - visibleTicks() / 2;
-        clampView();
+        if (trimming == 0){
+            editor.viewStartTick = tickAt(mouseX) - visibleTicks() / 2;
+            clampView();
+        } else {
+            double tick = std::clamp(tickAt(mouseX), 0.0, total);
+            int bar = barNumberAt(chart, std::max(0, (int)std::lround(tick)));
+            for (int line : { barStartTick(chart, bar), barStartTick(chart, bar + 1) }){
+                if (std::fabs(xAt(line) - mouseX) < TRIM_GRIP * s && !ImGui::GetIO().KeyAlt) tick = line;
+            }
+            double seconds = std::round(songSeconds(tick) * 1000.0) / 1000.0, length = audioSeconds(), to;
+            double& edge = trimming == 1 ? chart.trimStart : chart.trimEnd;
+            if (trimming == 1) to = std::clamp(seconds, 0.0, std::max(0.0, songEndSeconds() - MIN_TRIMMED_S));
+            else {
+                to = std::clamp(seconds, std::min(length, chart.trimStart + MIN_TRIMMED_S), length);
+                if (to >= length - 0.005) to = 0.0; // back at the audio's end: not trimmed
+            }
+            if (to != edge){
+                edge = to;
+                markChanged();
+            }
+            hoverTip = TextFormat("The song %s at %.2f s into its audio      Alt  off the bar lines", trimming == 1 ? "starts" : "ends",
+                                  trimming == 1 ? chart.trimStart : songEndSeconds());
+        }
+    } else {
+        trimming = 0;
     }
     if (ImGui::IsItemHovered() && ImGui::GetIO().MouseWheel != 0.0f){
         editor.viewStartTick -= ImGui::GetIO().MouseWheel * WHEEL_SCROLL * s / editor.pixelsPerBeat * chart.resolution;
@@ -2151,6 +2188,17 @@ static void drawOverview(ImVec2 min, ImVec2 max, float s){
     draw->AddRect(ImVec2(from, min.y), ImVec2(to, max.y), uiColor(UiColor::Accent), 4 * s, 0, 1.5f * s);
     int playhead = editor.playing ? (int)secondsToTick(chart, playbackSeconds()) : editor.playheadTick;
     verticalLine(draw, xAt(playhead), min.y, max.y, 2.0f * s, uiColor(UiColor::Accent));
+    if (editor.songLoaded){
+        // The trim's edges, with a grip each
+        for (int edge = 1; edge <= 2; edge++){
+            const float x = edge == 1 ? trimStartX : trimEndX;
+            const bool lit = trimming == edge || (trimming == 0 && (edge == 1 ? overStart : overEnd));
+            const ImU32 color = uiColor(lit ? UiColor::Accent : UiColor::Ink, lit ? 1.0f : 0.6f);
+            verticalLine(draw, x, min.y, max.y, 2.0f * s, color);
+            const float gripX = edge == 1 ? x : x - 5 * s;
+            draw->AddRectFilled(ImVec2(gripX, min.y + height / 2 - 7 * s), ImVec2(gripX + 5 * s, min.y + height / 2 + 7 * s), color, 2 * s);
+        }
+    }
     draw->PopClipRect();
 }
 
