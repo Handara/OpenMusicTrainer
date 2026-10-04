@@ -22,7 +22,9 @@ struct FretboardLayout {
     int stringAt(float y) const;       // the string nearest y, -1 when between none
 };
 
-FretboardLayout fretboardLayout(float left, float top, float width, float scale, int strings, int firstFret, int lastFret);
+// `spacing`: between strings, in pixels at the scale; 0 for the usual (30)
+FretboardLayout fretboardLayout(float left, float top, float width, float scale, int strings, int firstFret, int lastFret,
+                                float spacing = 0.0f);
 
 // The board, its markers, frets and numbers, and the strings with their names left of it. `lit`: a string drawn in
 // brass (-1 for none).

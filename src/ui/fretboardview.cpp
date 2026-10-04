@@ -12,7 +12,7 @@ const float OPEN_COLUMN = 44.0f;       // room left of the nut for open strings
 const float PAD = 22.0f;               // above the top string and below the bottom one
 const int SINGLE_DOTS[] = { 3, 5, 7, 9, 15, 17, 19, 21 }; // the fret markers on a guitar's neck; 12 and 24 get two
 
-FretboardLayout fretboardLayout(float left, float top, float width, float s, int strings, int firstFret, int lastFret){
+FretboardLayout fretboardLayout(float left, float top, float width, float s, int strings, int firstFret, int lastFret, float spacing){
     FretboardLayout layout;
     layout.left = left;
     layout.top = top;
@@ -21,7 +21,7 @@ FretboardLayout fretboardLayout(float left, float top, float width, float s, int
     layout.strings = strings;
     layout.firstFret = firstFret;
     layout.lastFret = lastFret;
-    layout.spacing = STRING_SPACING * s;
+    layout.spacing = (spacing > 0.0f ? spacing : STRING_SPACING) * s;
     layout.height = layout.spacing * (strings - 1) + 2 * PAD * s;
     layout.boardLeft = left + (firstFret == 0 ? OPEN_COLUMN * s : 0.0f);
     int fretCount = lastFret - std::max(firstFret, 1) + 1; // the fretted columns shown

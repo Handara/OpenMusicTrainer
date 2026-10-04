@@ -16,6 +16,7 @@
 #include "ui/menulist.h"
 #include "ui/pianoview.h"
 #include "ui/theme.h"
+#include "views/playnote.h"
 #include "ui/ui.h"
 
 #include <algorithm>
@@ -35,6 +36,81 @@ const int PIANO_LOW = 36, PIANO_KEYS = 61; // C2 to C7, a 61-key keyboard
 const float KEY_FADE_S = 0.35f;    // a released key's light going out
 const float GLOW_S = 0.45f;        // the glow rising from a key just pressed
 const double SAME_PLUCK_S = 0.06;  // notes this close in time were plucked together
+const float TRAVEL_S = 0.16f;      // the light going from the note before to a new one
+const float PATH_S = 1.2f;         // the dotted way between them, fading after
+const float PATH_DOT_GAP = 14.0f;  // at a 720-pixel-tall window
+
+// Play mode's notes (views/neckview), on this neck: a rounded card in its string's color with its fret on it and its
+// name under, the newest lit white. `grow`: pixels added all round (a pop, a ring); `alpha` fades it.
+static ImU32 imColor(Color color, float alpha = 1.0f){
+    return IM_COL32(color.r, color.g, color.b, (int)(color.a * std::clamp(alpha, 0.0f, 1.0f)));
+}
+static Color blend(Color from, Color to, float t){
+    return { (unsigned char)(from.r + (to.r - from.r) * t), (unsigned char)(from.g + (to.g - from.g) * t),
+             (unsigned char)(from.b + (to.b - from.b) * t), 255 };
+}
+static void cardSize(const FretboardLayout& board, float& halfW, float& halfH){
+    halfW = std::min(board.spacing * 0.27f * 1.5f, board.fretWidth * 0.38f);
+    halfH = halfW / 1.5f;
+}
+static void cardOutline(ImDrawList* draw, ImVec2 at, float halfW, float halfH, float grow, ImU32 color, float width){
+    const float w = halfW + grow, h = halfH + grow;
+    draw->AddRect(ImVec2(at.x - w, at.y - h), ImVec2(at.x + w, at.y + h), color, std::max(0.0f, 0.4f * halfH + grow), 0, width);
+}
+static void drawNoteCard(ImDrawList* draw, const FretboardLayout& board, int string, int fret, int pitch, float grow, float alpha,
+                         bool newest, float s){
+    const ImVec2 at(board.fretX(fret), board.stringY(string));
+    float halfW, halfH;
+    cardSize(board, halfW, halfH);
+    halfW += grow;
+    halfH += grow;
+    const bool night = currentTheme() == ThemeMode::Dark;
+    const Color color = stringColor(string), card = themeColor(UiColor::Card), background = themeColor(UiColor::Background);
+    const Color whiteHot = { 236, 246, 255, 255 };
+    const float corner = 0.4f * halfH;
+    // Its glow, fading out from its edge, then a dark rim that keeps notes apart
+    for (int k = 1; k <= 3; k++) cardOutline(draw, at, halfW, halfH, 1.6f * k * s, imColor(newest ? whiteHot : color, alpha * (newest ? 0.4f : 0.22f) / k), 2.0f * s);
+    draw->AddRectFilled(ImVec2(at.x - halfW - s, at.y - halfH - s), ImVec2(at.x + halfW + s, at.y + halfH + s), imColor(background, alpha), corner + s);
+    const Color fill = newest ? (night ? whiteHot : color) : blend(card, color, night ? 0.16f : 0.14f);
+    const Color ink = newest ? (night ? background : WHITE) : (night ? blend(color, WHITE, 0.35f) : blend(color, BLACK, 0.2f));
+    draw->AddRectFilled(ImVec2(at.x - halfW, at.y - halfH), ImVec2(at.x + halfW, at.y + halfH), imColor(fill, alpha), corner);
+    draw->AddRect(ImVec2(at.x - halfW + s, at.y - halfH + s), ImVec2(at.x + halfW - s, at.y + halfH - s), imColor(color, alpha), corner, 0, (newest ? 2.6f : 2.0f) * s);
+    // The fret, and the name under it
+    const UiFonts& fonts = uiFonts();
+    const float size = halfH * 1.45f;
+    const char* number = TextFormat("%d", fret);
+    ImVec2 numberSize = fonts.bold->CalcTextSizeA(size * 0.8f, FLT_MAX, 0.0f, number);
+    draw->AddText(fonts.bold, size * 0.8f, ImVec2(at.x - numberSize.x / 2, at.y - size * 0.2f - numberSize.y / 2), imColor(ink, alpha), number);
+    const char* name = pitchClassName(pitch);
+    ImVec2 nameSize = fonts.bold->CalcTextSizeA(size * 0.46f, FLT_MAX, 0.0f, name);
+    draw->AddText(fonts.bold, size * 0.46f, ImVec2(at.x - nameSize.x / 2, at.y + size * 0.42f - nameSize.y / 2), imColor(ink, alpha * 0.85f), name);
+}
+
+// The hand's way from one note to the next: dots between their cards, from `a` to `b`. `light`: 0 to 1, a light going
+// along it (negative: none); `alpha` fades the dots.
+static void drawWay(ImDrawList* draw, const FretboardLayout& board, ImVec2 a, ImVec2 b, float light, float alpha, float s){
+    float halfW, halfH;
+    cardSize(board, halfW, halfH);
+    const float dx = b.x - a.x, dy = b.y - a.y, length = std::sqrt(dx * dx + dy * dy);
+    if (length < 1e-3f) return;
+    const float ux = dx / length, uy = dy / length;
+    // Where the way leaves a card: its edge in that direction
+    const float edge = std::min(std::fabs(ux) > 1e-3f ? halfW / std::fabs(ux) : 1e9f, std::fabs(uy) > 1e-3f ? halfH / std::fabs(uy) : 1e9f) + 4 * s;
+    float start = edge, end = length - edge;
+    if (end <= start) return; // touching
+    const ImU32 accent = uiColor(UiColor::Accent, 0.6f * alpha);
+    const float gap = PATH_DOT_GAP * s;
+    if (end - start < gap) start = end = (start + end) / 2;
+    for (float d = start; d <= end + 0.01f; d += gap){
+        if (light >= 0.0f && d > start + (end - start) * light) break; // laid down by the light as it passes
+        draw->AddCircleFilled(ImVec2(a.x + ux * d, a.y + uy * d), 2.6f * s, accent);
+    }
+    if (light < 0.0f || light >= 1.0f) return;
+    for (int k = 5; k >= 0; k--){
+        const float along = start + (end - start) * std::max(0.0f, light - 0.05f * k), fade = 1.0f - k / 6.0f;
+        draw->AddCircleFilled(ImVec2(a.x + ux * along, a.y + uy * along), (2.5f + 2.5f * fade) * s, uiColor(UiColor::Accent, 0.9f * fade));
+    }
+}
 
 struct PlayedPlace {
     int pitch;
@@ -233,23 +309,42 @@ static void frettedScreen(float width, float height, float s){
         drawHeading(ImVec2(left, height * 0.2f), s, "Play a note", false, "", "", UiColor::Dim);
     }
 
-    FretboardLayout board = fretboardLayout(left, height * 0.43f, width * 0.82f, s, (int)tuning().size(), 0, frets());
+    // Strings far enough apart for play mode's note cards: as far as the room under the heading allows, up to 52
+    const float spacing = std::min(52.0f, height * 0.4f / s / (float)tuning().size());
+    FretboardLayout board = fretboardLayout(left, height * 0.34f, width * 0.82f, s, (int)tuning().size(), 0, frets(), spacing);
     drawFretboard(board, tuning());
+    // The way the hand went: between each pluck and the next, faint dots fading with age; to the newest, a light that
+    // travels there as it's played
+    auto placeAt = [&](const PlayedPlace& note){ return ImVec2(board.fretX(note.place.fret), board.stringY(note.place.string)); };
+    for (int i = (int)played.size() - 1; i > 0; i--){
+        const PlayedPlace& from = played[i];
+        int next = i - 1;
+        while (next > 0 && std::fabs(played[next].at - from.at) < SAME_PLUCK_S) next--; // a chord's notes: one way, from its last
+        if (std::fabs(played[next].at - from.at) < SAME_PLUCK_S) continue;
+        const float since = (float)(now - played[next].at);
+        if (played[next].at - from.at > 2.0) continue; // a pause: no way drawn across it
+        const float light = since < TRAVEL_S ? since / TRAVEL_S : -1.0f;
+        const float alpha = next < together ? std::max(0.0f, 1.0f - std::max(0.0f, since - TRAVEL_S) / PATH_S) * 0.9f + 0.1f
+                                            : 0.25f * (1.0f - (float)i / (TRAIL + 2));
+        drawWay(draw, board, placeAt(from), placeAt(played[next]), light, alpha, s);
+    }
     // The notes before, oldest first so newer ones sit on top: a scale shows its shape
     for (int i = (int)played.size() - 1; i >= together; i--){
         const PlayedPlace& note = played[i];
         float fade = 1.0f - (float)(i - together + 1) / (TRAIL + 1);
-        drawFretDot(board, note.place.string, note.place.fret, 9 * s, uiColor(UiColor::Accent, 0.12f + 0.4f * fade), 0, nullptr);
+        drawNoteCard(draw, board, note.place.string, note.place.fret, note.pitch, 0.0f, 0.2f + 0.55f * fade, false, s);
     }
     for (int i = together - 1; i >= 0; i--){
         const PlayedPlace& newest = played[i];
         float t = (float)(now - newest.at);
         const StringFret place = newest.place;
-        // A note alone: its other places as rings, since it may have been played there instead
+        // A note alone: its other places as outlines, since it may have been played there instead
+        float halfW, halfH;
+        cardSize(board, halfW, halfH);
         if (together == 1){
             for (StringFret other : positionsOf(newest.pitch, tuning(), frets())){
                 if (other == place) continue;
-                draw->AddCircle(ImVec2(board.fretX(other.fret), board.stringY(other.string)), 11 * s, uiColor(UiColor::Accent, 0.6f), 0, 1.5f * s);
+                cardOutline(draw, ImVec2(board.fretX(other.fret), board.stringY(other.string)), halfW, halfH, 0.0f, uiColor(UiColor::Accent, 0.45f), 1.5f * s);
             }
         }
         // The string shakes from the fret to the bridge (past the board's right), settling
@@ -265,17 +360,16 @@ static void frettedScreen(float width, float height, float s){
             }
             draw->AddPolyline(points, 64, uiColor(UiColor::Accent, alpha), 0, 2.0f * s);
         }
-        // The note: it pops in, and a ring goes out from it
-        float radius = 13 * s * (1.0f + 0.3f * std::exp(-t * 12.0f));
+        // The note: it pops in, and a ring of its shape goes out from it
         if (t < RING_S){
             float u = t / RING_S, eased = 1.0f - (1.0f - u) * (1.0f - u);
-            draw->AddCircle(ImVec2(board.fretX(place.fret), board.stringY(place.string)), 13 * s + 26 * s * eased,
-                            uiColor(UiColor::Accent, 0.6f * (1.0f - u)), 0, 2.0f * s);
+            cardOutline(draw, ImVec2(board.fretX(place.fret), board.stringY(place.string)), halfW, halfH, 4 * s + 22 * s * eased,
+                        uiColor(UiColor::Accent, 0.6f * (1.0f - u)), 2.0f * s);
         }
-        drawFretDot(board, place.string, place.fret, radius, uiColor(UiColor::Accent), uiColor(UiColor::Card), pitchClassName(newest.pitch));
+        drawNoteCard(draw, board, place.string, place.fret, newest.pitch, 4.0f * s * std::exp(-t * 12.0f), 1.0f, true, s);
     }
     const UiFonts& fonts = uiFonts();
-    const char* explain = "The bright one: where it was most likely played, near your last note. Rings: the same note elsewhere. Strings plucked together show together.";
+    const char* explain = "The bright one: where it was most likely played, near your last note. Outlines: the same note elsewhere. Strings plucked together show together, with their chord.";
     draw->AddText(fonts.text, 15 * s, ImVec2(left, board.top + board.height + 34 * s), uiColor(UiColor::Dim), explain);
 
     InputRole role = instrumentView.instrument == Instrument::Bass ? InputRole::Bass : InputRole::Guitar;
