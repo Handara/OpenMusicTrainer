@@ -1,7 +1,7 @@
-# lahn for macOS (13.3 and later: decimals written with std::to_chars), built on one of GitHub's Macs: one program for
-# Apple Silicon and Intel together, packed with its
-# resources, a file to start it with and how to, as a zip to download from the run's page (Artifacts). Then the tests,
-# built and run on the Mac too, so anything that behaves differently there shows.
+# lahn for macOS (13.3 and later: decimals are written with std::to_chars), built on one of GitHub's Macs: one program
+# for Apple Silicon and Intel together, packed with its resources, a file to start it with and how to, as a zip to
+# download from the run's page (Artifacts). Then the tests, built and run on the Mac too, so anything that behaves
+# differently there shows.
 name: macOS build
 
 on:
