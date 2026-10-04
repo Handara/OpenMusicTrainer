@@ -327,10 +327,31 @@ static void frettedScreen(float width, float height, float s){
         instrumentView.chordAt = at;
         played.erase(std::remove_if(played.begin(), played.end(), [&](const PlayedPlace& note){ return std::fabs(note.at - at) < SAME_PLUCK_S; }), played.end());
         StringFret before = played.empty() ? StringFret{-1, -1} : played.front().place;
-        std::vector<StringFret> places = chordPositions(chord.pitches, tuning(), frets(), before);
+        std::vector<int> pitches = chord.pitches;
+        std::vector<StringFret> places = chordPositions(pitches, tuning(), frets(), before);
+        // A chord known, in an open shape holding every note found: the whole shape, every string of it. A note an
+        // octave above another hides in it (all its harmonics are the lower one's), so a strum's doubled notes are
+        // heard as one: the shape says where they were.
+        const ChordInfo* known = chord.name.empty() || tuning() != GUITAR_TUNING ? nullptr : findChord(chord.name);
+        if (known){
+            std::vector<int> shapePitches;
+            std::vector<StringFret> shapePlaces;
+            for (int string = 0; string < 6; string++){
+                if (known->shape[string] < 0) continue;
+                shapePitches.push_back(GUITAR_TUNING[string] + known->shape[string]);
+                shapePlaces.push_back({ string, known->shape[string] });
+            }
+            const bool fits = std::all_of(pitches.begin(), pitches.end(), [&](int pitch){
+                return std::count(shapePitches.begin(), shapePitches.end(), pitch) > 0;
+            });
+            if (fits){
+                pitches = shapePitches;
+                places = shapePlaces;
+            }
+        }
         for (size_t i = 0; i < places.size(); i++){
             if (places[i].string < 0) continue;
-            played.push_front({chord.pitches[i], places[i], at});
+            played.push_front({pitches[i], places[i], at});
             instrumentView.hand = places[i];
         }
     }
@@ -379,11 +400,15 @@ static void frettedScreen(float width, float height, float s){
     // The way the hand went: between each pluck and the next, faint dots fading with age; to the newest, a light that
     // travels there as it's played
     auto placeAt = [&](const PlayedPlace& note){ return ImVec2(board.fretX(note.place.fret), board.stringY(note.place.string)); };
+    // (between single notes: a strum has no one place the hand went from or to)
+    auto alone = [&](int i){
+        return (i == 0 || std::fabs(played[i - 1].at - played[i].at) >= SAME_PLUCK_S) &&
+               (i + 1 >= (int)played.size() || std::fabs(played[i + 1].at - played[i].at) >= SAME_PLUCK_S);
+    };
     for (int i = (int)played.size() - 1; i > 0; i--){
         const PlayedPlace& from = played[i];
-        int next = i - 1;
-        while (next > 0 && std::fabs(played[next].at - from.at) < SAME_PLUCK_S) next--; // a chord's notes: one way, from its last
-        if (std::fabs(played[next].at - from.at) < SAME_PLUCK_S) continue;
+        const int next = i - 1;
+        if (!alone(i) || !alone(next)) continue;
         const float since = (float)(now - played[next].at);
         if (played[next].at - from.at > 2.0) continue; // a pause: no way drawn across it
         const float light = since < TRAVEL_S ? since / TRAVEL_S : -1.0f;
