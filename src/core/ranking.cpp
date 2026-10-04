@@ -95,7 +95,7 @@ std::string recordsPath(const std::string& recordsDir, const std::string& songId
 int addRun(std::vector<RunRecord>& records, const RunRecord& run){
     // After every record with at least this score: an equal score doesn't push an older one down
     auto at = std::upper_bound(records.begin(), records.end(), run.score,
-                               [](int score, const RunRecord& record){ return score > record.score; });
+                               [](long long score, const RunRecord& record){ return score > record.score; });
     int place = (int)(at - records.begin());
     if (place >= KEPT_RUNS) return -1;
     records.insert(at, run);

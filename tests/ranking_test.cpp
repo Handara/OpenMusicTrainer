@@ -99,6 +99,19 @@ TEST_CASE("records: the best first, a limited list, kept on disk"){
     CHECK(loaded[0].grade() == Grade::S);
 }
 
+TEST_CASE("records: a score past what an int holds is kept whole (the multiplier has no limit)"){
+    RunRecord huge;
+    huge.score = 5'000'000'123LL; // a perfect run of about 10,000 notes
+    huge.date = "2026-10-04";
+    std::filesystem::path path = std::filesystem::temp_directory_path() / "lahn_tests" / "records-huge.txt";
+    std::filesystem::create_directories(path.parent_path());
+    std::string error;
+    REQUIRE_MESSAGE(saveRuns(path.string(), {huge}, error), error);
+    std::vector<RunRecord> loaded = loadRuns(path.string());
+    REQUIRE(loaded.size() == 1);
+    CHECK(loaded[0].score == 5'000'000'123LL);
+}
+
 TEST_CASE("history: every run in the order played, started from the records kept before it"){
     std::filesystem::path dir = std::filesystem::temp_directory_path() / "lahn_tests" / "history";
     std::filesystem::remove_all(dir);

@@ -26,7 +26,7 @@ TimingStats timingStats(const std::vector<float>& errorsMs);
 
 // One run, as it's kept
 struct RunRecord {
-    int score = 0;
+    long long score = 0;
     float accuracy = 0.0f;
     int maxCombo = 0;
     int perfect = 0, good = 0, miss = 0;

@@ -56,7 +56,7 @@ static void drawSongCard(const SongEntry& song, float s){
             const RunRecord& best = part.best;
             draw->AddText(fonts.heavy, 30 * s, ImVec2(x, rowY - 2 * s), uiColor(gradeColor(best.grade())), gradeName(best.grade()));
             draw->AddText(fonts.bold, 20 * s, ImVec2(x + 56 * s, rowY + 4 * s), uiColor(UiColor::Ink),
-                          TextFormat("%.2f%%   %d", best.accuracy, best.score));
+                          TextFormat("%.2f%%   %lld", best.accuracy, best.score));
             if (best.fullCombo()){
                 draw->AddText(fonts.mono, 13 * s, ImVec2(x + inner - 30 * s, rowY + 9 * s), uiColor(UiColor::Accent), "FC");
             }
@@ -407,7 +407,7 @@ ResultsChoice resultsScreen(const GameResult& result){
         }
         y += 30 * s + 14 * s;
     };
-    row("SCORE", TextFormat("%d", result.score), UiColor::Ink, "");
+    row("SCORE", TextFormat("%lld", result.score), UiColor::Ink, "");
     bool fullCombo = result.missCount == 0 && result.totalNotes > 0;
     row("BEST COMBO", TextFormat("%d", result.maxCombo), fullCombo ? UiColor::Accent : UiColor::Ink,
         fullCombo ? "FULL COMBO" : TextFormat("of %d notes", result.totalNotes));
@@ -455,7 +455,7 @@ ResultsChoice resultsScreen(const GameResult& result){
             ImU32 ink = uiColor(thisRun ? UiColor::Accent : UiColor::Ink), dim = uiColor(thisRun ? UiColor::Accent : UiColor::Dim);
             draw->AddText(fonts.mono, 15 * s, ImVec2(left, boardY + 3 * s), dim, TextFormat("%d", i + 1));
             draw->AddText(fonts.heavy, 20 * s, ImVec2(left + 30 * s, boardY), uiColor(thisRun ? UiColor::Accent : gradeColor(run.grade())), gradeName(run.grade()));
-            draw->AddText(fonts.bold, 20 * s, ImVec2(left + 72 * s, boardY), ink, TextFormat("%d", run.score));
+            draw->AddText(fonts.bold, 20 * s, ImVec2(left + 72 * s, boardY), ink, TextFormat("%lld", run.score));
             draw->AddText(fonts.text, 17 * s, ImVec2(left + 180 * s, boardY + 2 * s), dim,
                           TextFormat("%.2f%%  ·  %s%s  ·  %s", run.accuracy, run.fullCombo() ? "FC" : TextFormat("%dx", run.maxCombo),
                                      run.withInstrument ? "" : "  ·  keys", run.date.c_str()));

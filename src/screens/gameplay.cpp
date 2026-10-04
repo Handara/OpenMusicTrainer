@@ -38,10 +38,10 @@
 #include <vector>
 
 struct GameState {
-    int score;
+    long long score; // the multiplier has no limit: a long run of perfect hits outgrows an int
     int combo;
     int maxCombo;
-    int multiplier; // increments on a perfect hit, unchanged on near, resets on miss
+    int multiplier; // increments on a perfect hit, without limit; unchanged on near; resets on miss
     float rhythm; // 0..1, the "rhythm" meter
     int perfectCount;
     int nearCount;
@@ -55,7 +55,6 @@ const float RHYTHM_FILL_PER_PERFECT = 0.12f;
 
 const int laneKeys[MAX_LANES] = { KEY_ONE, KEY_TWO, KEY_THREE, KEY_FOUR, KEY_FIVE, KEY_SIX, KEY_SEVEN, KEY_EIGHT };
 
-const int MAX_MULTIPLIER = 4;
 const double LEAD_IN_S = 2.0; // starting part-way into a song, it plays this long before the first note
 const double MIN_COUNT_IN_S = 1.5; // from the top, a bar is counted in; two when one is shorter than this (fast songs)
 const double TRIM_FADE_S = 0.4;    // a trimmed song's end fades out over this long rather than being cut
@@ -150,12 +149,12 @@ static void scoreHit(GameState& state, const JudgeResult& result, ImVec2 anchor)
     for (int i = 0; i < notesHit; i++){
         state.combo++;
         if (judgement == Judgement::Perfect){
-            state.multiplier = std::min(state.multiplier + 1, MAX_MULTIPLIER);
-            state.score += 100 * state.multiplier;
+            state.multiplier++;
+            state.score += 100LL * state.multiplier;
             state.rhythm = std::min(1.0f, state.rhythm + RHYTHM_FILL_PER_PERFECT);
             state.perfectCount++;
         } else {
-            state.score += 10 * state.multiplier;
+            state.score += 10LL * state.multiplier;
             state.rhythm *= 0.5f;
             state.nearCount++;
         }
@@ -969,7 +968,7 @@ void drawGameplayHud(){
     }
 
     // The score on the right, the combo and multiplier under it: the multiplier in brass once it's working
-    const char* score = TextFormat("%d", state.score);
+    const char* score = TextFormat("%lld", state.score);
     draw->AddText(fonts.heavy, 34 * s, ImVec2(width - margin - textWidth(fonts.heavy, 34 * s, score), top - 4 * s), uiColor(UiColor::Ink), score);
     const char* multiplier = TextFormat("x%d", state.multiplier);
     float multiplierWidth = textWidth(fonts.mono, 15 * s, multiplier);

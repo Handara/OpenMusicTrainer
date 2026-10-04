@@ -23,7 +23,7 @@ struct HeardPitch {
 struct GameResult {
     std::string title;
     std::string partName;
-    int score;
+    long long score;
     int maxCombo;
     int perfectCount;
     int nearCount;

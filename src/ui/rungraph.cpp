@@ -18,7 +18,8 @@ void drawRunHistory(ImDrawList* draw, const std::vector<RunRecord>& runs, ImVec2
     if (runs.empty() || size.x <= 0 || size.y <= 0) return;
     const UiFonts& fonts = uiFonts();
     const int count = (int)runs.size();
-    int lowest = runs[0].score, highest = runs[0].score, best = 0;
+    long long lowest = runs[0].score, highest = runs[0].score;
+    int best = 0;
     for (int i = 0; i < count; i++){
         lowest = std::min(lowest, runs[i].score);
         if (runs[i].score > highest){ highest = runs[i].score; best = i; }
@@ -29,7 +30,7 @@ void drawRunHistory(ImDrawList* draw, const std::vector<RunRecord>& runs, ImVec2
     float spread = (float)(highest - lowest);
     auto pointOf = [&](int i){
         float x = count == 1 ? at.x + size.x / 2 : at.x + margin + (size.x - 2 * margin) * i / (count - 1);
-        float share = spread > 0 ? (runs[i].score - lowest) / spread : 0.5f;
+        float share = spread > 0 ? (float)(runs[i].score - lowest) / spread : 0.5f;
         return ImVec2(x, at.y + size.y - margin - (size.y - 2 * margin) * share);
     };
     const float reveal = std::clamp(look.reveal, 0.0f, 1.0f);
