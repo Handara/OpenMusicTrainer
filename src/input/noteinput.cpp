@@ -108,7 +108,7 @@ const std::vector<PlayedNote>& updateNoteInput(){
     input.detector.attacks.clear();
     for (const DetectedNote& note : input.detected){
         double age = (double)(input.detector.position - note.sample) / input.detector.sampleRate;
-        input.played.push_back({note.pitch, note.cents, age, note.legato});
+        input.played.push_back({note.pitch, note.cents, age, note.legato, note.technique});
     }
     return input.played;
 }

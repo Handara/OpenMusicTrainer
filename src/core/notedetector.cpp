@@ -13,8 +13,12 @@ const int RECENT_HOPS = 4;               // "recent" = the last ~11 ms: a pluck 
 const float MIN_ONSET_GAP_S = 0.05f;     // two onsets closer than this are one note (a pick's double bump)
 const float ATTACK_SKIP_S = 0.01f;       // the pick's scrape right after an onset has no clear pitch: skip it
 const float PITCH_TIMEOUT_S = 0.15f;     // no pitch this long after an onset: it was a noise, not a note
-const int LEGATO_ANALYSIS_HOPS = 4;      // while a note rings, look for pitch changes every ~11 ms...
-const int LEGATO_CONFIRMATIONS = 3;      // ...and believe a change once it holds for 3 looks in a row
+const int LEGATO_ANALYSIS_HOPS = 2;      // while a note rings, look for pitch changes every ~5 ms (often enough to see
+                                         // a slide's steps from fret to fret)...
+const int LEGATO_CONFIRMATIONS = 6;      // ...and believe a change once it holds for 6 looks in a row (~16 ms)
+const float TRAIL_S = 0.3f;              // how far back a change's way is looked at
+const float ON_A_NOTE = 0.2f;            // a reading this near a semitone is on that note; farther, between notes
+const float BEND_LEAST_S = 0.04f;        // a bend takes this long at least between the notes
 // ...and once believed, wait this long for a pluck: on a real bass, the fretting hand lands on the next note (or
 // mutes this one) 50 to 200 ms before that note is plucked, and the ringing string changes pitch under it. A pluck
 // in that time makes it the hand getting ready, not a note; with none, it's a hammer-on or a slide, stamped when it
@@ -139,9 +143,45 @@ static float newNoteOverRinging(const NoteDetector& detector, float midi){
     return midi;
 }
 
+// How a change of pitch from `from` to `to` (MIDI) went, from the readings on the way. None between the two: it jumped
+// (a hammer-on up, a pull-off down). Between them mostly off any note, for a while: a bend. On the notes between: a
+// slide, fret by fret.
+static Technique techniqueOfChange(const NoteDetector& detector, float from, float to){
+    const float low = std::min(from, to) + ON_A_NOTE, high = std::max(from, to) - ON_A_NOTE;
+    int between = 0, offNotes = 0;
+    long long first = -1, last = -1;
+    bool onANoteBetween = false;
+    for (const auto& [sample, midi] : detector.trail){
+        if (midi <= low || midi >= high) continue;
+        between++;
+        if (first < 0) first = sample;
+        last = sample;
+        const float off = std::fabs(midi - std::round(midi));
+        if (off > ON_A_NOTE) offNotes++;
+        else if (std::fabs(std::round(midi) - std::round(from)) >= 1.0f && std::fabs(std::round(midi) - std::round(to)) >= 1.0f) onANoteBetween = true;
+    }
+    if (between == 0) return to > from ? Technique::HammerOn : Technique::PullOff;
+    const float took = (float)(last - first) / detector.sampleRate;
+    if (2 * offNotes >= between && took >= BEND_LEAST_S) return Technique::Bend;
+    if (onANoteBetween) return Technique::Slide;
+    return to > from ? Technique::HammerOn : Technique::PullOff;
+}
+
+const char* techniqueName(Technique technique){
+    switch (technique){
+        case Technique::Pluck: return "pluck";
+        case Technique::HammerOn: return "hammer-on";
+        case Technique::PullOff: return "pull-off";
+        case Technique::Slide: return "slide";
+        case Technique::Bend: return "bend";
+    }
+    return "";
+}
+
 static void emit(NoteDetector& detector, long long sample, float midi, std::vector<DetectedNote>& out){
     int pitch = (int)std::lround(midi);
     out.push_back({sample, pitch, (midi - pitch) * 100.0f});
+    detector.trail.clear(); // a new note: what came before isn't its way
     detector.sounding = true;
     detector.liveMidi = midi;
     detector.currentPitch = pitch;
@@ -177,7 +217,7 @@ static void processHop(NoteDetector& detector, std::vector<DetectedNote>& out){
     // A held legato change with no pluck since: a note after all
     if (detector.legatoHeld && detector.position >= detector.legatoDue){
         int pitch = (int)std::lround(detector.legatoMidi);
-        out.push_back({detector.legatoSample, pitch, (detector.legatoMidi - pitch) * 100.0f, true});
+        out.push_back({detector.legatoSample, pitch, (detector.legatoMidi - pitch) * 100.0f, true, detector.legatoTechnique});
         detector.legatoHeld = false;
     }
 
@@ -235,6 +275,9 @@ static void processHop(NoteDetector& detector, std::vector<DetectedNote>& out){
     float midi = analyzePitch(detector);
     if (midi < 0.0f) return;
     detector.liveMidi = midi;
+    detector.trail.push_back({ detector.position - detector.analysisLag, midi });
+    const long long trailFrom = detector.position - (long long)(TRAIL_S * detector.sampleRate);
+    while (!detector.trail.empty() && detector.trail.front().first < trailFrom) detector.trail.erase(detector.trail.begin());
     int pitch = (int)std::lround(midi);
     bool overtone = std::count(std::begin(OVERTONE_STEPS), std::end(OVERTONE_STEPS), pitch - detector.currentPitch) > 0;
     // Or a period the ringing note shares with another (its frequency divides evenly into the ringing note's)
@@ -251,6 +294,8 @@ static void processHop(NoteDetector& detector, std::vector<DetectedNote>& out){
         detector.candidateSample = detector.position - detector.analysisLag;
     }
     if (++detector.candidateCount >= LEGATO_CONFIRMATIONS){
+        // How it went from the note before: the readings between the two
+        detector.legatoTechnique = techniqueOfChange(detector, detector.currentMidi, midi);
         // It's ringing at this pitch now (so it isn't confirmed again), but only told once no pluck follows
         detector.currentPitch = pitch;
         detector.currentMidi = midi;

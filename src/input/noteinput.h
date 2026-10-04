@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/notedetector.h"
+
 #include <string>
 #include <vector>
 
@@ -10,7 +12,8 @@ struct PlayedNote {
     float cents; // how far off it, -50 to +50
     double age;  // seconds from the note's start to the newest sample received. A screen places it in time as
                  // (its clock now) - age - input offset; the offset covers the device's own delay (see calibration).
-    bool legato = false; // reached without a pluck: a hammer-on, a pull-off, a slide (core/notedetector)
+    bool legato = false; // reached without a pluck: a hammer-on, a pull-off, a slide, a bend (core/notedetector)
+    Technique technique = Technique::Pluck; // which of them
 };
 
 // minFrequency: the lowest note expected (guitar about 70 Hz, bass about 30 Hz); lower costs a little detection time

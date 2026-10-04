@@ -20,12 +20,21 @@ struct NoteDetectorConfig {
                                   // string still ringing, a staccato note: 4 to 7 dB on a real bass)
 };
 
+// How a note came: plucked, or reached from the note ringing before without a pluck. The pitch on the way tells which:
+// a bend glides there smoothly, through pitches between the notes (tens of ms); a slide steps through the frets
+// between; a hammer-on or a pull-off jumps (a slide of one fret too: it jumps as the finger crosses the fret).
+enum class Technique { Pluck, HammerOn, PullOff, Slide, Bend };
+
 struct DetectedNote {
     long long sample; // position in the stream (samples fed so far) where the note started
     int pitch;        // nearest MIDI pitch
     float cents;      // how far from that pitch, -50 to +50
-    bool legato = false; // reached without a pluck (a hammer-on, a pull-off, a slide), from the note ringing before
+    bool legato = false; // reached without a pluck (a hammer-on, a pull-off, a slide, a bend), from the note ringing before
+    Technique technique = Technique::Pluck;
 };
+
+// Its name, for showing: "hammer-on", "slide"...
+const char* techniqueName(Technique technique);
 
 struct NoteDetector {
     NoteDetectorConfig config;
@@ -49,6 +58,8 @@ struct NoteDetector {
     long long lastOnsetSample = -1000000;
     bool sounding = false;       // a note is ringing (its pitch is known)
     float liveMidi = -1.0f;      // its pitch as last measured while it rings (a bend moves it), -1 when nothing rings
+    std::vector<std::pair<long long, float>> trail; // its pitch as measured lately (sample, MIDI): how a change went
+    Technique legatoTechnique = Technique::HammerOn; // how the change held back went
     int currentPitch = -1;
     float currentMidi = -1.0f;   // its pitch exactly, as first measured: a legato change must move well away from it
     int candidatePitch = -1;     // a different pitch seen while ringing (a possible legato change)...

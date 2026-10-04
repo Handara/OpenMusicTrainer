@@ -20,6 +20,7 @@
 #include "ui/ui.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <ctime>
 #include <deque>
@@ -38,7 +39,7 @@ const float GLOW_S = 0.45f;        // the glow rising from a key just pressed
 const double SAME_PLUCK_S = 0.06;  // notes this close in time were plucked together
 const float TRAVEL_S = 0.16f;      // the light going from the note before to a new one
 const float BEND_MIN = 0.25f;      // semitones a ringing note's pitch must rise to show as bent
-const float BEND_PIXELS = 26.0f;   // the arrow's length for each semitone, at a 720-pixel-tall window
+const float BEND_SHARE = 0.32f;    // the arrow's length for each semitone, in the strings' spacing
 const float PATH_S = 1.2f;         // the dotted way between them, fading after
 const float PATH_DOT_GAP = 14.0f;  // at a 720-pixel-tall window
 
@@ -102,6 +103,19 @@ static void drawTunnel(ImDrawList* draw, const FretboardLayout& board, ImVec2 a,
     draw->AddCircleFilled(at, width * 0.55f, imColor(Color{ 236, 246, 255, 255 }, 0.9f));
 }
 
+// A hammer-on or a pull-off, from `a` to `b`: a slur over them, as in tab, its letter at the top
+static void drawSlur(ImDrawList* draw, const FretboardLayout& board, ImVec2 a, ImVec2 b, const char* letter, Color color, float alpha, float s){
+    float halfW, halfH;
+    cardSize(board, halfW, halfH);
+    const ImVec2 from(a.x, a.y - halfH - 3 * s), to(b.x, b.y - halfH - 3 * s);
+    const ImVec2 top((from.x + to.x) / 2, std::min(from.y, to.y) - board.spacing * 0.55f);
+    draw->AddBezierQuadratic(from, top, to, imColor(color, 0.85f * alpha), 2.2f * s);
+    const UiFonts& fonts = uiFonts();
+    const ImVec2 size = fonts.bold->CalcTextSizeA(13 * s, FLT_MAX, 0.0f, letter);
+    const ImVec2 peak((from.x + 2 * top.x + to.x) / 4, (from.y + 2 * top.y + to.y) / 4); // the curve's highest point
+    draw->AddText(fonts.bold, 13 * s, ImVec2(peak.x - size.x / 2, peak.y - size.y - 2 * s), imColor(color, alpha), letter);
+}
+
 // The hand's way from one note to the next: dots between their cards, from `a` to `b`. `light`: 0 to 1, a light going
 // along it (negative: none); `alpha` fades the dots.
 static void drawWay(ImDrawList* draw, const FretboardLayout& board, ImVec2 a, ImVec2 b, float light, float alpha, float s){
@@ -132,7 +146,8 @@ struct PlayedPlace {
     int pitch;
     StringFret place;
     double at;          // when it was plucked (GetTime seconds), or reached
-    bool slid = false;  // reached without a pluck from the note before: a slide, a bend that landed, a hammer-on
+    Technique how = Technique::Pluck; // or reached from the note before without a pluck: a slide, a hammer-on...
+    int bent = 0;       // a bend: semitones above its fret's own note (the fret stays where it was)
 };
 
 // Its name is used by no other file: Visual Studio names an unnamed struct after its variable, and two files'
@@ -211,6 +226,11 @@ static std::string stringName(int string){
     return (lowest ? "low " : "high ") + name;
 }
 
+static std::string upper(std::string text){
+    for (char& c : text) c = (char)std::toupper((unsigned char)c);
+    return text;
+}
+
 static std::string noteName(int pitch){ return std::string(pitchClassName(pitch)) + std::to_string(pitchOctave(pitch)); }
 
 // The instruments to choose from, beside the title: Tab or a click
@@ -280,15 +300,25 @@ static void frettedScreen(float width, float height, float s){
     std::deque<PlayedPlace>& played = instrumentView.played;
     for (const PlayedNote& note : updateNoteInput()){
         StringFret place = likeliestPosition(positionsOf(note.pitch, tuning(), frets()), instrumentView.hand);
-        // Reached without a pluck: along the string the note before was on, if the note is on it
+        const Technique how = note.legato ? note.technique : Technique::Pluck;
+        int bent = 0;
+        // Reached without a pluck: on the string the note before was on. A bend (or letting one down) stays on its
+        // fret; a slide or a hammer-on moves along the string to the note's own fret.
         if (note.legato && !played.empty()){
-            const int string = played.front().place.string, fret = note.pitch - tuning()[string];
-            if (fret >= 0 && fret <= frets()) place = { string, fret };
+            const PlayedPlace& before = played.front();
+            const int string = before.place.string, fretNote = tuning()[string] + before.place.fret;
+            const bool bending = how == Technique::Bend || (before.bent > 0 && how == Technique::PullOff);
+            if (bending && note.pitch >= fretNote && note.pitch - fretNote <= 4){
+                place = before.place;
+                bent = note.pitch - fretNote;
+            } else if (note.pitch - tuning()[string] >= 0 && note.pitch - tuning()[string] <= frets()){
+                place = { string, note.pitch - tuning()[string] };
+            }
         }
         if (place.string < 0) continue; // off this neck: lower than its lowest string, or past its last fret
         instrumentView.hand = place;
         instrumentView.cents = note.cents;
-        played.push_front({note.pitch, place, now - note.age, note.legato});
+        played.push_front({note.pitch, place, now - note.age, how, bent});
     }
     // A pluck of several notes: together they take the place of the one note heard for it (one of them, or a muddle)
     for (const PlayedChord& chord : noteInputChords()){
@@ -321,6 +351,7 @@ static void frettedScreen(float width, float height, float s){
         int cents = (int)std::lround(instrumentView.cents);
         bool inTune = std::abs(cents) <= 5;
         std::string tune = inTune ? "IN TUNE" : TextFormat("%d CENTS %s", std::abs(cents), cents > 0 ? "SHARP" : "FLAT");
+        if (newest.how != Technique::Pluck) tune = std::string(newest.how == Technique::Bend && newest.bent == 0 ? "RELEASE" : upper(techniqueName(newest.how))) + "  ·  " + tune;
         drawHeading(ImVec2(left, height * 0.2f), s, noteName(newest.pitch), true, where, tune, inTune ? UiColor::Good : UiColor::Dim);
     } else if (together > 1){
         // Lowest first: "E2 + B2", each on its string, and the chord they make if they make one
@@ -358,8 +389,12 @@ static void frettedScreen(float width, float height, float s){
         const float light = since < TRAVEL_S ? since / TRAVEL_S : -1.0f;
         const float alpha = next < together ? std::max(0.0f, 1.0f - std::max(0.0f, since - TRAVEL_S) / PATH_S) * 0.9f + 0.1f
                                             : 0.25f * (1.0f - (float)i / (TRAIL + 2));
-        if (played[next].slid) drawTunnel(draw, board, placeAt(from), placeAt(played[next]), stringColor(played[next].place.string), light, std::max(alpha, 0.35f), s);
-        else drawWay(draw, board, placeAt(from), placeAt(played[next]), light, alpha, s);
+        const Technique how = played[next].how;
+        if (how == Technique::Slide) drawTunnel(draw, board, placeAt(from), placeAt(played[next]), stringColor(played[next].place.string), light, std::max(alpha, 0.35f), s);
+        else if (how == Technique::HammerOn || how == Technique::PullOff)
+            drawSlur(draw, board, placeAt(from), placeAt(played[next]), how == Technique::HammerOn ? "H" : "P", stringColor(played[next].place.string), std::max(alpha, 0.35f), s);
+        else if (how == Technique::Pluck) drawWay(draw, board, placeAt(from), placeAt(played[next]), light, alpha, s);
+        // a bend stays where it was: its arrow says it
     }
     // The notes before, oldest first so newer ones sit on top: a scale shows its shape
     for (int i = (int)played.size() - 1; i >= together; i--){
@@ -400,12 +435,17 @@ static void frettedScreen(float width, float height, float s){
                         uiColor(UiColor::Accent, 0.6f * (1.0f - u)), 2.0f * s);
         }
         drawNoteCard(draw, board, place.string, place.fret, newest.pitch, 4.0f * s * std::exp(-t * 12.0f), 1.0f, true, s);
-        // Bent: an arrow up from it as far as the pitch has gone, and how far (a quarter tone, a half, a whole...)
+        // Bent: an arrow up from it as far as the pitch has gone above its fret's own note, and how far (a quarter
+        // tone, a half, a whole...): as it's bent, and once it's landed
+        // While the pitch moves, only between notes: a slide steps from note to note, a bend glides between them
         const float live = noteInputLivePitch();
-        const float bent = live - (float)newest.pitch;
-        if (together == 1 && live >= 0.0f && bent >= BEND_MIN && bent < 3.5f){
+        const bool betweenNotes = live >= 0.0f && std::fabs(live - std::round(live)) > 0.2f;
+        const float bent = (newest.bent > 0 || betweenNotes ? (live >= 0.0f ? live : (float)newest.pitch) : (float)newest.pitch)
+                         - (float)(tuning()[place.string] + place.fret);
+        if (together == 1 && (newest.bent > 0 || betweenNotes) && bent >= BEND_MIN && bent < 4.5f){
             const ImVec2 at(board.fretX(place.fret), board.stringY(place.string));
-            const float top = at.y - halfH - 6 * s - bent * BEND_PIXELS * s;
+            // Its length by the strings' spacing: a whole tone reaches most of the way to the next string up
+            const float top = at.y - halfH - 4 * s - std::min(bent, 3.0f) * board.spacing * BEND_SHARE;
             const ImU32 ink = uiColor(UiColor::Accent);
             draw->AddLine(ImVec2(at.x, at.y - halfH - 4 * s), ImVec2(at.x, top), ink, 2.5f * s);
             draw->AddTriangleFilled(ImVec2(at.x, top - 7 * s), ImVec2(at.x - 6 * s, top + 2 * s), ImVec2(at.x + 6 * s, top + 2 * s), ink);

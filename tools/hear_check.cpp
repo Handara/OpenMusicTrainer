@@ -77,7 +77,8 @@ int main(int argc, char** argv){
         for (long long attack : detector.attacks) std::printf("%9.3f  attack\n", attack / (double)rate);
         detector.attacks.clear();
         detector.changes.clear();
-        for (const DetectedNote& note : notes) std::printf("%9.3f  note   %s %+.0f cents\n", note.sample / (double)rate, name(note.pitch).c_str(), note.cents);
+        for (const DetectedNote& note : notes) std::printf("%9.3f  note   %s %+.0f cents%s%s\n", note.sample / (double)rate, name(note.pitch).c_str(), note.cents,
+                                                            note.legato ? "  " : "", note.legato ? techniqueName(note.technique) : "");
         for (const PluckNotes& pluck : plucks){
             std::printf("%9.3f  pluck of several:", pluck.sample / (double)rate);
             for (int pitch : pluck.pitches) std::printf(" %s", name(pitch).c_str());
