@@ -16,13 +16,15 @@ struct NoteDetectorConfig {
     float minFrequency = 70.0f;   // lowest note expected; guitar's low E is 82 Hz, a bass needs about 30
     float maxFrequency = 1400.0f; // highest; the 24th fret of the high e is 1319 Hz
     float silenceDb = -50.0f;     // quieter than this is silence
-    float onsetRiseDb = 6.0f;     // a level jump this big above the recent minimum starts a note
+    float onsetRiseDb = 4.5f;     // a level jump this big above the recent minimum starts a note (a soft pluck on a
+                                  // string still ringing, a staccato note: 4 to 7 dB on a real bass)
 };
 
 struct DetectedNote {
     long long sample; // position in the stream (samples fed so far) where the note started
     int pitch;        // nearest MIDI pitch
     float cents;      // how far from that pitch, -50 to +50
+    bool legato = false; // reached without a pluck (a hammer-on, a pull-off, a slide), from the note ringing before
 };
 
 struct NoteDetector {
@@ -77,3 +79,10 @@ void expectLowestFrequency(NoteDetector& detector, float frequency);
 
 // Feeds the next samples of the stream, in any size of chunk. Notes that started are appended to `out`.
 void feedNoteDetector(NoteDetector& detector, const float* samples, int count, std::vector<DetectedNote>& out);
+
+// Whether something heard may still turn out a note: a pluck whose pitch isn't known yet, a change of pitch being
+// confirmed, or one held back to see whether a pluck follows. Its sample (where the note would start), -1 for none.
+long long noteDetectorPending(const NoteDetector& detector);
+// A change of pitch confirmed but held back (a pluck may follow): true, with where it started and its pitch. Whoever
+// knows more (a song: a slide from a pluck that matched nothing) may take it as a note at once.
+bool noteDetectorHeldChange(const NoteDetector& detector, long long& sample, int& pitch);

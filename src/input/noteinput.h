@@ -10,6 +10,7 @@ struct PlayedNote {
     float cents; // how far off it, -50 to +50
     double age;  // seconds from the note's start to the newest sample received. A screen places it in time as
                  // (its clock now) - age - input offset; the offset covers the device's own delay (see calibration).
+    bool legato = false; // reached without a pluck: a hammer-on, a pull-off, a slide (core/notedetector)
 };
 
 // minFrequency: the lowest note expected (guitar about 70 Hz, bass about 30 Hz); lower costs a little detection time
@@ -40,6 +41,11 @@ float noteInputLevelDb(); // loudness of the latest input, for a level meter
 // (chords). At noteInputSampleRate.
 const std::vector<float>& latestInputSamples();
 int noteInputSampleRate();
+// Something heard that may still turn out a note (core/notedetector): how long ago it started (seconds, like a note's
+// age), or a negative number for nothing. A note isn't missed while what was played on it is still being listened to.
+double noteInputPendingAge();
+// A change of pitch with no pluck, held back to see whether a pluck follows (core/notedetector): its pitch and age
+bool noteInputHeldChange(int& pitch, double& age);
 
 // A check of what's heard: from now, everything the input reads and every attack, note and pluck of several notes the
 // detectors find is kept (up to a few minutes), to be saved as <base>.wav (the samples, as the detector gets them)

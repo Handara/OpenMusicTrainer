@@ -25,11 +25,15 @@ const float LEGATO_HOLD_S = 0.25f;
 // the bass recorded); a finger touching the ringing string, a click of a few ms, doesn't (2.6 dB).
 const float MIN_ONSET_GAIN_DB = 0.0f;
 const float MIN_REPLUCK_GAIN_DB = 6.0f;
+// And an onset must be this far above silence: a muted note's last breath (-50 dB on the bass recorded, its notes -15
+// to -25 dB) isn't a pluck
+const float ONSET_ABOVE_SILENCE_DB = 10.0f;
 const int POWER_HOPS = 8;                // "just before": the last ~22 ms
 const float MIN_CLARITY = 0.85f;         // how periodic a sound must be to count as a note
 // A legato change must move this far from where the note started, not just round to another note: a string tuned
-// between two notes (a bass's low E a quarter-tone flat) wobbles across the line between them as it rings
-const float LEGATO_MIN_SEMITONES = 0.75f;
+// between two notes (a bass's low E a quarter-tone flat) wobbles across the line between them as it rings. A slide
+// of a semitone may be read from partway up, though (an F2 32 cents sharp, sliding to F#2, on a real bass)
+const float LEGATO_MIN_SEMITONES = 0.6f;
 // Nor may it land on one of the ringing note's own overtones (an octave, an octave and a fifth, two octaves up), a
 // fifth up (the third harmonic, read an octave low) or an octave down: as a low note dies away its fundamental fades
 // first, and the pitch reads as what's left. A real slide of exactly those is rare; this misreading is not.
@@ -114,7 +118,7 @@ static void processHop(NoteDetector& detector, std::vector<DetectedNote>& out){
     // A held legato change with no pluck since: a note after all
     if (detector.legatoHeld && detector.position >= detector.legatoDue){
         int pitch = (int)std::lround(detector.legatoMidi);
-        out.push_back({detector.legatoSample, pitch, (detector.legatoMidi - pitch) * 100.0f});
+        out.push_back({detector.legatoSample, pitch, (detector.legatoMidi - pitch) * 100.0f, true});
         detector.legatoHeld = false;
     }
 
@@ -124,7 +128,7 @@ static void processHop(NoteDetector& detector, std::vector<DetectedNote>& out){
     }
 
     // Onset: a sudden rise. Its exact sample: the first one inside this hop reaching 20% of the hop's peak.
-    bool rise = level - recentMin >= detector.config.onsetRiseDb;
+    bool rise = level - recentMin >= detector.config.onsetRiseDb && level >= detector.config.silenceDb + ONSET_ABOVE_SILENCE_DB;
     long long gapSamples = (long long)(MIN_ONSET_GAP_S * detector.sampleRate);
     if (rise && hopStart - detector.lastOnsetSample >= gapSamples){
         float peak = 0.0f;
@@ -193,6 +197,20 @@ static void processHop(NoteDetector& detector, std::vector<DetectedNote>& out){
         detector.legatoMidi = midi;
         detector.legatoDue = detector.candidateSample + (long long)(LEGATO_HOLD_S * detector.sampleRate);
     }
+}
+
+long long noteDetectorPending(const NoteDetector& detector){
+    if (detector.pitchPending) return detector.onsetSample;
+    if (detector.legatoHeld) return detector.legatoSample;
+    if (detector.sounding && detector.candidateCount > 0) return detector.candidateSample; // a change, not yet sure
+    return -1;
+}
+
+bool noteDetectorHeldChange(const NoteDetector& detector, long long& sample, int& pitch){
+    if (!detector.legatoHeld) return false;
+    sample = detector.legatoSample;
+    pitch = (int)std::lround(detector.legatoMidi);
+    return true;
 }
 
 void feedNoteDetector(NoteDetector& detector, const float* samples, int count, std::vector<DetectedNote>& out){

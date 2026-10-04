@@ -182,6 +182,9 @@ static void handleKeyboard(std::vector<PlayNote>& notes, GameState& state, float
 // The notes due from just before now to a little ahead: the lowest of them tells the note detector how low it must
 // look, so a pitch is known in two of that note's periods instead of two of the instrument's lowest (core/notedetector)
 const float HINT_BEHIND_S = 0.25f; // wider than the judging window: a late note is still looked for
+const double SLIDE_INTO_S = 0.3;   // a slide into a note reaches it this long after its pluck, at most
+static double unmatchedPluckAt = -100.0; // the last pluck that matched no note: a slide from it may reach one
+const double MISS_WAIT_S = 0.4;    // the longest a note's miss waits for something heard to be known (a held hammer-on: 0.25 s)
 const float HINT_AHEAD_S = 0.6f;
 
 // How far a note played was off the note due nearest it in pitch, around when it was played: the instrument's
@@ -302,7 +305,33 @@ static void handleInstrument(std::vector<PlayNote>& notes, GameState& state, flo
         input.pitch = note.pitch;
         input.anyOctave = anyOctave;
         JudgeResult result = judgeInput(notes, input);
+        // Slid into: a pluck a fret or two off, matching nothing, then the slide (or hammer-on) to the note written.
+        // The note was played at the pluck.
+        if (result.judgement == Judgement::Ignored && note.legato && input.time - unmatchedPluckAt <= SLIDE_INTO_S){
+            input.time = unmatchedPluckAt;
+            result = judgeInput(notes, input);
+        }
         if (result.judgement != Judgement::Ignored) scoreHit(state, result, judgementAnchor(notes, result.noteIndex));
+        else if (!note.legato) unmatchedPluckAt = input.time;
+    }
+    // A slide still held back by the detector (a pluck may follow it: core/notedetector), from a pluck that matched
+    // nothing, onto a note due then: that note, played at the pluck, now
+    int slidPitch;
+    double slidAge;
+    if (!rhythmMode && noteInputHeldChange(slidPitch, slidAge)){
+        const double slidAt = heardAt(songTime, slidAge, inputOffset);
+        if (slidAt > unmatchedPluckAt && slidAt - unmatchedPluckAt <= SLIDE_INTO_S){
+            PlayerInput input;
+            input.time = unmatchedPluckAt;
+            input.pitch = slidPitch;
+            input.anyOctave = anyOctave;
+            JudgeResult result = judgeInput(notes, input);
+            if (result.judgement != Judgement::Ignored){
+                scoreHit(state, result, judgementAnchor(notes, result.noteIndex));
+                logHeard(slidAt, slidPitch);
+                unmatchedPluckAt = -100.0;
+            }
+        }
     }
     // Strings plucked together, heard unasked (core/polyphony): shown in full, and a chord due that listenForChords
     // didn't find in the sound is still played if these are its notes
@@ -442,6 +471,7 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
                             std::string& error){
     stopGameplay();
     checkSongAudio = audioPath;
+    unmatchedPluckAt = -100.0;
     if (options.practice.on) fromTick = options.practice.fromTick; // practising: its section only
     if (options.part < 0 || options.part >= partCount(chart)){
         error = "the chart has no part " + std::to_string(options.part + 1) + " to play";
@@ -766,8 +796,20 @@ bool updateGameplay(){
         }
     }
     if (!(game.options.practice.on && game.options.practice.noteByNote)){ // note by note, nothing goes by unplayed
+        // Something heard and still being listened to (a pluck's pitch, a hammer-on held back) may be the note
+        // due: the notes it could be are only missed once it's known. Up to MISS_WAIT_S.
         int missedNote = -1;
-        int missed = markMisses(game.notes, game.songTime, &missedNote);
+        float missedBy = game.songTime;
+        const double pending = noteInputActive() ? noteInputPendingAge() : -1.0;
+        if (pending >= 0.0 && pending < MISS_WAIT_S){
+            const float heardAt = (float)(game.songTime - (pending + game.options.inputOffsetSeconds) * inputScale);
+            missedBy = std::min(missedBy, heardAt); // missed: notes too early for it to be them (judging window before it)
+            // A slide from a pluck that matched nothing would be judged at that pluck
+            if (heardAt - unmatchedPluckAt <= SLIDE_INTO_S) missedBy = std::min(missedBy, (float)unmatchedPluckAt);
+        }
+        // A pluck that matched nothing may be sliding onto a note: the notes it could reach wait for it
+        if (game.songTime - unmatchedPluckAt <= SLIDE_INTO_S * inputScale) missedBy = std::min(missedBy, (float)unmatchedPluckAt);
+        int missed = markMisses(game.notes, missedBy, &missedNote);
         scoreMisses(game.state, missed, judgementAnchor(game.notes, missedNote));
     }
 

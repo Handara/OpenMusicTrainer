@@ -107,7 +107,7 @@ const std::vector<PlayedNote>& updateNoteInput(){
     input.detector.attacks.clear();
     for (const DetectedNote& note : input.detected){
         double age = (double)(input.detector.position - note.sample) / input.detector.sampleRate;
-        input.played.push_back({note.pitch, note.cents, age});
+        input.played.push_back({note.pitch, note.cents, age, note.legato});
     }
     return input.played;
 }
@@ -126,6 +126,18 @@ void expectLowestNote(float frequency){
 
 const std::vector<float>& latestInputSamples(){
     return input.latest;
+}
+
+double noteInputPendingAge(){
+    const long long sample = input.active ? noteDetectorPending(input.detector) : -1;
+    return sample < 0 ? -1.0 : (double)(input.detector.position - sample) / input.detector.sampleRate;
+}
+
+bool noteInputHeldChange(int& pitch, double& age){
+    long long sample;
+    if (!input.active || !noteDetectorHeldChange(input.detector, sample, pitch)) return false;
+    age = (double)(input.detector.position - sample) / input.detector.sampleRate;
+    return true;
 }
 
 int noteInputSampleRate(){
