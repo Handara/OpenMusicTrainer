@@ -185,3 +185,45 @@ void feedStrumDetector(StrumDetector& detector, const float* samples, int count,
         if ((int)history.size() > STRUM_HISTORY_FRAMES) history.erase(history.begin());
     }
 }
+
+std::string recognizeChord(const std::array<float, 12>& notes, std::vector<int>* pitchClasses){
+    // The kinds, simplest first: a richer one must fit clearly better to be chosen (a 7th catches more by chance)
+    static const std::vector<std::vector<int>> KINDS = { {0, 4, 7}, {0, 3, 7}, {0, 7}, {0, 4, 7, 10}, {0, 4, 7, 11},
+                                                         {0, 3, 7, 10}, {0, 2, 7}, {0, 5, 7} };
+    const float RICHER_BY = 0.35f;       // a 4-note kind wins only by this much: one note leaking from harmonics gains
+                                         // a triad about 0.3, a 7th really played about 0.5
+    const float MIN_TONE_SHARE = 0.06f;  // each of its notes really there...
+    const float WEAKEST_OF_STRONGEST = 0.25f; // ...and at least this share of its strongest
+    const float ADDED_TONE_SHARE = 0.7f; // a 4th note (a 7th) nearly as strong as the weakest of the others: a note's
+                                         // own harmonics put a little of other notes in its chroma (B's third, F#)
+    float best = -2.0f;
+    int bestRoot = -1, bestKind = -1;
+    for (int kind = 0; kind < (int)KINDS.size(); kind++){
+        for (int root = 0; root < 12; root++){
+            const std::vector<int>& tones = KINDS[kind];
+            float weakest = 1.0f, strongest = 0.0f;
+            for (size_t i = 0; i + 1 < tones.size() || (tones.size() < 4 && i < tones.size()); i++){
+                weakest = std::min(weakest, notes[(root + tones[i]) % 12]);
+                strongest = std::max(strongest, notes[(root + tones[i]) % 12]);
+            }
+            // Each of its notes really there, and not just a trace beside the others (a single note's own fifth)
+            if (weakest < std::max(MIN_TONE_SHARE, WEAKEST_OF_STRONGEST * strongest)) continue;
+            if (tones.size() >= 4 && notes[(root + tones.back()) % 12] < ADDED_TONE_SHARE * weakest) continue;
+            const float fit = chordFit(notes, ChordInfo{ "", root, tones, {} });
+            const float needed = bestKind >= 0 && KINDS[kind].size() > KINDS[bestKind].size() ? RICHER_BY : 0.0f;
+            if (fit > best + needed){
+                best = fit;
+                bestRoot = root;
+                bestKind = kind;
+            }
+        }
+    }
+    if (bestRoot < 0 || (best + 1.0f) / 2.0f < MIN_CHORD_SHARE) return "";
+    std::vector<int> pitches;
+    for (int interval : KINDS[bestKind]) pitches.push_back(48 + bestRoot + interval);
+    if (pitchClasses){
+        pitchClasses->clear();
+        for (int interval : KINDS[bestKind]) pitchClasses->push_back((bestRoot + interval) % 12);
+    }
+    return nameChord(pitches);
+}

@@ -2,6 +2,7 @@
 
 #include "core/notedetector.h"
 
+#include <string>
 #include <vector>
 
 // Several notes at once, heard without being told which to look for: a bass's double stop, two or three strings of a
@@ -33,7 +34,8 @@ std::vector<HeardPitch> notesInSound(const float* samples, int count, int sample
 // fretting hand getting ready) say where one note followed another instead of sounding with it.
 struct PluckNotes {
     long long sample;         // the pluck, in the stream
-    std::vector<int> pitches; // two or more, lowest first
+    std::vector<int> pitches; // the notes found, two or more, lowest first
+    std::string chord;        // the chord the sound makes (core/chords: recognizeChord), "" for none known
 };
 
 struct PluckListener {

@@ -42,6 +42,11 @@ bool soundHoldsNotes(const float* samples, int count, int sampleRate, const std:
 // How well a chroma fits a chord: the share of the sound on the chord's notes, less what falls outside them
 float chordFit(const std::array<float, 12>& notes, const ChordInfo& chord);
 
+// The chord a sound holds, heard unasked (a strum): every root and kind (major, minor, 7, maj7, m7, sus2, sus4, power
+// chord) is fitted to its chroma, the best taken if enough of the sound is on its notes. Its notes, as pitch classes
+// above C (root first), in `pitchClasses`. "" for a sound that isn't a chord.
+std::string recognizeChord(const std::array<float, 12>& notes, std::vector<int>* pitchClasses = nullptr);
+
 // A chord change drill: chords played in turn, each for a few beats, strummed on the change; faster after each
 // clean pass, like the other drills
 struct ChordDrillConfig {

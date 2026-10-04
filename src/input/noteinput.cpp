@@ -85,7 +85,7 @@ const std::vector<PlayedNote>& updateNoteInput(){
     feedPluckListener(input.listener, input.latest.data(), (int)input.latest.size(), input.detector.attacks, input.detector.changes, input.plucked);
     input.detector.changes.clear();
     for (const PluckNotes& pluck : input.plucked){
-        input.chords.push_back({ pluck.pitches, (double)(input.detector.position - pluck.sample) / input.detector.sampleRate });
+        input.chords.push_back({ pluck.pitches, pluck.chord, (double)(input.detector.position - pluck.sample) / input.detector.sampleRate });
     }
 
     if (input.recording){
@@ -97,7 +97,8 @@ const std::vector<PlayedNote>& updateNoteInput(){
         for (const PluckNotes& pluck : input.plucked){
             std::string names;
             for (int pitch : pluck.pitches) names += TextFormat(" %s%d", pitchClassName(pitch), pitchOctave(pitch));
-            input.found.push_back(TextFormat("%9.3f  pluck of several:%s", seconds(pluck.sample), names.c_str()));
+            input.found.push_back(TextFormat("%9.3f  pluck of several:%s%s%s", seconds(pluck.sample), names.c_str(),
+                                             pluck.chord.empty() ? "" : "  chord ", pluck.chord.c_str()));
         }
         if (input.recorded.size() < (size_t)(RECORD_MAX_S * rate)) input.recorded.insert(input.recorded.end(), input.latest.begin(), input.latest.end());
     }

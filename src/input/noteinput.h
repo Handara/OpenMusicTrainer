@@ -30,6 +30,7 @@ const std::vector<double>& noteInputAttacks();
 // take a few milliseconds). They're known a moment after the pluck (core/polyphony: NOTES_LISTEN_S).
 struct PlayedChord {
     std::vector<int> pitches;
+    std::string name; // the chord they make, heard from the whole sound ("G", "Am7"); "" for none known
     double age; // seconds from the pluck to the newest sample received, as a note's
 };
 // The plucks of several notes found by the last updateNoteInput

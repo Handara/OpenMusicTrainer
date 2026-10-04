@@ -1,5 +1,6 @@
 #include "core/polyphony.h"
 
+#include "core/chords.h"
 #include "core/fft.h"
 #include "core/music.h"
 
@@ -28,9 +29,13 @@ const float MIN_FIT = 0.6f;            // counted among these, and a note has th
 const int MIN_OWN_HARMONICS = 2;       // of which this many its own, not shared with a note already found
 const float OCTAVE_DIP = 0.4f;         // an odd harmonic under this share of the even ones beside it has dipped: with
                                        // every odd one dipped, an octave above is sounding too
-const float NEW_NOTE_RISE = 1.5f;      // a note this much stronger after a pluck than before it was plucked now
+const float NEW_NOTE_RISE = 1.05f;      // a note this much stronger after a pluck than before it was plucked now
 const float LEGATO_AFTER_S = 0.05f;    // a note with no attack, later than this after a pluck, followed it
 const float HISTORY_S = 1.0f;          // sound kept, for listening before and after a pluck
+const float STRUM_GAP_S = 0.08f;       // attacks this close are one strum: a chord's strings sound one after another
+const float LISTEN_START_S = 0.02f;    // listened to from a little after the strum's last string (its scrape)
+const float MIN_LISTEN_S = 0.08f;      // a pluck with less than this before the next one isn't listened to
+const int CHORD_NOTES = 6;             // a guitar's whole chord
 
 namespace {
 
@@ -229,24 +234,45 @@ void feedPluckListener(PluckListener& listener, const float* samples, int count,
     auto between = [](const std::vector<long long>& samples, long long from, long long to){
         return std::any_of(samples.begin(), samples.end(), [&](long long sample){ return sample > from && sample < to; });
     };
-    while (!listener.plucks.empty() && listener.position >= listener.plucks.front() + listen){
+    const int rate = listener.sampleRate;
+    const long long strumGap = (long long)(STRUM_GAP_S * rate), start = (long long)(LISTEN_START_S * rate);
+    while (!listener.plucks.empty()){
+        // A strum: the attacks that follow each other closely, from its first to its last string
         const long long pluck = listener.plucks.front();
-        listener.plucks.erase(listener.plucks.begin());
-        if (pluck < oldest) continue; // its sound is gone: the game stood still too long
-        // Another pluck, or a note following without one, before enough was heard: notes one after the other
-        if (between(listener.plucks, pluck, pluck + listen)) continue;
-        if (between(listener.changes, pluck + (long long)(LEGATO_AFTER_S * listener.sampleRate), pluck + listen)) continue;
+        size_t strings = 1;
+        while (strings < listener.plucks.size() && listener.plucks[strings] - listener.plucks[strings - 1] <= strumGap) strings++;
+        const long long last = listener.plucks[strings - 1];
+        // Listened to after its last string, until the next pluck or for NOTES_LISTEN_S: once that's all come
+        const long long next = strings < listener.plucks.size() ? listener.plucks[strings] : -1;
+        long long length = listen;
+        if (next >= 0) length = std::min<long long>(length, next - last - start);
+        if (next < 0 && listener.position < last + start + listen) break; // more strings may come, or the sound after it
+        listener.plucks.erase(listener.plucks.begin(), listener.plucks.begin() + (long)strings);
+        if (pluck < oldest + listen) continue; // its sound is gone: the game stood still too long
+        if (length < (long long)(MIN_LISTEN_S * rate)) continue; // the next pluck too soon: notes one after the other
+        // A note following without a pluck before enough was heard: notes one after the other
+        if (between(listener.changes, last + (long long)(LEGATO_AFTER_S * rate), last + start + length)) continue;
 
-        const float* sound = listener.recent.data() + (pluck - oldest);
-        std::vector<HeardPitch> now = notesInSound(sound, listen, listener.sampleRate, listener.lowestPitch, listener.highestPitch);
+        const float* sound = listener.recent.data() + (last + start - oldest);
+        std::vector<HeardPitch> now = notesInSound(sound, (int)length, rate, listener.lowestPitch, listener.highestPitch, CHORD_NOTES);
         if (now.size() < 2) continue;
-        std::vector<HeardPitch> before;
-        if (pluck - listen >= oldest) before = notesInSound(sound - listen, listen, listener.sampleRate, listener.lowestPitch, listener.highestPitch);
-        PluckNotes found{ pluck, {} };
+        // What rang before the strum's first string isn't played again by it
+        const float* earlier = listener.recent.data() + (pluck - listen - oldest);
+        std::vector<HeardPitch> before = notesInSound(earlier, listen, rate, listener.lowestPitch, listener.highestPitch, CHORD_NOTES);
+        PluckNotes found{ pluck, {}, "" };
         for (const HeardPitch& note : now){
             auto was = std::find_if(before.begin(), before.end(), [&](const HeardPitch& old){ return old.pitch == note.pitch; });
             if (was == before.end() || note.strength >= NEW_NOTE_RISE * was->strength) found.pitches.push_back(note.pitch);
         }
-        if (found.pitches.size() >= 2) out.push_back(found);
+        if (found.pitches.size() < 2) continue;
+        // The chord, from all of the sound (the notes found one by one are often only some of a strummed chord's),
+        // if two of them at least are its notes: a single note's harmonics alone make a chord of their own
+        std::vector<int> chordNotes;
+        found.chord = recognizeChord(chroma(sound, (int)length, rate), &chordNotes);
+        const long ofIt = std::count_if(found.pitches.begin(), found.pitches.end(), [&](int pitch){
+            return std::count(chordNotes.begin(), chordNotes.end(), pitch % 12) > 0;
+        });
+        if (ofIt < 2) found.chord.clear();
+        out.push_back(found);
     }
 }

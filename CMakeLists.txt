@@ -295,6 +295,7 @@ if(BUILD_TESTING)
         tests/pitch_test.cpp
         tests/polyphony_test.cpp
         tests/realbass_test.cpp
+        tests/realguitar_test.cpp
         tests/positions_test.cpp
         tests/ranking_test.cpp
         tests/reading_test.cpp

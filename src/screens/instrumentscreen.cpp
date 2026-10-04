@@ -127,6 +127,8 @@ static struct {
     bool listening = false;
     std::string error;
     std::string recordingSaved;      // where the last check was saved, to say so
+    std::string chordName;           // the chord the latest strum made, heard from its whole sound (core/chords)...
+    double chordAt = -100.0;         // ...and when it was struck
     // Guitar and bass
     std::deque<PlayedPlace> played; // the newest first
     StringFret hand{-1, -1};        // where the last note was played: the next is looked for near it
@@ -269,6 +271,8 @@ static void frettedScreen(float width, float height, float s){
     // A pluck of several notes: together they take the place of the one note heard for it (one of them, or a muddle)
     for (const PlayedChord& chord : noteInputChords()){
         const double at = now - chord.age;
+        instrumentView.chordName = chord.name;
+        instrumentView.chordAt = at;
         played.erase(std::remove_if(played.begin(), played.end(), [&](const PlayedPlace& note){ return std::fabs(note.at - at) < SAME_PLUCK_S; }), played.end());
         StringFret before = played.empty() ? StringFret{-1, -1} : played.front().place;
         std::vector<StringFret> places = chordPositions(chord.pitches, tuning(), frets(), before);
@@ -285,7 +289,11 @@ static void frettedScreen(float width, float height, float s){
 
     ImDrawList* draw = ImGui::GetWindowDrawList();
     const float left = width * 0.1f;
-    if (together == 1){
+    // The chord the newest strum made, heard from its whole sound: named even when only some of its notes were placed
+    const bool chordHeard = !played.empty() && !instrumentView.chordName.empty() && std::fabs(instrumentView.chordAt - played.front().at) < SAME_PLUCK_S;
+    if (together == 1 && chordHeard){
+        drawHeading(ImVec2(left, height * 0.2f), s, instrumentView.chordName, true, noteName(played.front().pitch) + " and more", "CHORD", UiColor::Good);
+    } else if (together == 1){
         const PlayedPlace& newest = played.front();
         std::string where = stringName(newest.place.string) + " string, " + (newest.place.fret == 0 ? std::string("open") : "fret " + std::to_string(newest.place.fret));
         int cents = (int)std::lround(instrumentView.cents);
@@ -303,7 +311,7 @@ static void frettedScreen(float width, float height, float s){
             where += (where.empty() ? "" : ", ") + stringName(note.place.string) + (note.place.fret == 0 ? std::string(" open") : " fret " + std::to_string(note.place.fret));
             pitches.push_back(note.pitch);
         }
-        std::string made = nameChord(pitches);
+        std::string made = chordHeard ? instrumentView.chordName : nameChord(pitches);
         drawHeading(ImVec2(left, height * 0.2f), s, names, true, where, made.empty() ? TextFormat("%d NOTES TOGETHER", together) : made, UiColor::Good);
     } else {
         drawHeading(ImVec2(left, height * 0.2f), s, "Play a note", false, "", "", UiColor::Dim);
