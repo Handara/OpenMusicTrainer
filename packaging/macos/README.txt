@@ -29,7 +29,12 @@ Plug your guitar or bass into your audio interface first. In lahn, open Settings
 input, and which of its inputs your guitar or bass is on. Then try the Instrument screen from the main menu: the notes
 you play light up on the neck.
 
-Your songs, scores and settings are kept in your home folder, in Library/Application Support/lahn.
+Your songs, scores and settings are kept in your home folder, in Library/Application Support/lahn. Finder hides the
+Library folder: to get there, choose Go > Go to Folder... in Finder (Shift-Command-G) and paste
+
+    ~/Library/Application Support/lahn
+
+or, after recording a check on the Instrument screen (R), press "Open the folder" (O), which opens it for you.
 
 Not on macOS yet
 ----------------

@@ -302,8 +302,12 @@ static void frettedScreen(float width, float height, float s){
             }
         }
         if (recording) draw->AddCircleFilled(ImVec2(left - 14 * s, height - 73 * s), 5 * s, uiColor(UiColor::Bad, 0.6f + 0.4f * (float)std::sin(now * 6.0)));
-        if (!instrumentView.recordingSaved.empty())
-            draw->AddText(fonts.text, 14 * s, ImVec2(left + 230 * s, height - 80 * s), uiColor(UiColor::Dim), instrumentView.recordingSaved.c_str());
+        // Where it went, and the way there: on a Mac the data folder is in the Library, which Finder hides
+        if (!instrumentView.recordingSaved.empty()){
+            draw->AddText(fonts.text, 14 * s, ImVec2(left, height - 112 * s), uiColor(UiColor::Dim), instrumentView.recordingSaved.c_str());
+            if (instrumentView.recordingSaved.rfind("Saved", 0) == 0 && menuPill("Open the folder", "O", ImVec2(left + 260 * s, height - 88 * s), false, 0, s)) openFolder(userDataDir());
+            if (instrumentView.recordingSaved.rfind("Saved", 0) == 0 && ImGui::IsKeyPressed(ImGuiKey_O, false)) openFolder(userDataDir());
+        }
     }
 }
 

@@ -13,7 +13,9 @@
 #include <thread>
 
 const int PICTURES_PER_SECOND = 30;
-const size_t MOST_WAITING = 8;  // pictures waiting for FFmpeg: more, and the newest is left out (FFmpeg is behind)
+const size_t MOST_WAITING = 8;  // pictures waiting for FFmpeg: more wait as a count, given once there's room (FFmpeg
+                                // is behind: starting, the first ~0.3 s; without them the picture ran that far ahead)
+const long long MOST_OWED = 300; // pictures owed at most (10 s): FFmpeg far behind for good, the video runs short
 const int MOST_REPEATED = 15;   // a frame that took long stands in for the pictures missed, up to half a second
 
 static struct {
@@ -27,6 +29,7 @@ static struct {
     int width = 0, height = 0;
     double startedAt = 0.0;
     long long taken = 0;          // pictures given so far, counting the repeated ones
+    long long owed = 0;           // pictures due that found no room: given as repeats once there is
 } recorder;
 
 static void giveToFfmpeg(){
@@ -56,6 +59,7 @@ bool startScreenRecording(const std::string& ffmpeg, const std::string& path, st
     recorder.running = true;
     recorder.failed = false;
     recorder.taken = 0;
+    recorder.owed = 0;
     recorder.startedAt = GetTime();
     recorder.writer = std::thread(giveToFfmpeg);
     return true;
@@ -76,8 +80,13 @@ void captureScreen(){
     RL_FREE(pixels);
     std::lock_guard<std::mutex> hold(recorder.lock);
     // A slow frame: it stands in for the pictures that weren't taken, so the video keeps the clock's time
-    const long long count = std::min<long long>(due - recorder.taken, MOST_REPEATED);
-    for (long long i = 0; i < count && recorder.waiting.size() < MOST_WAITING; i++) recorder.waiting.push_back(picture);
+    // and what found no room before: every picture the clock asked for is in the video, so its sound stays in time
+    long long count = std::min<long long>(due - recorder.taken, MOST_REPEATED) + recorder.owed;
+    while (count > 0 && recorder.waiting.size() < MOST_WAITING){
+        recorder.waiting.push_back(picture);
+        count--;
+    }
+    recorder.owed = std::min(count, MOST_OWED);
     recorder.taken = due;
     recorder.woken.notify_one();
 }
