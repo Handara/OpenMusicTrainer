@@ -33,3 +33,7 @@ PitchResult detectPitch(PitchDetector& detector, const float* samples, int count
 // known to be higher, it needs just 2 * maxLag samples, sooner and for far less work (YIN's cost grows with the
 // square of the window)
 PitchResult detectPitch(PitchDetector& detector, const float* samples, int count, int maxLag);
+
+// The power of one frequency in some samples (Hann-windowed, so a strong neighbour doesn't leak into it): for
+// comparing one frequency with another, or one stretch of sound with another as long
+double powerAt(const float* samples, int count, double frequency, int sampleRate);

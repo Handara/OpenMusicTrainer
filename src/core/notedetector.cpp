@@ -20,6 +20,19 @@ const int LEGATO_CONFIRMATIONS = 3;      // ...and believe a change once it hold
 // in that time makes it the hand getting ready, not a note; with none, it's a hammer-on or a slide, stamped when it
 // happened. Measured on recordings of a bass played through a Scarlett (tests/data/bass-*.wav).
 const float LEGATO_HOLD_S = 0.25f;
+// A note plucked while another still rings reads as the period they share, far below both (a C5 over a ringing A4:
+// F2; a D5 over it: D3, on a guitar recorded), or as nothing at all when that period is lower than the notes looked
+// for. That reading's own fundamental isn't in the sound...
+const float BEFORE_ONSET_S = 0.06f;      // (sound kept from before an onset, to compare with what came after)
+const float SHARED_PERIOD_DB = -20.0f;   // ...this far under its strongest harmonic, or less (-23 to -28 dB on that
+                                         // guitar; a note just plucked may have a weak one too, so...)
+const float RISEN_DB = 6.0f;             // ...and the new note is the lowest that rose this much at the onset...
+const int SHARED_MIN_TIMES = 3;          // ...at 3 or more times the reading's frequency (twice: an octave, which the
+                                         // pitch detector's own octave check sees to)
+const int SHARED_HARMONICS = 8;
+const float SEARCH_AFTER_S = 0.06f;      // a failed reading is looked past only this long after the onset: YIN often
+                                         // needs a second look at a note just plucked
+const float PEAK_SHARE = 0.01f;          // a semitone this strong beside the strongest (-20 dB) may be the new note
 // An onset must not leave the sound quieter than just before it, over the time its pitch is read; and one that gives
 // the pitch already ringing must make it louder by this much. A pluck of the same note again does (14 dB and more on
 // the bass recorded); a finger touching the ringing string, a click of a few ms, doesn't (2.6 dB).
@@ -49,7 +62,9 @@ void initNoteDetector(NoteDetector& detector, int sampleRate, const NoteDetector
     detector.sampleRate = sampleRate;
     detector.hopSize = std::max(16, (int)(HOP_SECONDS * sampleRate));
     initPitchDetector(detector.pitch, sampleRate, config.minFrequency, config.maxFrequency);
-    detector.window.assign(pitchWindowSize(detector.pitch), 0.0f);
+    // As much as YIN needs, and back to a little before an onset for as long as its pitch is looked for
+    // (newNoteOverRinging)
+    detector.window.assign(pitchWindowSize(detector.pitch) + (size_t)((BEFORE_ONSET_S + PITCH_TIMEOUT_S) * sampleRate), 0.0f);
     detector.analysisLag = detector.pitch.maxLag;
     detector.hop.reserve(detector.hopSize);
     detector.recentDb.assign(RECENT_HOPS, -120.0f);
@@ -79,6 +94,49 @@ static float analyzePitch(NoteDetector& detector){
     PitchResult result = detectPitch(detector.pitch, latest, count, detector.analysisLag);
     if (result.frequency <= 0.0f || result.clarity < MIN_CLARITY) return -1.0f;
     return frequencyToMidi(result.frequency);
+}
+
+// A note plucked while another rang on, when the reading failed (the two line up at no period YIN looks for) or found
+// only the period they share (its own fundamental missing): the new note, as the lowest one that rose at the onset,
+// looked for semitone by semitone in the sound just after it and just before. Else the reading as it is (-1: none).
+static float newNoteOverRinging(const NoteDetector& detector, float midi){
+    if (!detector.soundingBeforeOnset) return midi;
+    const int rate = detector.sampleRate;
+    if (midi < 0.0f && detector.position - detector.onsetSample < (long long)(SEARCH_AFTER_S * rate)) return midi;
+    const long long afterStart = detector.onsetSample + (long long)(ATTACK_SKIP_S * rate);
+    const int length = (int)std::min<long long>(detector.position - afterStart, (long long)(BEFORE_ONSET_S * rate));
+    const long long windowStart = detector.position - (long long)detector.window.size();
+    if (length < rate / 100 || detector.onsetSample - length < windowStart) return midi;
+    const float* after = detector.window.data() + (afterStart - windowStart);
+    const float* before = detector.window.data() + (detector.onsetSample - length - windowStart);
+    // A reading whose own fundamental is in the sound is a note
+    if (midi >= 0.0f){
+        const double frequency = midiToFrequency(midi);
+        double strongest = 0.0;
+        for (int k = 1; k <= SHARED_HARMONICS && frequency * k < rate / 2.0; k++) strongest = std::max(strongest, powerAt(after, length, frequency * k, rate));
+        if (powerAt(after, length, frequency, rate) > strongest * std::pow(10.0, SHARED_PERIOD_DB / 10.0)) return midi;
+    }
+    // Every semitone the instrument has, after and before
+    const int lowest = (int)std::ceil(frequencyToMidi(detector.config.minFrequency));
+    const int highest = (int)std::floor(frequencyToMidi(detector.config.maxFrequency));
+    if (highest - lowest < 2) return midi;
+    std::vector<double> now(highest - lowest + 1), then(highest - lowest + 1);
+    double strongest = 0.0;
+    for (int pitch = lowest; pitch <= highest; pitch++){
+        now[pitch - lowest] = powerAt(after, length, midiToFrequency((float)pitch), rate);
+        then[pitch - lowest] = powerAt(before, length, midiToFrequency((float)pitch), rate);
+        strongest = std::max(strongest, now[pitch - lowest]);
+    }
+    for (int i = 1; i + 1 < (int)now.size(); i++){
+        const bool peak = now[i] >= now[i - 1] && now[i] >= now[i + 1] && now[i] >= strongest * PEAK_SHARE;
+        if (!peak || 10.0 * std::log10(now[i] / std::max(then[i], 1e-12)) < RISEN_DB) continue;
+        if (midi < 0.0f) return (float)(lowest + i); // no reading: the lowest note that rose
+        // A reading's shared period: the new note a whole number of times above it, 3 or more
+        const float times = std::pow(2.0f, (lowest + i - midi) / 12.0f);
+        if (times >= SHARED_MIN_TIMES - 0.1f && std::fabs(times - std::round(times)) < 0.03f * times) return (float)(lowest + i);
+        return midi;
+    }
+    return midi;
 }
 
 static void emit(NoteDetector& detector, long long sample, float midi, std::vector<DetectedNote>& out){
@@ -151,7 +209,7 @@ static void processHop(NoteDetector& detector, std::vector<DetectedNote>& out){
         // Wait for a full window of sound after the attack, then look for the pitch until the timeout
         long long ready = detector.onsetSample + (long long)(ATTACK_SKIP_S * detector.sampleRate) + 2LL * detector.analysisLag;
         if (detector.position < ready) return;
-        float midi = analyzePitch(detector);
+        float midi = newNoteOverRinging(detector, analyzePitch(detector));
         // Hardly louder than before it: a touch or a click on a string that rings on, not a pluck
         const float gain = 10.0f * std::log10(std::max(1e-12, detector.sinceOnsetPower / detector.sinceOnsetHops) / std::max(1e-12f, detector.beforeOnsetPower));
         const bool samePitch = detector.soundingBeforeOnset && midi >= 0.0f && (int)std::lround(midi) == detector.currentPitch;
@@ -176,6 +234,9 @@ static void processHop(NoteDetector& detector, std::vector<DetectedNote>& out){
     if (midi < 0.0f) return;
     int pitch = (int)std::lround(midi);
     bool overtone = std::count(std::begin(OVERTONE_STEPS), std::end(OVERTONE_STEPS), pitch - detector.currentPitch) > 0;
+    // Or a period the ringing note shares with another (its frequency divides evenly into the ringing note's)
+    const float ratio = std::pow(2.0f, (detector.currentMidi - midi) / 12.0f);
+    if (ratio > 1.9f && std::fabs(ratio - std::round(ratio)) < 0.03f * ratio) overtone = true;
     if (pitch == detector.currentPitch || overtone || std::fabs(midi - detector.currentMidi) < LEGATO_MIN_SEMITONES){
         detector.candidateCount = 0;
         return;

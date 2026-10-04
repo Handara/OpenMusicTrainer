@@ -183,6 +183,7 @@ static void handleKeyboard(std::vector<PlayNote>& notes, GameState& state, float
 const float HINT_BEHIND_S = 0.25f; // wider than the judging window: a late note is still looked for
 const double SLIDE_INTO_S = 0.3;   // a slide into a note reaches it this long after its pluck, at most
 static double unmatchedPluckAt = -100.0; // the last pluck that matched no note: a slide from it may reach one
+static double takenChangeAt = -100.0;    // the last change of pitch judged while the detector held it back
 const double MISS_WAIT_S = 0.4;    // the longest a note's miss waits for something heard to be known (a held hammer-on: 0.25 s)
 const float HINT_AHEAD_S = 0.6f;
 
@@ -301,6 +302,7 @@ static void handleInstrument(std::vector<PlayNote>& notes, GameState& state, flo
         PlayerInput input;
         input.time = heardAt(songTime, note.age, inputOffset);
         if (std::fabs((float)input.time - chords.lastChordAt) < SAME_PLUCK_S) continue; // that chord's own pluck, counted
+        if (note.legato && std::fabs(input.time - takenChangeAt) < 0.02) continue; // judged while held (below)
         input.pitch = note.pitch;
         input.anyOctave = anyOctave;
         JudgeResult result = judgeInput(notes, input);
@@ -319,17 +321,34 @@ static void handleInstrument(std::vector<PlayNote>& notes, GameState& state, flo
     double slidAge;
     if (!rhythmMode && noteInputHeldChange(slidPitch, slidAge)){
         const double slidAt = heardAt(songTime, slidAge, inputOffset);
+        PlayerInput input;
+        input.pitch = slidPitch;
+        input.anyOctave = anyOctave;
+        JudgeResult result;
         if (slidAt > unmatchedPluckAt && slidAt - unmatchedPluckAt <= SLIDE_INTO_S){
-            PlayerInput input;
             input.time = unmatchedPluckAt;
-            input.pitch = slidPitch;
-            input.anyOctave = anyOctave;
-            JudgeResult result = judgeInput(notes, input);
-            if (result.judgement != Judgement::Ignored){
-                scoreHit(state, result, judgementAnchor(notes, result.noteIndex));
-                logHeard(slidAt, slidPitch);
-                unmatchedPluckAt = -100.0;
+            result = judgeInput(notes, input);
+            if (result.judgement != Judgement::Ignored) unmatchedPluckAt = -100.0;
+        }
+        // A hammer-on, a pull-off or a slide landing on a note written there, on time or late: that note, now. Held
+        // back, it could still be the fretting hand getting ready for the next pluck, but that comes early, before
+        // its note (50 to 200 ms on the bass recorded), never on it.
+        if (result.judgement == Judgement::Ignored && std::fabs(slidAt - takenChangeAt) > 0.001){
+            auto note = std::lower_bound(notes.begin(), notes.end(), slidAt - NEAR_WINDOW_S,
+                                         [](const PlayNote& n, double time){ return n.time < time; });
+            for (; note != notes.end() && note->time <= slidAt + PERFECT_WINDOW_S; ++note){
+                const int apart = std::abs(note->pitch - slidPitch);
+                if (!note->judged && (anyOctave ? apart % 12 == 0 : apart == 0)){
+                    input.time = slidAt;
+                    result = judgeInput(notes, input);
+                    break;
+                }
             }
+        }
+        if (result.judgement != Judgement::Ignored){
+            scoreHit(state, result, judgementAnchor(notes, result.noteIndex));
+            logHeard(slidAt, slidPitch);
+            takenChangeAt = slidAt; // when the detector lets it out, it's this, judged already
         }
     }
     // Strings plucked together, heard unasked (core/polyphony): shown in full, and a chord due that listenForChords
@@ -471,6 +490,7 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
     stopGameplay();
     checkSongAudio = audioPath;
     unmatchedPluckAt = -100.0;
+    takenChangeAt = -100.0;
     if (options.practice.on) fromTick = options.practice.fromTick; // practising: its section only
     if (options.part < 0 || options.part >= partCount(chart)){
         error = "the chart has no part " + std::to_string(options.part + 1) + " to play";

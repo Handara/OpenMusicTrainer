@@ -95,7 +95,7 @@ int pitchWindowSize(const PitchDetector& detector){
 }
 
 // The power of one frequency in the samples (Hann-windowed, so a strong neighbour doesn't leak into it)
-static double powerAt(const float* samples, int count, double frequency, int sampleRate){
+double powerAt(const float* samples, int count, double frequency, int sampleRate){
     const double step = 2.0 * PI_D * frequency / sampleRate;
     double re = 0.0, im = 0.0;
     for (int i = 0; i < count; i++){
