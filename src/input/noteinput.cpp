@@ -141,6 +141,10 @@ bool noteInputHeldChange(int& pitch, double& age){
     return true;
 }
 
+float noteInputLivePitch(){
+    return input.active && input.detector.sounding ? input.detector.liveMidi : -1.0f;
+}
+
 int noteInputSampleRate(){
     return input.active ? input.detector.sampleRate : 0;
 }

@@ -45,6 +45,8 @@ int noteInputSampleRate();
 // Something heard that may still turn out a note (core/notedetector): how long ago it started (seconds, like a note's
 // age), or a negative number for nothing. A note isn't missed while what was played on it is still being listened to.
 double noteInputPendingAge();
+// The pitch of the note ringing now, as last measured (a fractional MIDI number: a bend moves it); -1 for none
+float noteInputLivePitch();
 // A change of pitch with no pluck, held back to see whether a pluck follows (core/notedetector): its pitch and age
 bool noteInputHeldChange(int& pitch, double& age);
 

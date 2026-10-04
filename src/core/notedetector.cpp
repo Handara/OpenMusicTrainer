@@ -143,6 +143,7 @@ static void emit(NoteDetector& detector, long long sample, float midi, std::vect
     int pitch = (int)std::lround(midi);
     out.push_back({sample, pitch, (midi - pitch) * 100.0f});
     detector.sounding = true;
+    detector.liveMidi = midi;
     detector.currentPitch = pitch;
     detector.currentMidi = midi;
     detector.candidateCount = 0;
@@ -182,6 +183,7 @@ static void processHop(NoteDetector& detector, std::vector<DetectedNote>& out){
 
     if (level < detector.config.silenceDb){
         detector.sounding = false; // the note has died away
+        detector.liveMidi = -1.0f;
         return;
     }
 
@@ -232,6 +234,7 @@ static void processHop(NoteDetector& detector, std::vector<DetectedNote>& out){
     detector.hopsSinceAnalysis = 0;
     float midi = analyzePitch(detector);
     if (midi < 0.0f) return;
+    detector.liveMidi = midi;
     int pitch = (int)std::lround(midi);
     bool overtone = std::count(std::begin(OVERTONE_STEPS), std::end(OVERTONE_STEPS), pitch - detector.currentPitch) > 0;
     // Or a period the ringing note shares with another (its frequency divides evenly into the ringing note's)
