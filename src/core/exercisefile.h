@@ -82,12 +82,17 @@
 //   tolerance 30                 (how many cents off still counts as in tune, 5 to 50)
 //   hold 1                       (seconds to hold it in tune, 0.3 to 3)
 //
+// Neck walk (`type neck_walk`), a game (core/neckwalk), all optional:
+//   tune neck-walk.groove        (its tune, core/groove: beside the exercise, or in the game's games folder)
+//   level easy                   (easy: two or three strings, a note every two beats)
+//   instrument guitar            (guitar or bass)
+//
 // A routine (`type routine`) is a playlist of other exercises, a few minutes each, done one after the other:
 //   step e-minor-open 3          (an exercise's file name without .exercise, then minutes: at least one step)
 //   step intervals-up 5
 // A built-in routine uses built-in exercises; the player's own routines look in their own exercises first.
 
-enum class ExerciseType { Intervals, Scale, Routine, Fretboard, Rhythm, Reading, Chords, Singing, Neck };
+enum class ExerciseType { Intervals, Scale, Routine, Fretboard, Rhythm, Reading, Chords, Singing, Neck, NeckWalk };
 
 struct ExerciseFile {
     ExerciseType type = ExerciseType::Intervals;
@@ -103,7 +108,8 @@ struct ExerciseFile {
     ChordDrillConfig chords;   // the rules, for type Chords
     SingingConfig singing;     // the rules, for type Singing
     NeckRoutine neck;          // where it starts, for type Neck (the player changes it as they go)
-    bool neckOnBass = false;   //   played on a bass, not a guitar
+    bool neckOnBass = false;   //   played on a bass, not a guitar (Neck and NeckWalk)
+    std::string tune = "neck-walk.groove"; // a game's tune, for type NeckWalk
     std::vector<RoutineStep> routine; // the steps, for type Routine
 };
 

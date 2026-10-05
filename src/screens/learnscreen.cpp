@@ -11,6 +11,7 @@
 #include "learn/intervalexercise.h"
 #include "learn/lessonplayer.h"
 #include "learn/neckexercise.h"
+#include "learn/neckwalkexercise.h"
 #include "learn/routineexercise.h"
 #include "learn/singingexercise.h"
 #include "raylib.h"
@@ -92,6 +93,14 @@ static std::unique_ptr<Exercise> createExercise(const ExerciseEntry& entry){
         case ExerciseType::Neck:
             return std::make_unique<NeckExercise>(entry.exercise.title, entry.exercise.neck, entry.exercise.neckOnBass, progressPath(entry),
                                                   learn.setup.settings);
+        case ExerciseType::NeckWalk: {
+            // Its tune beside the exercise, or else in the game's own games folder
+            namespace fs = std::filesystem;
+            fs::path tune = fs::path(entry.path).parent_path() / entry.exercise.tune;
+            if (!fs::exists(tune)) tune = fs::path(learn.setup.builtInExercises).parent_path() / "games" / entry.exercise.tune;
+            return std::make_unique<NeckWalkExercise>(entry.exercise.title, tune.string(), entry.exercise.neckOnBass, progressPath(entry),
+                                                      learn.setup.settings);
+        }
         case ExerciseType::Reading: {
             const ReadingConfig& config = entry.exercise.reading;
             const ScaleInfo* scale = findScale(config.scale);
@@ -170,6 +179,12 @@ static std::string progressSummary(const ExerciseEntry& entry){
         case ExerciseType::Singing: {
             int best = loadQuizProgress(progressPath(entry)).bestStreak;
             return best > 0 ? TextFormat("best streak %d", best) : "";
+        }
+        case ExerciseType::NeckWalk: {
+            const NeckWalkStats stats = loadNeckWalkStats(progressPath(entry));
+            const long long best = neckWalkBest(stats);
+            if (stats.games.empty()) return "";
+            return TextFormat("best %lld  ·  %d %s", best, (int)stats.games.size(), stats.games.size() == 1 ? "game" : "games");
         }
         case ExerciseType::Neck: {
             const NeckStats stats = loadNeckStats(progressPath(entry));

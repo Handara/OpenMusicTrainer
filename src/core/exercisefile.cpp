@@ -164,8 +164,9 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
             else if (line.rest == "chords") out.type = ExerciseType::Chords;
             else if (line.rest == "singing") out.type = ExerciseType::Singing;
             else if (line.rest == "neck") out.type = ExerciseType::Neck;
+            else if (line.rest == "neck_walk") out.type = ExerciseType::NeckWalk;
             else return lineError("unknown exercise type '" + line.rest + "' (known: intervals, scale, routine, fretboard, rhythm, "
-                                  "reading, chords, singing, neck)");
+                                  "reading, chords, singing, neck, neck_walk)");
             hasType = true;
         }
     }
@@ -223,6 +224,24 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
                 else return lineError("instrument must be guitar or bass");
             } else {
                 return lineError("unknown setting '" + key + "' for a neck exercise (known: key, scale, fingering, position, pattern, note, instrument)");
+            }
+            continue;
+        }
+
+        // Neck walk: its tune, its level, the instrument
+        if (out.type == ExerciseType::NeckWalk){
+            std::string word;
+            ss >> word;
+            if (key == "tune"){
+                if (word.empty() || word.find_first_of("/\\") != std::string::npos) return lineError("expected: tune <a file name, like neck-walk.groove>");
+                out.tune = word;
+            } else if (key == "level"){
+                if (word != "easy") return lineError("level must be easy (the only one so far)");
+            } else if (key == "instrument"){
+                if (word == "guitar" || word == "bass") out.neckOnBass = word == "bass";
+                else return lineError("instrument must be guitar or bass");
+            } else {
+                return lineError("unknown setting '" + key + "' for neck walk (known: tune, level, instrument)");
             }
             continue;
         }
