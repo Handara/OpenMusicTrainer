@@ -5,6 +5,8 @@
 #include "input/noteinput.h"
 #include "imgui.h"
 #include "raylib.h"
+#include "ui/menulist.h"
+#include "ui/scoreboard.h"
 #include "ui/ui.h"
 #include "ui/theme.h"
 
@@ -133,9 +135,12 @@ void IntervalExercise::draw(){
     int poolSize = (int)config.pool.size();
     int recentCorrect = (int)std::count(progress.recent.begin(), progress.recent.end(), true);
     int percent = sessionAsked > 0 ? 100 * sessionCorrect / sessionAsked : 0;
-    centeredColoredText(TextFormat("%d of %d intervals    This session: %d/%d (%d%%)    Streak %d, best %d",
-                                   unlocked, poolSize, sessionCorrect, sessionAsked, percent,
-                                   trainer.streak, progress.bestStreak), uiColor(UiColor::Dim));
+    const float s = menuScale();
+    drawScoreboard({
+        { "INTERVALS", TextFormat("%d/%d", unlocked, poolSize), unlocked == poolSize ? UiColor::Accent : UiColor::Ink, "unlocked" },
+        { "STREAK", std::to_string(trainer.streak), trainer.streak > 0 ? UiColor::Good : UiColor::Ink, TextFormat("best %d", progress.bestStreak) },
+        { "THIS SESSION", TextFormat("%d/%d", sessionCorrect, sessionAsked), UiColor::Ink, TextFormat("%d%% right", percent) },
+    }, ImGui::GetWindowWidth() * 0.93f, ImGui::GetWindowHeight() * 0.03f + 36 * s, s);
     if (unlocked < poolSize){
         centeredColoredText(TextFormat("Next interval unlocks at %d right out of your last %d: now %d",
                                        config.unlockCorrect, config.unlockWindow, recentCorrect), uiColor(UiColor::Dim));

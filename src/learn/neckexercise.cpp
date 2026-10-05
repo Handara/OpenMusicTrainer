@@ -9,6 +9,7 @@
 #include "ui/fretboardview.h"
 #include "ui/menulist.h"
 #include "ui/neckcards.h"
+#include "ui/scoreboard.h"
 #include "ui/theme.h"
 #include "ui/ui.h"
 #include "views/playnote.h"
@@ -146,32 +147,16 @@ void NeckExercise::drawControls(float left, float top, float s){
     }
 }
 
-// The scoreboard: big numbers, right-aligned at the top
+// The scoreboard (ui/scoreboard): the notes, the mistakes, the time and the best, at the top
 void NeckExercise::drawScoreboard(float right, float top, float s){
-    ImDrawList* draw = ImGui::GetWindowDrawList();
-    const UiFonts& fonts = uiFonts();
-    const double now = GetTime();
-    const double seconds = run.startedAt < 0.0 ? 0.0 : (finished ? neckRunSeconds(run) : now - run.startedAt);
+    const double seconds = run.startedAt < 0.0 ? 0.0 : (finished ? neckRunSeconds(run) : GetTime() - run.startedAt);
     const float best = neckBestSeconds(stats, neckRoutineName(routine));
-    struct Figure { const char* label; std::string value; UiColor color; };
-    const bool wrongNow = now - wrongAt < WRONG_FLASH_S;
-    const Figure figures[] = {
-        { "NOTES", TextFormat("%d/%d", (int)run.next, (int)steps.size()), UiColor::Ink },
-        { "MISTAKES", std::to_string(run.mistakes), wrongNow ? UiColor::Bad : (run.mistakes == 0 ? UiColor::Good : UiColor::Ink) },
-        { "TIME", clockText(seconds), UiColor::Ink },
-        { "BEST", best < 0.0f ? std::string("-") : clockText(best), UiColor::Accent },
-    };
-    float x = right;
-    for (int i = 3; i >= 0; i--){
-        const Figure& figure = figures[i];
-        const float valueWidth = fonts.heavy->CalcTextSizeA(34 * s, FLT_MAX, 0.0f, figure.value.c_str()).x;
-        const float labelWidth = fonts.mono->CalcTextSizeA(12 * s, FLT_MAX, 0.0f, figure.label).x;
-        const float width = std::max(valueWidth, labelWidth);
-        x -= width;
-        draw->AddText(fonts.mono, 12 * s, ImVec2(x + width - labelWidth, top), uiColor(UiColor::Dim), figure.label);
-        draw->AddText(fonts.heavy, 34 * s, ImVec2(x + width - valueWidth, top + 14 * s), uiColor(figure.color), figure.value.c_str());
-        x -= 34 * s;
-    }
+    ::drawScoreboard({
+        { "NOTES", std::to_string(run.next), UiColor::Ink, TextFormat("of %d", (int)steps.size()) },
+        { "MISTAKES", std::to_string(run.mistakes), run.mistakes == 0 ? UiColor::Good : UiColor::Bad, "" },
+        { "TIME", clockText(seconds), UiColor::Ink, "" },
+        { "BEST", best < 0.0f ? std::string("-") : clockText(best), UiColor::Accent, TextFormat("%d clean this time", cleanRuns) },
+    }, right, top, s);
 }
 
 // After a run: how it went, against the best, and the runs before it as bars (shorter is quicker)
@@ -212,7 +197,7 @@ void NeckExercise::draw(){
     const UiFonts& fonts = uiFonts();
     const double now = GetTime();
 
-    drawScoreboard(right, height * 0.03f + 40 * s, s);
+    drawScoreboard(right, height * 0.03f + 36 * s, s);
     drawControls(left, height * 0.2f, s);
     draw->AddText(fonts.text, 16 * s, ImVec2(left, height * 0.2f + 40 * s), uiColor(UiColor::Dim), neckRoutineName(routine).c_str());
 

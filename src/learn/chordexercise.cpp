@@ -6,6 +6,7 @@
 #include "imgui.h"
 #include "raylib.h"
 #include "ui/menulist.h"
+#include "ui/scoreboard.h"
 #include "ui/theme.h"
 #include "ui/ui.h"
 
@@ -202,9 +203,12 @@ void ChordExercise::draw(){
     int shownTempo = running ? tempo : drillTempo(config.tempo, progress);
     std::string list;
     for (const std::string& name : config.chords) list += (list.empty() ? "" : "  ") + name;
-    draw->AddText(fonts.mono, 13 * s, ImVec2(left, at.y), uiColor(UiColor::Dim),
-                  TextFormat("%s  ·  %d BPM  ·  BEST CLEAN %d  ·  GOAL %d", list.c_str(), shownTempo, progress.bestCleanTempo,
-                             config.tempo.maxTempo));
+    drawScoreboard({
+        { "TEMPO", TextFormat("%d", shownTempo), UiColor::Ink, "bpm" },
+        { "BEST CLEAN", progress.bestCleanTempo > 0 ? std::string(TextFormat("%d", progress.bestCleanTempo)) : std::string("-"), UiColor::Accent, "bpm" },
+        { "GOAL", TextFormat("%d", config.tempo.maxTempo), progress.bestCleanTempo >= config.tempo.maxTempo ? UiColor::Good : UiColor::Ink, "bpm" },
+    }, ImGui::GetWindowWidth() * 0.93f, ImGui::GetWindowHeight() * 0.03f + 36 * menuScale(), menuScale());
+    draw->AddText(fonts.mono, 13 * s, ImVec2(left, at.y), uiColor(UiColor::Dim), list.c_str());
 
     // Which chord now, and which next: before the first change, the first one is "next"
     double t = drillTime(), beat = 60.0 / std::max(1, running ? tempo : shownTempo);

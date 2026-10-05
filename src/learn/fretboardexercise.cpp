@@ -7,6 +7,7 @@
 #include "raylib.h"
 #include "ui/fretboardview.h"
 #include "ui/menulist.h"
+#include "ui/scoreboard.h"
 #include "ui/theme.h"
 #include "ui/ui.h"
 
@@ -122,9 +123,10 @@ void FretboardExercise::draw(){
     std::string where = std::string("on the ") + pitchClassName(config.tuning[question.stringIndex]) + " string";
     draw->AddText(fonts.bold, 26 * s, ImVec2(at.x + noteWidth + 16 * s, at.y + 30 * s), uiColor(UiColor::Dim), where.c_str());
     int percent = sessionAsked > 0 ? 100 * sessionCorrect / sessionAsked : 0;
-    const char* stats = TextFormat("STREAK %d  ·  BEST %d  ·  THIS SESSION %d/%d (%d%%)", trainer.streak, trainer.progress.bestStreak,
-                                   sessionCorrect, sessionAsked, percent);
-    draw->AddText(fonts.mono, 13 * s, ImVec2(at.x, at.y + 84 * s), uiColor(UiColor::Dim), stats);
+    drawScoreboard({
+        { "STREAK", std::to_string(trainer.streak), trainer.streak > 0 ? UiColor::Good : UiColor::Ink, TextFormat("best %d", trainer.progress.bestStreak) },
+        { "THIS SESSION", TextFormat("%d/%d", sessionCorrect, sessionAsked), UiColor::Ink, TextFormat("%d%% right", percent) },
+    }, width * 0.93f, ImGui::GetWindowHeight() * 0.03f + 36 * s, s);
 
     drawBoard(left, at.y + 118 * s, boardWidth, s);
 

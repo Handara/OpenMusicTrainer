@@ -7,6 +7,8 @@
 #include "raylib.h"
 #include "ui/ui.h"
 #include "views/noteviews.h"
+#include "ui/menulist.h"
+#include "ui/scoreboard.h"
 #include "ui/theme.h"
 
 #include <algorithm>
@@ -153,8 +155,12 @@ void DrillExercise::draw(){
     ImGui::SetCursorPosY(textTop);
     menuTitle(title.c_str());
     int shownTempo = running ? tempo : drillTempo(setup.tempo, progress);
-    centeredColoredText(TextFormat("%s    %d bpm    best clean %d bpm    goal %d bpm", setup.about.c_str(), shownTempo,
-                                   progress.bestCleanTempo, setup.tempo.maxTempo), uiColor(UiColor::Dim));
+    drawScoreboard({
+        { "TEMPO", TextFormat("%d", shownTempo), UiColor::Ink, "bpm" },
+        { "BEST CLEAN", progress.bestCleanTempo > 0 ? std::string(TextFormat("%d", progress.bestCleanTempo)) : std::string("-"), UiColor::Accent, "bpm" },
+        { "GOAL", TextFormat("%d", setup.tempo.maxTempo), progress.bestCleanTempo >= setup.tempo.maxTempo ? UiColor::Good : UiColor::Ink, "bpm" },
+    }, ImGui::GetWindowWidth() * 0.93f, ImGui::GetWindowHeight() * 0.03f + 36 * menuScale(), menuScale());
+    centeredColoredText(setup.about.c_str(), uiColor(UiColor::Dim));
     if (!running){
         centeredText("Press Space to start. The metronome counts one bar in, then play along.");
     } else {

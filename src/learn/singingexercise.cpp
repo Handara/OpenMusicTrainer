@@ -5,6 +5,7 @@
 #include "imgui.h"
 #include "raylib.h"
 #include "ui/menulist.h"
+#include "ui/scoreboard.h"
 #include "ui/theme.h"
 #include "ui/ui.h"
 
@@ -110,9 +111,10 @@ void SingingExercise::draw(){
     const char* doing = answered ? "" : (listening ? "sing it, and hold it" : "listen...");
     draw->AddText(fonts.bold, 26 * s, ImVec2(at.x + noteWidth + 16 * s, at.y + 30 * s), uiColor(UiColor::Dim), doing);
     int percent = sessionAsked > 0 ? 100 * sessionCorrect / sessionAsked : 0;
-    draw->AddText(fonts.mono, 13 * s, ImVec2(at.x, at.y + 84 * s), uiColor(UiColor::Dim),
-                  TextFormat("STREAK %d  ·  BEST %d  ·  THIS SESSION %d/%d (%d%%)", streak, progress.bestStreak,
-                             sessionCorrect, sessionAsked, percent));
+    drawScoreboard({
+        { "STREAK", std::to_string(streak), streak > 0 ? UiColor::Good : UiColor::Ink, TextFormat("best %d", progress.bestStreak) },
+        { "THIS SESSION", TextFormat("%d/%d", sessionCorrect, sessionAsked), UiColor::Ink, TextFormat("%d%% in tune", percent) },
+    }, width * 0.93f, ImGui::GetWindowHeight() * 0.03f + 36 * s, s);
 
     // The meter: 50 cents flat to 50 sharp, the in-tune band green, the voice a needle
     float meterTop = at.y + 130 * s, meterWidth = 600 * s, meterHeight = 70 * s;
