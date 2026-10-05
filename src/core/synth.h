@@ -44,9 +44,11 @@ enum class KitDrum { Kick, Snare, Hat, OpenHat, Crash };
 void renderKitDrum(float* out, int count, int sampleRate, KitDrum drum, unsigned seed);
 
 // A crowd, for the games' verdicts, Rhythm Heaven style: cheering (about twenty voices going "yay!", each its own
-// pitch and voice, gliding up from the y, with clapping and a whistle) or going "awww" (the voices falling, an "aw"
-// vowel). Each voice a buzz through its vowel's formants (resonances at a vowel's frequencies), in a small room.
-void renderCrowd(float* out, int count, int sampleRate, bool cheer, unsigned seed);
+// pitch and voice, gliding up from the y, with clapping and a whistle), clapping politely (a few hands, no voices,
+// quieter) or going "awww" (the voices falling, an "aw" vowel). Each voice a buzz through its vowel's formants
+// (resonances at a vowel's frequencies), in a small room.
+enum class CrowdReaction { Cheer, Claps, Aww };
+void renderCrowd(float* out, int count, int sampleRate, CrowdReaction reaction, unsigned seed);
 
 // Renders one of BUILT_IN_PREVIEW_SOUNDS by name (see core/settings.h); false if the name isn't one of them
 bool renderBuiltInSound(const char* name, float* out, int count, float frequency, int sampleRate, unsigned seed);

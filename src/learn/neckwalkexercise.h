@@ -50,11 +50,11 @@ private:
     int bpm = 120;
     double scheduledTo = 0.0; // the tune and the computer's notes are scheduled up to here (the audio clock)
     int crowdRound = -1;      // the round whose crowd is scheduled
-    std::vector<float> kit[5], cheer, aww; // rendered once
+    std::vector<float> kit[5], crowd[3];   // rendered once (the crowd: by NeckWalkVerdict)
     // What happened when (GetTime), for the drawing
     std::vector<double> judgedAt; // each walk note of the round
     double verdictAt = -100.0, roundAt = -100.0, overAt = -100.0;
-    bool lastCheer = false;
+    NeckWalkVerdict lastVerdict = NeckWalkVerdict::Aww;
     bool newBest = false;
     int bestCleared = 0;
     FretboardLayout board;  // as last drawn: for clicks

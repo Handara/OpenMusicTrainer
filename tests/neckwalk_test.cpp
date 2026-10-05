@@ -68,8 +68,8 @@ TEST_CASE("neck walk: the computer plays the walk, the player plays it back; all
     // The computer's notes played back while it plays them count for nothing
     CHECK(neckWalkPlayed(game, game.walk[0].pitch, neckWalkShowTime(game, 0)).right < 0);
     NeckWalkEvents verdict = playRound(game, true);
-    CHECK(verdict.cheer);
-    CHECK_FALSE(verdict.aww);
+    CHECK(verdict.verdict);
+    CHECK(verdict.how == NeckWalkVerdict::Cheer);
     CHECK(game.round == 1);
     CHECK(game.root == (root + 5) % 12);
     CHECK(game.walk[0].pitch == next[0].pitch);
@@ -95,7 +95,7 @@ TEST_CASE("neck walk: a slip put right in time counts; a wrong note or none cost
     CHECK(neckWalkUpdate(game, neckWalkNoteTime(game, 2) + 0.3).missed == 2);
     CHECK(game.notes[0] == WalkNote::Right);
     NeckWalkEvents verdict = neckWalkUpdate(game, neckWalkVerdictTime(game));
-    CHECK(verdict.aww);
+    CHECK(verdict.how == NeckWalkVerdict::Aww); // one of four right
     CHECK(game.lives == 4);
     CHECK(game.streak == 0);
 }
@@ -119,12 +119,30 @@ TEST_CASE("neck walk: the levels walk more strings, faster, and every walk fits 
     CHECK(bass.walk.size() == 8);
 }
 
+TEST_CASE("neck walk: half the walk right isn't a fail: claps, no life lost, but the streak starts again"){
+    NeckWalkGame game;
+    startNeckWalk(game, 0, GUITAR, 9, START, TEMPO);
+    playRound(game, true);
+    REQUIRE(game.streak == 1);
+    for (int i = 0; i < (int)game.walk.size(); i++){
+        const double at = neckWalkNoteTime(game, i);
+        if (i % 2 == 0) neckWalkPlayed(game, game.walk[i].pitch, at); // two of four
+        neckWalkUpdate(game, at + 0.3);
+    }
+    CHECK(neckWalkVerdictOf(game) == NeckWalkVerdict::Claps);
+    NeckWalkEvents verdict = neckWalkUpdate(game, neckWalkVerdictTime(game));
+    CHECK(verdict.how == NeckWalkVerdict::Claps);
+    CHECK(game.lives == NECK_WALK_LIVES);
+    CHECK(game.streak == 0);
+    CHECK(game.cleared == 1);
+}
+
 TEST_CASE("neck walk: five rounds wrong and the game is over"){
     NeckWalkGame game;
     startNeckWalk(game, 0, GUITAR, 11, START, TEMPO);
     playRound(game, true);
     for (int i = 0; i < 4; i++){
-        CHECK(playRound(game, false).aww);
+        CHECK(playRound(game, false).how == NeckWalkVerdict::Aww);
         CHECK_FALSE(game.over);
     }
     NeckWalkEvents last = playRound(game, false);

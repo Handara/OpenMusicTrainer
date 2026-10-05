@@ -13,8 +13,9 @@
 //
 // After a bar to get ready, a round is four bars, two licks of the tune: in the first the computer plays the walk, a
 // note every `beatsPerNote` beats, shown on the neck; in the second the player plays it back, from memory, at the
-// same pace. Half a beat before the round ends, the verdict: the crowd cheering a walk all right, or going "awww". The
-// next round's note is a fourth up (round the circle of fourths). A round wrong costs a life; with none left, it's over.
+// same pace. Half a beat before the round ends, the verdict: the crowd cheering a walk all right, clapping politely at
+// one at least half right, going "awww" at less. The next round's note is a fourth up (round the circle of fourths).
+// Less than half right costs a life; with none left, it's over.
 
 struct NeckWalkLevel {
     const char* name;           // "Easy"
@@ -44,6 +45,7 @@ std::vector<NeckStep> neckWalkSteps(int pitchClass, const std::vector<int>& tuni
                                     int maxFret, int notes);
 
 enum class WalkNote { Due, Right, Wrong, Missed };
+enum class NeckWalkVerdict { Cheer, Claps, Aww };
 
 struct NeckWalkGame {
     int levelIndex = 0;
@@ -72,7 +74,8 @@ struct NeckWalkGame {
 // What happened, for the screen to show and sound
 struct NeckWalkEvents {
     int right = -1, wrong = -1, missed = -1; // a walk note (its index) judged now
-    bool cheer = false, aww = false;          // a round's verdict
+    bool verdict = false;                     // a round's verdict, now: which, in `how`
+    NeckWalkVerdict how = NeckWalkVerdict::Aww;
     bool newRound = false;
     bool over = false;
 };
@@ -89,6 +92,8 @@ double neckWalkVerdictTime(const NeckWalkGame& game);
 // wrong, unless the right one still comes in time (a slip, or the detector catching the string's first moment wrong).
 // A note far from every beat is let go.
 NeckWalkEvents neckWalkPlayed(NeckWalkGame& game, int pitch, double time);
+// What the crowd makes of the round's walk as it stands: all right, at least half, or less
+NeckWalkVerdict neckWalkVerdictOf(const NeckWalkGame& game);
 // Time going on: walk notes not played in time are missed, the verdict comes at its beat, then the next round
 NeckWalkEvents neckWalkUpdate(NeckWalkGame& game, double time);
 

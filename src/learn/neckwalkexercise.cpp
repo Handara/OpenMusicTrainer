@@ -36,6 +36,11 @@ static std::string todayText(){
     return TextFormat("%04d-%02d-%02d", year, month, day);
 }
 
+// The crowd's verdict, in color: all right green, half right plain, less red
+static UiColor verdictColor(NeckWalkVerdict verdict){
+    return verdict == NeckWalkVerdict::Cheer ? UiColor::Good : verdict == NeckWalkVerdict::Claps ? UiColor::Ink : UiColor::Bad;
+}
+
 // What each level asks, said plainly
 static std::string levelText(const NeckWalkLevel& level){
     std::string pace = level.beatsPerNote >= 2.0 ? "a note every two beats" : level.beatsPerNote >= 1.0 ? "a note every beat" : "two notes a beat";
@@ -57,10 +62,11 @@ NeckWalkExercise::NeckWalkExercise(const std::string& title, const std::string& 
         kit[drum].resize((size_t)(kitSeconds[drum] * rate));
         renderKitDrum(kit[drum].data(), (int)kit[drum].size(), rate, (KitDrum)drum, 1);
     }
-    cheer.resize((size_t)(CROWD_S * rate));
-    renderCrowd(cheer.data(), (int)cheer.size(), rate, true, 1);
-    aww.resize((size_t)(CROWD_S * rate));
-    renderCrowd(aww.data(), (int)aww.size(), rate, false, 1);
+    const CrowdReaction reactions[3] = { CrowdReaction::Cheer, CrowdReaction::Claps, CrowdReaction::Aww }; // as NeckWalkVerdict
+    for (int i = 0; i < 3; i++){
+        crowd[i].resize((size_t)(CROWD_S * rate));
+        renderCrowd(crowd[i].data(), (int)crowd[i].size(), rate, reactions[i], 1);
+    }
     const InputRole role = onBass ? InputRole::Bass : InputRole::Guitar;
     listening = startNoteInput(settings.inputDevice, midiToFrequency((float)tuning.front()) * 0.9f, inputError, channelFor(settings, role));
     ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard; // the arrows and Space choose and play here
@@ -144,8 +150,7 @@ void NeckWalkExercise::scheduleTune(){
     // The crowd, on the verdict's beat, as soon as the player's walk is all judged
     if (crowdRound != game.round && !game.judged && !game.over && !game.walk.empty()
         && std::none_of(game.notes.begin(), game.notes.end(), [](WalkNote note){ return note == WalkNote::Due; })){
-        const bool clean = std::all_of(game.notes.begin(), game.notes.end(), [](WalkNote note){ return note == WalkNote::Right; });
-        playSamplesAt(clean ? cheer : aww, neckWalkVerdictTime(game), CROWD_VOLUME);
+        playSamplesAt(crowd[(int)neckWalkVerdictOf(game)], neckWalkVerdictTime(game), CROWD_VOLUME);
         crowdRound = game.round;
     }
 }
@@ -155,9 +160,9 @@ void NeckWalkExercise::handle(const NeckWalkEvents& events){
     for (int index : { events.right, events.wrong, events.missed })
         if (index >= 0 && index < (int)judgedAt.size()) judgedAt[index] = now;
     if (events.right >= 0) playHitSound(true);
-    if (events.cheer || events.aww){
+    if (events.verdict){
         verdictAt = now;
-        lastCheer = events.cheer;
+        lastVerdict = events.how;
     }
     if (events.newRound){
         roundAt = now;
@@ -260,7 +265,7 @@ void NeckWalkExercise::drawStrip(float left, float right, float top, float s){
     const ImVec2 crowd(beatX(NECK_WALK_ROUND_BEATS - 0.5), dotY);
     const float r = 8 * s;
     draw->AddQuadFilled(ImVec2(crowd.x, crowd.y - r), ImVec2(crowd.x + r, crowd.y), ImVec2(crowd.x, crowd.y + r), ImVec2(crowd.x - r, crowd.y),
-                        uiColor(!game.judged ? UiColor::Dim : lastCheer ? UiColor::Good : UiColor::Bad));
+                        uiColor(!game.judged ? UiColor::Dim : verdictColor(lastVerdict)));
     if (along >= 0.0 && along <= NECK_WALK_ROUND_BEATS){
         const float x = beatX(along);
         draw->AddLine(ImVec2(x, top - 4 * s), ImVec2(x, top + height + 4 * s), uiColor(UiColor::Ink), 3 * s);
@@ -404,11 +409,11 @@ void NeckWalkExercise::draw(){
     // The verdict, big: the crowd's
     const float verdictSince = (float)(GetTime() - verdictAt);
     if (state != State::Ready && verdictSince < VERDICT_SHOWN_S){
-        const char* text = lastCheer ? "YEAH!" : "AWWW";
+        const char* text = lastVerdict == NeckWalkVerdict::Cheer ? "YEAH!" : lastVerdict == NeckWalkVerdict::Claps ? "OK" : "AWWW";
         const float grow = 1.0f + 0.3f * std::exp(-verdictSince * 8.0f), alpha = std::min(1.0f, (VERDICT_SHOWN_S - verdictSince) * 3.0f);
         const float size = 64 * s * grow;
         const ImVec2 measured = fonts.heavy->CalcTextSizeA(size, FLT_MAX, 0.0f, text);
-        draw->AddText(fonts.heavy, size, ImVec2(right - measured.x, noteTop - 4 * s), uiColor(lastCheer ? UiColor::Good : UiColor::Bad, alpha), text);
+        draw->AddText(fonts.heavy, size, ImVec2(right - measured.x, noteTop - 4 * s), uiColor(verdictColor(lastVerdict), alpha), text);
     }
 
     const float neckTop = height * 0.43f, neckBottom = height * 0.43f + std::min(42.0f * s * (float)tuning.size(), height * 0.34f);
@@ -433,7 +438,7 @@ void NeckWalkExercise::draw(){
         draw->AddText(fonts.text, 16 * s, ImVec2(left, textY + 28 * s), uiColor(UiColor::Dim),
                       "Each round, a note. The computer walks it on the neck, from the top string down and back up: watch and listen.");
         draw->AddText(fonts.text, 16 * s, ImVec2(left, textY + 50 * s), uiColor(UiColor::Dim),
-                      "Then play it back, at the same pace, from memory. All right and the crowd cheers; five rounds wrong and it's over.");
+                      "Then play it back, at the same pace, from memory. All right: cheers. Half right: claps. Less: a life gone, five and it's over.");
         textY += 80 * s;
     }
     if (!grooveError.empty()) draw->AddText(fonts.text, 16 * s, ImVec2(left, textY), uiColor(UiColor::Bad), ("The tune: " + grooveError).c_str());

@@ -136,6 +136,12 @@ NeckWalkEvents neckWalkPlayed(NeckWalkGame& game, int pitch, double time){
     return events;
 }
 
+NeckWalkVerdict neckWalkVerdictOf(const NeckWalkGame& game){
+    const long right = std::count(game.notes.begin(), game.notes.end(), WalkNote::Right);
+    if (!game.notes.empty() && right == (long)game.notes.size()) return NeckWalkVerdict::Cheer;
+    return right * 2 >= (long)game.notes.size() && right > 0 ? NeckWalkVerdict::Claps : NeckWalkVerdict::Aww;
+}
+
 NeckWalkEvents neckWalkUpdate(NeckWalkGame& game, double time){
     NeckWalkEvents events;
     if (game.over) return events;
@@ -147,17 +153,18 @@ NeckWalkEvents neckWalkUpdate(NeckWalkGame& game, double time){
     }
     if (!game.judged && time >= neckWalkVerdictTime(game)){
         game.judged = true;
-        const bool clean = std::all_of(game.notes.begin(), game.notes.end(), [](WalkNote note){ return note == WalkNote::Right; });
-        if (clean){
+        events.verdict = true;
+        events.how = neckWalkVerdictOf(game);
+        if (events.how == NeckWalkVerdict::Cheer){
             game.streak++;
             game.bestStreak = std::max(game.bestStreak, game.streak);
             game.cleared++;
             game.score += (long long)CLEARED_POINTS * game.level.points * game.streak;
-            events.cheer = true;
+        } else if (events.how == NeckWalkVerdict::Claps){
+            game.streak = 0; // not a fail: no life lost, but the streak is of walks all right
         } else {
             game.streak = 0;
             game.lives--;
-            events.aww = true;
             if (game.lives <= 0){
                 game.over = true;
                 events.over = true;

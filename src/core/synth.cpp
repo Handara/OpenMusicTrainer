@@ -419,14 +419,15 @@ static CrowdVowel mixVowels(const CrowdVowel& a, const CrowdVowel& b, float alon
     return { a.f1 + (b.f1 - a.f1) * along, a.f2 + (b.f2 - a.f2) * along, a.f3 + (b.f3 - a.f3) * along };
 }
 
-void renderCrowd(float* out, int count, int sampleRate, bool cheer, unsigned seed){
+void renderCrowd(float* out, int count, int sampleRate, CrowdReaction reaction, unsigned seed){
     std::fill(out, out + count, 0.0f);
-    std::minstd_rand rng(seed * 104729u + (cheer ? 1u : 2u));
+    const bool cheer = reaction == CrowdReaction::Cheer, claps = reaction == CrowdReaction::Claps;
+    std::minstd_rand rng(seed * 104729u + (unsigned)reaction + 1u);
     auto uniform = [&](float low, float high){ return std::uniform_real_distribution<float>(low, high)(rng); };
     std::uniform_real_distribution<float> noise(-1.0f, 1.0f);
     // "yay": from the y's vowel to an open "eh"; "aw": an open "a" darkening to "aw"
     const CrowdVowel Y = { 300, 2200, 2900 }, EH = { 700, 1750, 2600 }, A = { 750, 1150, 2500 }, AW = { 580, 880, 2450 };
-    const int voices = cheer ? 20 : 15;
+    const int voices = cheer ? 20 : claps ? 0 : 15;
     const float length = (float)count / sampleRate;
     for (int v = 0; v < voices; v++){
         const float start = uniform(0.0f, cheer ? 0.18f : 0.12f);
@@ -459,17 +460,20 @@ void renderCrowd(float* out, int count, int sampleRate, bool cheer, unsigned see
             out[i] += voiced * envelope * loud;
         }
     }
-    if (cheer){
-        // Clapping, thick at first and thinning out, and someone whistling
-        const int claps = 50;
-        for (int c = 0; c < claps; c++){
-            const float at = 0.05f + 1.9f * std::pow(uniform(0.0f, 1.0f), 1.6f);
+    if (cheer || claps){
+        // Clapping, thick at first and thinning out (a cheer's), or a few hands, unhurried (polite)
+        const int hands = cheer ? 50 : 16;
+        for (int c = 0; c < hands; c++){
+            const float at = cheer ? 0.05f + 1.9f * std::pow(uniform(0.0f, 1.0f), 1.6f) : 0.03f + 1.3f * std::pow(uniform(0.0f, 1.0f), 1.3f);
             SynthBandPass ring;
             ring.set(uniform(900.0f, 2200.0f), 1.5f, sampleRate);
             const float loud = uniform(0.6f, 1.6f);
             const int first = (int)(at * sampleRate), last = std::min(count, first + (int)(0.06f * sampleRate));
             for (int i = first; i < last; i++) out[i] += loud * ring.run(noise(rng)) * std::exp(-(float)(i - first) / sampleRate / 0.012f);
         }
+    }
+    if (cheer){
+        // Someone whistling
         double phase = 0.0;
         const float whistleAt = uniform(0.15f, 0.35f);
         const int first = (int)(whistleAt * sampleRate), last = std::min(count, first + (int)(0.8f * sampleRate));
@@ -493,6 +497,7 @@ void renderCrowd(float* out, int count, int sampleRate, bool cheer, unsigned see
         out[i] = out[i] + 0.25f * (room1[i] + room2[i] - 2.0f * out[i]);
         peak = std::max(peak, std::abs(out[i]));
     }
-    if (peak > 0.0f) for (int i = 0; i < count; i++) out[i] *= PEAK_LEVEL * 0.9f / peak;
+    const float level = claps ? 0.6f : 0.9f; // polite claps, dimmer
+    if (peak > 0.0f) for (int i = 0; i < count; i++) out[i] *= PEAK_LEVEL * level / peak;
     fadeEnd(out, count, sampleRate);
 }
