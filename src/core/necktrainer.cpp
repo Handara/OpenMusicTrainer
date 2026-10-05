@@ -1,8 +1,12 @@
 #include "core/necktrainer.h"
 
+#include "core/files.h"
 #include "core/music.h"
 
 #include <algorithm>
+#include <cstdlib>
+#include <fstream>
+#include <sstream>
 
 const int POSITION_SPAN = 3; // a position reaches from the index finger's fret to the pinky's, 3 frets up
 
@@ -47,15 +51,20 @@ bool neckSteps(const NeckRoutine& routine, const std::vector<int>& tuning, int f
         error = "no strings";
         return false;
     }
-    // One note on every string: its first place on each, from the position up, low string to high and back
+    // One note on every string, low string to high and back: on each, the place nearest the one before (the first,
+    // nearest the position at or above it), so the hand moves as little as it can
     if (routine.pattern == NeckPattern::EveryString){
         std::vector<NeckStep> up;
+        int near = std::max(0, routine.position);
         for (int string = 0; string < (int)tuning.size(); string++){
-            for (int fret = std::max(0, routine.position); fret <= frets; fret++){
+            int best = -1;
+            for (int fret = string == 0 ? near : 0; fret <= frets; fret++){
                 if ((tuning[string] + fret) % 12 != routine.notePitchClass) continue;
-                up.push_back({ tuning[string] + fret, string, fret });
-                break;
+                if (best < 0 || std::abs(fret - near) < std::abs(best - near)) best = fret;
             }
+            if (best < 0) continue;
+            up.push_back({ tuning[string] + best, string, best });
+            near = best;
         }
         out = up;
         for (int i = (int)up.size() - 2; i >= 0; i--) out.push_back(up[i]);
@@ -141,4 +150,60 @@ bool neckRunDone(const NeckRun& run){
 
 double neckRunSeconds(const NeckRun& run){
     return run.startedAt < 0.0 ? 0.0 : run.lastAt - run.startedAt;
+}
+
+NeckStats loadNeckStats(const std::string& path){
+    NeckStats stats;
+    std::ifstream in(path);
+    std::string line;
+    while (std::getline(in, line)){
+        std::istringstream ss(line);
+        std::string kind;
+        ss >> kind;
+        if (kind == "run"){
+            NeckRecord record;
+            if (!(ss >> record.date >> record.seconds >> record.mistakes >> record.notes)) continue;
+            std::getline(ss >> std::ws, record.routine);
+            stats.runs.push_back(record);
+        } else if (kind == "cell"){
+            int string, fret, count;
+            float seconds;
+            if (ss >> string >> fret >> seconds >> count) stats.cells[{ string, fret }] = { seconds, count };
+        }
+    }
+    return stats;
+}
+
+bool saveNeckStats(const std::string& path, const NeckStats& stats, std::string& error){
+    std::ostringstream out;
+    out << "# lahn neck trainer: run <date> <seconds> <mistakes> <notes> <routine>; cell <string> <fret> <seconds summed> <notes>\n";
+    for (const NeckRecord& run : stats.runs)
+        out << "run " << run.date << " " << run.seconds << " " << run.mistakes << " " << run.notes << " " << run.routine << "\n";
+    for (const auto& [place, sum] : stats.cells)
+        out << "cell " << place.first << " " << place.second << " " << sum.first << " " << sum.second << "\n";
+    return writeFileAtomically(path, out.str(), error);
+}
+
+void addNeckRun(NeckStats& stats, const NeckRun& run, const std::string& routine, const std::string& date){
+    stats.runs.push_back({ date, (float)neckRunSeconds(run), run.mistakes, (int)run.stepSeconds.size(), routine });
+    for (size_t i = 1; i < run.stepSeconds.size() && i < run.steps.size(); i++){
+        auto& cell = stats.cells[{ run.steps[i].string, run.steps[i].fret }];
+        cell.first += run.stepSeconds[i];
+        cell.second++;
+    }
+}
+
+std::vector<NeckRecord> neckRunsOf(const NeckStats& stats, const std::string& routine){
+    std::vector<NeckRecord> runs;
+    for (const NeckRecord& run : stats.runs) if (run.routine == routine) runs.push_back(run);
+    return runs;
+}
+
+float neckBestSeconds(const NeckStats& stats, const std::string& routine){
+    float best = -1.0f, bestClean = -1.0f;
+    for (const NeckRecord& run : neckRunsOf(stats, routine)){
+        if (best < 0.0f || run.seconds < best) best = run.seconds;
+        if (run.mistakes == 0 && (bestClean < 0.0f || run.seconds < bestClean)) bestClean = run.seconds;
+    }
+    return bestClean >= 0.0f ? bestClean : best;
 }

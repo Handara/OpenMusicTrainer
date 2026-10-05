@@ -2,14 +2,17 @@
 
 #include "core/scales.h"
 
+#include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 // Learning the neck: a scale's notes in one place on the neck, played through in a pattern, at the player's own pace.
 // Pure logic: which notes, in what order, where, and how a run of them is going.
 //
 // The patterns, each going up and then back down:
-//   EveryString: one note (a pitch class) on every string, the lowest string to the highest and back: where it is
+//   EveryString: one note (a pitch class) on every string, the lowest string to the highest and back, each the
+//                place nearest the one before: where it is, wherever the hand is
 //   Straight:    the scale through the place on the neck
 //   Thirds:      in thirds, 1-3, 2-4, 3-5... (and down, 8-6, 7-5...)
 //   Triads:      the scale's triads, 1-3-5, 2-4-6... (and down, 8-6-4...)
@@ -53,3 +56,24 @@ void startNeckRun(NeckRun& run, const std::vector<NeckStep>& steps);
 bool playNeckNote(NeckRun& run, int pitch, double time);
 bool neckRunDone(const NeckRun& run);
 double neckRunSeconds(const NeckRun& run); // from the first note to the last played
+
+// What's kept of the runs, one file for an exercise: each finished run (its routine by name), and for every string and
+// fret how long finding it took on average, every routine together (a map of what's quick to find and what isn't)
+struct NeckRecord {
+    std::string date;     // YYYY-MM-DD
+    float seconds = 0.0f;
+    int mistakes = 0;
+    int notes = 0;
+    std::string routine;  // neckRoutineName
+};
+struct NeckStats {
+    std::vector<NeckRecord> runs;                                // oldest first
+    std::map<std::pair<int, int>, std::pair<float, int>> cells;  // (string, fret) -> (seconds summed, notes)
+};
+NeckStats loadNeckStats(const std::string& path); // empty if there's none yet
+bool saveNeckStats(const std::string& path, const NeckStats& stats, std::string& error);
+// A finished run, added: its record, and each note's time to its place (the first note's isn't known: left out)
+void addNeckRun(NeckStats& stats, const NeckRun& run, const std::string& routine, const std::string& date);
+// The routine's runs, oldest first, and its best (fewest seconds of the runs with no mistake, else of all; -1: none)
+std::vector<NeckRecord> neckRunsOf(const NeckStats& stats, const std::string& routine);
+float neckBestSeconds(const NeckStats& stats, const std::string& routine);

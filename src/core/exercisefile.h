@@ -2,6 +2,7 @@
 
 #include "core/chords.h"
 #include "core/drill.h"
+#include "core/necktrainer.h"
 #include "core/fretboard.h"
 #include "core/reading.h"
 #include "core/rhythm.h"
@@ -86,7 +87,7 @@
 //   step intervals-up 5
 // A built-in routine uses built-in exercises; the player's own routines look in their own exercises first.
 
-enum class ExerciseType { Intervals, Scale, Routine, Fretboard, Rhythm, Reading, Chords, Singing };
+enum class ExerciseType { Intervals, Scale, Routine, Fretboard, Rhythm, Reading, Chords, Singing, Neck };
 
 struct ExerciseFile {
     ExerciseType type = ExerciseType::Intervals;
@@ -101,6 +102,8 @@ struct ExerciseFile {
     ReadingConfig reading;     // the rules, for type Reading
     ChordDrillConfig chords;   // the rules, for type Chords
     SingingConfig singing;     // the rules, for type Singing
+    NeckRoutine neck;          // where it starts, for type Neck (the player changes it as they go)
+    bool neckOnBass = false;   //   played on a bass, not a guitar
     std::vector<RoutineStep> routine; // the steps, for type Routine
 };
 

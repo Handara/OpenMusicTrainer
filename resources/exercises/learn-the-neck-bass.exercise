@@ -1,0 +1,13 @@
+# lahn exercise
+version 1
+type neck
+title Learn the neck, on bass
+category Fretboard
+author lahn
+description A scale in one place on the bass's neck, played up and down, in thirds, in triads, or one note on every string. Change the key, the scale, the shape and the position as you go: your times are kept, and the neck shows which notes you find slowly.
+key A
+scale minor_pentatonic
+fingering position
+position 5
+pattern straight
+instrument bass

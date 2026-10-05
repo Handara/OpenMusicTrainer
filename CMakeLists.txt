@@ -220,6 +220,7 @@ add_executable(lahn
     src/learn/chordexercise.cpp
     src/learn/drillexercise.cpp
     src/learn/fretboardexercise.cpp
+    src/learn/neckexercise.cpp
     src/learn/intervalexercise.cpp
     src/learn/lessonplayer.cpp
     src/learn/lessonview.cpp

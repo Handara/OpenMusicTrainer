@@ -163,8 +163,9 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
             else if (line.rest == "reading") out.type = ExerciseType::Reading;
             else if (line.rest == "chords") out.type = ExerciseType::Chords;
             else if (line.rest == "singing") out.type = ExerciseType::Singing;
+            else if (line.rest == "neck") out.type = ExerciseType::Neck;
             else return lineError("unknown exercise type '" + line.rest + "' (known: intervals, scale, routine, fretboard, rhythm, "
-                                  "reading, chords, singing)");
+                                  "reading, chords, singing, neck)");
             hasType = true;
         }
     }
@@ -192,6 +193,39 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
         if (key == "category"){ if (!line.rest.empty()) out.category = line.rest; continue; }
         if (key == "author"){ out.author = line.rest; continue; }
         if (key == "description"){ out.description = line.rest; continue; }
+
+        // Learning the neck: where it starts (core/necktrainer)
+        if (out.type == ExerciseType::Neck){
+            NeckRoutine& neck = out.neck;
+            std::string word;
+            ss >> word;
+            if (key == "key" || key == "note"){
+                int pitchClass;
+                if (!parsePitchClass(word, pitchClass)) return lineError("expected: " + key + " <a note name: C, F#, Bb...>");
+                (key == "key" ? neck.rootPitchClass : neck.notePitchClass) = pitchClass;
+            } else if (key == "scale"){
+                if (!findScale(word)) return lineError("unknown scale '" + word + "'");
+                neck.scale = word;
+            } else if (key == "fingering"){
+                if (word == "position") neck.fingering = Fingering::Position;
+                else if (word == "3nps") neck.fingering = Fingering::ThreeNotesPerString;
+                else return lineError("fingering must be position or 3nps");
+            } else if (key == "position"){
+                if (!(std::istringstream(word) >> neck.position) || neck.position < 0 || neck.position > 20) return lineError("position must be a fret, 0 to 20");
+            } else if (key == "pattern"){
+                if (word == "every_string") neck.pattern = NeckPattern::EveryString;
+                else if (word == "straight") neck.pattern = NeckPattern::Straight;
+                else if (word == "thirds") neck.pattern = NeckPattern::Thirds;
+                else if (word == "triads") neck.pattern = NeckPattern::Triads;
+                else return lineError("pattern must be every_string, straight, thirds or triads");
+            } else if (key == "instrument"){
+                if (word == "guitar" || word == "bass") out.neckOnBass = word == "bass";
+                else return lineError("instrument must be guitar or bass");
+            } else {
+                return lineError("unknown setting '" + key + "' for a neck exercise (known: key, scale, fingering, position, pattern, note, instrument)");
+            }
+            continue;
+        }
 
         if (out.type == ExerciseType::Intervals && key == "direction"){
             std::string direction;

@@ -8,6 +8,7 @@
 #include "learn/fretboardexercise.h"
 #include "learn/intervalexercise.h"
 #include "learn/lessonplayer.h"
+#include "learn/neckexercise.h"
 #include "learn/routineexercise.h"
 #include "learn/singingexercise.h"
 #include "raylib.h"
@@ -61,6 +62,9 @@ static std::unique_ptr<Exercise> createExercise(const ExerciseEntry& entry){
             setup.nextPass = [notes](){ return notes; }; // the same scale every pass
             return std::make_unique<DrillExercise>(entry.exercise.title, setup, progressPath(entry), learn.setup.settings);
         }
+        case ExerciseType::Neck:
+            return std::make_unique<NeckExercise>(entry.exercise.title, entry.exercise.neck, entry.exercise.neckOnBass, progressPath(entry),
+                                                  learn.setup.settings);
         case ExerciseType::Reading: {
             const ReadingConfig& config = entry.exercise.reading;
             const ScaleInfo* scale = findScale(config.scale);
@@ -139,6 +143,10 @@ static std::string progressSummary(const ExerciseEntry& entry){
         case ExerciseType::Singing: {
             int best = loadQuizProgress(progressPath(entry)).bestStreak;
             return best > 0 ? TextFormat("best streak %d", best) : "";
+        }
+        case ExerciseType::Neck: {
+            const NeckStats stats = loadNeckStats(progressPath(entry));
+            return stats.runs.empty() ? "" : TextFormat("%d runs", (int)stats.runs.size());
         }
         case ExerciseType::Routine: {
             RoutineProgress progress = loadRoutineProgress(progressPath(entry));
