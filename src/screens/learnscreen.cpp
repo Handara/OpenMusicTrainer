@@ -3,6 +3,8 @@
 #include "core/exercisefile.h"
 #include "core/lesson.h"
 #include "core/music.h"
+#include "core/plays.h"
+#include "core/routine.h"
 #include "learn/chordexercise.h"
 #include "learn/drillexercise.h"
 #include "learn/fretboardexercise.h"
@@ -19,6 +21,7 @@
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
+#include <map>
 #include <memory>
 #include <random>
 
@@ -28,7 +31,10 @@ static struct {
     std::vector<std::string> progressText; // one per exercise, e.g. "3/12": read when the menu appears, not every frame
     std::vector<LessonEntry> lessons;
     std::vector<std::string> lessonProgressText;
-    MenuList list;                          // the menu's selection, kept while exercises run
+    MenuList list;                          // the open kind's list: its selection, kept while exercises run
+    MenuList kinds;                         // the first list: the kinds (lessons, each category)
+    std::string openKind;                   // the kind whose list is open; "" for the list of kinds
+    std::map<std::string, PlayCount> plays; // how many times each was taken up (core/plays)
     // The running exercise, whatever kind it is. unique_ptr owns it: resetting it deletes the exercise
     // (running its destructor), so there's no manual delete to forget.
     std::unique_ptr<Exercise> exercise;
@@ -36,6 +42,26 @@ static struct {
 
 static std::string progressPath(const std::string& id){
     return (std::filesystem::path(learn.setup.progress) / (id + ".txt")).string();
+}
+
+static std::string playsPath(){
+    return (std::filesystem::path(learn.setup.progress) / "plays.txt").string();
+}
+
+// One more time for an exercise or a lesson (its id), today
+static void countPlay(const std::string& id){
+    int year, month, day;
+    dateFromDays(today(), year, month, day);
+    std::string error;
+    if (!recordPlay(playsPath(), id, TextFormat("%04d-%02d-%02d", year, month, day), error)) TraceLog(LOG_WARNING, "Progress: %s", error.c_str());
+}
+
+// "done 12 times, last on 2026-10-05", or "" for never
+static std::string playsText(const std::string& id){
+    auto found = learn.plays.find(id);
+    if (found == learn.plays.end() || found->second.times == 0) return "";
+    const PlayCount& count = found->second;
+    return TextFormat("done %d %s, last %s", count.times, count.times == 1 ? "time" : "times", count.last.c_str());
 }
 
 static std::string progressPath(const ExerciseEntry& entry){
@@ -146,7 +172,7 @@ static std::string progressSummary(const ExerciseEntry& entry){
         }
         case ExerciseType::Neck: {
             const NeckStats stats = loadNeckStats(progressPath(entry));
-            return stats.runs.empty() ? "" : TextFormat("%d runs", (int)stats.runs.size());
+            return stats.runs.empty() ? "" : TextFormat("%d %s", (int)stats.runs.size(), stats.runs.size() == 1 ? "run" : "runs");
         }
         case ExerciseType::Routine: {
             RoutineProgress progress = loadRoutineProgress(progressPath(entry));
@@ -171,6 +197,7 @@ static void refreshExercises(){
     });
     learn.progressText.clear();
     for (const ExerciseEntry& entry : learn.exercises) learn.progressText.push_back(progressSummary(entry));
+    learn.plays = loadPlays(playsPath());
 
     // Lessons, built-in first; their exercise steps are checked against the exercises just loaded
     learn.lessons = scanLessons(learn.setup.builtInLessons, true);
@@ -228,6 +255,10 @@ bool learnBack(){
         endExercise();
         return false;
     }
+    if (!learn.openKind.empty()){ // inside a kind: back to the kinds
+        learn.openKind.clear();
+        return false;
+    }
     return true;
 }
 
@@ -236,11 +267,6 @@ struct LearnRow {
     enum Kind { Heading, Lesson, Exercise, OpenExercises, OpenLessons } kind;
     int index; // into learn.lessons or learn.exercises
 };
-
-static std::string upper(std::string text){
-    for (char& c : text) c = (char)std::toupper((unsigned char)c);
-    return text;
-}
 
 // The selected lesson or exercise, on a card on the right: its title, what it's about, who made it, how far you are
 static void drawAbout(const LearnRow& row, float s){
@@ -258,6 +284,8 @@ static void drawAbout(const LearnRow& row, float s){
         about = entry.exercise.description;
         author = entry.exercise.author;
         progress = learn.progressText[row.index];
+        const std::string plays = playsText(entry.id);
+        if (!plays.empty()) progress += (progress.empty() ? "" : "  ·  ") + plays;
     } else {
         return;
     }
@@ -296,73 +324,119 @@ bool learnWantsEditor(){
     return wants;
 }
 
+// The Learn menu, in two: first the kinds (lessons, then each category of exercises), each with how much there is and
+// how often it's been taken up; Enter opens one, its exercises with their progress and how many times each was done
 static void exerciseMenu(){
     float s = menuScale();
-    menuScreenTitle("Learn", s);
-    {
+    const bool inKind = !learn.openKind.empty();
+    menuScreenTitle(inKind ? learn.openKind.c_str() : "Learn", s);
+    if (!inKind){
         // Beside the title: learning, or making lessons (Tab)
         const char* const modes[] = { "LEARN", "EDIT LESSONS" };
         int mode = 0;
         menuSwitchRow("MODE", modes, 2, mode, ImGui::GetWindowWidth() * 0.55f, ImGui::GetWindowHeight() * 0.09f + 14 * s, s);
         wantsEditor = mode == 1 || ImGui::IsKeyPressed(ImGuiKey_Tab);
     }
-
-    // The rows: lessons first (where a beginner starts), then each category of exercises, then the folders
+    const std::string LESSONS = "Lessons";
     std::vector<MenuRow> rows;
     std::vector<LearnRow> targets;
-    auto heading = [&](const std::string& text){
-        MenuRow row;
-        row.label = upper(text);
-        row.heading = true;
-        rows.push_back(row);
-        targets.push_back({LearnRow::Heading, -1});
-    };
-    if (!learn.lessons.empty()) heading("Lessons");
-    for (int i = 0; i < (int)learn.lessons.size(); i++){
-        const LessonEntry& entry = learn.lessons[i];
-        MenuRow row;
-        row.label = entry.lesson.title;
-        row.detail = learn.lessonProgressText[i];
-        if (!entry.builtIn) row.detail += row.detail.empty() ? "yours" : "  ·  yours";
-        row.note = entry.error;
-        row.disabled = !entry.error.empty();
-        rows.push_back(row);
-        targets.push_back({LearnRow::Lesson, i});
+    std::vector<std::string> kinds; // inKind == false: each row's kind ("" for the folders)
+    float width = ImGui::GetWindowWidth(), height = ImGui::GetWindowHeight();
+    if (!inKind){
+        // The kinds, lessons first (where a beginner starts), each with how many and how often they've been done
+        auto addKind = [&](const std::string& kind, int count, int times, const char* noun){
+            MenuRow row;
+            row.label = kind;
+            row.detail = TextFormat("%d %s%s", count, noun, count == 1 ? "" : "s");
+            if (times > 0) row.detail += TextFormat("  ·  done %d %s", times, times == 1 ? "time" : "times");
+            rows.push_back(row);
+            targets.push_back({ LearnRow::Heading, -1 });
+            kinds.push_back(kind);
+        };
+        if (!learn.lessons.empty()){
+            int times = 0;
+            for (const LessonEntry& entry : learn.lessons) times += learn.plays.count(entry.id) ? learn.plays[entry.id].times : 0;
+            addKind(LESSONS, (int)learn.lessons.size(), times, "lesson");
+        }
+        for (size_t i = 0; i < learn.exercises.size();){
+            const std::string& category = learn.exercises[i].exercise.category;
+            int count = 0, times = 0;
+            for (; i < learn.exercises.size() && learn.exercises[i].exercise.category == category; i++){
+                count++;
+                times += learn.plays.count(learn.exercises[i].id) ? learn.plays[learn.exercises[i].id].times : 0;
+            }
+            addKind(category, count, times, "exercise");
+        }
+        MenuRow folders;
+        folders.label = "YOUR OWN";
+        folders.heading = true;
+        rows.push_back(folders);
+        targets.push_back({ LearnRow::Heading, -1 });
+        kinds.push_back("");
+        rows.push_back(actionRow("Open exercises folder"));
+        targets.push_back({ LearnRow::OpenExercises, -1 });
+        kinds.push_back("");
+        rows.push_back(actionRow("Open lessons folder"));
+        targets.push_back({ LearnRow::OpenLessons, -1 });
+        kinds.push_back("");
+        int confirmed = menuList(learn.kinds, rows, { ImVec2(width * 0.07f, height * 0.2f), width * 0.48f, height * 0.72f - 20 * s, s });
+        menuScreenHint("Up/Down  choose    Enter  open    Tab  edit lessons    Esc  back", s);
+        if (confirmed < 0) return;
+        if (!kinds[confirmed].empty()){
+            learn.openKind = kinds[confirmed];
+            learn.list.selected = -1; // its first
+            return;
+        }
+        if (targets[confirmed].kind == LearnRow::OpenExercises) openFolder(learn.setup.userExercises);
+        if (targets[confirmed].kind == LearnRow::OpenLessons) openFolder(learn.setup.userLessons);
+        return;
     }
-    std::string category;
+
+    // Inside a kind: its lessons or exercises, with their progress and how many times each was done
+    auto detail = [](std::string progress, const std::string& id, bool builtIn){
+        const std::string plays = playsText(id);
+        if (!plays.empty()) progress += (progress.empty() ? "" : "  ·  ") + plays;
+        if (!builtIn) progress += progress.empty() ? "yours" : "  ·  yours";
+        return progress;
+    };
+    if (learn.openKind == LESSONS){
+        for (int i = 0; i < (int)learn.lessons.size(); i++){
+            const LessonEntry& entry = learn.lessons[i];
+            MenuRow row;
+            row.label = entry.lesson.title;
+            row.detail = detail(learn.lessonProgressText[i], entry.id, entry.builtIn);
+            row.note = entry.error;
+            row.disabled = !entry.error.empty();
+            rows.push_back(row);
+            targets.push_back({ LearnRow::Lesson, i });
+        }
+    }
     for (int i = 0; i < (int)learn.exercises.size(); i++){
         const ExerciseEntry& entry = learn.exercises[i];
-        if (i == 0 || entry.exercise.category != category){ // a heading whenever the category changes (the list is sorted)
-            category = entry.exercise.category;
-            heading(category);
-        }
+        if (entry.exercise.category != learn.openKind) continue;
         MenuRow row;
         row.label = entry.exercise.title;
-        row.detail = learn.progressText[i];
-        if (!entry.builtIn) row.detail += row.detail.empty() ? "yours" : "  ·  yours";
+        row.detail = detail(learn.progressText[i], entry.id, entry.builtIn);
         row.note = entry.error;
         row.disabled = !entry.error.empty();
         rows.push_back(row);
-        targets.push_back({LearnRow::Exercise, i});
+        targets.push_back({ LearnRow::Exercise, i });
     }
-    heading("Your own");
-    rows.push_back(actionRow("Open exercises folder"));
-    targets.push_back({LearnRow::OpenExercises, -1});
-    rows.push_back(actionRow("Open lessons folder"));
-    targets.push_back({LearnRow::OpenLessons, -1});
-
-    float width = ImGui::GetWindowWidth(), height = ImGui::GetWindowHeight();
-    int confirmed = menuList(learn.list, rows, {ImVec2(width * 0.07f, height * 0.2f), width * 0.48f, height * 0.72f - 20 * s, s});
-    if (learn.list.selected >= 0) drawAbout(targets[learn.list.selected], s);
-    menuScreenHint("Up/Down  choose    Enter  start    Tab  edit lessons    Esc  back", s);
+    if (rows.empty()){ // the kind is gone (its files were removed meanwhile)
+        learn.openKind.clear();
+        return;
+    }
+    int confirmed = menuList(learn.list, rows, { ImVec2(width * 0.07f, height * 0.2f), width * 0.48f, height * 0.72f - 20 * s, s });
+    if (learn.list.selected >= 0 && learn.list.selected < (int)targets.size()) drawAbout(targets[learn.list.selected], s);
+    menuScreenHint("Up/Down  choose    Enter  start    Esc  back to the kinds", s);
     if (confirmed < 0) return;
     const LearnRow& target = targets[confirmed];
-    switch (target.kind){
-        case LearnRow::Lesson:        learn.exercise = openLesson(learn.lessons[target.index]); break;
-        case LearnRow::Exercise:      learn.exercise = createExercise(learn.exercises[target.index]); break;
-        case LearnRow::OpenExercises: openFolder(learn.setup.userExercises); break;
-        case LearnRow::OpenLessons:   openFolder(learn.setup.userLessons); break;
-        case LearnRow::Heading:       break;
+    if (target.kind == LearnRow::Lesson){
+        countPlay(learn.lessons[target.index].id);
+        learn.exercise = openLesson(learn.lessons[target.index]);
+    } else if (target.kind == LearnRow::Exercise){
+        countPlay(learn.exercises[target.index].id);
+        learn.exercise = createExercise(learn.exercises[target.index]);
     }
 }
 
