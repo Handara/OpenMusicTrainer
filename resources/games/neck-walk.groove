@@ -1,8 +1,9 @@
 # Neck walk's tune (core/groove). The guitar riff was recorded for the game (2026-10-05); bass and drums under it.
 # Written in F#; each round plays it in that round's note.
 #
-# A round is a phrase: the call (the riff, a crash on its first beat), then two bars of the riff while the walk
-# goes on, then the end, landing on the root: the crowd answers on its third beat.
+# A round is a phrase, two licks of two bars: the computer walks the note over the first (the call, a crash on its
+# first beat, then the riff), the player walks it back over the second (the riff, then the end landing on the root);
+# the crowd answers half a beat before the next round. The bar before the first round is the phrase's last.
 #
 # <bars> <part> <beat> <length> <note>    the guitar or the bass; beats from 0
 # <bars> drums <beat> <drum>              kick, snare, hat, open (an open hi-hat), crash
