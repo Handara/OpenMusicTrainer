@@ -13,7 +13,8 @@
 #include <algorithm>
 #include <random>
 
-const double AUTO_NEXT_AFTER_S = 1.0;  // after a right answer, the next question comes by itself
+const double AUTO_NEXT_AFTER_S = 1.0;  // after a right answer, the next question comes by itself...
+const double AUTO_NEXT_WRONG_S = 2.0;  // ...and after a wrong one too, a little later: time to see where it was
 const double SOUND_TAIL_S = 1.2;       // playing, the answer's own sound is ignored this long
 
 FretboardExercise::FretboardExercise(const std::string& title, const FretboardConfig& config, const std::string& progressPath,
@@ -74,7 +75,7 @@ void FretboardExercise::update(){
         }
     }
     if (answered && (ImGui::IsKeyPressed(ImGuiKey_Space) || ImGui::IsKeyPressed(ImGuiKey_Enter))) nextQuestion();
-    if (answered && lastRight && GetTime() - answeredAt > AUTO_NEXT_AFTER_S) nextQuestion();
+    if (answered && GetTime() - answeredAt > (lastRight ? AUTO_NEXT_AFTER_S : AUTO_NEXT_WRONG_S)) nextQuestion();
 }
 
 // Strings across (the highest on top, as in tab), frets down; the asked string in brass. Clicking a fret on it
@@ -134,9 +135,9 @@ void FretboardExercise::draw(){
         else {
             // An open string and its 12th fret are both right: two green dots
             const char* green = fretboardAnswers(config, question).size() > 1 ? "the green ones" : "the green one";
-            if (playedPitch >= 0) ImGui::TextColored(uiColorVec(UiColor::Bad), "You played %s%d: it's %s. Space for the next.",
+            if (playedPitch >= 0) ImGui::TextColored(uiColorVec(UiColor::Bad), "You played %s%d: it's %s.",
                                                      pitchClassName(playedPitch), pitchOctave(playedPitch), green);
-            else ImGui::TextColored(uiColorVec(UiColor::Bad), "It's %s. Space for the next.", green);
+            else ImGui::TextColored(uiColorVec(UiColor::Bad), "It's %s.", green);
         }
     } else {
         ImGui::TextColored(uiColorVec(UiColor::Dim), byPlaying ? "Play it, or click its fret" : "Click its fret");
