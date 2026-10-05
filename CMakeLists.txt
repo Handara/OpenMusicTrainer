@@ -147,6 +147,7 @@ add_library(lahn_core STATIC
     src/core/lesson.cpp
     src/core/midi.cpp
     src/core/music.cpp
+    src/core/necktrainer.cpp
     src/core/notation.cpp
     src/core/notedetector.cpp
     src/core/paths.cpp
@@ -291,6 +292,7 @@ if(BUILD_TESTING)
         tests/midi_test.cpp
         tests/music_test.cpp
         tests/notation_test.cpp
+        tests/necktrainer_test.cpp
         tests/notedetector_test.cpp
         tests/pianokeys_test.cpp
         tests/pitch_test.cpp
