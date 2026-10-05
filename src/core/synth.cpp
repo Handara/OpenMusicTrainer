@@ -313,3 +313,186 @@ bool renderBuiltInSound(const char* name, float* out, int count, float frequency
     else return false;
     return true;
 }
+
+// A two-pole band-pass (the RBJ cookbook's, its peak at 0 dB): a vowel's formant, a drum's ring
+struct SynthBandPass {
+    float b0 = 0.0f, a1 = 0.0f, a2 = 0.0f, x1 = 0.0f, x2 = 0.0f, y1 = 0.0f, y2 = 0.0f;
+    void set(float frequency, float q, int sampleRate){
+        const double w = TWO_PI * std::min(frequency, 0.45f * sampleRate) / sampleRate, alpha = std::sin(w) / (2.0 * q), a0 = 1.0 + alpha;
+        b0 = (float)(alpha / a0);
+        a1 = (float)(-2.0 * std::cos(w) / a0);
+        a2 = (float)((1.0 - alpha) / a0);
+    }
+    float run(float x){
+        const float y = b0 * (x - x2) - a1 * y1 - a2 * y2;
+        x2 = x1;
+        x1 = x;
+        y2 = y1;
+        y1 = y;
+        return y;
+    }
+};
+
+// A one-pole high-pass: what's above `frequency` through, what's below it fading
+struct SynthHighPass {
+    float alpha = 0.0f, x1 = 0.0f, y1 = 0.0f;
+    void set(float frequency, int sampleRate){
+        const float rc = 1.0f / (float)(TWO_PI * frequency), dt = 1.0f / sampleRate;
+        alpha = rc / (rc + dt);
+    }
+    float run(float x){
+        y1 = alpha * (y1 + x - x1);
+        x1 = x;
+        return y1;
+    }
+};
+
+// A hi-hat's metal: six square waves at the clashing pitches the TR-808 used
+static float metal(double t){
+    static const double PITCHES[6] = { 205.3, 304.4, 369.6, 522.7, 540.0, 800.0 };
+    float sum = 0.0f;
+    for (double pitch : PITCHES) sum += std::fmod(t * pitch * 2.0, 2.0) < 1.0 ? 1.0f : -1.0f;
+    return sum / 6.0f;
+}
+
+void renderKitDrum(float* out, int count, int sampleRate, KitDrum drum, unsigned seed){
+    std::minstd_rand rng(seed * 7919u + (unsigned)drum + 1u);
+    std::uniform_real_distribution<float> noise(-1.0f, 1.0f);
+    switch (drum){
+        case KitDrum::Kick: {
+            double phase = 0.0;
+            const float drive = 1.8f;
+            for (int i = 0; i < count; i++){
+                const float t = (float)i / sampleRate;
+                phase += TWO_PI * (48.0f + 110.0f * std::exp(-t / 0.028f)) / sampleRate;
+                const float body = (float)std::sin(phase) * std::exp(-t / 0.16f), click = noise(rng) * std::exp(-t / 0.002f) * 0.3f;
+                out[i] = PEAK_LEVEL * std::tanh(drive * (body + click)) / std::tanh(drive);
+            }
+            break;
+        }
+        case KitDrum::Snare: {
+            SynthHighPass high;
+            high.set(1500.0f, sampleRate);
+            for (int i = 0; i < count; i++){
+                const float t = (float)i / sampleRate;
+                const float tone = 0.5f * (float)std::sin(TWO_PI * 185.0 * t) * std::exp(-t / 0.05f)
+                                 + 0.3f * (float)std::sin(TWO_PI * 330.0 * t) * std::exp(-t / 0.03f);
+                out[i] = PEAK_LEVEL * (0.6f * tone + 0.8f * high.run(noise(rng)) * std::exp(-t / 0.075f));
+            }
+            break;
+        }
+        case KitDrum::Hat: case KitDrum::OpenHat: case KitDrum::Crash: {
+            const float decay = drum == KitDrum::Hat ? 0.018f : drum == KitDrum::OpenHat ? 0.13f : 0.55f;
+            const float level = drum == KitDrum::Crash ? 1.1f : 1.0f;
+            SynthHighPass high1, high2;
+            high1.set(drum == KitDrum::Crash ? 3500.0f : 6500.0f, sampleRate);
+            high2.set(drum == KitDrum::Crash ? 3500.0f : 6500.0f, sampleRate);
+            for (int i = 0; i < count; i++){
+                const float t = (float)i / sampleRate;
+                const float attack = drum == KitDrum::Crash ? std::min(1.0f, t / 0.003f) : 1.0f;
+                const float sound = high2.run(high1.run(0.6f * noise(rng) + 0.5f * metal(t)));
+                out[i] = PEAK_LEVEL * level * 2.0f * sound * attack * std::exp(-t / decay);
+            }
+            break;
+        }
+    }
+    fadeEnd(out, count, sampleRate);
+}
+
+// A sawtooth without the harsh aliasing of a naive one: its jump rounded off over a sample either side (PolyBLEP)
+static float softSaw(double phase, double step){
+    float saw = (float)(2.0 * phase - 1.0);
+    if (phase < step){
+        const double t = phase / step;
+        saw -= (float)(t + t - t * t - 1.0);
+    } else if (phase > 1.0 - step){
+        const double t = (phase - 1.0) / step;
+        saw -= (float)(t * t + t + t + 1.0);
+    }
+    return saw;
+}
+
+// A vowel: its first three formants (Hz)
+struct CrowdVowel { float f1, f2, f3; };
+static CrowdVowel mixVowels(const CrowdVowel& a, const CrowdVowel& b, float along){
+    along = std::clamp(along, 0.0f, 1.0f);
+    return { a.f1 + (b.f1 - a.f1) * along, a.f2 + (b.f2 - a.f2) * along, a.f3 + (b.f3 - a.f3) * along };
+}
+
+void renderCrowd(float* out, int count, int sampleRate, bool cheer, unsigned seed){
+    std::fill(out, out + count, 0.0f);
+    std::minstd_rand rng(seed * 104729u + (cheer ? 1u : 2u));
+    auto uniform = [&](float low, float high){ return std::uniform_real_distribution<float>(low, high)(rng); };
+    std::uniform_real_distribution<float> noise(-1.0f, 1.0f);
+    // "yay": from the y's vowel to an open "eh"; "aw": an open "a" darkening to "aw"
+    const CrowdVowel Y = { 300, 2200, 2900 }, EH = { 700, 1750, 2600 }, A = { 750, 1150, 2500 }, AW = { 580, 880, 2450 };
+    const int voices = cheer ? 20 : 15;
+    const float length = (float)count / sampleRate;
+    for (int v = 0; v < voices; v++){
+        const float start = uniform(0.0f, cheer ? 0.18f : 0.12f);
+        const float span = std::min(length - start - 0.05f, uniform(cheer ? 0.9f : 1.0f, cheer ? 1.5f : 1.5f));
+        const float base = uniform(150.0f, 400.0f);                  // low voices to children's
+        const float size = 1.0f + (base - 150.0f) / 250.0f * 0.18f; // smaller voices, higher formants
+        const float vibratoRate = uniform(4.5f, 7.0f), vibratoDepth = uniform(0.012f, 0.035f), loud = uniform(0.5f, 1.0f);
+        const float vibratoPhase = uniform(0.0f, 6.28f);
+        SynthBandPass formant[3];
+        double phase = uniform(0.0f, 1.0f);
+        const int first = (int)(start * sampleRate), last = std::min(count, first + (int)(span * sampleRate));
+        for (int i = first; i < last; i++){
+            const float t = (float)(i - first) / sampleRate, along = t / span;
+            // The pitch: a cheer jumps up and holds, falling a little at the end; an aww falls all the way
+            float pitch = cheer ? base * (1.0f + 0.25f * std::min(1.0f, t / 0.12f) - 0.15f * std::max(0.0f, along - 0.7f) / 0.3f)
+                                : base * (1.1f - 0.38f * along * (2.0f - along));
+            pitch *= 1.0f + vibratoDepth * std::sin(vibratoRate * 6.2832f * t + vibratoPhase) * std::min(1.0f, t / 0.25f);
+            const double step = pitch / sampleRate;
+            phase += step;
+            if (phase >= 1.0) phase -= 1.0;
+            if ((i - first) % 64 == 0){
+                const CrowdVowel vowel = cheer ? mixVowels(Y, EH, t / 0.12f) : mixVowels(A, AW, along * 1.5f);
+                formant[0].set(vowel.f1 * size, 6.0f, sampleRate);
+                formant[1].set(vowel.f2 * size, 12.0f, sampleRate);
+                formant[2].set(vowel.f3 * size, 16.0f, sampleRate);
+            }
+            const float source = softSaw(phase, step) + 0.08f * noise(rng); // the buzz, and a little breath
+            const float voiced = formant[0].run(source) + 0.6f * formant[1].run(source) + 0.3f * formant[2].run(source);
+            const float envelope = std::min(1.0f, t / (cheer ? 0.03f : 0.08f)) * (along > 0.75f ? std::cos((along - 0.75f) / 0.25f * 1.5708f) : 1.0f);
+            out[i] += voiced * envelope * loud;
+        }
+    }
+    if (cheer){
+        // Clapping, thick at first and thinning out, and someone whistling
+        const int claps = 50;
+        for (int c = 0; c < claps; c++){
+            const float at = 0.05f + 1.9f * std::pow(uniform(0.0f, 1.0f), 1.6f);
+            SynthBandPass ring;
+            ring.set(uniform(900.0f, 2200.0f), 1.5f, sampleRate);
+            const float loud = uniform(0.6f, 1.6f);
+            const int first = (int)(at * sampleRate), last = std::min(count, first + (int)(0.06f * sampleRate));
+            for (int i = first; i < last; i++) out[i] += loud * ring.run(noise(rng)) * std::exp(-(float)(i - first) / sampleRate / 0.012f);
+        }
+        double phase = 0.0;
+        const float whistleAt = uniform(0.15f, 0.35f);
+        const int first = (int)(whistleAt * sampleRate), last = std::min(count, first + (int)(0.8f * sampleRate));
+        for (int i = first; i < last; i++){
+            const float t = (float)(i - first) / sampleRate;
+            const float pitch = t < 0.22f ? 1800.0f + 900.0f * t / 0.22f : 2700.0f - 700.0f * std::max(0.0f, t - 0.5f) / 0.3f;
+            phase += TWO_PI * pitch / sampleRate;
+            const float envelope = std::min(1.0f, t / 0.04f) * (t > 0.6f ? 1.0f - (t - 0.6f) / 0.2f : 1.0f);
+            out[i] += 0.5f * (float)std::sin(phase) * envelope;
+        }
+    }
+    // A small room: two echoes going round, a little of them under the crowd
+    const int echo1 = (int)(0.037f * sampleRate), echo2 = (int)(0.053f * sampleRate);
+    std::vector<float> room1(count, 0.0f), room2(count, 0.0f);
+    for (int i = 0; i < count; i++){
+        room1[i] = out[i] + (i >= echo1 ? 0.4f * room1[i - echo1] : 0.0f);
+        room2[i] = out[i] + (i >= echo2 ? 0.35f * room2[i - echo2] : 0.0f);
+    }
+    float peak = 0.0f;
+    for (int i = 0; i < count; i++){
+        out[i] = out[i] + 0.25f * (room1[i] + room2[i] - 2.0f * out[i]);
+        peak = std::max(peak, std::abs(out[i]));
+    }
+    if (peak > 0.0f) for (int i = 0; i < count; i++) out[i] *= PEAK_LEVEL * 0.9f / peak;
+    fadeEnd(out, count, sampleRate);
+}

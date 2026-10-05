@@ -93,6 +93,11 @@ void playKeysNote(float frequency);
 // A rhythm mode drum hit, now: the deep don or the rim's ka (core/synth renderDrum)
 void playDrum(bool high);
 
+// Any sound made by the game itself (core/synth: a drum of the kit, a crowd), mono at audioSampleRate(), at a time on
+// the engine's clock (audioTime), like playClickAt. The samples are copied: they can go once this returns.
+void playSamplesAt(const std::vector<float>& samples, double time, float volume);
+int audioSampleRate(); // the engine's: what sounds for playSamplesAt are rendered at (0 before initAudio)
+
 // The audio engine's own clock in seconds, smoothed between its updates like songPosition: for anything that
 // keeps time without a song (metronome, drills, calibration). Call it every frame.
 double audioTime();

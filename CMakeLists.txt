@@ -140,6 +140,7 @@ add_library(lahn_core STATIC
     src/core/fft.cpp
     src/core/files.cpp
     src/core/fretboard.cpp
+    src/core/groove.cpp
     src/core/guitarpro.cpp
     src/core/inputs.cpp
     src/core/intervals.cpp
@@ -286,6 +287,7 @@ if(BUILD_TESTING)
         tests/chart_test.cpp
         tests/chords_test.cpp
         tests/drill_test.cpp
+        tests/groove_test.cpp
         tests/guitarpro_test.cpp
         tests/exercisefile_test.cpp
         tests/fretboard_test.cpp

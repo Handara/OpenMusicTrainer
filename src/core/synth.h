@@ -37,5 +37,16 @@ void renderClick(float* out, int count, int sampleRate, bool accent);
 // over a short thump of noise. High (ka): the rim, a bright tick of noise and tone that's gone in about 40 ms.
 void renderDrum(float* out, int count, int sampleRate, bool high);
 
+// A drum kit's drums, for the games' tunes: a kick (a deep tone sweeping down, a click on top), a snare (two tones
+// and a burst of bright noise), a hi-hat closed and open (metal: square waves at clashing pitches and high noise) and
+// a crash (the same, long)
+enum class KitDrum { Kick, Snare, Hat, OpenHat, Crash };
+void renderKitDrum(float* out, int count, int sampleRate, KitDrum drum, unsigned seed);
+
+// A crowd, for the games' verdicts, Rhythm Heaven style: cheering (about twenty voices going "yay!", each its own
+// pitch and voice, gliding up from the y, with clapping and a whistle) or going "awww" (the voices falling, an "aw"
+// vowel). Each voice a buzz through its vowel's formants (resonances at a vowel's frequencies), in a small room.
+void renderCrowd(float* out, int count, int sampleRate, bool cheer, unsigned seed);
+
 // Renders one of BUILT_IN_PREVIEW_SOUNDS by name (see core/settings.h); false if the name isn't one of them
 bool renderBuiltInSound(const char* name, float* out, int count, float frequency, int sampleRate, unsigned seed);

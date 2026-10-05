@@ -1,0 +1,58 @@
+# Neck walk's tune (core/groove). The guitar riff was recorded for the game (2026-10-05); bass and drums under it.
+# Written in F#; each round plays it in that round's note.
+#
+# A round is a phrase: the call (the riff, a crash on its first beat), then two bars of the riff while the walk
+# goes on, then the end, landing on the root: the crowd answers on its third beat.
+#
+# <bars> <part> <beat> <length> <note>    the guitar or the bass; beats from 0
+# <bars> drums <beat> <drum>              kick, snare, hat, open (an open hi-hat), crash
+
+tempo 138
+key F#
+phrase call riff riff end
+
+# The riff: root, the fifth below, root, fifth, then up through the 6th and the 7th
+call,riff guitar 0   1   F#3
+call,riff guitar 1   1   C#3
+call,riff guitar 2   0.5 F#3
+call,riff guitar 2.5 0.5 C#3
+call,riff guitar 3   0.5 D#3
+call,riff guitar 3.5 0.5 F3
+end       guitar 0   1   F#3
+end       guitar 1   1   C#3
+end       guitar 2   2   F#3
+
+call,riff bass 0   0.75 F#1
+call,riff bass 1.5 0.5  F#1
+call,riff bass 2   0.75 C#2
+call,riff bass 3   0.5  D#2
+call,riff bass 3.5 0.5  F2
+end       bass 0   1    F#1
+end       bass 1   1    C#2
+end       bass 2   2    F#1
+
+call      drums 0   crash
+call,riff drums 0   kick
+call,riff drums 1   snare
+call,riff drums 2   kick
+call,riff drums 2.5 kick
+call,riff drums 3   snare
+riff      drums 0   hat
+call,riff drums 0.5 hat
+call,riff drums 1   hat
+call,riff drums 1.5 hat
+call,riff drums 2   hat
+call,riff drums 2.5 hat
+call,riff drums 3   hat
+call,riff drums 3.5 open
+
+end drums 0   kick
+end drums 0   hat
+end drums 0.5 hat
+end drums 1   snare
+end drums 1   hat
+end drums 1.5 hat
+end drums 2   kick
+end drums 2   crash
+end drums 3   snare
+end drums 3.5 snare
