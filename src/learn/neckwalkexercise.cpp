@@ -323,11 +323,11 @@ void NeckWalkExercise::drawNeck(float left, float right, float top, float bottom
         if (since > JUDGED_FLASH_S || game.notes[i] == WalkNote::Due) continue;
         shownAny = true;
         const NeckStep& step = game.walk[i];
-        const bool right = game.notes[i] == WalkNote::Right;
+        const bool wasRight = game.notes[i] == WalkNote::Right;
         const float fade = 1.0f - since / JUDGED_FLASH_S;
-        if (right) drawNoteCard(draw, board, step.string, step.fret, step.pitch, 0.0f, fade, false, s);
+        if (wasRight) drawNoteCard(draw, board, step.string, step.fret, step.pitch, 0.0f, fade, false, s);
         cardOutline(draw, ImVec2(board.fretX(step.fret), board.stringY(step.string)), halfW, halfH, 3 * s + 12 * s * since / JUDGED_FLASH_S,
-                    uiColor(right ? UiColor::Good : UiColor::Bad, fade), 2.5f * s);
+                    uiColor(wasRight ? UiColor::Good : UiColor::Bad, fade), 2.5f * s);
     }
     if (!shownAny && !game.judged && std::any_of(game.notes.begin(), game.notes.end(), [](WalkNote note){ return note == WalkNote::Due; }))
         centered("Your turn", UiColor::Accent);
