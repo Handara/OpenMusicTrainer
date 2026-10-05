@@ -84,7 +84,7 @@
 //
 // Neck walk (`type neck_walk`), a game (core/neckwalk), all optional:
 //   tune neck-walk.groove        (its tune, core/groove: beside the exercise, or in the game's games folder)
-//   level easy                   (easy: two or three strings, a note every two beats)
+//   level easy                   (the level it starts at: easy, normal or hard; the player changes it before playing)
 //   instrument guitar            (guitar or bass)
 //
 // A routine (`type routine`) is a playlist of other exercises, a few minutes each, done one after the other:
@@ -110,6 +110,7 @@ struct ExerciseFile {
     NeckRoutine neck;          // where it starts, for type Neck (the player changes it as they go)
     bool neckOnBass = false;   //   played on a bass, not a guitar (Neck and NeckWalk)
     std::string tune = "neck-walk.groove"; // a game's tune, for type NeckWalk
+    int walkLevel = 0;                     //   the level it starts at (core/neckwalk)
     std::vector<RoutineStep> routine; // the steps, for type Routine
 };
 

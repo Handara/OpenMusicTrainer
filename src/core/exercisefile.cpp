@@ -1,6 +1,7 @@
 #include "core/exercisefile.h"
 
 #include "core/chart.h"
+#include "core/neckwalk.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -236,7 +237,8 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
                 if (word.empty() || word.find_first_of("/\\") != std::string::npos) return lineError("expected: tune <a file name, like neck-walk.groove>");
                 out.tune = word;
             } else if (key == "level"){
-                if (word != "easy") return lineError("level must be easy (the only one so far)");
+                out.walkLevel = neckWalkLevelIndex(word);
+                if (out.walkLevel < 0) return lineError("level must be easy, normal or hard");
             } else if (key == "instrument"){
                 if (word == "guitar" || word == "bass") out.neckOnBass = word == "bass";
                 else return lineError("instrument must be guitar or bass");

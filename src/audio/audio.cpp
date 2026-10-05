@@ -42,7 +42,7 @@ const double DUPLEX_START_S = 0.3; // a duplex device that hasn't called by then
 const char* const ASIO_PREFIX = "ASIO: ";
 
 // Preview sounds (e.g. the editor playing a note you place). Several can ring at once, like real strings.
-const int VOICE_COUNT = 24; // enough for a game's tune: guitar, bass and drums ringing over each other, and a crowd
+const int VOICE_COUNT = 48; // enough for a game's tune: guitar, bass and drums ringing over each other, the computer's notes, a crowd
 const float PREVIEW_LENGTH_S = 1.5f;     // built-in sounds
 const float CLICK_LENGTH_S = 0.08f;
 const float CLICK_VOLUME = 0.8f;

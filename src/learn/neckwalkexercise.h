@@ -9,13 +9,14 @@
 #include <string>
 #include <vector>
 
-// Neck walk, a game (core/neckwalk): a note a round, walked on two or three strings over a tune in its key
-// (core/groove), with a drum kit and a crowd that cheers a walk all right and goes "awww" at one that isn't. Play
-// mode's neck shows where the note is and lights the next place to the beat; a strip along the top shows the phrase:
-// the bar to listen, the walk's beats, the crowd's. Five rounds wrong and it's over; each game is kept.
+// Neck walk, a game (core/neckwalk): a note a round, walked on strings side by side over a tune in its key
+// (core/groove), with a drum kit and a crowd that cheers a walk all right and goes "awww" at one that isn't. The
+// computer plays the walk first, heard and shown on play mode's neck; then it's the player's turn, the neck bare. A
+// strip along the top shows the round: the computer's lick, the player's, the crowd's beat. The level and the tempo
+// are chosen before playing (and kept for next time). Five rounds wrong and it's over; each game is kept.
 class NeckWalkExercise : public Exercise {
 public:
-    NeckWalkExercise(const std::string& title, const std::string& tunePath, bool onBass, const std::string& progressPath,
+    NeckWalkExercise(const std::string& title, const std::string& tunePath, bool onBass, int level, const std::string& progressPath,
                      const Settings& settings);
     ~NeckWalkExercise() override;
     void update() override;
@@ -30,6 +31,7 @@ private:
     void scheduleTune();     // the tune's bars about to play, and the crowd once a round's walk is all judged
     void handle(const NeckWalkEvents& events);
     void played(int pitch, double time);
+    void drawChoices(float left, float top, float s);
     void drawStrip(float left, float right, float top, float s);
     void drawNeck(float left, float right, float top, float bottom, float s);
     void drawResults(float left, float top, float width, float s);
@@ -44,8 +46,10 @@ private:
     NeckWalkStats stats;
     NeckWalkGame game;
     enum class State { Ready, Playing, Over } state = State::Ready;
-    int nextBar = 0;        // the tune's next bar to schedule, counted from the game's start
-    int crowdRound = -1;    // the round whose crowd is scheduled
+    int levelIndex = 0;     // the level and the tempo chosen for the next game
+    int bpm = 120;
+    double scheduledTo = 0.0; // the tune and the computer's notes are scheduled up to here (the audio clock)
+    int crowdRound = -1;      // the round whose crowd is scheduled
     std::vector<float> kit[5], cheer, aww; // rendered once
     // What happened when (GetTime), for the drawing
     std::vector<double> judgedAt; // each walk note of the round
