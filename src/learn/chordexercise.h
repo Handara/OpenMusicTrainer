@@ -52,6 +52,7 @@ private:
     int cleanPassesNow = 0;
     std::string passText;
     Heard lastHeard = Heard::Nothing;
+    double lastHeardAt = -100.0;   // when, for its flash (GetTime)
     std::string lastHeardChord;
 
     // Listening: strums found in the raw input, and the sound after the latest one, to check its chord

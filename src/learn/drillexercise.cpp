@@ -98,7 +98,7 @@ void DrillExercise::finishPass(){
 }
 
 void DrillExercise::update(){
-    if (ImGui::IsKeyPressed(ImGuiKey_Space)){
+    if (ImGui::IsKeyPressed(ImGuiKey_Space, false)){ // not repeated: held, it would stop what it started
         running = !running;
         if (running) startPass(false);
         else stopPreviews();

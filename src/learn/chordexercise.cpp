@@ -5,12 +5,15 @@
 #include "input/noteinput.h"
 #include "imgui.h"
 #include "raylib.h"
+#include "ui/fretboardview.h"
+#include "ui/neckcards.h"
 #include "ui/menulist.h"
 #include "ui/scoreboard.h"
 #include "ui/theme.h"
 #include "ui/ui.h"
 
 #include <algorithm>
+#include <cfloat>
 #include <cmath>
 
 const double LEAD_IN_S = 0.3;
@@ -87,6 +90,7 @@ void ChordExercise::strummed(double time, long long sample){
         changes[nearest].judged = changes[nearest].hit = true;
         hits++;
         lastHeard = Heard::Right;
+        lastHeardAt = GetTime();
         lastHeardChord = config.chords[changes[nearest].chord];
         return;
     }
@@ -109,12 +113,13 @@ void ChordExercise::checkPendingChord(){
         change.hit = soundsLikeChord(notes, chord);
         if (change.hit) hits++;
         lastHeard = change.hit ? Heard::Right : Heard::WrongChord;
+        lastHeardAt = GetTime();
     }
     pendingStart = -1;
 }
 
 void ChordExercise::update(){
-    if (ImGui::IsKeyPressed(ImGuiKey_Space)){
+    if (ImGui::IsKeyPressed(ImGuiKey_Space, false)){ // not repeated: held, it would stop what it started
         running = !running;
         if (running) startPass();
         else stopPreviews();
@@ -151,111 +156,136 @@ void ChordExercise::update(){
         if (change.judged || t <= change.time + STRUM_WINDOW_S || (pendingStart >= 0 && &change == &changes[pendingChange])) continue;
         change.judged = true;
         lastHeard = Heard::Missed;
+        lastHeardAt = GetTime();
         lastHeardChord = config.chords[change.chord];
     }
     if (now > passEndTime + 0.3) finishPass();
 }
 
-// A chord box, the way chord books draw them: the strings standing up (low E on the left), the nut on top, a dot
-// on each fret to press, O over an open string and X over one not played
-static void drawChordBox(ImDrawList* draw, const ChordInfo& chord, ImVec2 topLeft, float width, bool current, float s){
-    const UiFonts& fonts = uiFonts();
-    const int frets = 4;
-    int highest = *std::max_element(chord.shape.begin(), chord.shape.end());
-    int firstFret = highest > frets ? highest - frets + 1 : 1;
-    float stringGap = width / 5, fretGap = stringGap * 1.2f, markTop = topLeft.y, boxTop = topLeft.y + 22 * s;
-    ImU32 ink = uiColor(current ? UiColor::Ink : UiColor::Dim);
-    for (int string = 0; string < 6; string++){
-        verticalLine(draw, topLeft.x + string * stringGap, boxTop, boxTop + frets * fretGap, 1.5f * s, ink);
-    }
-    for (int fret = 0; fret <= frets; fret++){
-        float thickness = (fret == 0 && firstFret == 1 ? 5.0f : 1.5f) * s; // the nut, when the box starts at it
-        horizontalLine(draw, topLeft.x, topLeft.x + width, boxTop + fret * fretGap, thickness, ink);
-    }
-    if (firstFret > 1) draw->AddText(fonts.mono, 13 * s, ImVec2(topLeft.x + width + 8 * s, boxTop + 4 * s), ink, TextFormat("%dfr", firstFret));
-    for (int string = 0; string < 6; string++){
-        float x = topLeft.x + string * stringGap;
-        int fret = chord.shape[string];
-        if (fret <= 0){
-            const char* mark = fret == 0 ? "O" : "X";
-            float markWidth = fonts.mono ? fonts.mono->CalcTextSizeA(14 * s, FLT_MAX, 0.0f, mark).x : 0.0f;
-            draw->AddText(fonts.mono, 14 * s, ImVec2(x - markWidth / 2, markTop), ink, mark);
-            continue;
-        }
-        float y = boxTop + (fret - firstFret + 0.5f) * fretGap;
-        draw->AddCircleFilled(ImVec2(x, y), stringGap * 0.32f, current ? uiColor(UiColor::Accent) : ink);
-    }
-}
-
+// The chord exercise, on play mode's neck: the chord now as cards on its strings (an X on a string left out), the next
+// one outlined where the fingers go; above it, the chords as a lane of blocks, as long as their beats, a playhead going
+// along; and what was heard of the last change, big
 void ChordExercise::draw(){
-    float textTop = ImGui::GetCursorPosY();
-    float backWidth = ImGui::CalcTextSize("Back").x + 2 * ImGui::GetStyle().FramePadding.x;
-    ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() - backWidth - 20, 20));
-    if (ImGui::Button("Back")) leave = true;
-    ImGui::SetCursorPosY(textTop);
     menuTitle(title.c_str());
-
     ImDrawList* draw = ImGui::GetWindowDrawList();
     const UiFonts& fonts = uiFonts();
-    float s = menuScale(), width = ImGui::GetWindowWidth();
-    float left = width * 0.07f;
-    ImVec2 at = ImGui::GetCursorScreenPos();
-    int shownTempo = running ? tempo : drillTempo(config.tempo, progress);
-    std::string list;
-    for (const std::string& name : config.chords) list += (list.empty() ? "" : "  ") + name;
+    const float s = menuScale(), width = ImGui::GetWindowWidth(), height = ImGui::GetWindowHeight();
+    const float left = width * 0.07f, right = width * 0.93f;
+    const int shownTempo = running ? tempo : drillTempo(config.tempo, progress);
     drawScoreboard({
         { "TEMPO", TextFormat("%d", shownTempo), UiColor::Ink, "bpm" },
+        { "CHANGES", running ? std::string(TextFormat("%d", hits)) : std::string("-"), UiColor::Good, running ? TextFormat("of %d", (int)changes.size()) : "" },
         { "BEST CLEAN", progress.bestCleanTempo > 0 ? std::string(TextFormat("%d", progress.bestCleanTempo)) : std::string("-"), UiColor::Accent, "bpm" },
         { "GOAL", TextFormat("%d", config.tempo.maxTempo), progress.bestCleanTempo >= config.tempo.maxTempo ? UiColor::Good : UiColor::Ink, "bpm" },
-    }, ImGui::GetWindowWidth() * 0.93f, ImGui::GetWindowHeight() * 0.03f + 36 * menuScale(), menuScale());
-    draw->AddText(fonts.mono, 13 * s, ImVec2(left, at.y), uiColor(UiColor::Dim), list.c_str());
+    }, right, height * 0.03f + 36 * s, s);
 
-    // Which chord now, and which next: before the first change, the first one is "next"
-    double t = drillTime(), beat = 60.0 / std::max(1, running ? tempo : shownTempo);
+    // Which chord now, and which next: before the first change, the first one is next
+    const double t = drillTime(), beat = 60.0 / std::max(1, shownTempo);
     int now = -1;
     if (running) for (int i = 0; i < (int)changes.size(); i++) if (changes[i].time <= t) now = i;
-    int currentChord = now >= 0 ? changes[now].chord : -1;
-    int nextChord = now + 1 < (int)changes.size() ? changes[now + 1].chord : (running ? -1 : 0);
-    if (!running) nextChord = 0;
+    const int currentChord = now >= 0 ? changes[now].chord : -1;
+    const int nextChord = !running ? 0 : now + 1 < (int)changes.size() ? changes[now + 1].chord : -1;
 
-    float top = at.y + 40 * s, boxWidth = 150 * s;
-    auto chordPanel = [&](int chord, float x, bool current, const char* label){
-        draw->AddText(fonts.mono, 13 * s, ImVec2(x, top), uiColor(UiColor::Dim), label);
-        if (chord < 0) return;
-        const ChordInfo& info = *findChord(config.chords[chord]);
-        draw->AddText(fonts.heavy, (current ? 64 : 40) * s, ImVec2(x, top + 20 * s), uiColor(current ? UiColor::Ink : UiColor::Dim), info.name.c_str());
-        drawChordBox(draw, info, ImVec2(x + 8 * s, top + 110 * s), current ? boxWidth : boxWidth * 0.75f, current, s);
-    };
-    chordPanel(currentChord, left, true, running ? "NOW" : "");
-    chordPanel(nextChord, left + width * 0.36f, false, "NEXT");
-
-    // The beats left before the change: one dot each, lit as they pass
-    if (running && now >= 0){
-        int beatsIn = (int)((t - changes[now].time) / beat);
+    // The lane: the chords as blocks in a row, each as long as its beats, a playhead going along (the count-in first)
+    const float laneTop = height * 0.22f, laneHeight = 46 * s, laneWidth = right - left;
+    const int count = running ? (int)changes.size() : (int)config.chords.size();
+    const double laneStart = running ? countInStart + config.beatsPerChord * beat : 0.0;
+    const float blockWidth = std::max(70 * s, laneWidth / std::max(4, std::min(count, 8)));
+    // The lane scrolls to keep the playhead a third of the way in
+    const double into = running ? (t - laneStart) / (config.beatsPerChord * beat) : 0.0;
+    const float scroll = std::max(0.0f, (float)into * blockWidth - laneWidth / 3);
+    draw->PushClipRect(ImVec2(left, laneTop - 4 * s), ImVec2(right, laneTop + laneHeight + 22 * s), true);
+    for (int i = 0; i < count; i++){
+        const int chord = running ? changes[i].chord : i;
+        const float x = left + i * blockWidth - scroll;
+        if (x > right || x + blockWidth < left) continue;
+        const bool isNow = i == now, done = running && i < now;
+        const ImU32 fill = isNow ? uiColor(UiColor::Accent, 0.22f) : uiColor(UiColor::Card);
+        ImU32 edge = uiColor(UiColor::StaffLine);
+        if (done) edge = changes[i].hit ? uiColor(UiColor::Good, 0.8f) : uiColor(UiColor::Bad, 0.8f);
+        if (isNow) edge = uiColor(UiColor::Accent);
+        draw->AddRectFilled(ImVec2(x + 2 * s, laneTop), ImVec2(x + blockWidth - 2 * s, laneTop + laneHeight), fill, 8 * s);
+        draw->AddRect(ImVec2(x + 2 * s, laneTop), ImVec2(x + blockWidth - 2 * s, laneTop + laneHeight), edge, 8 * s, 0, (isNow ? 2.5f : 1.5f) * s);
+        const char* name = config.chords[chord].c_str();
+        draw->AddText(fonts.bold, 22 * s, ImVec2(x + 14 * s, laneTop + laneHeight / 2 - 12 * s), uiColor(isNow ? UiColor::Ink : done ? UiColor::Dim : UiColor::Ink), name);
+        // Its beats, ticks along its bottom; the first is the strum
         for (int b = 0; b < config.beatsPerChord; b++){
-            bool passed = b <= beatsIn;
-            draw->AddCircleFilled(ImVec2(left + 8 * s + b * 24 * s, top + 330 * s), 7 * s, uiColor(passed ? UiColor::Accent : UiColor::StaffLine));
+            const float bx = x + 2 * s + (blockWidth - 4 * s) * b / config.beatsPerChord;
+            draw->AddLine(ImVec2(bx, laneTop + laneHeight - (b == 0 ? 14 : 7) * s), ImVec2(bx, laneTop + laneHeight), uiColor(b == 0 ? UiColor::Accent : UiColor::Dim, 0.8f), 2 * s);
         }
     }
-
-    // What was heard, and the last pass
-    float textY = top + 360 * s;
-    auto line = [&](UiColor color, const std::string& text){
-        draw->AddText(fonts.text, 18 * s, ImVec2(left, textY), uiColor(color), text.c_str());
-        textY += 26 * s;
-    };
-    if (!running) line(UiColor::Ink, "Space to start: a bar of clicks, then strum each chord on its first beat");
-    else switch (lastHeard){
-        case Heard::Right:      line(UiColor::Good, lastHeardChord + ": right, on time"); break;
-        case Heard::WrongChord: line(UiColor::Bad, "On time, but that didn't sound like " + lastHeardChord); break;
-        case Heard::Missed:     line(UiColor::Bad, lastHeardChord + ": missed"); break;
-        default:                line(UiColor::Dim, TextFormat("%d changes so far", hits)); break;
+    if (running){
+        const float x = left + (float)into * blockWidth - scroll;
+        draw->AddLine(ImVec2(x, laneTop - 4 * s), ImVec2(x, laneTop + laneHeight + 4 * s), uiColor(UiColor::Ink), 3 * s);
+        // Counting in: the beats left before the first change, big
+        if (into < 0.0){
+            const int left4 = (int)std::ceil(-into * config.beatsPerChord);
+            const char* text = TextFormat("%d", left4);
+            draw->AddText(fonts.heavy, 30 * s, ImVec2(left + 8 * s, laneTop + laneHeight + 2 * s), uiColor(UiColor::Accent), text);
+        }
     }
-    if (!passText.empty()) line(UiColor::Good, passText);
-    if (!inputError.empty()) line(UiColor::Bad, inputError);
-    else if (!noteInputActive()) line(UiColor::Dim, "Keyboard: any number key is a strum, and only the timing is checked");
+    draw->PopClipRect();
+
+    // The neck: the chord now as cards, the next outlined where the fingers go
+    const std::vector<int> tuning(std::begin(STANDARD_TUNING), std::end(STANDARD_TUNING));
+    const float spacing = std::min(42.0f, height * 0.34f / s / 6.0f);
+    FretboardLayout board = fretboardLayout(left, height * 0.41f, right - left, s, 6, 0, 12, spacing);
+    drawFretboard(board, tuning);
+    float halfW, halfH;
+    cardSize(board, halfW, halfH);
+    const double sinceHeard = GetTime() - lastHeardAt;
+    const bool flash = sinceHeard < 0.5;
+    const int shown = currentChord >= 0 ? currentChord : nextChord;
+    if (nextChord >= 0 && nextChord != shown){
+        const ChordInfo* next = findChord(config.chords[nextChord]);
+        for (int string = 0; next && string < 6; string++){
+            if (next->shape[string] < 0) continue;
+            cardOutline(draw, ImVec2(board.fretX(next->shape[string]), board.stringY(string)), halfW, halfH, 0.0f, uiColor(UiColor::Accent, 0.55f), 2 * s);
+        }
+    }
+    if (shown >= 0){
+        const ChordInfo* chord = findChord(config.chords[shown]);
+        const float pop = now >= 0 ? 4.0f * s * std::exp(-(float)(t - changes[now].time) * 10.0f) : 0.0f;
+        for (int string = 0; chord && string < 6; string++){
+            const float y = board.stringY(string);
+            if (chord->shape[string] < 0){
+                const ImVec2 size = fonts.bold->CalcTextSizeA(18 * s, FLT_MAX, 0.0f, "X");
+                draw->AddText(fonts.bold, 18 * s, ImVec2(board.fretX(0) - size.x / 2, y - size.y / 2), uiColor(UiColor::Bad, 0.85f), "X"); // not played
+                continue;
+            }
+            const int fret = chord->shape[string];
+            drawNoteCard(draw, board, string, fret, tuning[string] + fret, pop, currentChord >= 0 ? 1.0f : 0.6f, currentChord >= 0, s);
+            if (flash && (lastHeard == Heard::Right || lastHeard == Heard::WrongChord || lastHeard == Heard::Missed))
+                cardOutline(draw, ImVec2(board.fretX(fret), y), halfW, halfH, 3 * s + 8 * s * (float)sinceHeard,
+                            uiColor(lastHeard == Heard::Right ? UiColor::Good : UiColor::Bad, 1.0f - (float)sinceHeard * 2.0f), 2.5f * s);
+        }
+        // The chord's name by the neck, big
+        draw->AddText(fonts.heavy, 46 * s, ImVec2(left, board.top - 62 * s), uiColor(currentChord >= 0 ? UiColor::Ink : UiColor::Dim), config.chords[shown].c_str());
+        if (nextChord >= 0 && nextChord != shown)
+            draw->AddText(fonts.bold, 18 * s, ImVec2(left + 140 * s, board.top - 44 * s), uiColor(UiColor::Accent), ("next " + config.chords[nextChord]).c_str());
+    }
+
+    // What was heard at the last change, big, then what to do
+    float textY = board.top + board.height + 34 * s;
+    if (running && lastHeard != Heard::Nothing && sinceHeard < 1.5){
+        const char* verdict = lastHeard == Heard::Right ? "RIGHT" : lastHeard == Heard::WrongChord ? "WRONG CHORD" : "MISSED";
+        const UiColor color = lastHeard == Heard::Right ? UiColor::Good : UiColor::Bad;
+        draw->AddText(fonts.heavy, 30 * s, ImVec2(left, textY), uiColor(color, (float)std::min(1.0, 3.0 - 2.0 * sinceHeard)), verdict);
+        if (lastHeard == Heard::WrongChord)
+            draw->AddText(fonts.text, 16 * s, ImVec2(left + 220 * s, textY + 10 * s), uiColor(UiColor::Dim), ("on time, but it didn't sound like " + lastHeardChord).c_str());
+        textY += 44 * s;
+    } else if (!running){
+        draw->AddText(fonts.bold, 20 * s, ImVec2(left, textY), uiColor(UiColor::Ink), "Space to start.");
+        draw->AddText(fonts.text, 16 * s, ImVec2(left, textY + 28 * s), uiColor(UiColor::Dim),
+                      "A bar of clicks counts you in. Then strum each chord as the playhead reaches its block. The next chord is outlined on the neck.");
+        textY += 56 * s;
+    }
+    if (!passText.empty()){
+        draw->AddText(fonts.text, 16 * s, ImVec2(left, textY), uiColor(UiColor::Good), passText.c_str());
+        textY += 24 * s;
+    }
+    if (!inputError.empty()) draw->AddText(fonts.text, 16 * s, ImVec2(left, textY), uiColor(UiColor::Bad), inputError.c_str());
+    else if (!noteInputActive()) draw->AddText(fonts.text, 16 * s, ImVec2(left, textY), uiColor(UiColor::Dim), "Keyboard: any number key is a strum, and only the timing is checked");
     menuScreenHint("Space  start / stop    Esc  back", s);
-    // Everything above is drawn by hand: this tells ImGui how far down the screen's content goes
-    ImGui::SetCursorScreenPos(ImVec2(left, textY));
-    ImGui::Dummy(ImVec2(0, 0));
+    ImGui::Dummy(ImVec2(1, 1)); // the board moved ImGui's cursor (ui/fretboardview): an item after it
 }
