@@ -314,6 +314,9 @@ bool renderBuiltInSound(const char* name, float* out, int count, float frequency
     return true;
 }
 
+// This file's own small types, in an unnamed namespace: another file's of the same name can't clash with them
+namespace {
+
 // A two-pole band-pass (the RBJ cookbook's, its peak at 0 dB): a vowel's formant, a drum's ring
 struct SynthBandPass {
     float b0 = 0.0f, a1 = 0.0f, a2 = 0.0f, x1 = 0.0f, x2 = 0.0f, y1 = 0.0f, y2 = 0.0f;
@@ -346,6 +349,11 @@ struct SynthHighPass {
         return y1;
     }
 };
+
+// A vowel: its first three formants (Hz)
+struct CrowdVowel { float f1, f2, f3; };
+
+}
 
 // A hi-hat's metal: six square waves at the clashing pitches the TR-808 used
 static float metal(double t){
@@ -412,8 +420,6 @@ static float softSaw(double phase, double step){
     return saw;
 }
 
-// A vowel: its first three formants (Hz)
-struct CrowdVowel { float f1, f2, f3; };
 static CrowdVowel mixVowels(const CrowdVowel& a, const CrowdVowel& b, float along){
     along = std::clamp(along, 0.0f, 1.0f);
     return { a.f1 + (b.f1 - a.f1) * along, a.f2 + (b.f2 - a.f2) * along, a.f3 + (b.f3 - a.f3) * along };

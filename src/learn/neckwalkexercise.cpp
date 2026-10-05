@@ -43,8 +43,11 @@ static UiColor verdictColor(NeckWalkVerdict verdict){
 
 // What each level asks, said plainly
 static std::string levelText(const NeckWalkLevel& level){
-    std::string pace = level.beatsPerNote >= 2.0 ? "a note every two beats" : level.beatsPerNote >= 1.0 ? "a note every beat" : "two notes a beat";
-    return TextFormat("%d to %d strings, %d notes, %s", level.minStrings, level.maxStrings, level.notes, pace.c_str());
+    const char* what = level.sequence == NeckWalkSequence::Straight ? "the note down the strings and back up"
+                     : level.sequence == NeckWalkSequence::Patterns ? "the note in patterns: skipping strings, outside in, at random"
+                     : "the triad, up and down in one place";
+    const char* rhythm = level.rhythm == NeckWalkRhythm::Even ? "a note a beat" : level.rhythm == NeckWalkRhythm::Mixed ? "a mixed rhythm" : "syncopated";
+    return TextFormat("%s, %s, %d to %d strings", what, rhythm, level.minStrings, level.maxStrings);
 }
 
 NeckWalkExercise::NeckWalkExercise(const std::string& title, const std::string& tunePath, bool onBass, int level,
@@ -87,7 +90,7 @@ void NeckWalkExercise::start(){
     startNeckWalk(game, levelIndex, tuning, seed, audioTime() + START_DELAY_S, (float)bpm);
     scheduledTo = audioTime();
     crowdRound = -1;
-    judgedAt.assign(game.walk.size(), -100.0);
+    judgedAt.assign(game.now.walk.size(), -100.0);
     verdictAt = overAt = -100.0;
     roundAt = GetTime();
     newBest = false;
@@ -110,23 +113,23 @@ void NeckWalkExercise::scheduleTune(){
     const double from = scheduledTo, horizon = audioTime() + LOOKAHEAD_S;
     if (horizon <= from) return;
     const double beat = game.beatSeconds, barSeconds = NECK_WALK_BAR_BEATS * beat;
-    const int introBars = NECK_WALK_INTRO_BEATS / NECK_WALK_BAR_BEATS, roundBars = NECK_WALK_ROUND_BEATS / NECK_WALK_BAR_BEATS;
     const int phraseBars = std::max(1, (int)groove.phrase.size());
-    auto rootOf = [&](int r){ return ((game.root + 5 * (r - game.round)) % 12 + 12) % 12; }; // a fourth up a round
-    // The tune: the bar before the first round is the phrase's last (a lead-in to it), then a phrase a round
+    // The tune: the bar before the first round is the phrase's last (a lead-in to it), then the phrase over and over
+    // from each round's first bar, in its key
     for (int bar = std::max(0, (int)std::floor((from - game.startTime) / barSeconds)); ; bar++){
-        const double barStart = game.startTime + bar * barSeconds;
+        const double barStart = neckWalkBarTime(game, bar);
         if (barStart >= horizon) break;
-        const int r = bar < introBars ? 0 : (bar - introBars) / roundBars;
-        if (game.over && r > game.round) break; // it ends with the round it's in
-        const int inPhrase = bar < introBars ? phraseBars - 1 : (bar - introBars) % roundBars;
-        for (const GrooveHit& hit : grooveBar(groove, inPhrase, rootOf(r))){
+        const bool intro = bar < game.now.firstBar && game.round == 0;
+        const NeckWalkRound& round = bar >= game.next.firstBar ? game.next : game.now;
+        if (game.over && &round == &game.next) break; // it ends with the round it's in
+        const int inPhrase = intro ? phraseBars - 1 : (bar - round.firstBar) % phraseBars;
+        for (const GrooveHit& hit : grooveBar(groove, inPhrase, round.root)){
             const double at = barStart + hit.beat * beat;
             if (at < from || at >= horizon) continue;
             const float seconds = (float)(hit.length * beat);
             switch (hit.part){
                 case GroovePart::Guitar:
-                    playStringNoteAt(midiToFrequency((float)hit.pitch), false, seconds + RING_S, at, bar < introBars ? INTRO_GUITAR_VOLUME : RIFF_GUITAR_VOLUME);
+                    playStringNoteAt(midiToFrequency((float)hit.pitch), false, seconds + RING_S, at, intro ? INTRO_GUITAR_VOLUME : RIFF_GUITAR_VOLUME);
                     break;
                 case GroovePart::Bass:
                     playStringNoteAt(midiToFrequency((float)hit.pitch), true, seconds, at, BASS_VOLUME);
@@ -137,18 +140,20 @@ void NeckWalkExercise::scheduleTune(){
             }
         }
     }
-    // The computer's walk, on the instrument played: this round's, and the next's (known a round ahead)
-    for (int r = game.round; r <= game.round + 1 && !(game.over && r > game.round); r++){
-        const std::vector<NeckStep>& walk = r == game.round ? game.walk : game.nextWalk;
-        for (int i = 0; i < (int)walk.size(); i++){
-            const double at = neckWalkRoundStart(game, r) + i * game.level.beatsPerNote * beat;
+    // The computer's notes, on the instrument played: this round's, and the next's (known a round ahead), each ringing
+    // until the next
+    for (const NeckWalkRound* round : { &game.now, &game.next }){
+        if (game.over && round == &game.next) break;
+        for (int i = 0; i < (int)round->walk.size(); i++){
+            const double at = neckWalkShowTime(game, *round, i);
             if (at < from || at >= horizon) continue;
-            playStringNoteAt(midiToFrequency((float)walk[i].pitch), onBass, (float)(game.level.beatsPerNote * beat) + RING_S, at, COMPUTER_VOLUME);
+            const double length = i + 1 < (int)round->onsets.size() ? round->onsets[i + 1] - round->onsets[i] : 1.0;
+            playStringNoteAt(midiToFrequency((float)round->walk[i].pitch), onBass, (float)(length * beat) + RING_S, at, COMPUTER_VOLUME);
         }
     }
     scheduledTo = horizon;
-    // The crowd, on the verdict's beat, as soon as the player's walk is all judged
-    if (crowdRound != game.round && !game.judged && !game.over && !game.walk.empty()
+    // The crowd, on the verdict's beat, as soon as the player's notes are all judged
+    if (crowdRound != game.round && !game.judged && !game.over && !game.now.walk.empty()
         && std::none_of(game.notes.begin(), game.notes.end(), [](WalkNote note){ return note == WalkNote::Due; })){
         playSamplesAt(crowd[(int)neckWalkVerdictOf(game)], neckWalkVerdictTime(game), CROWD_VOLUME);
         crowdRound = game.round;
@@ -166,7 +171,7 @@ void NeckWalkExercise::handle(const NeckWalkEvents& events){
     }
     if (events.newRound){
         roundAt = now;
-        judgedAt.assign(game.walk.size(), -100.0);
+        judgedAt.assign(game.now.walk.size(), -100.0);
     }
     if (events.over) finish();
 }
@@ -216,18 +221,20 @@ void NeckWalkExercise::drawChoices(float left, float top, float s){
                                         levelText(neckWalkLevel(levelIndex)).c_str());
 }
 
-// The round, along the top: the computer's lick (its notes lit as it plays them), the player's (each note as it went),
+// The round, along the top: the computer's part (its notes lit as it plays them), the player's (each note as it went),
 // the crowd's beat, and the playhead going along; before the first round, the count
 void NeckWalkExercise::drawStrip(float left, float right, float top, float s){
     ImDrawList* draw = ImGui::GetWindowDrawList();
     const UiFonts& fonts = uiFonts();
+    const NeckWalkRound& round = game.now;
+    const int partBeats = round.partBars * NECK_WALK_BAR_BEATS, roundBeats = 2 * partBeats;
     const float height = 46 * s, pad = 16 * s;
-    const float beatWidth = (right - left - 2 * pad) / NECK_WALK_ROUND_BEATS;
+    const float beatWidth = (right - left - 2 * pad) / roundBeats;
     auto beatX = [&](double beat){ return left + pad + (float)beat * beatWidth; };
-    const double along = (gameTime() - neckWalkRoundStart(game, game.round)) / game.beatSeconds;
-    const double split = NECK_WALK_PART_BEATS - 0.5;
+    const double along = (gameTime() - neckWalkRoundStart(game, round)) / game.beatSeconds;
+    const double split = partBeats - 0.5;
     const bool watching = along >= 0.0 && along < split, playing = along >= split;
-    // The two licks, each a card; the one going on lit
+    // The two parts, each a card; the one going on lit
     struct Part { float x0, x1; const char* label; bool on; };
     const Part parts[2] = { { left, beatX(split) - 3 * s, "WATCH", watching }, { beatX(split) + 3 * s, right, "YOUR TURN", playing } };
     for (const Part& part : parts){
@@ -236,37 +243,37 @@ void NeckWalkExercise::drawStrip(float left, float right, float top, float s){
                       (part.on ? 2.0f : 1.0f) * s);
         draw->AddText(fonts.mono, 13 * s, ImVec2(part.x0 + 12 * s, top + 6 * s), uiColor(part.on ? UiColor::Accent : UiColor::Dim), part.label);
     }
-    for (int b = 1; b < NECK_WALK_ROUND_BEATS; b++){
-        if (b == NECK_WALK_PART_BEATS) continue;
+    for (int b = 1; b < roundBeats; b++){
+        if (b == partBeats) continue;
         const bool barLine = b % NECK_WALK_BAR_BEATS == 0;
         draw->AddLine(ImVec2(beatX(b), top + height - (barLine ? 16 : 7) * s), ImVec2(beatX(b), top + height), uiColor(UiColor::Dim, barLine ? 0.8f : 0.5f), 1.5f * s);
     }
-    const float radius = 8 * s, dotY = top + height * 0.6f;
+    const float radius = std::min(8 * s, beatWidth * 0.22f), dotY = top + height * 0.6f;
     int next = -1;
     for (int i = 0; i < (int)game.notes.size() && next < 0; i++) if (game.notes[i] == WalkNote::Due) next = i;
-    for (int i = 0; i < (int)game.walk.size(); i++){
+    for (int i = 0; i < (int)round.walk.size(); i++){
         // The computer's: lit once played
-        const double shown = i * game.level.beatsPerNote;
-        if (along >= shown) draw->AddCircleFilled(ImVec2(beatX(shown), dotY), radius, uiColor(UiColor::Accent, 0.9f), 24);
-        else draw->AddCircle(ImVec2(beatX(shown), dotY), radius, uiColor(UiColor::Ink, 0.4f), 24, 2 * s);
+        const double onset = round.onsets[i];
+        if (along >= onset) draw->AddCircleFilled(ImVec2(beatX(onset), dotY), radius, uiColor(UiColor::Accent, 0.9f), 24);
+        else draw->AddCircle(ImVec2(beatX(onset), dotY), radius, uiColor(UiColor::Ink, 0.4f), 24, 2 * s);
         // The player's: to come (the next lit), right, wrong
-        const ImVec2 at(beatX(NECK_WALK_PART_BEATS + shown), dotY);
+        const ImVec2 at(beatX(partBeats + onset), dotY);
         const WalkNote how = game.notes[i];
         if (how == WalkNote::Due){
             const bool lit = i == next && playing;
             draw->AddCircle(at, radius, uiColor(lit ? UiColor::Accent : UiColor::Ink, lit ? 1.0f : 0.4f), 24, 2 * s);
         } else {
             const float since = i < (int)judgedAt.size() ? (float)(GetTime() - judgedAt[i]) : 99.0f;
-            const float pop = since < 0.25f ? 5 * s * (1.0f - since / 0.25f) : 0.0f;
+            const float pop = since < 0.25f ? 4 * s * (1.0f - since / 0.25f) : 0.0f;
             draw->AddCircleFilled(at, radius + pop, uiColor(how == WalkNote::Right ? UiColor::Good : UiColor::Bad), 24);
         }
     }
-    // The crowd's beat: a diamond, green or red once it's in
-    const ImVec2 crowd(beatX(NECK_WALK_ROUND_BEATS - 0.5), dotY);
+    // The crowd's beat: a diamond, colored by the verdict once it's in
+    const ImVec2 crowdAt(beatX(roundBeats - 0.5), dotY);
     const float r = 8 * s;
-    draw->AddQuadFilled(ImVec2(crowd.x, crowd.y - r), ImVec2(crowd.x + r, crowd.y), ImVec2(crowd.x, crowd.y + r), ImVec2(crowd.x - r, crowd.y),
+    draw->AddQuadFilled(ImVec2(crowdAt.x, crowdAt.y - r), ImVec2(crowdAt.x + r, crowdAt.y), ImVec2(crowdAt.x, crowdAt.y + r), ImVec2(crowdAt.x - r, crowdAt.y),
                         uiColor(!game.judged ? UiColor::Dim : verdictColor(lastVerdict)));
-    if (along >= 0.0 && along <= NECK_WALK_ROUND_BEATS){
+    if (along >= 0.0 && along <= roundBeats){
         const float x = beatX(along);
         draw->AddLine(ImVec2(x, top - 4 * s), ImVec2(x, top + height + 4 * s), uiColor(UiColor::Ink), 3 * s);
     } else if (along < 0.0){
@@ -286,10 +293,11 @@ void NeckWalkExercise::drawNeck(float left, float right, float top, float bottom
     const int frets = std::max(12, (state == State::Playing ? game.level : neckWalkLevel(levelIndex)).maxFret);
     board = fretboardLayout(left, top, right - left, s, strings, 0, frets, spacing);
     drawFretboard(board, tuning);
-    if (state != State::Playing || game.walk.empty()) return;
+    const NeckWalkRound& round = game.now;
+    if (state != State::Playing || round.walk.empty()) return;
     float halfW, halfH;
     cardSize(board, halfW, halfH);
-    const double along = (gameTime() - neckWalkRoundStart(game, game.round)) / game.beatSeconds;
+    const double along = (gameTime() - neckWalkRoundStart(game, round)) / game.beatSeconds;
     auto centered = [&](const char* text, UiColor color){
         const ImVec2 size = fonts.bold->CalcTextSizeA(22 * s, FLT_MAX, 0.0f, text);
         const ImVec2 at((left + right) / 2 - size.x / 2, board.top + board.height / 2 - size.y / 2);
@@ -300,34 +308,34 @@ void NeckWalkExercise::drawNeck(float left, float right, float top, float bottom
         centered("Get ready: watch, then play it back", UiColor::Dim);
         return;
     }
-    if (along < NECK_WALK_PART_BEATS - 0.5){
+    if (along < round.partBars * NECK_WALK_BAR_BEATS - 0.5){
         // The computer's turn
         int playedUpTo = -1;
-        for (int i = 0; i < (int)game.walk.size(); i++) if (along >= i * game.level.beatsPerNote) playedUpTo = i;
-        for (int i = 0; i < (int)game.walk.size(); i++){
-            const NeckStep& step = game.walk[i];
+        for (int i = 0; i < (int)round.walk.size(); i++) if (along >= round.onsets[i]) playedUpTo = i;
+        for (int i = 0; i < (int)round.walk.size(); i++){
+            const NeckStep& step = round.walk[i];
             bool later = false; // the same place again, played since: that one shows
-            for (int j = i + 1; j <= playedUpTo; j++) later = later || (game.walk[j].string == step.string && game.walk[j].fret == step.fret);
+            for (int j = i + 1; j <= playedUpTo; j++) later = later || (round.walk[j].string == step.string && round.walk[j].fret == step.fret);
             if (later) continue;
             const bool isNow = i == playedUpTo;
-            const float since = (float)((along - i * game.level.beatsPerNote) * game.beatSeconds);
+            const float since = (float)((along - round.onsets[i]) * game.beatSeconds);
             const float pop = isNow ? 5 * s * std::exp(-since * 8.0f) : 0.0f;
             drawNoteCard(draw, board, step.string, step.fret, step.pitch, pop, i <= playedUpTo ? (isNow ? 1.0f : 0.6f) : 0.25f, isNow, s);
         }
         if (playedUpTo > 0){
-            const NeckStep& from = game.walk[playedUpTo - 1];
-            const NeckStep& to = game.walk[playedUpTo];
+            const NeckStep& from = round.walk[playedUpTo - 1];
+            const NeckStep& to = round.walk[playedUpTo];
             drawWay(draw, board, ImVec2(board.fretX(from.fret), board.stringY(from.string)), ImVec2(board.fretX(to.fret), board.stringY(to.string)), 1.0f, 0.8f, s);
         }
         return;
     }
     // The player's turn: nothing shown but what was just played
     bool shownAny = false;
-    for (int i = 0; i < (int)judgedAt.size() && i < (int)game.walk.size(); i++){
+    for (int i = 0; i < (int)judgedAt.size() && i < (int)round.walk.size(); i++){
         const float since = (float)(GetTime() - judgedAt[i]);
         if (since > JUDGED_FLASH_S || game.notes[i] == WalkNote::Due) continue;
         shownAny = true;
-        const NeckStep& step = game.walk[i];
+        const NeckStep& step = round.walk[i];
         const bool wasRight = game.notes[i] == WalkNote::Right;
         const float fade = 1.0f - since / JUDGED_FLASH_S;
         if (wasRight) drawNoteCard(draw, board, step.string, step.fret, step.pitch, 0.0f, fade, false, s);
@@ -389,20 +397,22 @@ void NeckWalkExercise::draw(){
 
     // The round's note, big, and on which strings
     const float noteTop = stripTop + 58 * s;
-    if (state == State::Playing && !game.walk.empty()){
+    if (state == State::Playing && !game.now.walk.empty()){
         const float since = (float)(GetTime() - roundAt);
         const float pop = 1.0f + 0.25f * std::exp(-since * 6.0f);
-        draw->AddText(fonts.heavy, 54 * s * pop, ImVec2(left, noteTop), uiColor(UiColor::Ink), pitchClassName(game.root));
+        const std::string key = std::string(pitchClassName(game.now.root)) + (game.level.sequence == NeckWalkSequence::Triads ? " triad" : "");
+        draw->AddText(fonts.heavy, 54 * s * pop, ImVec2(left, noteTop), uiColor(UiColor::Ink), key.c_str());
+        const float keyWidth = fonts.heavy->CalcTextSizeA(54 * s, FLT_MAX, 0.0f, key.c_str()).x;
         std::vector<int> on;
-        for (const NeckStep& step : game.walk) if (std::find(on.begin(), on.end(), step.string) == on.end()) on.push_back(step.string);
+        for (const NeckStep& step : game.now.walk) if (std::find(on.begin(), on.end(), step.string) == on.end()) on.push_back(step.string);
         std::sort(on.begin(), on.end());
         std::string where = "on the ";
         for (size_t i = 0; i < on.size(); i++){
             where += pitchClassName(tuning[on[i]] % 12);
             where += i + 2 < on.size() ? ", " : i + 1 < on.size() ? " and " : " strings";
         }
-        draw->AddText(fonts.bold, 18 * s, ImVec2(left + 90 * s, noteTop + 12 * s), uiColor(UiColor::Dim), where.c_str());
-        draw->AddText(fonts.mono, 13 * s, ImVec2(left + 90 * s, noteTop + 38 * s), uiColor(UiColor::Dim),
+        draw->AddText(fonts.bold, 18 * s, ImVec2(left + keyWidth + 26 * s, noteTop + 12 * s), uiColor(UiColor::Dim), where.c_str());
+        draw->AddText(fonts.mono, 13 * s, ImVec2(left + keyWidth + 26 * s, noteTop + 38 * s), uiColor(UiColor::Dim),
                       TextFormat("ROUND %d  ·  %s, %d BPM", game.round + 1, game.level.name, (int)std::lround(game.tempo)));
     }
 

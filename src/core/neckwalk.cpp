@@ -9,15 +9,16 @@
 #include <sstream>
 
 const int CLEARED_POINTS = 5; // a round all right: this many notes' worth, times the streak with it
-const int FOURTH = 5;         // the next round's note: a fourth up
+const int FOURTH = 5;         // the next round's key: a fourth up
 const double VERDICT_BEFORE_END = 0.5; // beats: the crowd answers this long before the next round
+const double MAX_WINDOW_BEATS = 0.45;  // however wide a level's window, it closes before the verdict
 
 const NeckWalkLevel& neckWalkLevel(int index){
     static const NeckWalkLevel LEVELS[NECK_WALK_LEVELS] = {
-        // name, key, strings, notes, beats a note, highest fret, window, points
-        { "Easy", "easy", 2, 3, 4, 2.0, 12, 0.25f, 100 },
-        { "Normal", "normal", 3, 4, 6, 1.0, 12, 0.18f, 200 },
-        { "Hard", "hard", 4, 6, 8, 1.0, 15, 0.12f, 300 },
+        // name, key, sequence, rhythm, strings, highest fret, window, points
+        { "Easy", "easy", NeckWalkSequence::Straight, NeckWalkRhythm::Even, 3, 6, 12, 0.22f, 100 },
+        { "Normal", "normal", NeckWalkSequence::Patterns, NeckWalkRhythm::Mixed, 3, 6, 12, 0.18f, 200 },
+        { "Hard", "hard", NeckWalkSequence::Triads, NeckWalkRhythm::Syncopated, 3, 6, 12, 0.15f, 300 },
     };
     return LEVELS[std::clamp(index, 0, NECK_WALK_LEVELS - 1)];
 }
@@ -54,30 +55,143 @@ std::vector<NeckStep> neckWalkSteps(int pitchClass, const std::vector<int>& tuni
     return walk;
 }
 
-// A walk of `root`: on some strings side by side, somewhere on the neck, chosen at random
-static std::vector<NeckStep> randomWalk(NeckWalkGame& game, int root){
+std::vector<NeckStep> neckWalkTriad(int root, const std::vector<int>& tuning, int firstString, int count, int position){
+    std::vector<NeckStep> notes;
+    for (int string = std::max(0, firstString); string < firstString + count && string < (int)tuning.size(); string++){
+        for (int fret = std::max(0, position); fret <= position + 3; fret++){
+            const int pitch = tuning[string] + fret, degree = ((pitch - root) % 12 + 12) % 12;
+            if (degree != 0 && degree != 4 && degree != 7) continue;
+            if (!notes.empty() && pitch <= notes.back().pitch) continue;
+            notes.push_back({ pitch, string, fret });
+        }
+    }
+    return notes;
+}
+
+// A note's length, in beats, from a few cells (a cell's notes follow each other); a level's rhythm draws its cells
+// from its own set, the commoner ones more often
+// (in an unnamed namespace: core/rhythm has a RhythmCell of its own, and two types of one name break the program)
+namespace {
+struct WalkRhythmCell { std::vector<double> lengths; int weight; };
+}
+static const std::vector<WalkRhythmCell>& rhythmCells(NeckWalkRhythm rhythm){
+    static const std::vector<WalkRhythmCell> EVEN = { { { 1.0 }, 1 } };
+    static const std::vector<WalkRhythmCell> MIXED = { { { 1.0 }, 4 }, { { 0.5, 0.5 }, 3 }, { { 2.0 }, 1 }, { { 1.5, 0.5 }, 2 } };
+    static const std::vector<WalkRhythmCell> SYNCOPATED = { { { 0.5, 0.5 }, 3 }, { { 1.0 }, 1 }, { { 1.5, 0.5 }, 2 }, { { 0.5, 1.0, 0.5 }, 3 } };
+    return rhythm == NeckWalkRhythm::Even ? EVEN : rhythm == NeckWalkRhythm::Mixed ? MIXED : SYNCOPATED;
+}
+
+std::vector<double> neckWalkRhythm(NeckWalkRhythm rhythm, int notes, std::mt19937& random, int& partBars){
+    const std::vector<WalkRhythmCell>& cells = rhythmCells(rhythm);
+    std::vector<int> weights;
+    for (const WalkRhythmCell& cell : cells) weights.push_back(cell.weight);
+    std::discrete_distribution<int> pick(weights.begin(), weights.end());
+    for (int attempt = 0; attempt < 40; attempt++){
+        std::vector<double> lengths;
+        while ((int)lengths.size() < notes){
+            const WalkRhythmCell& cell = cells[pick(random)];
+            lengths.insert(lengths.end(), cell.lengths.begin(), cell.lengths.end());
+        }
+        // Syncopated: now and then, starting off the beat
+        double at = rhythm == NeckWalkRhythm::Syncopated && std::uniform_int_distribution<int>(0, 2)(random) == 0 ? 0.5 : 0.0;
+        std::vector<double> onsets;
+        for (int i = 0; i < notes; i++){
+            onsets.push_back(at);
+            at += lengths[i];
+        }
+        // Two bars if it fits there with a beat to spare, else four
+        const double last = onsets.empty() ? 0.0 : onsets.back();
+        if (last <= 2 * NECK_WALK_BAR_BEATS - 1) partBars = 2;
+        else if (last <= 4 * NECK_WALK_BAR_BEATS - 1) partBars = 4;
+        else continue;
+        return onsets;
+    }
+    std::vector<double> onsets; // too many notes for any of the cells: eighths
+    for (int i = 0; i < notes; i++) onsets.push_back(0.5 * i);
+    partBars = onsets.empty() || onsets.back() <= 2 * NECK_WALK_BAR_BEATS - 1 ? 2 : 4;
+    return onsets;
+}
+
+// Normal's orders over places on strings side by side (`count` of them, 0 the lowest): skipping a string going down
+// and back up, from the outside in and back out, or at random (every string once, then any but the one just played)
+static std::vector<int> patternOrder(int count, std::mt19937& random){
+    std::vector<int> order;
+    const int kind = std::uniform_int_distribution<int>(0, 2)(random);
+    if (kind == 0 && count >= 4){
+        for (int i = count - 1; i >= 2; i--){ order.push_back(i); order.push_back(i - 2); }
+        for (int i = 0; i + 2 < count; i++){
+            if (order.back() != i) order.push_back(i);
+            order.push_back(i + 2);
+        }
+    } else if (kind <= 1){
+        std::vector<int> in;
+        for (int low = 0, high = count - 1; low <= high; low++, high--){
+            in.push_back(high);
+            if (low != high) in.push_back(low);
+        }
+        order = in;
+        for (int i = (int)in.size() - 2; i >= 0; i--) order.push_back(in[i]);
+    } else {
+        for (int i = 0; i < count; i++) order.push_back(i);
+        std::shuffle(order.begin(), order.end(), random);
+        const int extra = std::uniform_int_distribution<int>(2, count)(random);
+        for (int i = 0; i < extra; i++){
+            int string;
+            do string = std::uniform_int_distribution<int>(0, count - 1)(random); while (string == order.back());
+            order.push_back(string);
+        }
+    }
+    return order;
+}
+
+// A sequence of the level's kind in `root`, somewhere on the neck, on some strings side by side
+static std::vector<NeckStep> randomSequence(NeckWalkGame& game, int root){
     const NeckWalkLevel& level = game.level;
     const int strings = (int)game.tuning.size();
-    std::vector<NeckStep> walk;
-    for (int attempt = 0; attempt < 50 && walk.empty(); attempt++){
-        const int count = std::min(strings, std::uniform_int_distribution<int>(level.minStrings, level.maxStrings)(game.random));
+    std::vector<NeckStep> sequence;
+    for (int attempt = 0; attempt < 60 && sequence.empty(); attempt++){
+        const int count = std::uniform_int_distribution<int>(std::min(level.minStrings, strings), std::min(level.maxStrings, strings))(game.random);
         const int first = std::uniform_int_distribution<int>(0, strings - count)(game.random);
         const int near = std::uniform_int_distribution<int>(0, std::max(0, level.maxFret - 3))(game.random);
-        walk = neckWalkSteps(root, game.tuning, first, count, near, level.maxFret, level.notes);
+        if (level.sequence == NeckWalkSequence::Straight){
+            sequence = neckWalkSteps(root, game.tuning, first, count, near, level.maxFret, 2 * count - 1);
+        } else if (level.sequence == NeckWalkSequence::Patterns){
+            std::vector<NeckStep> places = neckWalkSteps(root, game.tuning, first, count, near, level.maxFret, count);
+            std::reverse(places.begin(), places.end()); // the lowest string first
+            if (places.size() < 2) continue;
+            for (int index : patternOrder((int)places.size(), game.random)) sequence.push_back(places[index]);
+        } else {
+            const std::vector<NeckStep> up = neckWalkTriad(root, game.tuning, first, count, near);
+            bool degrees[12] = {};
+            for (const NeckStep& step : up) degrees[((step.pitch - root) % 12 + 12) % 12] = true;
+            if (!degrees[0] || !degrees[4] || !degrees[7]) continue; // the whole triad, its third too
+            // Up and back down (or down and back up), or only one way when that's long already
+            sequence = up;
+            if ((int)up.size() * 2 - 1 <= NECK_WALK_MAX_NOTES) for (int i = (int)up.size() - 2; i >= 0; i--) sequence.push_back(up[i]);
+            if (std::uniform_int_distribution<int>(0, 1)(game.random) == 1) std::reverse(sequence.begin(), sequence.end());
+        }
+        if ((int)sequence.size() > NECK_WALK_MAX_NOTES) sequence.resize(NECK_WALK_MAX_NOTES);
     }
-    return walk;
+    return sequence;
+}
+
+static NeckWalkRound makeRound(NeckWalkGame& game, int root, int firstBar){
+    NeckWalkRound round;
+    round.root = root;
+    round.firstBar = firstBar;
+    round.walk = randomSequence(game, root);
+    round.onsets = neckWalkRhythm(game.level.rhythm, (int)round.walk.size(), game.random, round.partBars);
+    return round;
 }
 
 // The next round: the one prepared a round ahead, and the one after it prepared
 static void nextRound(NeckWalkGame& game, int round){
     game.round = round;
-    game.root = game.nextRoot;
-    game.walk = game.nextWalk;
+    game.now = game.next;
     game.judged = false;
-    game.notes.assign(game.walk.size(), WalkNote::Due);
-    game.heardWrong.assign(game.walk.size(), false);
-    game.nextRoot = (game.root + FOURTH) % 12;
-    game.nextWalk = randomWalk(game, game.nextRoot);
+    game.notes.assign(game.now.walk.size(), WalkNote::Due);
+    game.heardWrong.assign(game.now.walk.size(), false);
+    game.next = makeRound(game, (game.now.root + FOURTH) % 12, game.now.firstBar + 2 * game.now.partBars);
 }
 
 void startNeckWalk(NeckWalkGame& game, int levelIndex, const std::vector<int>& tuning, unsigned seed, double startTime,
@@ -95,25 +209,32 @@ void startNeckWalk(NeckWalkGame& game, int levelIndex, const std::vector<int>& t
         game.over = true;
         return;
     }
-    game.nextRoot = std::uniform_int_distribution<int>(0, 11)(game.random);
-    game.nextWalk = randomWalk(game, game.nextRoot);
+    game.next = makeRound(game, std::uniform_int_distribution<int>(0, 11)(game.random), NECK_WALK_INTRO_BARS);
     nextRound(game, 0);
 }
 
-double neckWalkRoundStart(const NeckWalkGame& game, int round){
-    return game.startTime + (NECK_WALK_INTRO_BEATS + (double)round * NECK_WALK_ROUND_BEATS) * game.beatSeconds;
+double neckWalkBarTime(const NeckWalkGame& game, int bar){
+    return game.startTime + (double)bar * NECK_WALK_BAR_BEATS * game.beatSeconds;
 }
 
-double neckWalkShowTime(const NeckWalkGame& game, int note){
-    return neckWalkRoundStart(game, game.round) + note * game.level.beatsPerNote * game.beatSeconds;
+double neckWalkRoundStart(const NeckWalkGame& game, const NeckWalkRound& round){
+    return neckWalkBarTime(game, round.firstBar);
+}
+
+double neckWalkShowTime(const NeckWalkGame& game, const NeckWalkRound& round, int note){
+    return neckWalkRoundStart(game, round) + round.onsets[note] * game.beatSeconds;
 }
 
 double neckWalkNoteTime(const NeckWalkGame& game, int note){
-    return neckWalkShowTime(game, note) + NECK_WALK_PART_BEATS * game.beatSeconds;
+    return neckWalkShowTime(game, game.now, note) + game.now.partBars * NECK_WALK_BAR_BEATS * game.beatSeconds;
 }
 
 double neckWalkVerdictTime(const NeckWalkGame& game){
-    return neckWalkRoundStart(game, game.round + 1) - VERDICT_BEFORE_END * game.beatSeconds;
+    return neckWalkBarTime(game, game.now.firstBar + 2 * game.now.partBars) - VERDICT_BEFORE_END * game.beatSeconds;
+}
+
+static double window(const NeckWalkGame& game){
+    return std::min((double)game.level.windowSeconds, MAX_WINDOW_BEATS * game.beatSeconds);
 }
 
 NeckWalkEvents neckWalkPlayed(NeckWalkGame& game, int pitch, double time){
@@ -121,17 +242,17 @@ NeckWalkEvents neckWalkPlayed(NeckWalkGame& game, int pitch, double time){
     if (game.over || game.judged || pitch < 0) return events;
     int nearest = -1;
     for (int i = 0; i < (int)game.notes.size(); i++){
-        if (game.notes[i] != WalkNote::Due || std::abs(time - neckWalkNoteTime(game, i)) > game.level.windowSeconds) continue;
+        if (game.notes[i] != WalkNote::Due || std::abs(time - neckWalkNoteTime(game, i)) > window(game)) continue;
         if (nearest < 0 || std::abs(time - neckWalkNoteTime(game, i)) < std::abs(time - neckWalkNoteTime(game, nearest))) nearest = i;
     }
     if (nearest < 0) return events;
-    if (pitch % 12 != game.root){
+    if (pitch % 12 != game.now.walk[nearest].pitch % 12){
         game.heardWrong[nearest] = true;
         return events;
     }
     game.notes[nearest] = WalkNote::Right;
     game.score += (long long)game.level.points * (game.streak + 1);
-    game.rightByNote[game.root]++;
+    game.rightByNote[game.now.root]++;
     events.right = nearest;
     return events;
 }
@@ -146,9 +267,9 @@ NeckWalkEvents neckWalkUpdate(NeckWalkGame& game, double time){
     NeckWalkEvents events;
     if (game.over) return events;
     for (int i = 0; i < (int)game.notes.size(); i++){
-        if (game.notes[i] != WalkNote::Due || time <= neckWalkNoteTime(game, i) + game.level.windowSeconds) continue;
+        if (game.notes[i] != WalkNote::Due || time <= neckWalkNoteTime(game, i) + window(game)) continue;
         game.notes[i] = game.heardWrong[i] ? WalkNote::Wrong : WalkNote::Missed;
-        game.wrongByNote[game.root]++;
+        game.wrongByNote[game.now.root]++;
         (game.heardWrong[i] ? events.wrong : events.missed) = i;
     }
     if (!game.judged && time >= neckWalkVerdictTime(game)){
@@ -172,7 +293,7 @@ NeckWalkEvents neckWalkUpdate(NeckWalkGame& game, double time){
             }
         }
     }
-    if (game.judged && time >= neckWalkRoundStart(game, game.round + 1)){
+    if (game.judged && time >= neckWalkRoundStart(game, game.next)){
         nextRound(game, game.round + 1);
         events.newRound = true;
     }
