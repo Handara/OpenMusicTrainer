@@ -200,6 +200,7 @@ add_executable(lahn
     src/ui/hitfeedback.cpp
     src/ui/menulist.cpp
     src/ui/fretboardview.cpp
+    src/ui/neckcards.cpp
     src/ui/pianoview.cpp
     src/ui/rungraph.cpp
     src/ui/settingsui.cpp
