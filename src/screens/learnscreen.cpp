@@ -187,6 +187,7 @@ static std::unique_ptr<Exercise> createExercise(const ExerciseEntry& entry){
             setup.key = scale ? scaleKeySignature(config.rootPitchClass, *scale) : KeySignature{};
             setup.beatsPerBar = config.beatsPerBar;
             setup.staffOnly = true;
+            setup.showWhere = config.showWhere;
             // A new melody every pass (the file was checked when it loaded, so there's always one)
             setup.nextPass = [config, rng = std::mt19937(std::random_device{}())]() mutable {
                 std::vector<DrillNote> notes;

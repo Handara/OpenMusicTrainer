@@ -81,6 +81,21 @@ TEST_CASE("reading just the notes asked: at random, each where it's lowest, no l
         if (alternates) turns++;
     }
     CHECK(turns < 3); // not just E F E F
+    // Nine notes in twelve: every one read at least once, still no long runs
+    config.pool = { 52, 53, 55, 57, 59, 60, 62, 64, 65 };
+    config.bars = 3;
+    for (unsigned seed = 1; seed <= 50; seed++){
+        std::mt19937 rng(seed);
+        REQUIRE_MESSAGE(buildReading(config, rng, notes, error), error);
+        REQUIRE(notes.size() == 12);
+        for (int pitch : config.pool)
+            CHECK(std::any_of(notes.begin(), notes.end(), [&](const DrillNote& note){ return note.pitch == pitch; }));
+        int run = 1;
+        for (size_t i = 1; i < notes.size(); i++){
+            run = notes[i].pitch == notes[i - 1].pitch ? run + 1 : 1;
+            CHECK(run <= 3);
+        }
+    }
     // A note off the neck is refused
     config.pool = { 20 };
     std::mt19937 rng(1);

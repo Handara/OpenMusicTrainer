@@ -8,6 +8,7 @@
 #include "ui/ui.h"
 #include "views/noteviews.h"
 #include "ui/menulist.h"
+#include "ui/neckcards.h"
 #include "ui/scoreboard.h"
 #include "ui/theme.h"
 
@@ -19,6 +20,7 @@ const double LOOKAHEAD_S = 0.2;
 const double WAITING_AHEAD_S = 1e5; // before the first pass, its notes wait this far ahead: off the screen    // metronome clicks are handed to the audio engine this far ahead
 const float HIT_LINE_X = 180.0f;
 const int MAX_KEY_LANES = 6;
+const float HIT_RING_S = 0.6f;      // shown where: the ring round a note hit, on the neck
 
 DrillExercise::DrillExercise(const std::string& title, const DrillSetup& setup, const std::string& progressPath,
                              const Settings& settings)
@@ -94,7 +96,7 @@ void DrillExercise::finishPass(){
     if (outcome.newBest) passText += TextFormat("New best clean tempo! Next: %d bpm", outcome.nextTempo);
     else if (outcome.clean) passText += TextFormat("Clean. Next: %d bpm", outcome.nextTempo);
     else if (outcome.nextTempo < tempo) passText += TextFormat("Slowing down to %d bpm", outcome.nextTempo);
-    else passText += TextFormat("Again at %d bpm (%d%% to speed up)", outcome.nextTempo, setup.tempo.passPercent);
+    else passText += TextFormat("Again at %d bpm (%d of %d to speed up)", outcome.nextTempo, (total * setup.tempo.passPercent + 99) / 100, total);
     startPass(true); // straight into the next pass: practice keeps flowing
 }
 
@@ -122,6 +124,10 @@ void DrillExercise::update(){
         if (result.judgement == Judgement::Ignored) return;
         hits += result.notesHit;
         if (result.judgement == Judgement::Perfect) perfects += result.notesHit;
+        if (result.notesHit > 0 && result.noteIndex >= 0){
+            lastHit = notes[result.noteIndex];
+            hitAt = GetTime();
+        }
     };
     // Timing only (rhythm): every key and every note is "the" note, on the one string it's written on
     auto timingString = [&](){ return drillNotes.empty() ? 0 : drillNotes[0].stringIndex; };
@@ -155,7 +161,8 @@ void DrillExercise::draw(){
         { "BEST CLEAN", progress.bestCleanTempo > 0 ? std::string(TextFormat("%d", progress.bestCleanTempo)) : std::string("-"), UiColor::Accent, "bpm" },
         { "GOAL", TextFormat("%d", setup.tempo.maxTempo), progress.bestCleanTempo >= setup.tempo.maxTempo ? UiColor::Good : UiColor::Ink, "bpm" },
     }, ImGui::GetWindowWidth() * 0.93f, ImGui::GetWindowHeight() * 0.03f + 36 * menuScale(), menuScale());
-    centeredColoredText(setup.about.c_str(), uiColor(UiColor::Dim));
+    // (shown where: the title says what's read, and an input's error takes its line's place, for the neck's room)
+    if (!setup.showWhere) centeredColoredText(setup.about.c_str(), uiColor(UiColor::Dim));
     if (!running){
         centeredText("Press Space to start. The metronome counts one bar in, then play along.");
     } else {
@@ -168,17 +175,50 @@ void DrillExercise::draw(){
     if (noteInputActive()){
         centeredColoredText(lastPlayedPitch >= 0 ? TextFormat("Listening: you played %s%d", pitchClassName(lastPlayedPitch), pitchOctave(lastPlayedPitch))
                                                  : "Listening to your instrument", uiColor(UiColor::Dim));
-    } else {
+    } else if (inputError.empty() || !setup.showWhere){
         centeredColoredText(setup.timingOnly ? "Any number key plays the note: it's the timing that counts"
                                              : "Keys 1 to 6 play the strings, lowest first", uiColor(UiColor::Dim));
     }
 
-    // The notes, in whichever views the settings choose, below the text
+    // The notes, in whichever views the settings choose, below the text. Shown where: the neck above them, one panel
+    // with the sheet music, over the top of its room (kept for notes far above the staff)
     float width = (float)GetScreenWidth(), height = (float)GetScreenHeight();
+    const float notesTop = setup.showWhere ? height * 0.51f : height * 0.48f;
+    if (setup.showWhere){
+        DrawRectangleRec({ 0, height * 0.35f, width, notesTop - height * 0.35f }, themeColor(UiColor::Card));
+        drawWhere(width * 0.07f, width * 0.93f, height * 0.35f, height * 0.57f, menuScale());
+    }
     TimeAxis axis = { (float)drillTime(), HIT_LINE_X, settings.noteSpeed };
     NoteViews views = settings.noteViews;
     if (setup.staffOnly){ views.staff = true; views.neck = false; }
-    drawNoteViews({0, height * 0.48f, width, height * 0.51f}, views, notes, score, setup.tuning, settings.lowStringOnTop, axis);
+    drawNoteViews({0, notesTop, width, height * 0.99f - notesTop}, views, notes, score, setup.tuning, settings.lowStringOnTop, axis);
+}
+
+// The neck, as a course's untimed drills have it: the next note to play lit, pulsing; a note just hit, a green ring
+void DrillExercise::drawWhere(float left, float right, float top, float bottom, float s){
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    const int strings = (int)setup.tuning.size();
+    int highest = 12;
+    for (const DrillNote& note : drillNotes) highest = std::max(highest, note.fret);
+    // The board's padding and fret numbers take about two strings' room: the strings get the rest
+    const float spacing = std::min(30.0f, (bottom - top) / s / (float)(strings + 1));
+    const FretboardLayout board = fretboardLayout(left, top, right - left, s, strings, 0, highest, spacing);
+    drawFretboard(board, setup.tuning);
+    float halfW, halfH;
+    cardSize(board, halfW, halfH);
+    auto next = std::find_if(notes.begin(), notes.end(), [](const PlayNote& note){ return !note.judged; });
+    if (next != notes.end()){
+        const float pulse = 0.5f + 0.5f * std::sin((float)GetTime() * 5.0f);
+        drawNoteCard(draw, board, next->stringIndex, next->fret, next->pitch, 2 * s * pulse, 1.0f, true, s);
+        cardOutline(draw, ImVec2(board.fretX(next->fret), board.stringY(next->stringIndex)), halfW, halfH, 4 * s + 4 * s * pulse,
+                    uiColor(UiColor::Accent, 0.6f), 2 * s);
+    }
+    const float since = (float)(GetTime() - hitAt);
+    if (lastHit.stringIndex >= 0 && since < HIT_RING_S){
+        const float fade = 1.0f - since / HIT_RING_S;
+        cardOutline(draw, ImVec2(board.fretX(lastHit.fret), board.stringY(lastHit.stringIndex)), halfW, halfH, 3 * s + 14 * s * since / HIT_RING_S,
+                    uiColor(UiColor::Good, fade), 2.5f * s);
+    }
 }
 
 bool DrillExercise::takeFinishedRun(int& percent){

@@ -11,170 +11,140 @@ lesson The G string: G
 text Music is written on five lines, the staff. The higher a note sits, the higher it sounds. Bass music is written in the bass clef, the curl with two dots, and sounds an octave lower than written.
 text G sits in the top space. On the bass it's the open G string.
 drill G alone
-type notes
+type reading
 notes G2
-show staff
 where yes
-count 4
-pass 3
-drill No slips
-type notes
-notes G2
-show staff
-count 6
-pass 6
-drill To a beat
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
+drill G, on your own
 type reading
 notes G2
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
 lesson The G string: A
 text A sits on the top line. On the bass it's the 2nd fret of the G string.
 drill A alone
-type notes
+type reading
 notes A2
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill G and A, shown where
-type notes
+type reading
 notes G2 A2
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill G and A, on your own
-type notes
-notes G2 A2
-show staff
-count 8
-pass 7
-drill No slips
-type notes
-notes G2 A2
-show staff
-count 10
-pass 10
-drill To a beat
 type reading
 notes G2 A2
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
 lesson The G string: B
 text B sits just above the staff. On the bass it's the 4th fret of the G string.
 drill B alone
-type notes
+type reading
 notes B2
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill G, A and B, shown where
-type notes
+type reading
 notes G2 A2 B2
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill G, A and B, on your own
-type notes
-notes G2 A2 B2
-show staff
-count 8
-pass 7
-drill No slips
-type notes
-notes G2 A2 B2
-show staff
-count 10
-pass 10
-drill To a beat
 type reading
 notes G2 A2 B2
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
 lesson The G string: C
 text C sits on the 1st ledger line above the staff. On the bass it's the 5th fret of the G string.
 drill C alone
-type notes
+type reading
 notes C3
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill G, A, B and C, shown where
-type notes
+type reading
 notes G2 A2 B2 C3
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill G, A, B and C, on your own
-type notes
-notes G2 A2 B2 C3
-show staff
-count 8
-pass 7
-drill No slips
-type notes
-notes G2 A2 B2 C3
-show staff
-count 10
-pass 10
-drill To a beat
 type reading
 notes G2 A2 B2 C3
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
 lesson The G string: all of it
 text G, A, B and C, and the strings before: read them as they come.
 drill Shown where
-type notes
+type reading
 notes G2 A2 B2 C3
-show staff
 where yes
-count 12
-pass 11
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill On your own
-type notes
-notes G2 A2 B2 C3
-show staff
-count 16
-pass 15
-drill No slips
-type notes
-notes G2 A2 B2 C3
-show staff
-count 16
-pass 16
-drill To a beat
 type reading
 notes G2 A2 B2 C3
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
@@ -184,150 +154,135 @@ unit The D string
 lesson The D string: D
 text D sits on the middle line. On the bass it's the open D string.
 drill D alone
-type notes
+type reading
 notes D2
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
+drill D, on your own
+type reading
+notes D2
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill Mixed with what you know
-type notes
-notes G2 A2 B2 C3 D2
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes G2 A2 B2 C3 D2
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes G2 A2 B2 C3 D2
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
 lesson The D string: E
 text E sits in the third space. On the bass it's the 2nd fret of the D string.
 drill E alone
-type notes
+type reading
 notes E2
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill D and E, shown where
-type notes
+type reading
 notes D2 E2
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill D and E, on your own
-type notes
+type reading
 notes D2 E2
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill Mixed with what you know
-type notes
-notes G2 A2 B2 C3 D2 E2
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes G2 A2 B2 C3 D2 E2
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes G2 A2 B2 C3 D2 E2
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
 lesson The D string: F
 text F sits on the fourth line. On the bass it's the 3rd fret of the D string.
 drill F alone
-type notes
+type reading
 notes F2
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill D, E and F, shown where
-type notes
+type reading
 notes D2 E2 F2
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill D, E and F, on your own
-type notes
+type reading
 notes D2 E2 F2
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill Mixed with what you know
-type notes
-notes G2 A2 B2 C3 D2 E2 F2
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes G2 A2 B2 C3 D2 E2 F2
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes G2 A2 B2 C3 D2 E2 F2
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
 lesson The D string: all of it
 text D, E and F, and the strings before: read them as they come.
 drill Shown where
-type notes
+type reading
 notes G2 A2 B2 C3 D2 E2 F2
-show staff
 where yes
-count 12
-pass 11
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill On your own
-type notes
-notes G2 A2 B2 C3 D2 E2 F2
-show staff
-count 16
-pass 15
-drill No slips
-type notes
-notes G2 A2 B2 C3 D2 E2 F2
-show staff
-count 16
-pass 16
-drill To a beat
 type reading
 notes G2 A2 B2 C3 D2 E2 F2
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
@@ -337,150 +292,135 @@ unit The A string
 lesson The A string: A
 text A sits in the bottom space. On the bass it's the open A string.
 drill A alone
-type notes
+type reading
 notes A1
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
+drill A, on your own
+type reading
+notes A1
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill Mixed with what you know
-type notes
-notes G2 A2 B2 C3 D2 E2 F2 A1
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes G2 A2 B2 C3 D2 E2 F2 A1
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes G2 A2 B2 C3 D2 E2 F2 A1
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
 lesson The A string: B
 text B sits on the second line. On the bass it's the 2nd fret of the A string.
 drill B alone
-type notes
+type reading
 notes B1
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill A and B, shown where
-type notes
+type reading
 notes A1 B1
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill A and B, on your own
-type notes
+type reading
 notes A1 B1
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill Mixed with what you know
-type notes
-notes G2 A2 B2 C3 D2 E2 F2 A1 B1
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes G2 A2 B2 C3 D2 E2 F2 A1 B1
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes G2 A2 B2 C3 D2 E2 F2 A1 B1
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
 lesson The A string: C
 text C sits in the second space. On the bass it's the 3rd fret of the A string.
 drill C alone
-type notes
+type reading
 notes C2
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill A, B and C, shown where
-type notes
+type reading
 notes A1 B1 C2
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill A, B and C, on your own
-type notes
+type reading
 notes A1 B1 C2
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill Mixed with what you know
-type notes
-notes A2 B2 C3 D2 E2 F2 A1 B1 C2
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes A2 B2 C3 D2 E2 F2 A1 B1 C2
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes A2 B2 C3 D2 E2 F2 A1 B1 C2
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
 lesson The A string: all of it
 text A, B and C, and the strings before: read them as they come.
 drill Shown where
-type notes
+type reading
 notes A2 B2 C3 D2 E2 F2 A1 B1 C2
-show staff
 where yes
-count 12
-pass 11
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill On your own
-type notes
-notes A2 B2 C3 D2 E2 F2 A1 B1 C2
-show staff
-count 16
-pass 15
-drill No slips
-type notes
-notes A2 B2 C3 D2 E2 F2 A1 B1 C2
-show staff
-count 16
-pass 16
-drill To a beat
 type reading
 notes A2 B2 C3 D2 E2 F2 A1 B1 C2
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
@@ -491,150 +431,135 @@ lesson The E string: E
 text Down into the ledger lines: the short lines under the staff, each one more step down.
 text E sits on the 1st ledger line below the staff. On the bass it's the open E string.
 drill E alone
-type notes
+type reading
 notes E1
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
+drill E, on your own
+type reading
+notes E1
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill Mixed with what you know
-type notes
-notes B2 C3 D2 E2 F2 A1 B1 C2 E1
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes B2 C3 D2 E2 F2 A1 B1 C2 E1
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes B2 C3 D2 E2 F2 A1 B1 C2 E1
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
 lesson The E string: F
 text F sits just below the staff. On the bass it's the 1st fret of the E string.
 drill F alone
-type notes
+type reading
 notes F1
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill E and F, shown where
-type notes
+type reading
 notes E1 F1
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill E and F, on your own
-type notes
+type reading
 notes E1 F1
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill Mixed with what you know
-type notes
-notes C3 D2 E2 F2 A1 B1 C2 E1 F1
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes C3 D2 E2 F2 A1 B1 C2 E1 F1
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes C3 D2 E2 F2 A1 B1 C2 E1 F1
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
 lesson The E string: G
 text G sits on the bottom line. On the bass it's the 3rd fret of the E string.
 drill G alone
-type notes
+type reading
 notes G1
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill E, F and G, shown where
-type notes
+type reading
 notes E1 F1 G1
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill E, F and G, on your own
-type notes
+type reading
 notes E1 F1 G1
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill Mixed with what you know
-type notes
-notes D2 E2 F2 A1 B1 C2 E1 F1 G1
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes D2 E2 F2 A1 B1 C2 E1 F1 G1
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes D2 E2 F2 A1 B1 C2 E1 F1 G1
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
 lesson The E string: all of it
 text E, F and G, and the strings before: read them as they come.
 drill Shown where
-type notes
+type reading
 notes D2 E2 F2 A1 B1 C2 E1 F1 G1
-show staff
 where yes
-count 12
-pass 11
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill On your own
-type notes
-notes D2 E2 F2 A1 B1 C2 E1 F1 G1
-show staff
-count 16
-pass 15
-drill No slips
-type notes
-notes D2 E2 F2 A1 B1 C2 E1 F1 G1
-show staff
-count 16
-pass 16
-drill To a beat
 type reading
 notes D2 E2 F2 A1 B1 C2 E1 F1 G1
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
@@ -644,155 +569,110 @@ unit The whole open position
 lesson The top two strings
 text 7 notes, from D to C.
 drill Shown where
-type notes
+type reading
 notes D2 E2 F2 G2 A2 B2 C3
-show staff
 where yes
-count 12
-pass 11
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill On your own
-type notes
-notes D2 E2 F2 G2 A2 B2 C3
-show staff
-count 16
-pass 15
-drill No slips
-type notes
-notes D2 E2 F2 G2 A2 B2 C3
-show staff
-count 16
-pass 16
-drill To a beat
 type reading
 notes D2 E2 F2 G2 A2 B2 C3
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
 lesson The bottom two strings
 text 6 notes, from E to C.
 drill Shown where
-type notes
+type reading
 notes E1 F1 G1 A1 B1 C2
-show staff
 where yes
-count 12
-pass 11
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill On your own
-type notes
-notes E1 F1 G1 A1 B1 C2
-show staff
-count 16
-pass 15
-drill No slips
-type notes
-notes E1 F1 G1 A1 B1 C2
-show staff
-count 16
-pass 16
-drill To a beat
 type reading
 notes E1 F1 G1 A1 B1 C2
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
 lesson The middle strings
 text 6 notes, from A to F.
 drill Shown where
-type notes
+type reading
 notes A1 B1 C2 D2 E2 F2
-show staff
 where yes
-count 12
-pass 11
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill On your own
-type notes
-notes A1 B1 C2 D2 E2 F2
-show staff
-count 16
-pass 15
-drill No slips
-type notes
-notes A1 B1 C2 D2 E2 F2
-show staff
-count 16
-pass 16
-drill To a beat
 type reading
 notes A1 B1 C2 D2 E2 F2
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
 lesson Low and high
 text 6 notes, from E to C.
 drill Shown where
-type notes
+type reading
 notes E1 G1 C2 F2 A2 C3
-show staff
 where yes
-count 12
-pass 11
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill On your own
-type notes
-notes E1 G1 C2 F2 A2 C3
-show staff
-count 16
-pass 15
-drill No slips
-type notes
-notes E1 G1 C2 F2 A2 C3
-show staff
-count 16
-pass 16
-drill To a beat
 type reading
 notes E1 G1 C2 F2 A2 C3
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
 lesson Everything
 text 13 notes, from E to C.
 drill Shown where
-type notes
+type reading
 notes E1 F1 G1 A1 B1 C2 D2 E2 F2 G2 A2 B2 C3
-show staff
 where yes
-count 12
-pass 11
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill On your own
-type notes
-notes E1 F1 G1 A1 B1 C2 D2 E2 F2 G2 A2 B2 C3
-show staff
-count 16
-pass 15
-drill No slips
-type notes
-notes E1 F1 G1 A1 B1 C2 D2 E2 F2 G2 A2 B2 C3
-show staff
-count 16
-pass 16
-drill To a beat
 type reading
 notes E1 F1 G1 A1 B1 C2 D2 E2 F2 G2 A2 B2 C3
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
@@ -802,176 +682,164 @@ unit Above the staff
 lesson Above the staff: D
 text D sits above the 1st ledger line over the staff. On the bass it's the 7th fret of the G string.
 drill D alone
-type notes
+type reading
 notes D3
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill A, B, C and D, shown where
-type notes
+type reading
 notes A2 B2 C3 D3
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill A, B, C and D, on your own
-type notes
+type reading
 notes A2 B2 C3 D3
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill Mixed with what you know
-type notes
-notes E2 F2 A1 B1 C2 E1 F1 G1 D3
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes E2 F2 A1 B1 C2 E1 F1 G1 D3
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes E2 F2 A1 B1 C2 E1 F1 G1 D3
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
 lesson Above the staff: E
 text E sits on the 2nd ledger line above the staff. On the bass it's the 9th fret of the G string.
 drill E alone
-type notes
+type reading
 notes E3
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill B, C, D and E, shown where
-type notes
+type reading
 notes B2 C3 D3 E3
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill B, C, D and E, on your own
-type notes
+type reading
 notes B2 C3 D3 E3
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill Mixed with what you know
-type notes
-notes F2 A1 B1 C2 E1 F1 G1 D3 E3
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes F2 A1 B1 C2 E1 F1 G1 D3 E3
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes F2 A1 B1 C2 E1 F1 G1 D3 E3
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
 lesson Above the staff: F
 text F sits above the 2nd ledger line over the staff. On the bass it's the 10th fret of the G string.
 drill F alone
-type notes
+type reading
 notes F3
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill C, D, E and F, shown where
-type notes
+type reading
 notes C3 D3 E3 F3
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill C, D, E and F, on your own
-type notes
+type reading
 notes C3 D3 E3 F3
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill Mixed with what you know
-type notes
-notes A1 B1 C2 E1 F1 G1 D3 E3 F3
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes A1 B1 C2 E1 F1 G1 D3 E3 F3
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes A1 B1 C2 E1 F1 G1 D3 E3 F3
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
 lesson Above the staff: G
 text G sits on the 3rd ledger line above the staff. On the bass it's the 12th fret of the G string.
 drill G alone
-type notes
+type reading
 notes G3
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill D, E, F and G, shown where
-type notes
+type reading
 notes D3 E3 F3 G3
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill D, E, F and G, on your own
-type notes
+type reading
 notes D3 E3 F3 G3
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill Mixed with what you know
-type notes
-notes B1 C2 E1 F1 G1 D3 E3 F3 G3
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes B1 C2 E1 F1 G1 D3 E3 F3 G3
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes B1 C2 E1 F1 G1 D3 E3 F3 G3
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
@@ -982,88 +850,82 @@ lesson F sharp on the E string
 text A sharp sign raises a note a fret, a flat lowers it a fret. F sharp is one fret above F.
 text F sharp sits just below the staff. On the bass it's the 2nd fret of the E string.
 drill F sharp alone
-type notes
+type reading
 notes F#1
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill E, F, G and F sharp, shown where
-type notes
+type reading
 notes E1 F1 G1 F#1
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill E, F, G and F sharp, on your own
-type notes
+type reading
 notes E1 F1 G1 F#1
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill Mixed with what you know
-type notes
-notes C2 E1 F1 G1 D3 E3 F3 G3 F#1
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes C2 E1 F1 G1 D3 E3 F3 G3 F#1
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes C2 E1 F1 G1 D3 E3 F3 G3 F#1
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
 lesson C sharp on the A string
 text C sharp sits in the second space. On the bass it's the 4th fret of the A string.
 drill C sharp alone
-type notes
+type reading
 notes C#2
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill B, C, D and C sharp, shown where
-type notes
+type reading
 notes B1 C2 D2 C#2
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill B, C, D and C sharp, on your own
-type notes
+type reading
 notes B1 C2 D2 C#2
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill Mixed with what you know
-type notes
-notes E1 F1 G1 D3 E3 F3 G3 F#1 C#2
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes E1 F1 G1 D3 E3 F3 G3 F#1 C#2
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes E1 F1 G1 D3 E3 F3 G3 F#1 C#2
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
@@ -1071,264 +933,246 @@ lesson B flat on the A string
 text Bb is B flat: a fret below B.
 text B flat sits on the second line. On the bass it's the 1st fret of the A string.
 drill B flat alone
-type notes
+type reading
 notes Bb1
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill A, B and B flat, shown where
-type notes
+type reading
 notes A1 B1 Bb1
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill A, B and B flat, on your own
-type notes
+type reading
 notes A1 B1 Bb1
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill Mixed with what you know
-type notes
-notes F1 G1 D3 E3 F3 G3 F#1 C#2 Bb1
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes F1 G1 D3 E3 F3 G3 F#1 C#2 Bb1
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes F1 G1 D3 E3 F3 G3 F#1 C#2 Bb1
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
 lesson E flat on the D string
 text E flat sits in the third space. On the bass it's the 1st fret of the D string.
 drill E flat alone
-type notes
+type reading
 notes Eb2
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill D, E and E flat, shown where
-type notes
+type reading
 notes D2 E2 Eb2
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill D, E and E flat, on your own
-type notes
+type reading
 notes D2 E2 Eb2
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill Mixed with what you know
-type notes
-notes G1 D3 E3 F3 G3 F#1 C#2 Bb1 Eb2
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes G1 D3 E3 F3 G3 F#1 C#2 Bb1 Eb2
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes G1 D3 E3 F3 G3 F#1 C#2 Bb1 Eb2
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
 lesson F sharp on the D string
 text F sharp sits on the fourth line. On the bass it's the 4th fret of the D string.
 drill F sharp alone
-type notes
+type reading
 notes F#2
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill E, F, G and F sharp, shown where
-type notes
+type reading
 notes E2 F2 G2 F#2
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill E, F, G and F sharp, on your own
-type notes
+type reading
 notes E2 F2 G2 F#2
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill Mixed with what you know
-type notes
-notes D3 E3 F3 G3 F#1 C#2 Bb1 Eb2 F#2
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes D3 E3 F3 G3 F#1 C#2 Bb1 Eb2 F#2
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes D3 E3 F3 G3 F#1 C#2 Bb1 Eb2 F#2
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
 lesson G sharp on the G string
 text G sharp sits in the top space. On the bass it's the 1st fret of the G string.
 drill G sharp alone
-type notes
+type reading
 notes G#2
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill G, A and G sharp, shown where
-type notes
+type reading
 notes G2 A2 G#2
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill G, A and G sharp, on your own
-type notes
+type reading
 notes G2 A2 G#2
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill Mixed with what you know
-type notes
-notes E3 F3 G3 F#1 C#2 Bb1 Eb2 F#2 G#2
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes E3 F3 G3 F#1 C#2 Bb1 Eb2 F#2 G#2
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes E3 F3 G3 F#1 C#2 Bb1 Eb2 F#2 G#2
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
 lesson B flat on the G string
 text B flat sits just above the staff. On the bass it's the 3rd fret of the G string.
 drill B flat alone
-type notes
+type reading
 notes Bb2
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill A, B and B flat, shown where
-type notes
+type reading
 notes A2 B2 Bb2
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill A, B and B flat, on your own
-type notes
+type reading
 notes A2 B2 Bb2
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill Mixed with what you know
-type notes
-notes F3 G3 F#1 C#2 Bb1 Eb2 F#2 G#2 Bb2
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes F3 G3 F#1 C#2 Bb1 Eb2 F#2 G#2 Bb2
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes F3 G3 F#1 C#2 Bb1 Eb2 F#2 G#2 Bb2
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
 lesson G sharp on the E string
 text G sharp sits on the bottom line. On the bass it's the 4th fret of the E string.
 drill G sharp alone
-type notes
+type reading
 notes G#1
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill G, A and G sharp, shown where
-type notes
+type reading
 notes G1 A1 G#1
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill G, A and G sharp, on your own
-type notes
+type reading
 notes G1 A1 G#1
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+tuning 28 33 38 43
 drill Mixed with what you know
-type notes
-notes G3 F#1 C#2 Bb1 Eb2 F#2 G#2 Bb2 G#1
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes G3 F#1 C#2 Bb1 Eb2 F#2 G#2 Bb2 G#1
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes G3 F#1 C#2 Bb1 Eb2 F#2 G#2 Bb2 G#1
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 tuning 28 33 38 43
 
@@ -1338,34 +1182,24 @@ unit Key signatures
 lesson In G major
 text One sharp, F#: every F is played F sharp, though no sign stands by it.
 drill Shown where
-type notes
+type reading
 notes G1 A1 B1 C2 D2 E2 F#2 G2 A2 B2 C3
-show staff
 where yes
-count 12
-pass 11
-key G major
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+key G
+scale major
+tuning 28 33 38 43
 drill On your own
-type notes
-notes G1 A1 B1 C2 D2 E2 F#2 G2 A2 B2 C3
-show staff
-count 16
-pass 15
-key G major
-drill No slips
-type notes
-notes G1 A1 B1 C2 D2 E2 F#2 G2 A2 B2 C3
-show staff
-count 16
-pass 16
-key G major
-drill To a beat
 type reading
 notes G1 A1 B1 C2 D2 E2 F#2 G2 A2 B2 C3
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 key G
 scale major
@@ -1374,34 +1208,24 @@ tuning 28 33 38 43
 lesson In D major
 text Two sharps, F# and C#.
 drill Shown where
-type notes
+type reading
 notes A1 B1 C#2 D2 E2 F#2 G2 A2 B2 C#3
-show staff
 where yes
-count 12
-pass 11
-key D major
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+key D
+scale major
+tuning 28 33 38 43
 drill On your own
-type notes
-notes A1 B1 C#2 D2 E2 F#2 G2 A2 B2 C#3
-show staff
-count 16
-pass 15
-key D major
-drill No slips
-type notes
-notes A1 B1 C#2 D2 E2 F#2 G2 A2 B2 C#3
-show staff
-count 16
-pass 16
-key D major
-drill To a beat
 type reading
 notes A1 B1 C#2 D2 E2 F#2 G2 A2 B2 C#3
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 key D
 scale major
@@ -1410,34 +1234,24 @@ tuning 28 33 38 43
 lesson In F major
 text One flat, Bb: every B is played B flat.
 drill Shown where
-type notes
+type reading
 notes F1 G1 A1 Bb1 C2 D2 E2 F2 G2 A2 Bb2 C3
-show staff
 where yes
-count 12
-pass 11
-key F major
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+key F
+scale major
+tuning 28 33 38 43
 drill On your own
-type notes
-notes F1 G1 A1 Bb1 C2 D2 E2 F2 G2 A2 Bb2 C3
-show staff
-count 16
-pass 15
-key F major
-drill No slips
-type notes
-notes F1 G1 A1 Bb1 C2 D2 E2 F2 G2 A2 Bb2 C3
-show staff
-count 16
-pass 16
-key F major
-drill To a beat
 type reading
 notes F1 G1 A1 Bb1 C2 D2 E2 F2 G2 A2 Bb2 C3
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 key F
 scale major
@@ -1446,34 +1260,24 @@ tuning 28 33 38 43
 lesson In A major
 text Three sharps: F#, C#, G#.
 drill Shown where
-type notes
+type reading
 notes E1 F#1 G#1 A1 B1 C#2 D2 E2 F#2 G#2 A2
-show staff
 where yes
-count 12
-pass 11
-key A major
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+key A
+scale major
+tuning 28 33 38 43
 drill On your own
-type notes
-notes E1 F#1 G#1 A1 B1 C#2 D2 E2 F#2 G#2 A2
-show staff
-count 16
-pass 15
-key A major
-drill No slips
-type notes
-notes E1 F#1 G#1 A1 B1 C#2 D2 E2 F#2 G#2 A2
-show staff
-count 16
-pass 16
-key A major
-drill To a beat
 type reading
 notes E1 F#1 G#1 A1 B1 C#2 D2 E2 F#2 G#2 A2
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 key A
 scale major
@@ -1482,34 +1286,24 @@ tuning 28 33 38 43
 lesson In Bb major
 text Two flats: Bb, Eb.
 drill Shown where
-type notes
+type reading
 notes F1 G1 A1 Bb1 C2 D2 Eb2 F2 G2 A2 Bb2
-show staff
 where yes
-count 12
-pass 11
-key Bb major
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+key Bb
+scale major
+tuning 28 33 38 43
 drill On your own
-type notes
-notes F1 G1 A1 Bb1 C2 D2 Eb2 F2 G2 A2 Bb2
-show staff
-count 16
-pass 15
-key Bb major
-drill No slips
-type notes
-notes F1 G1 A1 Bb1 C2 D2 Eb2 F2 G2 A2 Bb2
-show staff
-count 16
-pass 16
-key Bb major
-drill To a beat
 type reading
 notes F1 G1 A1 Bb1 C2 D2 Eb2 F2 G2 A2 Bb2
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 key Bb
 scale major
@@ -1518,34 +1312,24 @@ tuning 28 33 38 43
 lesson In E major
 text Four sharps: F#, C#, G#, D#.
 drill Shown where
-type notes
+type reading
 notes E1 F#1 G#1 A1 B1 C#2 D#2 E2 F#2 G#2 B2
-show staff
 where yes
-count 12
-pass 11
-key E major
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+key E
+scale major
+tuning 28 33 38 43
 drill On your own
-type notes
-notes E1 F#1 G#1 A1 B1 C#2 D#2 E2 F#2 G#2 B2
-show staff
-count 16
-pass 15
-key E major
-drill No slips
-type notes
-notes E1 F#1 G#1 A1 B1 C#2 D#2 E2 F#2 G#2 B2
-show staff
-count 16
-pass 16
-key E major
-drill To a beat
 type reading
 notes E1 F#1 G#1 A1 B1 C#2 D#2 E2 F#2 G#2 B2
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 key E
 scale major
@@ -1566,6 +1350,7 @@ leap 2
 cells quarter
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 tuning 28 33 38 43
 drill Steady
@@ -1578,6 +1363,7 @@ leap 2
 cells quarter
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 tuning 28 33 38 43
 drill Moving on
@@ -1590,6 +1376,7 @@ leap 2
 cells quarter
 bars 10
 tempo 90 120 5
+pass 87
 goal 1
 tuning 28 33 38 43
 
@@ -1605,6 +1392,7 @@ leap 2
 cells quarter
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 tuning 28 33 38 43
 drill Steady
@@ -1617,6 +1405,7 @@ leap 2
 cells quarter
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 tuning 28 33 38 43
 drill Moving on
@@ -1629,6 +1418,7 @@ leap 2
 cells quarter
 bars 10
 tempo 90 120 5
+pass 87
 goal 1
 tuning 28 33 38 43
 
@@ -1644,6 +1434,7 @@ leap 2
 cells quarter rest
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 tuning 28 33 38 43
 drill Steady
@@ -1656,6 +1447,7 @@ leap 2
 cells quarter rest
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 tuning 28 33 38 43
 drill Moving on
@@ -1668,6 +1460,7 @@ leap 2
 cells quarter rest
 bars 10
 tempo 90 120 5
+pass 87
 goal 1
 tuning 28 33 38 43
 
@@ -1683,6 +1476,7 @@ leap 2
 cells quarter rest
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 tuning 28 33 38 43
 drill Steady
@@ -1695,6 +1489,7 @@ leap 2
 cells quarter rest
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 tuning 28 33 38 43
 drill Moving on
@@ -1707,6 +1502,7 @@ leap 2
 cells quarter rest
 bars 10
 tempo 90 120 5
+pass 87
 goal 1
 tuning 28 33 38 43
 
@@ -1722,6 +1518,7 @@ leap 2
 cells quarter eighths
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 tuning 28 33 38 43
 drill Steady
@@ -1734,6 +1531,7 @@ leap 2
 cells quarter eighths
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 tuning 28 33 38 43
 drill Moving on
@@ -1746,6 +1544,7 @@ leap 2
 cells quarter eighths
 bars 10
 tempo 90 120 5
+pass 87
 goal 1
 tuning 28 33 38 43
 
@@ -1761,6 +1560,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 tuning 28 33 38 43
 drill Steady
@@ -1773,6 +1573,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 tuning 28 33 38 43
 drill Moving on
@@ -1785,6 +1586,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 90 120 5
+pass 87
 goal 1
 tuning 28 33 38 43
 
@@ -1800,6 +1602,7 @@ leap 2
 cells quarter offbeat rest
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 tuning 28 33 38 43
 drill Steady
@@ -1812,6 +1615,7 @@ leap 2
 cells quarter offbeat rest
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 tuning 28 33 38 43
 drill Moving on
@@ -1824,6 +1628,7 @@ leap 2
 cells quarter offbeat rest
 bars 10
 tempo 90 120 5
+pass 87
 goal 1
 tuning 28 33 38 43
 
@@ -1839,6 +1644,7 @@ leap 2
 cells quarter dotted
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 tuning 28 33 38 43
 drill Steady
@@ -1851,6 +1657,7 @@ leap 2
 cells quarter dotted
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 tuning 28 33 38 43
 drill Moving on
@@ -1863,6 +1670,7 @@ leap 2
 cells quarter dotted
 bars 10
 tempo 90 120 5
+pass 87
 goal 1
 tuning 28 33 38 43
 
@@ -1878,6 +1686,7 @@ leap 2
 cells quarter triplets
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 tuning 28 33 38 43
 drill Steady
@@ -1890,6 +1699,7 @@ leap 2
 cells quarter triplets
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 tuning 28 33 38 43
 drill Moving on
@@ -1902,6 +1712,7 @@ leap 2
 cells quarter triplets
 bars 10
 tempo 90 120 5
+pass 87
 goal 1
 tuning 28 33 38 43
 
@@ -1917,6 +1728,7 @@ leap 2
 cells quarter sixteenths
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 tuning 28 33 38 43
 drill Steady
@@ -1929,6 +1741,7 @@ leap 2
 cells quarter sixteenths
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 tuning 28 33 38 43
 drill Moving on
@@ -1941,6 +1754,7 @@ leap 2
 cells quarter sixteenths
 bars 10
 tempo 90 120 5
+pass 87
 goal 1
 tuning 28 33 38 43
 
@@ -1959,6 +1773,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 tuning 28 33 38 43
 drill Steady
@@ -1971,6 +1786,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 tuning 28 33 38 43
 drill Moving on
@@ -1983,6 +1799,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 90 120 5
+pass 87
 goal 1
 tuning 28 33 38 43
 
@@ -1998,6 +1815,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 tuning 28 33 38 43
 drill Steady
@@ -2010,6 +1828,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 tuning 28 33 38 43
 drill Moving on
@@ -2022,6 +1841,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 90 120 5
+pass 87
 goal 1
 tuning 28 33 38 43
 
@@ -2037,6 +1857,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 tuning 28 33 38 43
 drill Steady
@@ -2049,6 +1870,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 tuning 28 33 38 43
 drill Moving on
@@ -2061,6 +1883,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 90 120 5
+pass 87
 goal 1
 tuning 28 33 38 43
 
@@ -2076,6 +1899,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 tuning 28 33 38 43
 drill Steady
@@ -2088,6 +1912,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 tuning 28 33 38 43
 drill Moving on
@@ -2100,6 +1925,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 90 120 5
+pass 87
 goal 1
 tuning 28 33 38 43
 
@@ -2115,6 +1941,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 tuning 28 33 38 43
 drill Steady
@@ -2127,6 +1954,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 tuning 28 33 38 43
 drill Moving on
@@ -2139,5 +1967,6 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 90 120 5
+pass 87
 goal 1
 tuning 28 33 38 43

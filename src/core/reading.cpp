@@ -26,7 +26,8 @@ std::vector<DrillNote> readingPositionNotes(const ReadingConfig& config){
     return found;
 }
 
-// A pool's notes at random, each where it's lowest on the neck: the same one at most three times running
+// A pool's notes at random, each where it's lowest on the neck: the same one at most three times running, and every
+// one read at least once when the pass is long enough
 static bool buildPoolReading(const ReadingConfig& config, std::mt19937& rng, std::vector<DrillNote>& out, std::string& error){
     std::vector<DrillNote> places;
     for (int pitch : config.pool){
@@ -49,15 +50,26 @@ static bool buildPoolReading(const ReadingConfig& config, std::mt19937& rng, std
     out = buildRhythm(rhythm, rng);
     const int count = (int)places.size();
     std::uniform_int_distribution<int> pick(0, count - 1);
+    std::vector<int> picks;
     int last = -1, run = 0;
-    for (DrillNote& note : out){
+    for (size_t i = 0; i < out.size(); i++){
         int at = pick(rng);
         if (count > 1 && at == last && run >= 3) at = (at + 1 + std::uniform_int_distribution<int>(0, count - 2)(rng)) % count;
         run = at == last ? run + 1 : 1;
         last = at;
-        const double beat = note.beat;
-        note = places[at];
-        note.beat = beat;
+        picks.push_back(at);
+    }
+    // A note never picked takes the place of one picked more than once: it can't make a run (it's nowhere else)
+    for (int missing = 0; missing < count && (int)picks.size() >= count; missing++){
+        if (std::find(picks.begin(), picks.end(), missing) != picks.end()) continue;
+        std::vector<int> spots;
+        for (int i = 0; i < (int)picks.size(); i++) if (std::count(picks.begin(), picks.end(), picks[i]) > 1) spots.push_back(i);
+        if (!spots.empty()) picks[spots[std::uniform_int_distribution<int>(0, (int)spots.size() - 1)(rng)]] = missing;
+    }
+    for (size_t i = 0; i < out.size(); i++){
+        const double beat = out[i].beat;
+        out[i] = places[picks[i]];
+        out[i].beat = beat;
     }
     return true;
 }

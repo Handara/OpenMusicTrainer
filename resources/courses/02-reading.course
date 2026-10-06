@@ -11,129 +11,99 @@ lesson The high E string: E
 text Music is written on five lines, the staff. The higher a note sits, the higher it sounds. The little 8 under the clef says guitar sounds an octave lower than written.
 text E sits in the top space. On the guitar it's the open high E string.
 drill E alone
-type notes
+type reading
 notes E4
-show staff
 where yes
-count 4
-pass 3
-drill No slips
-type notes
-notes E4
-show staff
-count 6
-pass 6
-drill To a beat
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+drill E, on your own
 type reading
 notes E4
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 lesson The high E string: F
 text F sits on the top line. On the guitar it's the 1st fret of the high E string.
 drill F alone
-type notes
+type reading
 notes F4
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill E and F, shown where
-type notes
+type reading
 notes E4 F4
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill E and F, on your own
-type notes
-notes E4 F4
-show staff
-count 8
-pass 7
-drill No slips
-type notes
-notes E4 F4
-show staff
-count 10
-pass 10
-drill To a beat
 type reading
 notes E4 F4
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 lesson The high E string: G
 text G sits just above the staff. On the guitar it's the 3rd fret of the high E string.
 drill G alone
-type notes
+type reading
 notes G4
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill E, F and G, shown where
-type notes
+type reading
 notes E4 F4 G4
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill E, F and G, on your own
-type notes
-notes E4 F4 G4
-show staff
-count 8
-pass 7
-drill No slips
-type notes
-notes E4 F4 G4
-show staff
-count 10
-pass 10
-drill To a beat
 type reading
 notes E4 F4 G4
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 lesson The high E string: all of it
 text E, F and G, and the strings before: read them as they come.
 drill Shown where
-type notes
+type reading
 notes E4 F4 G4
-show staff
 where yes
-count 12
-pass 11
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill On your own
-type notes
-notes E4 F4 G4
-show staff
-count 16
-pass 15
-drill No slips
-type notes
-notes E4 F4 G4
-show staff
-count 16
-pass 16
-drill To a beat
 type reading
 notes E4 F4 G4
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 
@@ -142,147 +112,123 @@ unit The B string
 lesson The B string: B
 text B sits on the middle line. On the guitar it's the open B string.
 drill B alone
-type notes
+type reading
 notes B3
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+drill B, on your own
+type reading
+notes B3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill Mixed with what you know
-type notes
-notes E4 F4 G4 B3
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes E4 F4 G4 B3
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes E4 F4 G4 B3
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 lesson The B string: C
 text C sits in the third space. On the guitar it's the 1st fret of the B string.
 drill C alone
-type notes
+type reading
 notes C4
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill B and C, shown where
-type notes
+type reading
 notes B3 C4
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill B and C, on your own
-type notes
+type reading
 notes B3 C4
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill Mixed with what you know
-type notes
-notes E4 F4 G4 B3 C4
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes E4 F4 G4 B3 C4
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes E4 F4 G4 B3 C4
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 lesson The B string: D
 text D sits on the fourth line. On the guitar it's the 3rd fret of the B string.
 drill D alone
-type notes
+type reading
 notes D4
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill B, C and D, shown where
-type notes
+type reading
 notes B3 C4 D4
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill B, C and D, on your own
-type notes
+type reading
 notes B3 C4 D4
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill Mixed with what you know
-type notes
-notes E4 F4 G4 B3 C4 D4
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes E4 F4 G4 B3 C4 D4
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes E4 F4 G4 B3 C4 D4
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 lesson The B string: all of it
 text B, C and D, and the strings before: read them as they come.
 drill Shown where
-type notes
+type reading
 notes E4 F4 G4 B3 C4 D4
-show staff
 where yes
-count 12
-pass 11
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill On your own
-type notes
-notes E4 F4 G4 B3 C4 D4
-show staff
-count 16
-pass 15
-drill No slips
-type notes
-notes E4 F4 G4 B3 C4 D4
-show staff
-count 16
-pass 16
-drill To a beat
 type reading
 notes E4 F4 G4 B3 C4 D4
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 
@@ -291,104 +237,86 @@ unit The G string
 lesson The G string: G
 text G sits on the second line. On the guitar it's the open G string.
 drill G alone
-type notes
+type reading
 notes G3
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+drill G, on your own
+type reading
+notes G3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill Mixed with what you know
-type notes
-notes E4 F4 G4 B3 C4 D4 G3
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes E4 F4 G4 B3 C4 D4 G3
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes E4 F4 G4 B3 C4 D4 G3
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 lesson The G string: A
 text A sits in the second space. On the guitar it's the 2nd fret of the G string.
 drill A alone
-type notes
+type reading
 notes A3
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill G and A, shown where
-type notes
+type reading
 notes G3 A3
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill G and A, on your own
-type notes
+type reading
 notes G3 A3
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill Mixed with what you know
-type notes
-notes E4 F4 G4 B3 C4 D4 G3 A3
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes E4 F4 G4 B3 C4 D4 G3 A3
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes E4 F4 G4 B3 C4 D4 G3 A3
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 lesson The G string: all of it
 text G and A, and the strings before: read them as they come.
 drill Shown where
-type notes
+type reading
 notes E4 F4 G4 B3 C4 D4 G3 A3
-show staff
 where yes
-count 12
-pass 11
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill On your own
-type notes
-notes E4 F4 G4 B3 C4 D4 G3 A3
-show staff
-count 16
-pass 15
-drill No slips
-type notes
-notes E4 F4 G4 B3 C4 D4 G3 A3
-show staff
-count 16
-pass 16
-drill To a beat
 type reading
 notes E4 F4 G4 B3 C4 D4 G3 A3
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 
@@ -398,147 +326,123 @@ lesson The D string: D
 text Down into the ledger lines: the short lines under the staff, each one more step down.
 text D sits just below the staff. On the guitar it's the open D string.
 drill D alone
-type notes
+type reading
 notes D3
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+drill D, on your own
+type reading
+notes D3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill Mixed with what you know
-type notes
-notes E4 F4 G4 B3 C4 D4 G3 A3 D3
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes E4 F4 G4 B3 C4 D4 G3 A3 D3
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes E4 F4 G4 B3 C4 D4 G3 A3 D3
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 lesson The D string: E
 text E sits on the bottom line. On the guitar it's the 2nd fret of the D string.
 drill E alone
-type notes
+type reading
 notes E3
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill D and E, shown where
-type notes
+type reading
 notes D3 E3
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill D and E, on your own
-type notes
+type reading
 notes D3 E3
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill Mixed with what you know
-type notes
-notes F4 G4 B3 C4 D4 G3 A3 D3 E3
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes F4 G4 B3 C4 D4 G3 A3 D3 E3
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes F4 G4 B3 C4 D4 G3 A3 D3 E3
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 lesson The D string: F
 text F sits in the bottom space. On the guitar it's the 3rd fret of the D string.
 drill F alone
-type notes
+type reading
 notes F3
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill D, E and F, shown where
-type notes
+type reading
 notes D3 E3 F3
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill D, E and F, on your own
-type notes
+type reading
 notes D3 E3 F3
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill Mixed with what you know
-type notes
-notes G4 B3 C4 D4 G3 A3 D3 E3 F3
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes G4 B3 C4 D4 G3 A3 D3 E3 F3
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes G4 B3 C4 D4 G3 A3 D3 E3 F3
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 lesson The D string: all of it
 text D, E and F, and the strings before: read them as they come.
 drill Shown where
-type notes
+type reading
 notes G4 B3 C4 D4 G3 A3 D3 E3 F3
-show staff
 where yes
-count 12
-pass 11
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill On your own
-type notes
-notes G4 B3 C4 D4 G3 A3 D3 E3 F3
-show staff
-count 16
-pass 15
-drill No slips
-type notes
-notes G4 B3 C4 D4 G3 A3 D3 E3 F3
-show staff
-count 16
-pass 16
-drill To a beat
 type reading
 notes G4 B3 C4 D4 G3 A3 D3 E3 F3
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 
@@ -547,147 +451,123 @@ unit The A string
 lesson The A string: A
 text A sits on the 2nd ledger line below the staff. On the guitar it's the open A string.
 drill A alone
-type notes
+type reading
 notes A2
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+drill A, on your own
+type reading
+notes A2
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill Mixed with what you know
-type notes
-notes B3 C4 D4 G3 A3 D3 E3 F3 A2
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes B3 C4 D4 G3 A3 D3 E3 F3 A2
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes B3 C4 D4 G3 A3 D3 E3 F3 A2
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 lesson The A string: B
 text B sits below the 1st ledger line under the staff. On the guitar it's the 2nd fret of the A string.
 drill B alone
-type notes
+type reading
 notes B2
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill A and B, shown where
-type notes
+type reading
 notes A2 B2
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill A and B, on your own
-type notes
+type reading
 notes A2 B2
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill Mixed with what you know
-type notes
-notes C4 D4 G3 A3 D3 E3 F3 A2 B2
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes C4 D4 G3 A3 D3 E3 F3 A2 B2
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes C4 D4 G3 A3 D3 E3 F3 A2 B2
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 lesson The A string: C
 text C sits on the 1st ledger line below the staff. On the guitar it's the 3rd fret of the A string.
 drill C alone
-type notes
+type reading
 notes C3
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill A, B and C, shown where
-type notes
+type reading
 notes A2 B2 C3
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill A, B and C, on your own
-type notes
+type reading
 notes A2 B2 C3
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill Mixed with what you know
-type notes
-notes D4 G3 A3 D3 E3 F3 A2 B2 C3
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes D4 G3 A3 D3 E3 F3 A2 B2 C3
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes D4 G3 A3 D3 E3 F3 A2 B2 C3
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 lesson The A string: all of it
 text A, B and C, and the strings before: read them as they come.
 drill Shown where
-type notes
+type reading
 notes D4 G3 A3 D3 E3 F3 A2 B2 C3
-show staff
 where yes
-count 12
-pass 11
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill On your own
-type notes
-notes D4 G3 A3 D3 E3 F3 A2 B2 C3
-show staff
-count 16
-pass 15
-drill No slips
-type notes
-notes D4 G3 A3 D3 E3 F3 A2 B2 C3
-show staff
-count 16
-pass 16
-drill To a beat
 type reading
 notes D4 G3 A3 D3 E3 F3 A2 B2 C3
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 
@@ -696,147 +576,123 @@ unit The low E string
 lesson The low E string: E
 text E sits below the 3rd ledger line under the staff. On the guitar it's the open low E string.
 drill E alone
-type notes
+type reading
 notes E2
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+drill E, on your own
+type reading
+notes E2
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill Mixed with what you know
-type notes
-notes G3 A3 D3 E3 F3 A2 B2 C3 E2
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes G3 A3 D3 E3 F3 A2 B2 C3 E2
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes G3 A3 D3 E3 F3 A2 B2 C3 E2
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 lesson The low E string: F
 text F sits on the 3rd ledger line below the staff. On the guitar it's the 1st fret of the low E string.
 drill F alone
-type notes
+type reading
 notes F2
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill E and F, shown where
-type notes
+type reading
 notes E2 F2
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill E and F, on your own
-type notes
+type reading
 notes E2 F2
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill Mixed with what you know
-type notes
-notes A3 D3 E3 F3 A2 B2 C3 E2 F2
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes A3 D3 E3 F3 A2 B2 C3 E2 F2
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes A3 D3 E3 F3 A2 B2 C3 E2 F2
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 lesson The low E string: G
 text G sits below the 2nd ledger line under the staff. On the guitar it's the 3rd fret of the low E string.
 drill G alone
-type notes
+type reading
 notes G2
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill E, F and G, shown where
-type notes
+type reading
 notes E2 F2 G2
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill E, F and G, on your own
-type notes
+type reading
 notes E2 F2 G2
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill Mixed with what you know
-type notes
-notes D3 E3 F3 A2 B2 C3 E2 F2 G2
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes D3 E3 F3 A2 B2 C3 E2 F2 G2
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes D3 E3 F3 A2 B2 C3 E2 F2 G2
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 lesson The low E string: all of it
 text E, F and G, and the strings before: read them as they come.
 drill Shown where
-type notes
+type reading
 notes D3 E3 F3 A2 B2 C3 E2 F2 G2
-show staff
 where yes
-count 12
-pass 11
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill On your own
-type notes
-notes D3 E3 F3 A2 B2 C3 E2 F2 G2
-show staff
-count 16
-pass 15
-drill No slips
-type notes
-notes D3 E3 F3 A2 B2 C3 E2 F2 G2
-show staff
-count 16
-pass 16
-drill To a beat
 type reading
 notes D3 E3 F3 A2 B2 C3 E2 F2 G2
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 
@@ -845,151 +701,101 @@ unit The whole open position
 lesson The top three strings
 text 8 notes, from G to G.
 drill Shown where
-type notes
+type reading
 notes G3 A3 B3 C4 D4 E4 F4 G4
-show staff
 where yes
-count 12
-pass 11
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill On your own
-type notes
-notes G3 A3 B3 C4 D4 E4 F4 G4
-show staff
-count 16
-pass 15
-drill No slips
-type notes
-notes G3 A3 B3 C4 D4 E4 F4 G4
-show staff
-count 16
-pass 16
-drill To a beat
 type reading
 notes G3 A3 B3 C4 D4 E4 F4 G4
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 lesson The middle strings
 text 7 notes, from D to C.
 drill Shown where
-type notes
+type reading
 notes D3 E3 F3 G3 A3 B3 C4
-show staff
 where yes
-count 12
-pass 11
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill On your own
-type notes
-notes D3 E3 F3 G3 A3 B3 C4
-show staff
-count 16
-pass 15
-drill No slips
-type notes
-notes D3 E3 F3 G3 A3 B3 C4
-show staff
-count 16
-pass 16
-drill To a beat
 type reading
 notes D3 E3 F3 G3 A3 B3 C4
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 lesson The bottom three strings
 text 9 notes, from E to F.
 drill Shown where
-type notes
+type reading
 notes E2 F2 G2 A2 B2 C3 D3 E3 F3
-show staff
 where yes
-count 12
-pass 11
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill On your own
-type notes
-notes E2 F2 G2 A2 B2 C3 D3 E3 F3
-show staff
-count 16
-pass 15
-drill No slips
-type notes
-notes E2 F2 G2 A2 B2 C3 D3 E3 F3
-show staff
-count 16
-pass 16
-drill To a beat
 type reading
 notes E2 F2 G2 A2 B2 C3 D3 E3 F3
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 lesson Low and high
 text 7 notes, from E to G.
 drill Shown where
-type notes
+type reading
 notes E2 G2 C3 F3 A3 D4 G4
-show staff
 where yes
-count 12
-pass 11
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill On your own
-type notes
-notes E2 G2 C3 F3 A3 D4 G4
-show staff
-count 16
-pass 15
-drill No slips
-type notes
-notes E2 G2 C3 F3 A3 D4 G4
-show staff
-count 16
-pass 16
-drill To a beat
 type reading
 notes E2 G2 C3 F3 A3 D4 G4
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 lesson Everything
 text 17 notes, from E to G.
 drill Shown where
-type notes
+type reading
 notes E2 F2 G2 A2 B2 C3 D3 E3 F3 G3 A3 B3 C4 D4 E4 F4 G4
-show staff
 where yes
-count 12
-pass 11
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill On your own
-type notes
-notes E2 F2 G2 A2 B2 C3 D3 E3 F3 G3 A3 B3 C4 D4 E4 F4 G4
-show staff
-count 16
-pass 15
-drill No slips
-type notes
-notes E2 F2 G2 A2 B2 C3 D3 E3 F3 G3 A3 B3 C4 D4 E4 F4 G4
-show staff
-count 16
-pass 16
-drill To a beat
 type reading
 notes E2 F2 G2 A2 B2 C3 D3 E3 F3 G3 A3 B3 C4 D4 E4 F4 G4
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 
@@ -998,130 +804,112 @@ unit Above the staff
 lesson Above the staff: A
 text A sits on the 1st ledger line above the staff. On the guitar it's the 5th fret of the high E string.
 drill A alone
-type notes
+type reading
 notes A4
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill E, F, G and A, shown where
-type notes
+type reading
 notes E4 F4 G4 A4
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill E, F, G and A, on your own
-type notes
+type reading
 notes E4 F4 G4 A4
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill Mixed with what you know
-type notes
-notes E3 F3 A2 B2 C3 E2 F2 G2 A4
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes E3 F3 A2 B2 C3 E2 F2 G2 A4
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes E3 F3 A2 B2 C3 E2 F2 G2 A4
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 lesson Above the staff: B
 text B sits above the 1st ledger line over the staff. On the guitar it's the 7th fret of the high E string.
 drill B alone
-type notes
+type reading
 notes B4
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill F, G, A and B, shown where
-type notes
+type reading
 notes F4 G4 A4 B4
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill F, G, A and B, on your own
-type notes
+type reading
 notes F4 G4 A4 B4
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill Mixed with what you know
-type notes
-notes F3 A2 B2 C3 E2 F2 G2 A4 B4
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes F3 A2 B2 C3 E2 F2 G2 A4 B4
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes F3 A2 B2 C3 E2 F2 G2 A4 B4
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 lesson Above the staff: C
 text C sits on the 2nd ledger line above the staff. On the guitar it's the 8th fret of the high E string.
 drill C alone
-type notes
+type reading
 notes C5
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill G, A, B and C, shown where
-type notes
+type reading
 notes G4 A4 B4 C5
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill G, A, B and C, on your own
-type notes
+type reading
 notes G4 A4 B4 C5
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill Mixed with what you know
-type notes
-notes A2 B2 C3 E2 F2 G2 A4 B4 C5
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes A2 B2 C3 E2 F2 G2 A4 B4 C5
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes A2 B2 C3 E2 F2 G2 A4 B4 C5
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 
@@ -1131,346 +919,298 @@ lesson F sharp on the high E string
 text A sharp sign raises a note a fret, a flat lowers it a fret. F sharp is one fret above F.
 text F sharp sits on the top line. On the guitar it's the 2nd fret of the high E string.
 drill F sharp alone
-type notes
+type reading
 notes F#4
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill E, F, G and F sharp, shown where
-type notes
+type reading
 notes E4 F4 G4 F#4
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill E, F, G and F sharp, on your own
-type notes
+type reading
 notes E4 F4 G4 F#4
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill Mixed with what you know
-type notes
-notes B2 C3 E2 F2 G2 A4 B4 C5 F#4
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes B2 C3 E2 F2 G2 A4 B4 C5 F#4
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes B2 C3 E2 F2 G2 A4 B4 C5 F#4
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 lesson C sharp on the B string
 text C sharp sits in the third space. On the guitar it's the 2nd fret of the B string.
 drill C sharp alone
-type notes
+type reading
 notes C#4
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill B, C, D and C sharp, shown where
-type notes
+type reading
 notes B3 C4 D4 C#4
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill B, C, D and C sharp, on your own
-type notes
+type reading
 notes B3 C4 D4 C#4
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill Mixed with what you know
-type notes
-notes C3 E2 F2 G2 A4 B4 C5 F#4 C#4
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes C3 E2 F2 G2 A4 B4 C5 F#4 C#4
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes C3 E2 F2 G2 A4 B4 C5 F#4 C#4
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 lesson G sharp on the G string
 text G sharp sits on the second line. On the guitar it's the 1st fret of the G string.
 drill G sharp alone
-type notes
+type reading
 notes G#3
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill G, A and G sharp, shown where
-type notes
+type reading
 notes G3 A3 G#3
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill G, A and G sharp, on your own
-type notes
+type reading
 notes G3 A3 G#3
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill Mixed with what you know
-type notes
-notes E2 F2 G2 A4 B4 C5 F#4 C#4 G#3
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes E2 F2 G2 A4 B4 C5 F#4 C#4 G#3
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes E2 F2 G2 A4 B4 C5 F#4 C#4 G#3
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 lesson B flat on the G string
 text Bb is B flat: a fret below B.
 text B flat sits on the middle line. On the guitar it's the 3rd fret of the G string.
 drill B flat alone
-type notes
+type reading
 notes Bb3
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill A, B and B flat, shown where
-type notes
+type reading
 notes A3 B3 Bb3
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill A, B and B flat, on your own
-type notes
+type reading
 notes A3 B3 Bb3
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill Mixed with what you know
-type notes
-notes F2 G2 A4 B4 C5 F#4 C#4 G#3 Bb3
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes F2 G2 A4 B4 C5 F#4 C#4 G#3 Bb3
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes F2 G2 A4 B4 C5 F#4 C#4 G#3 Bb3
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 lesson E flat on the B string
 text E flat sits in the top space. On the guitar it's the 4th fret of the B string.
 drill E flat alone
-type notes
+type reading
 notes Eb4
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill D, E and E flat, shown where
-type notes
+type reading
 notes D4 E4 Eb4
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill D, E and E flat, on your own
-type notes
+type reading
 notes D4 E4 Eb4
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill Mixed with what you know
-type notes
-notes G2 A4 B4 C5 F#4 C#4 G#3 Bb3 Eb4
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes G2 A4 B4 C5 F#4 C#4 G#3 Bb3 Eb4
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes G2 A4 B4 C5 F#4 C#4 G#3 Bb3 Eb4
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 lesson F sharp on the D string
 text F sharp sits in the bottom space. On the guitar it's the 4th fret of the D string.
 drill F sharp alone
-type notes
+type reading
 notes F#3
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill E, F, G and F sharp, shown where
-type notes
+type reading
 notes E3 F3 G3 F#3
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill E, F, G and F sharp, on your own
-type notes
+type reading
 notes E3 F3 G3 F#3
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill Mixed with what you know
-type notes
-notes A4 B4 C5 F#4 C#4 G#3 Bb3 Eb4 F#3
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes A4 B4 C5 F#4 C#4 G#3 Bb3 Eb4 F#3
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes A4 B4 C5 F#4 C#4 G#3 Bb3 Eb4 F#3
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 lesson C sharp on the A string
 text C sharp sits on the 1st ledger line below the staff. On the guitar it's the 4th fret of the A string.
 drill C sharp alone
-type notes
+type reading
 notes C#3
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill B, C, D and C sharp, shown where
-type notes
+type reading
 notes B2 C3 D3 C#3
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill B, C, D and C sharp, on your own
-type notes
+type reading
 notes B2 C3 D3 C#3
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill Mixed with what you know
-type notes
-notes B4 C5 F#4 C#4 G#3 Bb3 Eb4 F#3 C#3
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes B4 C5 F#4 C#4 G#3 Bb3 Eb4 F#3 C#3
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes B4 C5 F#4 C#4 G#3 Bb3 Eb4 F#3 C#3
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 lesson F sharp on the low E string
 text F sharp sits on the 3rd ledger line below the staff. On the guitar it's the 2nd fret of the low E string.
 drill F sharp alone
-type notes
+type reading
 notes F#2
-show staff
 where yes
-count 4
-pass 3
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill E, F, G and F sharp, shown where
-type notes
+type reading
 notes E2 F2 G2 F#2
-show staff
 where yes
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill E, F, G and F sharp, on your own
-type notes
+type reading
 notes E2 F2 G2 F#2
-show staff
-count 8
-pass 7
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
 drill Mixed with what you know
-type notes
-notes C5 F#4 C#4 G#3 Bb3 Eb4 F#3 C#3 F#2
-show staff
-count 12
-pass 11
-drill No slips
-type notes
-notes C5 F#4 C#4 G#3 Bb3 Eb4 F#3 C#3 F#2
-show staff
-count 12
-pass 12
-drill To a beat
 type reading
 notes C5 F#4 C#4 G#3 Bb3 Eb4 F#3 C#3 F#2
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 
 
@@ -1479,34 +1219,23 @@ unit Key signatures
 lesson In G major
 text One sharp, F#: every F is played F sharp, though no sign stands by it.
 drill Shown where
-type notes
+type reading
 notes D3 E3 F#3 G3 A3 B3 C4 D4 E4 F#4 G4
-show staff
 where yes
-count 12
-pass 11
-key G major
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+key G
+scale major
 drill On your own
-type notes
-notes D3 E3 F#3 G3 A3 B3 C4 D4 E4 F#4 G4
-show staff
-count 16
-pass 15
-key G major
-drill No slips
-type notes
-notes D3 E3 F#3 G3 A3 B3 C4 D4 E4 F#4 G4
-show staff
-count 16
-pass 16
-key G major
-drill To a beat
 type reading
 notes D3 E3 F#3 G3 A3 B3 C4 D4 E4 F#4 G4
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 key G
 scale major
@@ -1514,34 +1243,23 @@ scale major
 lesson In D major
 text Two sharps, F# and C#.
 drill Shown where
-type notes
+type reading
 notes D3 E3 F#3 G3 A3 B3 C#4 D4 E4 F#4 G4
-show staff
 where yes
-count 12
-pass 11
-key D major
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+key D
+scale major
 drill On your own
-type notes
-notes D3 E3 F#3 G3 A3 B3 C#4 D4 E4 F#4 G4
-show staff
-count 16
-pass 15
-key D major
-drill No slips
-type notes
-notes D3 E3 F#3 G3 A3 B3 C#4 D4 E4 F#4 G4
-show staff
-count 16
-pass 16
-key D major
-drill To a beat
 type reading
 notes D3 E3 F#3 G3 A3 B3 C#4 D4 E4 F#4 G4
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 key D
 scale major
@@ -1549,34 +1267,23 @@ scale major
 lesson In F major
 text One flat, Bb: every B is played B flat.
 drill Shown where
-type notes
+type reading
 notes C3 D3 E3 F3 G3 A3 Bb3 C4 D4 E4 F4
-show staff
 where yes
-count 12
-pass 11
-key F major
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+key F
+scale major
 drill On your own
-type notes
-notes C3 D3 E3 F3 G3 A3 Bb3 C4 D4 E4 F4
-show staff
-count 16
-pass 15
-key F major
-drill No slips
-type notes
-notes C3 D3 E3 F3 G3 A3 Bb3 C4 D4 E4 F4
-show staff
-count 16
-pass 16
-key F major
-drill To a beat
 type reading
 notes C3 D3 E3 F3 G3 A3 Bb3 C4 D4 E4 F4
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 key F
 scale major
@@ -1584,34 +1291,23 @@ scale major
 lesson In A major
 text Three sharps: F#, C#, G#.
 drill Shown where
-type notes
+type reading
 notes A2 B2 C#3 E3 F#3 G#3 A3 B3 C#4 E4 F#4
-show staff
 where yes
-count 12
-pass 11
-key A major
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+key A
+scale major
 drill On your own
-type notes
-notes A2 B2 C#3 E3 F#3 G#3 A3 B3 C#4 E4 F#4
-show staff
-count 16
-pass 15
-key A major
-drill No slips
-type notes
-notes A2 B2 C#3 E3 F#3 G#3 A3 B3 C#4 E4 F#4
-show staff
-count 16
-pass 16
-key A major
-drill To a beat
 type reading
 notes A2 B2 C#3 E3 F#3 G#3 A3 B3 C#4 E4 F#4
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 key A
 scale major
@@ -1619,34 +1315,23 @@ scale major
 lesson In Bb major
 text Two flats: Bb, Eb.
 drill Shown where
-type notes
+type reading
 notes Bb2 C3 D3 Eb3 F3 G3 A3 Bb3 C4 D4 Eb4 F4
-show staff
 where yes
-count 12
-pass 11
-key Bb major
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+key Bb
+scale major
 drill On your own
-type notes
-notes Bb2 C3 D3 Eb3 F3 G3 A3 Bb3 C4 D4 Eb4 F4
-show staff
-count 16
-pass 15
-key Bb major
-drill No slips
-type notes
-notes Bb2 C3 D3 Eb3 F3 G3 A3 Bb3 C4 D4 Eb4 F4
-show staff
-count 16
-pass 16
-key Bb major
-drill To a beat
 type reading
 notes Bb2 C3 D3 Eb3 F3 G3 A3 Bb3 C4 D4 Eb4 F4
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 key Bb
 scale major
@@ -1654,34 +1339,23 @@ scale major
 lesson In E major
 text Four sharps: F#, C#, G#, D#.
 drill Shown where
-type notes
+type reading
 notes E2 F#2 G#2 B2 C#3 E3 F#3 G#3 B3 C#4 E4
-show staff
 where yes
-count 12
-pass 11
-key E major
+cells quarter
+bars 10
+tempo 100 120 5
+pass 87
+goal 1
+key E
+scale major
 drill On your own
-type notes
-notes E2 F#2 G#2 B2 C#3 E3 F#3 G#3 B3 C#4 E4
-show staff
-count 16
-pass 15
-key E major
-drill No slips
-type notes
-notes E2 F#2 G#2 B2 C#3 E3 F#3 G#3 B3 C#4 E4
-show staff
-count 16
-pass 16
-key E major
-drill To a beat
 type reading
 notes E2 F#2 G#2 B2 C#3 E3 F#3 G#3 B3 C#4 E4
 cells quarter
 bars 10
 tempo 100 120 5
-pass 80
+pass 87
 goal 1
 key E
 scale major
@@ -1701,6 +1375,7 @@ leap 2
 cells quarter
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 drill Steady
 type reading
@@ -1712,6 +1387,7 @@ leap 2
 cells quarter
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 drill Moving on
 type reading
@@ -1723,6 +1399,7 @@ leap 2
 cells quarter
 bars 10
 tempo 90 120 5
+pass 87
 goal 1
 
 lesson Quarter notes, top three strings
@@ -1737,6 +1414,7 @@ leap 2
 cells quarter
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 drill Steady
 type reading
@@ -1748,6 +1426,7 @@ leap 2
 cells quarter
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 drill Moving on
 type reading
@@ -1759,6 +1438,7 @@ leap 2
 cells quarter
 bars 10
 tempo 90 120 5
+pass 87
 goal 1
 
 lesson Rests
@@ -1773,6 +1453,7 @@ leap 2
 cells quarter rest
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 drill Steady
 type reading
@@ -1784,6 +1465,7 @@ leap 2
 cells quarter rest
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 drill Moving on
 type reading
@@ -1795,6 +1477,7 @@ leap 2
 cells quarter rest
 bars 10
 tempo 90 120 5
+pass 87
 goal 1
 
 lesson Quarter notes, four strings
@@ -1809,6 +1492,7 @@ leap 2
 cells quarter rest
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 drill Steady
 type reading
@@ -1820,6 +1504,7 @@ leap 2
 cells quarter rest
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 drill Moving on
 type reading
@@ -1831,6 +1516,7 @@ leap 2
 cells quarter rest
 bars 10
 tempo 90 120 5
+pass 87
 goal 1
 
 lesson Eighth notes
@@ -1845,6 +1531,7 @@ leap 2
 cells quarter eighths
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 drill Steady
 type reading
@@ -1856,6 +1543,7 @@ leap 2
 cells quarter eighths
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 drill Moving on
 type reading
@@ -1867,6 +1555,7 @@ leap 2
 cells quarter eighths
 bars 10
 tempo 90 120 5
+pass 87
 goal 1
 
 lesson Eighths, four strings
@@ -1881,6 +1570,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 drill Steady
 type reading
@@ -1892,6 +1582,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 drill Moving on
 type reading
@@ -1903,6 +1594,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 90 120 5
+pass 87
 goal 1
 
 lesson Off the beat
@@ -1917,6 +1609,7 @@ leap 2
 cells quarter offbeat rest
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 drill Steady
 type reading
@@ -1928,6 +1621,7 @@ leap 2
 cells quarter offbeat rest
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 drill Moving on
 type reading
@@ -1939,6 +1633,7 @@ leap 2
 cells quarter offbeat rest
 bars 10
 tempo 90 120 5
+pass 87
 goal 1
 
 lesson Dotted rhythms
@@ -1953,6 +1648,7 @@ leap 2
 cells quarter dotted
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 drill Steady
 type reading
@@ -1964,6 +1660,7 @@ leap 2
 cells quarter dotted
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 drill Moving on
 type reading
@@ -1975,6 +1672,7 @@ leap 2
 cells quarter dotted
 bars 10
 tempo 90 120 5
+pass 87
 goal 1
 
 lesson All six strings
@@ -1989,6 +1687,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 drill Steady
 type reading
@@ -2000,6 +1699,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 drill Moving on
 type reading
@@ -2011,6 +1711,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 90 120 5
+pass 87
 goal 1
 
 lesson Triplets
@@ -2025,6 +1726,7 @@ leap 2
 cells quarter triplets
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 drill Steady
 type reading
@@ -2036,6 +1738,7 @@ leap 2
 cells quarter triplets
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 drill Moving on
 type reading
@@ -2047,6 +1750,7 @@ leap 2
 cells quarter triplets
 bars 10
 tempo 90 120 5
+pass 87
 goal 1
 
 lesson Sixteenths
@@ -2061,6 +1765,7 @@ leap 2
 cells quarter sixteenths
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 drill Steady
 type reading
@@ -2072,6 +1777,7 @@ leap 2
 cells quarter sixteenths
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 drill Moving on
 type reading
@@ -2083,6 +1789,7 @@ leap 2
 cells quarter sixteenths
 bars 10
 tempo 90 120 5
+pass 87
 goal 1
 
 
@@ -2100,6 +1807,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 drill Steady
 type reading
@@ -2111,6 +1819,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 drill Moving on
 type reading
@@ -2122,6 +1831,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 90 120 5
+pass 87
 goal 1
 
 lesson F major, to a beat
@@ -2136,6 +1846,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 drill Steady
 type reading
@@ -2147,6 +1858,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 drill Moving on
 type reading
@@ -2158,6 +1870,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 90 120 5
+pass 87
 goal 1
 
 lesson D major, to a beat
@@ -2172,6 +1885,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 drill Steady
 type reading
@@ -2183,6 +1897,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 drill Moving on
 type reading
@@ -2194,6 +1909,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 90 120 5
+pass 87
 goal 1
 
 lesson A minor, to a beat
@@ -2208,6 +1924,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 drill Steady
 type reading
@@ -2219,6 +1936,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 drill Moving on
 type reading
@@ -2230,6 +1948,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 90 120 5
+pass 87
 goal 1
 
 lesson E minor, to a beat
@@ -2244,6 +1963,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 60 80 5
+pass 87
 goal 1
 drill Steady
 type reading
@@ -2255,6 +1975,7 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 75 100 5
+pass 87
 goal 1
 drill Moving on
 type reading
@@ -2266,4 +1987,5 @@ leap 2
 cells quarter eighths rest
 bars 10
 tempo 90 120 5
+pass 87
 goal 1

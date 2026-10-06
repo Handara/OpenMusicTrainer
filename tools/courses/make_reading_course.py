@@ -5,14 +5,14 @@ every time. Learn shows the one for the instrument played. Change the plans belo
 
     python3 tools/courses/make_reading_course.py
 
-Each chapter brings in its new notes the same way, always in a random order (nothing to learn by heart):
-  1. the new note alone, the neck showing where it is
-  2. with the other notes of its string, still shown
-  3. the same with no hints (a slip shows where it was)
+Every drill is read to a beat: forty notes at random on a metronome (a bar counting in), 35 of them right to pass,
+from 100 bpm and faster at each clean pass. Each chapter brings in its new notes the same way (nothing to learn by
+heart):
+  1. the new note alone, the neck lighting where it is
+  2. with the other notes of its string, still lit
+  3. the same with no neck
   4. mixed with what's been learned so far
-  5. no slips allowed
-  6. to a beat: the same notes at random on a metronome, forty of them, from 100 bpm, faster as it's passed
-Then come levels read to a beat (the timed reading drill), more and more rhythms, then key signatures.
+Then come levels of melodies read to a beat, more and more rhythms, then key signatures.
 """
 
 import os
@@ -104,16 +104,6 @@ BASS = Instrument("bass", [28, 33, 38, 43], ["E", "A", "D", "G"], "G2",
                   "Music is written on five lines, the staff. The higher a note sits, the higher it sounds. Bass music is written in the bass clef, the curl with two dots, and sounds an octave lower than written.")
 
 
-def notes_drill(name, notes, where, count, passing, key=None):
-    lines = [f"drill {name}", "type notes", "notes " + " ".join(notes), "show staff"]
-    if where:
-        lines.append("where yes")
-    lines += [f"count {count}", f"pass {passing}"]
-    if key:
-        lines.append(f"key {key}")
-    return lines
-
-
 def note_chapter(instrument, title, new, string_notes, known, key=None, intro=None):
     """A chapter bringing in `new`, with the other notes of its string and what's known so far"""
     lines = [f"lesson {title}"]
@@ -124,26 +114,22 @@ def note_chapter(instrument, title, new, string_notes, known, key=None, intro=No
     group = list(dict.fromkeys(string_notes + new))
     mixed = list(dict.fromkeys(known + new))
     if len(new) == 1:
-        lines += notes_drill(f"{spoken(new[0])} alone", new, True, 4, 3, key)
+        lines += beat_drill(instrument, f"{spoken(new[0])} alone", new, True, key)
     if len(group) > len(new):
-        lines += notes_drill(f"{listing(group)}, shown where", group, True, 8, 7, key)
-    if len(group) > 1:
-        lines += notes_drill(f"{listing(group)}, on your own", group, False, 8, 7, key)
+        lines += beat_drill(instrument, f"{listing(group)}, shown where", group, True, key)
+    lines += beat_drill(instrument, f"{listing(group)}, on your own", group, False, key)
     if len(mixed) > len(group):
         recent = mixed[-9:]  # the last notes learned: enough to mix, not so many it's a lottery
-        lines += notes_drill("Mixed with what you know", recent, False, 12, 11, key)
-        lines += notes_drill("No slips", recent, False, 12, 12, key)
-        lines += beat_drill(instrument, recent, key)
-    else:
-        lines += notes_drill("No slips", group, False, 6 if len(group) == 1 else 10, 6 if len(group) == 1 else 10, key)
-        lines += beat_drill(instrument, group, key)
+        lines += beat_drill(instrument, "Mixed with what you know", recent, False, key)
     return lines
 
 
-def beat_drill(instrument, notes, key=None):
-    """The chapter's notes at random, to a metronome: read in time, a little faster each clean pass"""
-    lines = ["drill To a beat", "type reading", "notes " + " ".join(notes), "cells quarter", f"bars {BEAT_BARS}", "tempo 100 120 5", "pass 80",
-             "goal 1"]
+def beat_drill(instrument, name, notes, where, key=None):
+    """Notes at random, read to a metronome (where: the neck lighting each one): a little faster each clean pass"""
+    lines = [f"drill {name}", "type reading", "notes " + " ".join(notes)]
+    if where:
+        lines.append("where yes")
+    lines += ["cells quarter", f"bars {BEAT_BARS}", BEAT_TEMPO, f"pass {BEAT_PASS}", "goal 1"]
     if key:
         tonic, mode = key.split()
         lines += [f"key {tonic}", f"scale {'major' if mode == 'major' else 'minor'}"]
@@ -154,10 +140,8 @@ def beat_drill(instrument, notes, key=None):
 
 def review_chapter(instrument, title, notes, text, key=None):
     lines = [f"lesson {title}", f"text {text}"]
-    lines += notes_drill("Shown where", notes, True, 12, 11, key)
-    lines += notes_drill("On your own", notes, False, 16, 15, key)
-    lines += notes_drill("No slips", notes, False, 16, 16, key)
-    lines += beat_drill(instrument, notes, key)
+    lines += beat_drill(instrument, "Shown where", notes, True, key)
+    lines += beat_drill(instrument, "On your own", notes, False, key)
     return lines
 
 
@@ -169,13 +153,15 @@ def timed_chapter(instrument, title, text, strings, frets, cells, tempos, key="C
     for label, start, goal in tempos:
         lines += [f"drill {label}", "type reading", f"key {tonic}", f"scale {scale}", f"frets {frets[0]} {frets[1]}",
                   "strings " + " ".join(str(s) for s in strings), f"leap {leap}", "cells " + " ".join(cells), f"bars {BEAT_BARS}",
-                  f"tempo {start} {goal} 5", "goal 1"]
+                  f"tempo {start} {goal} 5", f"pass {BEAT_PASS}", "goal 1"]
         if instrument is BASS:
             lines.append("tuning " + " ".join(str(p) for p in BASS.tuning))
     return lines
 
 
 BEAT_BARS = 10  # a run to a beat: ten bars, forty quarter notes
+BEAT_PASS = 87  # 35 of the 40 notes (87.5%) pass it
+BEAT_TEMPO = "tempo 100 120 5"  # notes at random: from 100 bpm, up to 120
 SLOW = [("Slowly", 60, 80), ("Steady", 75, 100), ("Moving on", 90, 120)]
 
 # What each instrument's course goes through: its open strings, top to bottom, a note a chapter; then what follows

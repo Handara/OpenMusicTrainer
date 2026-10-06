@@ -19,6 +19,7 @@ struct DrillSetup {
     int beatsPerBar = 4;        // x/4
     bool timingOnly = false;    // any number key or played note counts: only when it's played is judged (rhythm)
     bool staffOnly = false;     // sheet music only, whatever the settings show (sight reading: no tab to read instead)
+    bool showWhere = false;     // a neck too, between the text and the notes, the next note lit on it (a help to read)
     std::function<std::vector<DrillNote>()> nextPass; // the notes of each pass: a scale's are the same every time,
                                                       // a rhythm's new
 };
@@ -43,6 +44,7 @@ private:
     void placePass(double downbeat);
     void finishPass();
     double drillTime() const; // the audio clock, minus the output offset: what the notes are timed against
+    void drawWhere(float left, float right, float top, float bottom, float s); // the neck, the next note lit
 
     std::string title;
     DrillSetup setup;
@@ -68,5 +70,7 @@ private:
     std::string passText;          // the last pass's result
     std::string inputError;
     int lastPlayedPitch = -1;
+    PlayNote lastHit{ 0.0f, -1, -1, -1 }; // the last note hit, and when: ringed on the neck a moment
+    double hitAt = -100.0;
     bool leave = false;
 };

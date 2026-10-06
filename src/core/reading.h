@@ -26,6 +26,7 @@ struct ReadingConfig {
     // Or just these notes (MIDI), at random (no walk to follow): each where it's lowest on the neck. The key still
     // writes the staff's signature; frets, strings and leap don't count then.
     std::vector<int> pool;
+    bool showWhere = false;         // a help: the neck shown too, the next note lit on it
 };
 
 // The notes the position holds, low to high, each where it's played: for a note found twice, the lower fret

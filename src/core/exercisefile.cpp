@@ -475,6 +475,11 @@ bool parseExercise(const std::string& source, const std::string& path, int first
             while (ss >> string) readingStrings.push_back(string);
             if (readingStrings.empty()) return lineError("expected: strings <string numbers, 1 = the lowest>");
             readingStringsLine = lineNumber;
+        } else if (out.type == ExerciseType::Reading && key == "where"){
+            std::string word;
+            ss >> word;
+            if (word != "yes" && word != "no") return lineError("where must be yes or no");
+            out.reading.showWhere = word == "yes";
         } else if (out.type == ExerciseType::Reading && key == "leap"){
             if (!(ss >> out.reading.maxLeap) || out.reading.maxLeap < 1 || out.reading.maxLeap > 7) return lineError("leap must be 1 (by step) to 7");
         } else if (out.type == ExerciseType::Reading && readRhythmSetting(key, ss, out.reading, lineError)){

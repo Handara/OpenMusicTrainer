@@ -154,6 +154,21 @@ TEST_CASE("scale drill exercise files"){
     }
 }
 
+TEST_CASE("a reading drill from some notes, the neck shown"){
+    ExerciseFile file;
+    std::string error;
+    const std::string head = "version 1\ntype reading\ntitle E and F\nnotes E4 F4\n";
+    REQUIRE_MESSAGE(loadExerciseFile(writeExercise("where.exercise", head + "where yes\nbars 10\npass 87\n"), file, error), error);
+    CHECK(file.reading.pool == std::vector<int>{ 64, 65 });
+    CHECK(file.reading.showWhere);
+    CHECK(file.reading.bars == 10);
+    CHECK(file.reading.tempo.passPercent == 87);
+    REQUIRE(loadExerciseFile(writeExercise("where2.exercise", head), file, error));
+    CHECK_FALSE(file.reading.showWhere); // no neck unless asked
+    CHECK_FALSE(loadExerciseFile(writeExercise("where3.exercise", head + "where maybe\n"), file, error));
+    CHECK(error.find("where must be yes or no") != std::string::npos);
+}
+
 TEST_CASE("routine exercise files"){
     ExerciseFile file;
     std::string error;
