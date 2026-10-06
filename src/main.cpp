@@ -25,6 +25,7 @@
 #include "screens/settingsscreen.h"
 #include "screens/tuner.h"
 #include "screens/tuningscreen.h"
+#include "input/menuinput.h"
 #include "screens/tonewizard.h"
 #include "ui/menulist.h"
 #include "ui/transition.h"
@@ -237,6 +238,7 @@ static void leaveSettings(){
     std::string monitorError;
     applyMonitor(app.settings, monitorError); // its inputs and amp as the settings now say
     saveAppSettings();
+    checkInstruments(); // the inputs may have changed: which instruments can steer the menus
     app.screen = Screen::MainMenu;
 }
 
@@ -550,7 +552,7 @@ static bool hasBackButton(Screen screen){
 // press can't trigger two transitions in one frame.
 static void handleBackKey(bool backClicked){
     bool mouseBack = hasBackButton(app.screen) && (IsMouseButtonPressed(MOUSE_BUTTON_SIDE) || IsMouseButtonPressed(MOUSE_BUTTON_BACK));
-    if (!IsKeyPressed(KEY_ESCAPE) && !backClicked && !mouseBack) return;
+    if (!IsKeyPressed(KEY_ESCAPE) && !backClicked && !mouseBack && !menuInputBack()) return;
     switch (app.screen){
         case Screen::MainMenu: break;
         case Screen::SongSelect: if (!songSelectBack()) app.screen = Screen::MainMenu; break;
@@ -842,6 +844,7 @@ int main(void){
     initTones((fs::path(app.userDataDir) / "tones").string());
     std::string monitorError;
     applyMonitor(app.settings, monitorError); // the instrument heard from the start
+    checkInstruments(); // which instruments are connected: they can steer the menus
     if (!monitorError.empty()) TraceLog(LOG_WARNING, "Hearing the instrument: %s", monitorError.c_str());
     setPreviewVolume(app.settings.previewVolume);
     if (!setPreviewSound(app.settings.previewSound, app.soundsDir, error)){
@@ -866,6 +869,10 @@ int main(void){
         bool songOver = app.screen == Screen::Playing && !updateGameplay();
         if (app.screen == Screen::Tuner) updateTuner();
 
+        // The instrument steers the menus (its open strings as arrows), on the screens that are menus
+        const bool menuScreen = app.screen == Screen::MainMenu || app.screen == Screen::SongSelect || (app.screen == Screen::Learn && learnInMenus());
+        updateMenuInput(menuScreen && statusOf(app.settings.heardInstrument).ready, app.settings, app.settings.heardInstrument);
+
         BeginDrawing();
         if (app.screen == Screen::Playing) drawGameplay();
         else drawMenuBackground();
@@ -875,6 +882,7 @@ int main(void){
         bool backClicked = app.screen == shown && hasBackButton(shown) && menuBackButton(menuScale());
         const bool hearingShown = hasBackButton(shown) || (shown == Screen::Playing && gameplayPaused());
         if ((app.screen == shown && hearingShown && hearingButton(menuScale())) || IsKeyPressed(KEY_F2)) toggleHearing();
+        if (app.screen == shown && menuScreen) drawMenuInputLegend(menuScale());
         endUiFrame();
 
         // Changes of screen from outside the menus come after drawing, so this frame still shows the old screen and

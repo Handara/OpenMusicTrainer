@@ -1268,7 +1268,14 @@ static void skipCaptureBacklog(){
     if (waiting > 0) ma_pcm_rb_seek_read(&audio.captureBuffer, waiting);
 }
 
+static int captureStarts = 0; // how many times a screen started reading: see captureGeneration
+
+int captureGeneration(){
+    return captureStarts;
+}
+
 bool startCapture(const std::string& inputDevice, std::string& error){
+    captureStarts++;
     if (!audio.contextReady){
         error = "audio is not running";
         return false;

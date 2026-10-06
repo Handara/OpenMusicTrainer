@@ -119,6 +119,10 @@ void learnTuningDone(bool go){
     learn.tuningAsked = false;
 }
 
+bool learnInMenus(){
+    return !learn.exercise || learn.exercise->isMenu();
+}
+
 bool learnChangedInstrument(InputRole& instrument){
     if (!learn.instrumentChanged) return false;
     learn.instrumentChanged = false;

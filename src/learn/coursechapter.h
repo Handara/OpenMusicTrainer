@@ -23,6 +23,7 @@ public:
     void draw() override;
     bool wantsToLeave() const override { return false; } // Esc (learnBack) ends it
     bool back() override;                                // a drill running: back to the chapter
+    bool isMenu() const override { return !running; }
 
 private:
     void load(int lesson);      // a chapter: its drills, the one to go on with

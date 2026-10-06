@@ -1,7 +1,9 @@
 #include "ui/menulist.h"
 
 #include "audio/audio.h"
+#include "core/menunotes.h"
 #include "core/music.h"
+#include "input/menuinput.h"
 #include "raylib.h"
 #include "ui/theme.h"
 
@@ -110,6 +112,22 @@ int menuList(MenuList& list, const std::vector<MenuRow>& rows, const MenuListAre
             }
         }
     }
+    // The instrument (input/menuinput): on a short menu, each item has a note, played to pick it at once
+    std::vector<int> chipOf(rows.size(), -1);
+    {
+        std::vector<int> pickable;
+        // (not the way out, the Esc row: a stray note mustn't quit the game)
+        for (size_t i = 0; i < rows.size(); i++) if (selectable(rows[i]) && rows[i].key != "Esc") pickable.push_back((int)i);
+        const MenuNoteMap& map = menuNoteMap(menuInputBass());
+        if (menuInputActive() && !pickable.empty() && pickable.size() <= map.items.size()){
+            for (size_t k = 0; k < pickable.size(); k++) chipOf[pickable[k]] = (int)k;
+            const int pick = menuInputItem();
+            if (pick >= 0 && pick < (int)pickable.size() && !rows[pickable[pick]].disabled){
+                menuListSelect(list, rows, pickable[pick], true);
+                confirmed = pickable[pick];
+            }
+        }
+    }
     ImVec2 mouse = ImGui::GetMousePos();
     bool overArea = mouse.x >= 0 && mouse.x <= area.topLeft.x + area.width && mouse.y >= area.topLeft.y && mouse.y < area.topLeft.y + area.height;
     bool mouseMoved = io.MouseDelta.x != 0.0f || io.MouseDelta.y != 0.0f;
@@ -158,10 +176,25 @@ int menuList(MenuList& list, const std::vector<MenuRow>& rows, const MenuListAre
         }
         float x = nameX + list.shift[i];
         draw->AddText(fonts.bold, nameSize, ImVec2(x, nameY), uiColor(nameColor, nameAlpha), row.label.c_str());
+        float end = x + (fonts.bold ? fonts.bold->CalcTextSizeA(nameSize, FLT_MAX, 0.0f, row.label.c_str()).x : 0.0f);
         if (!row.detail.empty()){
-            float labelWidth = fonts.bold ? fonts.bold->CalcTextSizeA(nameSize, FLT_MAX, 0.0f, row.label.c_str()).x : 0.0f;
-            draw->AddText(fonts.text, DETAIL_SIZE * s, ImVec2(x + labelWidth + 14 * s, nameY + (nameSize - DETAIL_SIZE * s) * 0.6f),
+            draw->AddText(fonts.text, DETAIL_SIZE * s, ImVec2(end + 14 * s, nameY + (nameSize - DETAIL_SIZE * s) * 0.6f),
                           uiColor(UiColor::Dim, selected ? 1.0f : 0.8f), row.detail.c_str());
+            end += 14 * s + (fonts.text ? fonts.text->CalcTextSizeA(DETAIL_SIZE * s, FLT_MAX, 0.0f, row.detail.c_str()).x : 0.0f);
+        }
+        if (chipOf[i] >= 0){
+            // Its note: the name, and where it's played
+            const MenuNoteMap& map = menuNoteMap(menuInputBass());
+            const int pitch = map.items[chipOf[i]];
+            const std::string name = pitchClassName(pitch), place = menuNotePlace(map, pitch);
+            const float nameWidth = fonts.bold->CalcTextSizeA(15 * s, FLT_MAX, 0.0f, name.c_str()).x;
+            const float placeWidth = fonts.mono->CalcTextSizeA(11 * s, FLT_MAX, 0.0f, place.c_str()).x;
+            const ImVec2 at(end + 18 * s, nameY + nameSize * 0.5f - 11 * s);
+            const ImVec2 to(at.x + nameWidth + placeWidth + 26 * s, at.y + 22 * s);
+            draw->AddRectFilled(at, to, uiColor(UiColor::Accent, selected ? 0.22f : 0.1f), 6 * s);
+            draw->AddRect(at, to, uiColor(UiColor::Accent, selected ? 0.9f : 0.45f), 6 * s, 0, 1.0f * s);
+            draw->AddText(fonts.bold, 15 * s, ImVec2(at.x + 8 * s, at.y + 3 * s), uiColor(UiColor::Accent), name.c_str());
+            draw->AddText(fonts.mono, 11 * s, ImVec2(at.x + 16 * s + nameWidth, at.y + 6 * s), uiColor(UiColor::Dim), place.c_str());
         }
         if (!row.note.empty()){
             draw->AddText(fonts.text, NOTE_SIZE * s, ImVec2(nameX, top + ROW_HEIGHT * s - 4 * s), uiColor(UiColor::Bad),

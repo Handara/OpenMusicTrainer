@@ -34,8 +34,20 @@ static struct {
 
 const double RECORD_MAX_S = 300.0;
 
+static int noteInputStarts = 0;
+
+int noteInputGeneration(){
+    return noteInputStarts;
+}
+
+void releaseNoteInput(){
+    input.recording = false;
+    input.active = false;
+}
+
 bool startNoteInput(const std::string& inputDevice, float minFrequency, std::string& error, int channel){
     stopNoteInput();
+    noteInputStarts++;
     if (!startCapture(inputDevice, error)) return false;
     NoteDetectorConfig config;
     config.minFrequency = minFrequency;

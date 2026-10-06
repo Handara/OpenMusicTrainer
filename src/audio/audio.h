@@ -142,6 +142,9 @@ bool captureIsAsio();       // listening through an ASIO driver (an input device
 double captureLatencySeconds(); // the input's buffering: how late samples reach lahn, at the least
 void openInputDriverSettings(); // an ASIO driver's own settings window (its buffer size), while it's listening
 int captureSampleRate();
+// Counts the times a screen started reading the capture: one that remembers it can tell whether another has started
+// since (and the capture is that one's now)
+int captureGeneration();
 const char* captureDeviceName();
 // The device's inputs (an audio interface has several: a guitar on one, a microphone on another)
 int captureChannels();

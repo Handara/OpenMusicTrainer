@@ -28,6 +28,9 @@ public:
     // It goes on after a run passes, the next one harder (a timed drill, faster): a course doesn't move on by itself
     // from it, the player does
     virtual bool goesOn() const { return false; }
+    // It's a page to choose from just now, not something being played (a course's chapter between its drills): the
+    // instrument can move around it as in the menus
+    virtual bool isMenu() const { return false; }
 };
 
 struct ExerciseEntry;

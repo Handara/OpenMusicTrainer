@@ -20,6 +20,10 @@ struct PlayedNote {
 // channel: which of the device's inputs to listen to (from 0), -1 for all of them mixed
 bool startNoteInput(const std::string& inputDevice, float minFrequency, std::string& error, int channel = -1);
 void stopNoteInput(); // safe to call more than once
+// Counts the times note input was started: who started it can tell whether another has since
+int noteInputGeneration();
+// Stops listening without closing the capture: another screen opened it since, and reads it now
+void releaseNoteInput();
 bool noteInputActive();
 
 // Reads everything the input delivered since the last call; returns the notes that started in it. Call once per frame.

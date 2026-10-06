@@ -147,6 +147,7 @@ add_library(lahn_core STATIC
     src/core/intervals.cpp
     src/core/judge.cpp
     src/core/lesson.cpp
+    src/core/menunotes.cpp
     src/core/midi.cpp
     src/core/music.cpp
     src/core/necktrainer.cpp
@@ -200,6 +201,7 @@ add_executable(lahn
     src/audio/audio.cpp
     src/audio/asiodriver.cpp
     src/input/midi.cpp
+    src/input/menuinput.cpp
     src/input/noteinput.cpp
     src/input/pianokeys.cpp
     src/input/synthmonitor.cpp
@@ -301,6 +303,7 @@ if(BUILD_TESTING)
         tests/intervals_test.cpp
         tests/judge_test.cpp
         tests/lesson_test.cpp
+        tests/menunotes_test.cpp
         tests/midi_test.cpp
         tests/music_test.cpp
         tests/notation_test.cpp

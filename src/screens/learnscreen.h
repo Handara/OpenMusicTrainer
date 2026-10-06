@@ -25,5 +25,7 @@ bool learnChangedInstrument(InputRole& instrument);
 // Something played on the instrument waits to start: it's checked in tune first, as before a song (true once). Then
 // learnTuningDone says whether to go on (tuned, skipped, or no check needed) or not (the check was left).
 bool learnWantsTuning(InputRole& instrument);
+// Learn shows something to choose from (its lists, a chapter's page), not an exercise being played
+bool learnInMenus();
 void learnTuningDone(bool go);
 void closeLearnScreen();
