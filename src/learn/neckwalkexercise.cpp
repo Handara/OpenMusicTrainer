@@ -25,10 +25,12 @@ const double LOOKAHEAD_S = 0.3;    // each sound is scheduled this far ahead, on
 const float COMPUTER_VOLUME = 0.95f, INTRO_GUITAR_VOLUME = 0.55f, RIFF_GUITAR_VOLUME = 0.3f, BASS_VOLUME = 0.7f,
             DRUM_VOLUME = 0.55f, CROWD_VOLUME = 0.8f;
 const float RING_S = 0.25f;        // the riff's notes ring a little past their length, as a guitar's do
-const float CROWD_S = 1.8f;
+const float CROWD_S = 1.4f;         // short: the next call comes right after it
+const float MORE_STRINGS_SHOWN_S = 2.5f;
 const float JUDGED_FLASH_S = 0.6f;
 const float VERDICT_SHOWN_S = 1.4f;
 const int MIN_BPM = 60, MAX_BPM = 200;
+const int FIRST_BPM = 100;         // a first game's tempo: slow, to start with
 
 static std::string todayText(){
     int year, month, day;
@@ -47,7 +49,7 @@ static std::string levelText(const NeckWalkLevel& level){
                      : level.sequence == NeckWalkSequence::Patterns ? "the note in patterns: skipping strings, outside in, at random"
                      : "the triad, up and down in one place";
     const char* rhythm = level.rhythm == NeckWalkRhythm::Even ? "a note a beat" : level.rhythm == NeckWalkRhythm::Mixed ? "a mixed rhythm" : "syncopated";
-    return TextFormat("%s, %s, %d to %d strings", what, rhythm, level.minStrings, level.maxStrings);
+    return TextFormat("%s, %s", what, rhythm);
 }
 
 NeckWalkExercise::NeckWalkExercise(const std::string& title, const std::string& tunePath, bool onBass, int level,
@@ -55,9 +57,10 @@ NeckWalkExercise::NeckWalkExercise(const std::string& title, const std::string& 
     : title(title), onBass(onBass), tuning(onBass ? WALK_BASS : WALK_GUITAR), progressPath(progressPath), settings(settings){
     stats = loadNeckWalkStats(progressPath);
     if (!loadGroove(tunePath, groove, grooveError)) groove = Groove{};
-    // The last game's level and tempo, or the exercise's and the tune's own
+    // The last game's level, tempo and strings, or the exercise's level, slowly, on two strings
     levelIndex = std::clamp(stats.lastLevel >= 0 ? stats.lastLevel : level, 0, NECK_WALK_LEVELS - 1);
-    bpm = std::clamp(stats.lastBpm > 0 ? stats.lastBpm : (int)std::lround(groove.tempo), MIN_BPM, MAX_BPM);
+    bpm = std::clamp(stats.lastBpm > 0 ? stats.lastBpm : FIRST_BPM, MIN_BPM, MAX_BPM);
+    strings = std::clamp(stats.lastStrings > 0 ? stats.lastStrings : NECK_WALK_MIN_STRINGS, NECK_WALK_MIN_STRINGS, (int)tuning.size());
     // The kit and the crowd, made once, at the engine's own rate
     const int rate = std::max(1, audioSampleRate());
     const float kitSeconds[5] = { 0.5f, 0.35f, 0.12f, 0.5f, 2.0f };
@@ -87,12 +90,13 @@ double NeckWalkExercise::gameTime() const {
 
 void NeckWalkExercise::start(){
     const unsigned seed = std::random_device{}() ^ (unsigned)(GetTime() * 1000.0);
-    startNeckWalk(game, levelIndex, tuning, seed, audioTime() + START_DELAY_S, (float)bpm);
+    startNeckWalk(game, levelIndex, strings, tuning, seed, audioTime() + START_DELAY_S, (float)bpm);
     scheduledTo = audioTime();
     crowdRound = -1;
     judgedAt.assign(game.now.walk.size(), -100.0);
-    verdictAt = overAt = -100.0;
+    verdictAt = overAt = moreStringsAt = -100.0;
     roundAt = GetTime();
+    lastRoot = game.now.root;
     newBest = false;
     state = State::Playing;
 }
@@ -114,15 +118,17 @@ void NeckWalkExercise::scheduleTune(){
     if (horizon <= from) return;
     const double beat = game.beatSeconds, barSeconds = NECK_WALK_BAR_BEATS * beat;
     const int phraseBars = std::max(1, (int)groove.phrase.size());
-    // The tune: the bar before the first round is the phrase's last (a lead-in to it), then the phrase over and over
-    // from each round's first bar, in its key
+    // The tune: the bar before the first round is the phrase's last (a lead-in to it), then the phrase over and over,
+    // going on through the rounds whatever their length, in each one's key; a crash where the key changes
     for (int bar = std::max(0, (int)std::floor((from - game.startTime) / barSeconds)); ; bar++){
         const double barStart = neckWalkBarTime(game, bar);
         if (barStart >= horizon) break;
-        const bool intro = bar < game.now.firstBar && game.round == 0;
+        const bool intro = bar < NECK_WALK_INTRO_BARS;
         const NeckWalkRound& round = bar >= game.next.firstBar ? game.next : game.now;
         if (game.over && &round == &game.next) break; // it ends with the round it's in
-        const int inPhrase = intro ? phraseBars - 1 : (bar - round.firstBar) % phraseBars;
+        const int inPhrase = intro ? phraseBars - 1 : (bar - NECK_WALK_INTRO_BARS) % phraseBars;
+        const bool newKey = bar == game.next.firstBar && game.next.root != game.now.root;
+        if (newKey && inPhrase != 0 && barStart >= from) playSamplesAt(kit[(int)KitDrum::Crash], barStart, DRUM_VOLUME); // (the phrase's first bar has its own)
         for (const GrooveHit& hit : grooveBar(groove, inPhrase, round.root)){
             const double at = barStart + hit.beat * beat;
             if (at < from || at >= horizon) continue;
@@ -169,8 +175,10 @@ void NeckWalkExercise::handle(const NeckWalkEvents& events){
         verdictAt = now;
         lastVerdict = events.how;
     }
+    if (events.moreStrings) moreStringsAt = now;
     if (events.newRound){
-        roundAt = now;
+        if (game.now.root != lastRoot) roundAt = now; // a new key: the name pops
+        lastRoot = game.now.root;
         judgedAt.assign(game.now.walk.size(), -100.0);
     }
     if (events.over) finish();
@@ -193,6 +201,10 @@ void NeckWalkExercise::update(){
         if (ImGui::IsKeyPressed(ImGuiKey_RightArrow)) levelIndex = std::min(NECK_WALK_LEVELS - 1, levelIndex + 1);
         if (ImGui::IsKeyPressed(ImGuiKey_UpArrow)) bpm = std::min(MAX_BPM, bpm + step);
         if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) bpm = std::max(MIN_BPM, bpm - step);
+        if (ImGui::IsKeyPressed(ImGuiKey_S)){
+            const int most = (int)tuning.size();
+            strings = ImGui::GetIO().KeyShift ? (strings > NECK_WALK_MIN_STRINGS ? strings - 1 : most) : (strings < most ? strings + 1 : NECK_WALK_MIN_STRINGS);
+        }
         if (ImGui::IsKeyPressed(ImGuiKey_Space, false) && grooveError.empty()) start();
     }
     if (state == State::Playing) handle(neckWalkUpdate(game, gameTime()));
@@ -203,15 +215,17 @@ void NeckWalkExercise::update(){
 void NeckWalkExercise::drawChoices(float left, float top, float s){
     const UiFonts& fonts = uiFonts();
     struct Choice { std::string text; const char* key; };
-    const Choice choices[2] = {
+    const Choice choices[3] = {
         { neckWalkLevel(levelIndex).name, "Left Right" },
         { TextFormat("%d bpm", bpm), "Up Down" },
+        { TextFormat("from %d strings", strings), "S" },
     };
     float x = left;
-    for (int i = 0; i < 2; i++){
+    for (int i = 0; i < 3; i++){
         if (menuPill(choices[i].text.c_str(), choices[i].key, ImVec2(x, top), false, 0, s)){
             if (i == 0) levelIndex = (levelIndex + 1) % NECK_WALK_LEVELS;
-            else bpm = bpm + 5 > MAX_BPM ? MIN_BPM : bpm + 5;
+            else if (i == 1) bpm = bpm + 5 > MAX_BPM ? MIN_BPM : bpm + 5;
+            else strings = strings < (int)tuning.size() ? strings + 1 : NECK_WALK_MIN_STRINGS;
         }
         const float textWidth = fonts.bold->CalcTextSizeA(16 * s, FLT_MAX, 0.0f, choices[i].text.c_str()).x;
         const float keyWidth = fonts.mono->CalcTextSizeA(12 * s, FLT_MAX, 0.0f, choices[i].key).x;
@@ -355,7 +369,8 @@ void NeckWalkExercise::drawResults(float left, float top, float width, float s){
     draw->AddText(fonts.mono, 14 * s, ImVec2(left, top), uiColor(UiColor::Dim), TextFormat("GAME OVER  ·  %s, %d BPM", game.level.name, (int)std::lround(game.tempo)));
     draw->AddText(fonts.heavy, 56 * s * (0.8f + 0.2f * grow), ImVec2(left, top + 20 * s), uiColor(newBest ? UiColor::Accent : UiColor::Ink),
                   TextFormat("%lld", game.score));
-    std::string line = TextFormat("%d %s cleared  ·  best streak %d", game.cleared, game.cleared == 1 ? "round" : "rounds", game.bestStreak);
+    std::string line = TextFormat("%d %s cleared  ·  best streak %d  ·  up to %d strings", game.cleared, game.cleared == 1 ? "round" : "rounds",
+                                  game.bestStreak, game.mostStrings);
     if (newBest) line += "  ·  NEW BEST";
     draw->AddText(fonts.bold, 20 * s, ImVec2(left, top + 90 * s), uiColor(newBest ? UiColor::Accent : UiColor::Ink), line.c_str());
     // Each note this game: how many of its walk notes were right
@@ -386,6 +401,9 @@ void NeckWalkExercise::draw(){
     drawScoreboard({
         { "SCORE", playing ? std::string(TextFormat("%lld", game.score)) : std::string("-"), UiColor::Accent, "" },
         { "STREAK", playing ? std::string(TextFormat("%d", game.streak)) : std::string("-"), UiColor::Good, "rounds" },
+        { "STRINGS", std::string(TextFormat("%d", playing ? game.now.strings : strings)), UiColor::Ink,
+          playing && game.strings < (int)tuning.size() ? std::string(TextFormat("%d/%d clean to grow", game.clearsOnStrings, NECK_WALK_CLEARS_TO_GROW))
+                                                      : std::string(TextFormat("of %d", (int)tuning.size())) },
         { "LIVES", playing ? std::string(TextFormat("%d", game.lives)) : std::string(TextFormat("%d", NECK_WALK_LIVES)),
           playing && game.lives <= 2 ? UiColor::Bad : UiColor::Ink, TextFormat("of %d", NECK_WALK_LIVES) },
         { "BEST", best > 0 ? std::string(TextFormat("%lld", best)) : std::string("-"), UiColor::Ink, neckWalkLevel(shownLevel).name },
@@ -426,6 +444,15 @@ void NeckWalkExercise::draw(){
         draw->AddText(fonts.heavy, size, ImVec2(right - measured.x, noteTop - 4 * s), uiColor(verdictColor(lastVerdict), alpha), text);
     }
 
+    // One more string, from the round after next
+    const float moreSince = (float)(GetTime() - moreStringsAt);
+    if (state == State::Playing && moreSince < MORE_STRINGS_SHOWN_S){
+        const char* text = TextFormat("NEXT: %d STRINGS", game.strings);
+        const float alpha = std::min(1.0f, (MORE_STRINGS_SHOWN_S - moreSince) * 3.0f), grow = 1.0f + 0.25f * std::exp(-moreSince * 7.0f);
+        const ImVec2 measured = fonts.heavy->CalcTextSizeA(24 * s * grow, FLT_MAX, 0.0f, text);
+        draw->AddText(fonts.heavy, 24 * s * grow, ImVec2(right - measured.x, noteTop + 62 * s), uiColor(UiColor::Accent, alpha), text);
+    }
+
     const float neckTop = height * 0.43f, neckBottom = height * 0.43f + std::min(42.0f * s * (float)tuning.size(), height * 0.34f);
     if (state == State::Over){
         drawResults(left, height * 0.36f, right - left, s);
@@ -446,14 +473,14 @@ void NeckWalkExercise::draw(){
     if (state == State::Ready){
         draw->AddText(fonts.bold, 20 * s, ImVec2(left, textY), uiColor(UiColor::Ink), "Space to start.");
         draw->AddText(fonts.text, 16 * s, ImVec2(left, textY + 28 * s), uiColor(UiColor::Dim),
-                      "Each round, a note. The computer walks it on the neck, from the top string down and back up: watch and listen.");
+                      "The computer plays a few notes on the neck: watch and listen. Then play them back, from memory, in the same rhythm.");
         draw->AddText(fonts.text, 16 * s, ImVec2(left, textY + 50 * s), uiColor(UiColor::Dim),
-                      "Then play it back, at the same pace, from memory. All right: cheers. Half right: claps. Less: a life gone, five and it's over.");
+                      "Two rounds all right and one more string comes in. Half right: claps. Less: a life gone, five and it's over.");
         textY += 80 * s;
     }
     if (!grooveError.empty()) draw->AddText(fonts.text, 16 * s, ImVec2(left, textY), uiColor(UiColor::Bad), ("The tune: " + grooveError).c_str());
     else if (!inputError.empty()) draw->AddText(fonts.text, 16 * s, ImVec2(left, textY), uiColor(UiColor::Bad), inputError.c_str());
     else if (!listening) draw->AddText(fonts.text, 16 * s, ImVec2(left, textY), uiColor(UiColor::Dim), "No instrument: click the frets to play");
-    menuScreenHint(state == State::Playing ? "Esc  back" : "Left/Right  level    Up/Down  tempo (Shift: by 1)    Space  start    Esc  back", s);
+    menuScreenHint(state == State::Playing ? "Esc  back" : "Left/Right  level    Up/Down  tempo (Shift: by 1)    S  strings    Space  start    Esc  back", s);
     ImGui::Dummy(ImVec2(1, 1)); // the board moved ImGui's cursor (ui/fretboardview): an item after it
 }

@@ -46,15 +46,17 @@ private:
     NeckWalkStats stats;
     NeckWalkGame game;
     enum class State { Ready, Playing, Over } state = State::Ready;
-    int levelIndex = 0;     // the level and the tempo chosen for the next game
-    int bpm = 120;
+    int levelIndex = 0;     // the level, the tempo and the strings to start on, chosen for the next game
+    int bpm = 100;
+    int strings = 2;
     double scheduledTo = 0.0; // the tune and the computer's notes are scheduled up to here (the audio clock)
     int crowdRound = -1;      // the round whose crowd is scheduled
     std::vector<float> kit[5], crowd[3];   // rendered once (the crowd: by NeckWalkVerdict)
     // What happened when (GetTime), for the drawing
     std::vector<double> judgedAt; // each walk note of the round
-    double verdictAt = -100.0, roundAt = -100.0, overAt = -100.0;
+    double verdictAt = -100.0, roundAt = -100.0, overAt = -100.0, moreStringsAt = -100.0;
     NeckWalkVerdict lastVerdict = NeckWalkVerdict::Aww;
+    int lastRoot = -1;      // the key before: its name pops when it changes
     bool newBest = false;
     int bestCleared = 0;
     FretboardLayout board;  // as last drawn: for clicks

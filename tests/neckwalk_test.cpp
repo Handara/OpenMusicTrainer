@@ -66,22 +66,27 @@ TEST_CASE("neck walk: a triad in one place on the neck, lowest first"){
     }
 }
 
-TEST_CASE("neck walk: rhythms fit two bars, or four when long, a beat to spare"){
+TEST_CASE("neck walk: a part is as many bars as its rhythm takes, a beat to spare"){
     std::mt19937 random(5);
     int bars = 0;
-    std::vector<double> onsets = neckWalkRhythm(NeckWalkRhythm::Even, 5, random, bars);
+    std::vector<double> onsets = neckWalkRhythm(NeckWalkRhythm::Even, 3, random, bars);
+    CHECK(bars == 1); // three notes and a beat: a bar
+    CHECK(onsets == std::vector<double>{ 0, 1, 2 });
+    onsets = neckWalkRhythm(NeckWalkRhythm::Even, 5, random, bars);
     CHECK(bars == 2);
     CHECK(onsets == std::vector<double>{ 0, 1, 2, 3, 4 });
     onsets = neckWalkRhythm(NeckWalkRhythm::Even, 11, random, bars);
-    CHECK(bars == 4);
+    CHECK(bars == 3);
     CHECK(onsets.back() == doctest::Approx(10.0));
     for (NeckWalkRhythm rhythm : { NeckWalkRhythm::Mixed, NeckWalkRhythm::Syncopated }){
         for (int notes = 3; notes <= NECK_WALK_MAX_NOTES; notes++){
             onsets = neckWalkRhythm(rhythm, notes, random, bars);
             REQUIRE(onsets.size() == (size_t)notes);
             CHECK(std::is_sorted(onsets.begin(), onsets.end()));
-            CHECK((bars == 2 || bars == 4));
+            CHECK(bars >= 1);
+            CHECK(bars <= 4);
             CHECK(onsets.back() <= bars * NECK_WALK_BAR_BEATS - 1);
+            CHECK(onsets.back() > (bars - 1) * NECK_WALK_BAR_BEATS - 1); // no bar more than it needs
             for (double onset : onsets) CHECK(std::fmod(onset * 2.0, 1.0) == doctest::Approx(0.0)); // on the eighths
         }
     }
@@ -89,10 +94,11 @@ TEST_CASE("neck walk: rhythms fit two bars, or four when long, a beat to spare")
 
 TEST_CASE("neck walk: the computer plays the sequence, the player plays it back; all right is cheered"){
     NeckWalkGame game;
-    startNeckWalk(game, 0, GUITAR, 7, START, TEMPO);
+    startNeckWalk(game, 0, 3, GUITAR, 7, START, TEMPO);
     const NeckWalkRound first = game.now;
-    REQUIRE(first.walk.size() >= 5);           // easy: three strings to six, down and back up
-    CHECK(first.walk.size() % 2 == 1);
+    REQUIRE(first.walk.size() == 5);           // easy, three strings: down and back up
+    CHECK(first.strings == 3);
+    CHECK(first.partBars == 2);
     // A bar to get ready; the computer's part on the beats; the player's, a part later; the verdict half a beat before
     // the next round
     const double part = first.partBars * 4 * 0.5;
@@ -101,8 +107,8 @@ TEST_CASE("neck walk: the computer plays the sequence, the player plays it back;
     CHECK(neckWalkNoteTime(game, 0) == doctest::Approx(START + 2.0 + part));
     CHECK(neckWalkVerdictTime(game) == doctest::Approx(START + 2.0 + 2 * part - 0.25));
     CHECK(neckWalkRoundStart(game, game.next) == doctest::Approx(START + 2.0 + 2 * part));
-    // The next round is known a round ahead, a fourth up
-    CHECK(game.next.root == (first.root + 5) % 12);
+    // The next round is known a round ahead: a key lasts two rounds, then a fourth up
+    CHECK(game.next.root == first.root);
     const NeckWalkRound next = game.next;
     // Notes played back while the computer plays count for nothing
     CHECK(neckWalkPlayed(game, first.walk[0].pitch, neckWalkShowTime(game, game.now, 0)).right < 0);
@@ -112,6 +118,7 @@ TEST_CASE("neck walk: the computer plays the sequence, the player plays it back;
     CHECK(game.round == 1);
     CHECK(game.now.root == next.root);
     CHECK(game.now.walk[0].pitch == next.walk[0].pitch);
+    CHECK(game.next.root == (first.root + 5) % 12);
     CHECK(game.streak == 1);
     CHECK(game.cleared == 1);
     CHECK(game.lives == 5);
@@ -122,7 +129,7 @@ TEST_CASE("neck walk: the computer plays the sequence, the player plays it back;
 
 TEST_CASE("neck walk: a slip put right in time counts; a wrong note or none costs the round"){
     NeckWalkGame game;
-    startNeckWalk(game, 0, GUITAR, 3, START, TEMPO);
+    startNeckWalk(game, 0, 3, GUITAR, 3, START, TEMPO);
     const std::vector<NeckStep>& walk = game.now.walk;
     double at = neckWalkNoteTime(game, 0);
     CHECK(neckWalkPlayed(game, walk[0].pitch + 1, at - 0.1).right < 0); // wrong, for now
@@ -139,45 +146,65 @@ TEST_CASE("neck walk: a slip put right in time counts; a wrong note or none cost
     CHECK(game.streak == 0);
 }
 
-TEST_CASE("neck walk: the levels go anywhere on the neck and differ in what's played"){
+TEST_CASE("neck walk: on as many strings as chosen, anywhere on the neck; the levels differ in what's played"){
     CHECK(neckWalkLevelIndex("hard") == 2);
     CHECK(neckWalkLevelIndex("insane") == -1);
     for (int level = 0; level < NECK_WALK_LEVELS; level++){
-        bool allStrings = false;
-        for (unsigned seed = 1; seed <= 40; seed++){
-            NeckWalkGame game;
-            startNeckWalk(game, level, GUITAR, seed, START, TEMPO);
-            const NeckWalkRound& round = game.now;
-            REQUIRE(round.walk.size() >= 3);
-            CHECK(round.walk.size() <= (size_t)NECK_WALK_MAX_NOTES);
-            REQUIRE(round.onsets.size() == round.walk.size());
-            CHECK(round.onsets.back() <= round.partBars * NECK_WALK_BAR_BEATS - 1);
-            std::vector<int> strings;
-            for (const NeckStep& step : round.walk){
-                CHECK(step.fret <= neckWalkLevel(level).maxFret);
-                CHECK(GUITAR[step.string] + step.fret == step.pitch);
-                const int degree = ((step.pitch - round.root) % 12 + 12) % 12;
-                if (level < 2) CHECK(degree == 0);                       // the key's note
-                else CHECK((degree == 0 || degree == 4 || degree == 7)); // its triad, the third in it
-                if (std::find(strings.begin(), strings.end(), step.string) == strings.end()) strings.push_back(step.string);
+        for (int strings = 2; strings <= 6; strings++){
+            for (unsigned seed = 1; seed <= 12; seed++){
+                NeckWalkGame game;
+                startNeckWalk(game, level, strings, GUITAR, seed, START, TEMPO);
+                const NeckWalkRound& round = game.now;
+                REQUIRE(round.walk.size() >= 2);
+                CHECK(round.walk.size() <= (size_t)NECK_WALK_MAX_NOTES);
+                REQUIRE(round.onsets.size() == round.walk.size());
+                CHECK(round.onsets.back() <= round.partBars * NECK_WALK_BAR_BEATS - 1);
+                if (level < 2) CHECK(round.strings == strings);
+                else CHECK(round.strings <= strings + 1); // a triad not whole on so few: one more
+                for (const NeckStep& step : round.walk){
+                    CHECK(step.fret <= neckWalkLevel(level).maxFret);
+                    CHECK(GUITAR[step.string] + step.fret == step.pitch);
+                    const int degree = ((step.pitch - round.root) % 12 + 12) % 12;
+                    if (level < 2) CHECK(degree == 0);                       // the key's note
+                    else CHECK((degree == 0 || degree == 4 || degree == 7)); // its triad, the third in it
+                }
+                if (level == 2) CHECK(std::any_of(round.walk.begin(), round.walk.end(), [&](const NeckStep& step){ return (step.pitch - round.root + 120) % 12 == 4; }));
+                // The last note's window closes before the verdict
+                CHECK(neckWalkNoteTime(game, (int)round.walk.size() - 1) + neckWalkLevel(level).windowSeconds < neckWalkVerdictTime(game));
             }
-            if (level == 2) CHECK(std::any_of(round.walk.begin(), round.walk.end(), [&](const NeckStep& step){ return (step.pitch - round.root + 120) % 12 == 4; }));
-            allStrings = allStrings || strings.size() == GUITAR.size();
-            // The last note's window closes before the verdict
-            CHECK(neckWalkNoteTime(game, (int)round.walk.size() - 1) + neckWalkLevel(level).windowSeconds < neckWalkVerdictTime(game));
         }
-        CHECK(allStrings); // every level, all six strings now and then
     }
-    // A bass: its four strings
+    // Too many asked for: all there are; too few: two
     NeckWalkGame bass;
-    startNeckWalk(bass, 1, BASS, 4, START, TEMPO);
-    REQUIRE_FALSE(bass.now.walk.empty());
+    startNeckWalk(bass, 1, 9, BASS, 4, START, TEMPO);
+    CHECK(bass.strings == 4);
     for (const NeckStep& step : bass.now.walk) CHECK(step.string < 4);
+    startNeckWalk(bass, 0, 1, BASS, 4, START, TEMPO);
+    CHECK(bass.now.strings == 2);
+}
+
+TEST_CASE("neck walk: two rounds all right on so many strings, and the round after next has one more"){
+    NeckWalkGame game;
+    startNeckWalk(game, 0, 2, GUITAR, 13, START, TEMPO);
+    CHECK(game.now.walk.size() == 3); // two strings: high, low, high
+    CHECK(game.now.partBars == 1);    // a bar each: always something playing
+    CHECK(playRound(game, true).how == NeckWalkVerdict::Cheer);
+    NeckWalkEvents second = playRound(game, true);
+    CHECK(second.moreStrings);
+    CHECK(game.strings == 3);
+    CHECK(game.now.strings == 2);  // made before: still two
+    CHECK(game.next.strings == 3); // the one after: three
+    playRound(game, true);
+    CHECK(game.now.strings == 3);
+    CHECK(game.mostStrings == 3);
+    // A round wrong doesn't take a string away
+    CHECK(playRound(game, false).how == NeckWalkVerdict::Aww);
+    CHECK(game.strings == 3);
 }
 
 TEST_CASE("neck walk: half the sequence right isn't a fail: claps, no life lost, but the streak starts again"){
     NeckWalkGame game;
-    startNeckWalk(game, 0, GUITAR, 9, START, TEMPO);
+    startNeckWalk(game, 0, 3, GUITAR, 9, START, TEMPO);
     playRound(game, true);
     REQUIRE(game.streak == 1);
     for (int i = 0; i < (int)game.now.walk.size(); i++){
@@ -195,7 +222,7 @@ TEST_CASE("neck walk: half the sequence right isn't a fail: claps, no life lost,
 
 TEST_CASE("neck walk: five rounds wrong and the game is over"){
     NeckWalkGame game;
-    startNeckWalk(game, 2, GUITAR, 11, START, TEMPO);
+    startNeckWalk(game, 2, 3, GUITAR, 11, START, TEMPO);
     playRound(game, true);
     for (int i = 0; i < 4; i++){
         CHECK(playRound(game, false).how == NeckWalkVerdict::Aww);
@@ -217,7 +244,7 @@ TEST_CASE("neck walk: games are kept, with each key's notes right and wrong, and
     CHECK(stats.lastLevel == -1);
     CHECK(neckWalkBest(stats, 1) == 0);
     NeckWalkGame game;
-    startNeckWalk(game, 1, GUITAR, 5, START, TEMPO);
+    startNeckWalk(game, 1, 3, GUITAR, 5, START, TEMPO);
     const int root = game.now.root;
     const int notes = (int)game.now.walk.size();
     playRound(game, true);
@@ -233,7 +260,9 @@ TEST_CASE("neck walk: games are kept, with each key's notes right and wrong, and
     CHECK(loaded.right[root] == notes);
     CHECK(neckWalkBest(loaded, 1) == game.score); // the best of its level
     CHECK(neckWalkBest(loaded, 0) == 0);
+    CHECK(loaded.games[0].strings == 3);
     CHECK(loaded.lastLevel == 1);                 // the choice, for next time
     CHECK(loaded.lastBpm == 120);
+    CHECK(loaded.lastStrings == 3);
     std::remove(path.c_str());
 }
