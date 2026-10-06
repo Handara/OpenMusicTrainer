@@ -1,5 +1,6 @@
 #include "screens/learnscreen.h"
 
+#include "core/course.h"
 #include "core/exercisefile.h"
 #include "core/lesson.h"
 #include "core/music.h"
@@ -22,6 +23,8 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cfloat>
+#include <cmath>
 #include <filesystem>
 #include <map>
 #include <memory>
@@ -33,8 +36,14 @@ static struct {
     std::vector<std::string> progressText; // one per exercise, e.g. "3/12": read when the menu appears, not every frame
     std::vector<LessonEntry> lessons;
     std::vector<std::string> lessonProgressText;
+    std::vector<CourseEntry> courses;
+    std::vector<std::vector<bool>> courseDone; // each course's lessons: done
+    int openCourse = -1;                    // the course whose path is open; -1 for none
+    int courseSelected = 0;                 // its lesson chosen on the path
+    float courseScroll = 0.0f;              // how far the path is scrolled up (pixels), easing to keep the choice in view
+    double courseOpenedAt = -100.0;
     MenuList list;                          // the open category's list: its selection, kept while exercises run
-    MenuList sections[3];                   // each section's list (lessons, drills, games)
+    MenuList sections[3];                   // each section's list (courses and lessons, drills, games)
     int section = 0;                        // the section shown
     std::string openKind;                   // the category of drills whose list is open; "" for none
     std::map<std::string, PlayCount> plays; // how many times each was taken up (core/plays)
@@ -224,6 +233,21 @@ static void refreshExercises(){
     for (const ExerciseEntry& entry : learn.exercises) learn.progressText.push_back(progressSummary(entry));
     learn.plays = loadPlays(playsPath());
 
+    // Courses, and which of their lessons are done (a lesson's own progress, kept by the course's id and its title)
+    learn.courses = scanCourses((std::filesystem::path(learn.setup.builtInExercises).parent_path() / "courses").string());
+    learn.courseDone.clear();
+    for (CourseEntry& entry : learn.courses){
+        std::vector<bool> done;
+        for (const CourseLesson& lesson : entry.course.lessons){
+            done.push_back(loadLessonProgress(progressPath(entry.id + "-" + lesson.id)).completed);
+            // A named exercise must be there
+            for (const LessonStep& step : lesson.lesson.steps)
+                if (entry.error.empty() && step.type == LessonStepType::Exercise && !step.inlined && !findExercise(learn.exercises, true, step.exercise))
+                    entry.error = "the lesson '" + lesson.lesson.title + "' uses the exercise '" + step.exercise + "', which isn't there";
+        }
+        learn.courseDone.push_back(done);
+    }
+
     // Lessons, built-in first; their exercise steps are checked against the exercises just loaded
     learn.lessons = scanLessons(learn.setup.builtInLessons, true);
     std::vector<LessonEntry> userLessons = scanLessons(learn.setup.userLessons, false);
@@ -240,14 +264,8 @@ static void refreshExercises(){
     }
 }
 
-static std::unique_ptr<Exercise> openLesson(const LessonEntry& entry){
-    // Each step's exercise, found now: a copy, since the lists are rebuilt when the lesson ends
-    std::vector<ExerciseEntry> stepExercises;
-    for (const LessonStep& step : entry.lesson.steps){
-        const ExerciseEntry* found = step.type == LessonStepType::Exercise ? findExercise(learn.exercises, entry.builtIn, step.exercise) : nullptr;
-        stepExercises.push_back(found ? *found : ExerciseEntry{});
-    }
-    // Play steps play like songs, with the player's own settings
+// Play steps play like songs, with the player's own settings
+static GameplayOptions lessonPlayOptions(){
     const Settings& settings = learn.setup.settings;
     GameplayOptions play;
     play.noteSpeed = settings.noteSpeed;
@@ -257,12 +275,65 @@ static std::unique_ptr<Exercise> openLesson(const LessonEntry& entry){
     play.playWithInstrument = settings.playWithInstrument;
     play.inputDevice = settings.inputDevice;
     play.inputOffsetSeconds = settings.inputOffsetMs / 1000.0f;
-    return std::make_unique<LessonPlayer>(entry, stepExercises, createExercise, play, progressPath(entry.id));
+    return play;
+}
+
+static std::unique_ptr<Exercise> openLesson(const LessonEntry& entry){
+    // Each step's exercise, found now: a copy, since the lists are rebuilt when the lesson ends
+    std::vector<ExerciseEntry> stepExercises;
+    for (const LessonStep& step : entry.lesson.steps){
+        const ExerciseEntry* found = step.type == LessonStepType::Exercise ? findExercise(learn.exercises, entry.builtIn, step.exercise) : nullptr;
+        stepExercises.push_back(found ? *found : ExerciseEntry{});
+    }
+    return std::make_unique<LessonPlayer>(entry, stepExercises, createExercise, lessonPlayOptions(), progressPath(entry.id));
+}
+
+// A course's lesson, played like any lesson: its exercises written in place each kept by the lesson and step
+static std::unique_ptr<Exercise> openCourseLesson(int courseIndex, int lessonIndex){
+    const CourseEntry& course = learn.courses[courseIndex];
+    const CourseLesson& lesson = course.course.lessons[lessonIndex];
+    LessonEntry entry;
+    entry.folder = std::filesystem::path(course.path).parent_path().string();
+    entry.id = course.id + "-" + lesson.id;
+    entry.builtIn = true;
+    entry.lesson = lesson.lesson;
+    std::vector<ExerciseEntry> stepExercises;
+    for (size_t i = 0; i < lesson.lesson.steps.size(); i++){
+        const LessonStep& step = lesson.lesson.steps[i];
+        ExerciseEntry exercise;
+        if (step.type == LessonStepType::Exercise && step.inlined){
+            exercise.name = lesson.id + "-" + std::to_string(i + 1);
+            exercise.id = entry.id + "-" + std::to_string(i + 1);
+            exercise.builtIn = true;
+            exercise.exercise = step.inlineExercise;
+        } else if (step.type == LessonStepType::Exercise){
+            if (const ExerciseEntry* found = findExercise(learn.exercises, true, step.exercise)) exercise = *found;
+        }
+        stepExercises.push_back(exercise);
+    }
+    return std::make_unique<LessonPlayer>(entry, stepExercises, createExercise, lessonPlayOptions(), progressPath(entry.id));
+}
+
+// A course's lesson is open once the one before it is done (the first always)
+static bool courseLessonOpen(int courseIndex, int lessonIndex){
+    return lessonIndex == 0 || learn.courseDone[courseIndex][lessonIndex - 1];
+}
+
+// The lesson to go on with: the first not done
+static int courseNext(int courseIndex){
+    const std::vector<bool>& done = learn.courseDone[courseIndex];
+    for (int i = 0; i < (int)done.size(); i++) if (!done[i]) return i;
+    return std::max(0, (int)done.size() - 1);
 }
 
 static void endExercise(){
     learn.exercise.reset();
     refreshExercises(); // new progress to show, and files may have been edited meanwhile
+    // Back on a course's path: on to its next lesson, if the one played is done now
+    if (learn.openCourse >= 0 && learn.openCourse < (int)learn.courses.size()){
+        const int c = learn.openCourse;
+        if (learn.courseSelected < (int)learn.courseDone[c].size() && learn.courseDone[c][learn.courseSelected]) learn.courseSelected = courseNext(c);
+    }
 }
 
 void openLearnScreen(const LearnSetup& setup){
@@ -277,7 +348,11 @@ void closeLearnScreen(){
 
 bool learnBack(){
     if (learn.exercise){
-        endExercise();
+        if (!learn.exercise->back()) endExercise();
+        return false;
+    }
+    if (learn.openCourse >= 0){ // on a course's path: back to the courses
+        learn.openCourse = -1;
         return false;
     }
     if (!learn.openKind.empty()){ // inside a category: back to the drills
@@ -289,7 +364,7 @@ bool learnBack(){
 
 // What a row of the Learn menu stands for
 struct LearnRow {
-    enum Kind { Heading, Lesson, Exercise, OpenExercises, OpenLessons } kind;
+    enum Kind { Heading, Lesson, Exercise, OpenExercises, OpenLessons, Course } kind;
     int index; // into learn.lessons or learn.exercises
 };
 
@@ -303,6 +378,13 @@ static void drawAbout(const LearnRow& row, float s){
         author = entry.lesson.author;
         progress = TextFormat("%d %s", (int)entry.lesson.steps.size(), entry.lesson.steps.size() == 1 ? "step" : "steps");
         if (!learn.lessonProgressText[row.index].empty()) progress += "  ·  " + learn.lessonProgressText[row.index];
+    } else if (row.kind == LearnRow::Course){
+        const CourseEntry& entry = learn.courses[row.index];
+        title = entry.course.title;
+        about = entry.course.description;
+        const int done = (int)std::count(learn.courseDone[row.index].begin(), learn.courseDone[row.index].end(), true);
+        progress = TextFormat("%d of %d lessons done, in %d %s", done, (int)entry.course.lessons.size(), (int)entry.course.units.size(),
+                              entry.course.units.size() == 1 ? "unit" : "units");
     } else if (row.kind == LearnRow::Exercise){
         const ExerciseEntry& entry = learn.exercises[row.index];
         title = entry.exercise.title;
@@ -349,14 +431,156 @@ bool learnWantsEditor(){
     return wants;
 }
 
+// A tick, a play triangle, a padlock: drawn, so any font will do
+static void drawTick(ImDrawList* draw, ImVec2 at, float size, ImU32 color){
+    draw->AddLine(ImVec2(at.x - size * 0.5f, at.y), ImVec2(at.x - size * 0.12f, at.y + size * 0.4f), color, size * 0.22f);
+    draw->AddLine(ImVec2(at.x - size * 0.12f, at.y + size * 0.4f), ImVec2(at.x + size * 0.55f, at.y - size * 0.4f), color, size * 0.22f);
+}
+static void drawPlay(ImDrawList* draw, ImVec2 at, float size, ImU32 color){
+    draw->AddTriangleFilled(ImVec2(at.x - size * 0.35f, at.y - size * 0.5f), ImVec2(at.x - size * 0.35f, at.y + size * 0.5f),
+                            ImVec2(at.x + size * 0.55f, at.y), color);
+}
+static void drawLock(ImDrawList* draw, ImVec2 at, float size, ImU32 color){
+    draw->AddRectFilled(ImVec2(at.x - size * 0.45f, at.y - size * 0.05f), ImVec2(at.x + size * 0.45f, at.y + size * 0.55f), color, size * 0.1f);
+    draw->PathArcTo(ImVec2(at.x, at.y - size * 0.05f), size * 0.3f, 3.14159f, 6.28318f, 12);
+    draw->PathStroke(color, 0, size * 0.14f);
+}
+
+// A course's path, Duolingo-style: its units, and their lessons as stops along a winding line, the done ones green,
+// the next one lit, the ones after it closed until it's done (a done one can always be played again). Up and Down
+// choose, Enter starts; a card beside it says what the chosen lesson holds.
+static void coursePath(){
+    const int c = learn.openCourse;
+    if (c < 0 || c >= (int)learn.courses.size() || learn.courses[c].course.lessons.empty()){
+        learn.openCourse = -1;
+        return;
+    }
+    const Course& course = learn.courses[c].course;
+    const std::vector<bool>& done = learn.courseDone[c];
+    const float s = menuScale(), width = ImGui::GetWindowWidth(), height = ImGui::GetWindowHeight();
+    menuScreenTitle(course.title.c_str(), s);
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    const UiFonts& fonts = uiFonts();
+    const int count = (int)course.lessons.size(), next = courseNext(c);
+    int& chosen = learn.courseSelected;
+    if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) chosen = std::min(count - 1, chosen + 1);
+    if (ImGui::IsKeyPressed(ImGuiKey_UpArrow)) chosen = std::max(0, chosen - 1);
+    const float wheel = ImGui::GetIO().MouseWheel;
+    if (wheel != 0.0f) chosen = std::clamp(chosen - (wheel > 0 ? 1 : -1), 0, count - 1);
+    chosen = std::clamp(chosen, 0, count - 1);
+    bool start = ImGui::IsKeyPressed(ImGuiKey_Enter, false) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false);
+
+    // Where everything goes, top to bottom: a unit's heading, its lessons
+    const float areaTop = height * 0.17f, areaBottom = height * 0.9f, left = width * 0.07f;
+    const float unitHeight = 70 * s, lessonHeight = 80 * s;
+    std::vector<float> lessonY(count), unitY(course.units.size());
+    float y = 0.0f;
+    for (size_t u = 0; u < course.units.size(); u++){
+        unitY[u] = y;
+        y += unitHeight;
+        for (int i = course.units[u].firstLesson; i < course.units[u].firstLesson + course.units[u].lessonCount; i++){
+            lessonY[i] = y + lessonHeight / 2;
+            y += lessonHeight;
+        }
+        y += 10 * s;
+    }
+    // Scrolled to keep the chosen lesson two fifths of the way down
+    const float view = areaBottom - areaTop;
+    const float target = std::clamp(lessonY[chosen] - view * 0.4f, 0.0f, std::max(0.0f, y - view));
+    if (learn.courseScroll < 0.0f) learn.courseScroll = target;
+    else learn.courseScroll += (target - learn.courseScroll) * std::min(1.0f, GetFrameTime() * 10.0f);
+    const float scroll = learn.courseScroll;
+
+    const float pathX = left + 110 * s, labelX = pathX + 130 * s;
+    auto nodeAt = [&](int i){ return ImVec2(pathX + std::sin(i * 0.9f) * 60 * s, areaTop + lessonY[i] - scroll); };
+    const float pulse = 0.5f + 0.5f * std::sin((float)GetTime() * 4.0f);
+    draw->PushClipRect(ImVec2(0, areaTop), ImVec2(width * 0.56f, areaBottom), true);
+    // The line between the stops, green where it's been walked
+    for (int i = 0; i + 1 < count; i++)
+        draw->AddLine(nodeAt(i), nodeAt(i + 1), done[i] ? uiColor(UiColor::Good, 0.55f) : uiColor(UiColor::StaffLine), 6 * s);
+    for (size_t u = 0; u < course.units.size(); u++){
+        const float top = areaTop + unitY[u] - scroll;
+        draw->AddText(fonts.mono, 13 * s, ImVec2(left, top + 10 * s), uiColor(UiColor::Accent), TextFormat("UNIT %d", (int)u + 1));
+        draw->AddText(fonts.bold, 24 * s, ImVec2(left, top + 28 * s), uiColor(UiColor::Ink), course.units[u].title.c_str());
+    }
+    const ImVec2 mouse = ImGui::GetMousePos();
+    const bool click = ImGui::IsMouseClicked(ImGuiMouseButton_Left);
+    for (int i = 0; i < count; i++){
+        const ImVec2 at = nodeAt(i);
+        if (at.y < areaTop - 60 * s || at.y > areaBottom + 60 * s) continue;
+        const bool isDone = done[i], open = courseLessonOpen(c, i), isNext = i == next && !isDone;
+        const float r = (isNext ? 27.0f : 22.0f) * s;
+        if (isNext) draw->AddCircle(at, r + 6 * s + 5 * s * pulse, uiColor(UiColor::Accent, 0.5f * (1.0f - pulse) + 0.2f), 40, 3 * s);
+        const ImU32 fill = isDone ? uiColor(UiColor::Good) : isNext ? uiColor(UiColor::Accent) : open ? uiColor(UiColor::Ink, 0.85f) : uiColor(UiColor::Card);
+        draw->AddCircleFilled(at, r, fill, 40);
+        if (!open && !isDone) draw->AddCircle(at, r, uiColor(UiColor::StaffLine), 40, 2 * s);
+        if (isDone) drawTick(draw, at, r * 0.8f, uiColor(UiColor::Background));
+        else if (open) drawPlay(draw, at, r * 0.7f, uiColor(UiColor::Background));
+        else drawLock(draw, ImVec2(at.x, at.y - r * 0.1f), r * 0.75f, uiColor(UiColor::Dim));
+        if (i == chosen) draw->AddCircle(at, r + 4 * s, uiColor(UiColor::Ink), 40, 2.5f * s);
+        // Its name and how it stands
+        const char* state = isDone ? "done" : isNext ? "start here" : open ? "open" : "locked";
+        const UiColor stateColor = isDone ? UiColor::Good : isNext ? UiColor::Accent : UiColor::Dim;
+        draw->AddText(fonts.bold, 20 * s, ImVec2(labelX, at.y - 20 * s), uiColor(open || isDone ? UiColor::Ink : UiColor::Dim),
+                      course.lessons[i].lesson.title.c_str());
+        draw->AddText(fonts.mono, 13 * s, ImVec2(labelX, at.y + 6 * s), uiColor(stateColor), state);
+        // A click chooses it; on the chosen one, starts it
+        const float dx = mouse.x - at.x, dy = mouse.y - at.y;
+        const bool over = (dx * dx + dy * dy <= (r + 6 * s) * (r + 6 * s))
+                          || (mouse.x >= labelX && mouse.x <= labelX + 360 * s && std::abs(dy) <= lessonHeight / 2);
+        if (click && over && mouse.y >= areaTop && mouse.y <= areaBottom){
+            if (i == chosen) start = true;
+            chosen = i;
+        }
+    }
+    draw->PopClipRect();
+
+    // The chosen lesson, on a card: what it is, what's in it, and whether it can be played yet
+    const CourseLesson& lesson = course.lessons[chosen];
+    int reading = 0, playing = 0;
+    for (const LessonStep& step : lesson.lesson.steps) (step.type == LessonStepType::Text ? reading : playing)++;
+    const float cardX = width * 0.58f, cardY = height * 0.22f, cardWidth = width * 0.35f, pad = 26 * s;
+    const bool open = courseLessonOpen(c, chosen);
+    std::string steps = TextFormat("%d %s", (int)lesson.lesson.steps.size(), lesson.lesson.steps.size() == 1 ? "step" : "steps");
+    if (reading && playing) steps += TextFormat(": %d to read, %d to play", reading, playing);
+    else if (playing) steps += ", all to play";
+    const std::string state = done[chosen] ? "Done. Enter to play it again." : open ? "Enter to start." : "Locked: finish \"" + course.lessons[chosen - 1].lesson.title + "\" first.";
+    const float inner = cardWidth - 2 * pad;
+    const float titleHeight = fonts.bold->CalcTextSizeA(26 * s, FLT_MAX, inner, lesson.lesson.title.c_str()).y;
+    const float cardHeight = pad * 2 + 18 * s + titleHeight + 14 * s + 22 * s + 30 * s;
+    draw->AddRectFilled(ImVec2(cardX, cardY), ImVec2(cardX + cardWidth, cardY + cardHeight), uiColor(UiColor::Card), 10 * s);
+    float textY = cardY + pad;
+    draw->AddText(fonts.mono, 13 * s, ImVec2(cardX + pad, textY), uiColor(UiColor::Dim),
+                  TextFormat("UNIT %d  ·  LESSON %d OF %d", lesson.unit + 1, chosen + 1, count));
+    textY += 18 * s;
+    draw->AddText(fonts.bold, 26 * s, ImVec2(cardX + pad, textY), uiColor(UiColor::Ink), lesson.lesson.title.c_str(), nullptr, inner);
+    textY += titleHeight + 14 * s;
+    draw->AddText(fonts.text, 18 * s, ImVec2(cardX + pad, textY), uiColor(UiColor::Dim), steps.c_str());
+    textY += 30 * s;
+    draw->AddText(fonts.bold, 18 * s, ImVec2(cardX + pad, textY), uiColor(done[chosen] ? UiColor::Good : open ? UiColor::Accent : UiColor::Dim),
+                  state.c_str(), nullptr);
+    if (!course.description.empty())
+        draw->AddText(fonts.text, 16 * s, ImVec2(cardX, cardY + cardHeight + 20 * s), uiColor(UiColor::Dim), course.description.c_str(), nullptr, cardWidth);
+
+    menuScreenHint("Up/Down  choose    Enter  start    Esc  back to the courses", s);
+    if (start && open){
+        countPlay(learn.courses[c].id + "-" + lesson.id);
+        learn.exercise = openCourseLesson(c, chosen);
+    }
+}
+
 // Learn is in three sections, switched beside each other under the title: the lessons (each a path through steps), the
 // drills (by category: Enter opens one, its exercises with their progress) and the games. Each section keeps its own
 // place in its list.
-static const char* const SECTION_NAMES[] = { "LESSONS", "DRILLS", "GAMES" };
+static const char* const SECTION_NAMES[] = { "COURSES", "DRILLS", "GAMES" };
 enum LearnSection { SectionLessons, SectionDrills, SectionGames, SECTION_COUNT };
 static const char* const GAMES_CATEGORY = "Games"; // the exercises of this category are the games
 
 static void exerciseMenu(){
+    if (learn.openCourse >= 0){
+        coursePath();
+        return;
+    }
     float s = menuScale();
     const bool inKind = !learn.openKind.empty();
     menuScreenTitle(inKind ? learn.openKind.c_str() : "Learn", s);
@@ -417,6 +641,23 @@ static void exerciseMenu(){
         learn.section = section;
         list = &learn.sections[section];
         if (section == SectionLessons){
+            // The courses, a path each, then the lessons on their own (the player's)
+            for (int i = 0; i < (int)learn.courses.size(); i++){
+                const CourseEntry& entry = learn.courses[i];
+                MenuRow row;
+                row.label = entry.course.title;
+                const int done = (int)std::count(learn.courseDone[i].begin(), learn.courseDone[i].end(), true);
+                row.detail = TextFormat("%d of %d lessons", done, (int)entry.course.lessons.size());
+                row.note = entry.error;
+                row.disabled = !entry.error.empty();
+                add(row, { LearnRow::Course, i });
+            }
+            if (!learn.lessons.empty()){
+                MenuRow heading;
+                heading.label = "LESSONS";
+                heading.heading = true;
+                add(heading, { LearnRow::Heading, -1 });
+            }
             for (int i = 0; i < (int)learn.lessons.size(); i++){
                 const LessonEntry& entry = learn.lessons[i];
                 MenuRow row;
@@ -465,6 +706,11 @@ static void exerciseMenu(){
     } else if (target.kind == LearnRow::Exercise){
         countPlay(learn.exercises[target.index].id);
         learn.exercise = createExercise(learn.exercises[target.index]);
+    } else if (target.kind == LearnRow::Course){
+        learn.openCourse = target.index;
+        learn.courseSelected = courseNext(target.index);
+        learn.courseScroll = -1.0f; // placed at once, not eased
+        learn.courseOpenedAt = GetTime();
     } else if (target.kind == LearnRow::OpenExercises){
         openFolder(learn.setup.userExercises);
     } else if (target.kind == LearnRow::OpenLessons){

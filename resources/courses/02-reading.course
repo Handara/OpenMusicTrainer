@@ -1,0 +1,132 @@
+# lahn course
+version 1
+title Reading music
+description From your first note on the staff to reading short melodies to a beat, one note at a time.
+instrument guitar
+
+unit The staff
+
+lesson Your first note on the staff
+title Five lines
+text Music is written on five lines, the staff. The higher a note sits on it, the higher it sounds.
+text The sign at the start is the clef. The little 8 under it says guitar sounds an octave lower than written: that's how guitar music is always written.
+title E, in the top space
+text The note in the space at the top of the staff is E: the thinnest string, played open. lahn shows it on the neck too.
+exercise
+type notes
+notes E4
+show staff
+where yes
+count 3
+pass 2
+
+lesson E and F
+text F sits on the top line, just above E. It's the 1st fret of the thinnest string.
+exercise
+type notes
+notes E4 F4
+show staff
+where yes
+count 6
+pass 5
+
+lesson E, F and G
+text G sits just above the staff, over the top line: the 3rd fret.
+exercise
+type notes
+notes E4 F4 G4
+show staff
+where yes
+count 8
+pass 7
+
+lesson E, F and G on your own
+text Now the neck doesn't show you where: read the note, and play it. A slip shows you.
+exercise
+type notes
+notes E4 F4 G4
+show staff
+count 8
+pass 7
+
+unit The B string
+
+lesson B, on the middle line
+text The middle line of the staff is B: the B string, open.
+exercise
+type notes
+notes B3
+show staff
+where yes
+count 3
+pass 2
+
+lesson B, C and D
+text C is in the space above B (the 1st fret of the B string), D on the line above that (the 3rd fret).
+exercise
+type notes
+notes B3 C4 D4
+show staff
+where yes
+count 8
+pass 7
+
+lesson B, C and D on your own
+exercise
+type notes
+notes B3 C4 D4
+show staff
+count 8
+pass 7
+
+unit Two strings
+
+lesson From B to G
+text All six now: B, C, D on the B string, E, F, G on the thinnest one. Up the staff, up the alphabet.
+exercise
+type notes
+notes B3 C4 D4 E4 F4 G4
+show staff
+where yes
+count 10
+pass 8
+
+lesson From B to G on your own
+exercise
+type notes
+notes B3 C4 D4 E4 F4 G4
+show staff
+count 12
+pass 10
+
+unit To a beat
+
+lesson Reading in time
+title Now with a beat
+text Until now lahn waited for you. Now the notes come on a slow beat, a note on each one: a bar of clicks counts you in.
+text The same six notes, two bars at a time. When you get a pass clean, it goes a little faster.
+exercise
+type reading
+key C
+scale major
+frets 0 3
+strings 5 6
+leap 1
+cells quarter
+bars 2
+tempo 50 70 5
+goal 1
+
+lesson A rest now and then
+text A rest is a beat with no note: let the string be quiet, and count it.
+exercise
+type reading
+key C
+scale major
+frets 0 3
+strings 5 6
+leap 2
+cells quarter rest
+bars 2
+tempo 50 70 5
+goal 1

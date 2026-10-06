@@ -209,8 +209,10 @@ void NoteQuizExercise::draw(){
         // After a slip: what it was, and where the right one is
         const float wrongSince = (float)(GetTime() - wrongAt);
         if (run.slipped && wrongSince < WRONG_SHOWN_S && run.next < run.prompts.size()){
-            const std::string what = "That was " + withArticle(pitchClassName(run.lastWrong)) + ". It's " + notePlaceText(run.prompts[run.next], config.tuning)
-                                     + ": try again.";
+            const NeckStep& asked = run.prompts[run.next];
+            const std::string where = notePlaceText(asked, config.tuning);
+            const std::string what = (run.lastWrong - asked.pitch) % 12 == 0 ? "Right note, wrong octave: this one is " + where + "."
+                                   : "That was " + withArticle(pitchClassName(run.lastWrong)) + ". It's " + where + ": try again.";
             const float y = config.prompt == NotePrompt::Staff ? neckTop - 26 * s : textY + 44 * s;
             draw->AddText(fonts.bold, 18 * s, ImVec2(left, y), uiColor(UiColor::Bad, std::min(1.0f, (WRONG_SHOWN_S - wrongSince) * 2.0f)), what.c_str());
         }

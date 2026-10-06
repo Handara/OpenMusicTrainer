@@ -13,6 +13,7 @@ const float MAX_STEP_WIDTH = 900.0f;
 const float DOT_RADIUS = 6.0f;
 const float DOT_SPACING = 22.0f;
 const float BAR_MARGIN = 20.0f;
+const double GO_ON_AFTER_S = 1.6; // a goal met: the moment to see it (and hear the crowd) before the lesson goes on
 
 LessonPlayer::LessonPlayer(const LessonEntry& entry, std::vector<ExerciseEntry> stepExercises, ExerciseFactory create,
                            const GameplayOptions& playOptions, const std::string& progressPath)
@@ -62,16 +63,47 @@ void LessonPlayer::startStep(){
 
 void LessonPlayer::stopStep(){
     running.reset(); // its destructor puts back what it changed (microphone, keyboard navigation)
+    passedAt = -1.0;
 }
 
 void LessonPlayer::update(){
-    if (!running) return;
+    if (!running){
+        // The keys: on, back (a step whose goal isn't met yet holds the way on)
+        const bool next = ImGui::IsKeyPressed(ImGuiKey_Enter, false) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false)
+                          || ImGui::IsKeyPressed(ImGuiKey_RightArrow, false);
+        if (next){
+            if (canGoOn()) goOn();
+            else if (hasGoal()) startStep();
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow, false) && current > 0) goTo(current - 1);
+        return;
+    }
     running->update();
     if (!stepPassed(progress, current) && running->lessonScore() >= goal()){
         passStep(progress, current);
         save();
+        passedAt = GetTime();
     }
     if (running->wantsToLeave()) stopStep();
+    else if (passedAt >= 0.0 && GetTime() - passedAt >= GO_ON_AFTER_S) goOn();
+}
+
+bool LessonPlayer::back(){
+    if (!running) return false;
+    stopStep();
+    return true;
+}
+
+void LessonPlayer::goOn(){
+    stopStep();
+    if (current + 1 >= (int)lesson.steps.size()){
+        progress.completed = true;
+        save();
+        leave = true;
+        return;
+    }
+    goTo(current + 1);
+    if (hasGoal() && !stepPassed(progress, current)) startStep(); // an exercise: straight into it
 }
 
 // While an exercise or song runs: one line at the top, centered (the corners are taken: a drill's Back button,
@@ -79,7 +111,7 @@ void LessonPlayer::update(){
 void LessonPlayer::drawGoalBar(){
     bool passed = stepPassed(progress, current);
     std::string text = passed ? "Goal reached!    " : lessonGoalText(step(), &stepExercises[current]) + TextFormat("  (now %d)    ", running->lessonScore());
-    const char* label = passed ? "Continue the lesson" : "Back to the lesson";
+    const char* label = passed ? "Continue the lesson" : "Back to the lesson (Esc)";
     ImGuiStyle& style = ImGui::GetStyle();
     float width = ImGui::CalcTextSize(text.c_str()).x + style.ItemSpacing.x + ImGui::CalcTextSize(label).x + 2 * style.FramePadding.x;
     ImGui::SetCursorPos(ImVec2((ImGui::GetWindowWidth() - width) / 2, BAR_MARGIN));
@@ -92,7 +124,10 @@ void LessonPlayer::drawGoalBar(){
         ImGui::PushStyleColor(ImGuiCol_Button, uiColorVec(UiColor::Good));
         ImGui::PushStyleColor(ImGuiCol_Text, uiColorVec(UiColor::Card)); // light text on the filled button
     }
-    if (ImGui::Button(label)) stopStep();
+    if (ImGui::Button(label)){
+        if (passed) goOn();
+        else stopStep();
+    }
     if (passed) ImGui::PopStyleColor(2);
 }
 
@@ -118,10 +153,6 @@ void LessonPlayer::draw(){
         drawGoalBar();
         return;
     }
-    float textTop = ImGui::GetCursorPosY();
-    ImGui::SetCursorPos(ImVec2(20, 20));
-    if (ImGui::Button("Back")) leave = true;
-    ImGui::SetCursorPosY(textTop);
     menuTitle(lesson.title.c_str());
     drawDots();
 
@@ -154,15 +185,7 @@ void LessonPlayer::draw(){
     ImGui::EndDisabled();
     ImGui::SameLine();
     ImGui::BeginDisabled(!canGoOn());
-    if (ImGui::Button(last ? "Finish" : "Next", ImVec2(buttonWidth, 44))){
-        if (last){
-            progress.completed = true;
-            save();
-            leave = true;
-        } else {
-            goTo(current + 1);
-        }
-    }
+    if (ImGui::Button(last ? "Finish" : "Next", ImVec2(buttonWidth, 44))) goOn();
     ImGui::EndDisabled();
     if (!saveError.empty()) centeredErrorText("Progress could not be saved: " + saveError);
 }

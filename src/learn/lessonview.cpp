@@ -20,6 +20,9 @@ std::string lessonGoalText(const LessonStep& step, const ExerciseEntry* exercise
     int goal = lessonGoal(step, exercise->exercise.type);
     ExerciseType type = exercise->exercise.type;
     if (type == ExerciseType::Scale || type == ExerciseType::Rhythm || type == ExerciseType::Reading || type == ExerciseType::Chords) return "Goal: " + std::to_string(goal) + (goal == 1 ? " clean pass" : " clean passes");
+    if (type == ExerciseType::Notes) return "Goal: pass " + std::string(goal == 1 ? "a run" : std::to_string(goal) + " runs");
+    if (type == ExerciseType::Neck) return "Goal: " + std::to_string(goal) + (goal == 1 ? " run with no mistake" : " runs with no mistake");
+    if (type == ExerciseType::NeckWalk) return "Goal: clear " + std::to_string(goal) + (goal == 1 ? " round" : " rounds") + " in a game";
     return "Goal: " + std::to_string(goal) + (goal == 1 ? " right answer" : " right answers in a row");
 }
 

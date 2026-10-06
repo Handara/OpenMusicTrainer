@@ -49,7 +49,8 @@ int lessonGoal(const LessonStep& step, ExerciseType exerciseType){
     if (step.goal > 0) return step.goal;
     if (step.type == LessonStepType::Play) return DEFAULT_PLAY_PERCENT;
     bool drill = exerciseType == ExerciseType::Scale || exerciseType == ExerciseType::Rhythm || exerciseType == ExerciseType::Reading
-                 || exerciseType == ExerciseType::Chords;
+                 || exerciseType == ExerciseType::Chords || exerciseType == ExerciseType::Notes || exerciseType == ExerciseType::Neck
+                 || exerciseType == ExerciseType::NeckWalk;
     return drill ? DEFAULT_CLEAN_PASSES : DEFAULT_ANSWERS_IN_A_ROW;
 }
 

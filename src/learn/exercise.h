@@ -13,6 +13,9 @@ public:
     virtual void update() = 0;             // once per frame, before draw: timing, sounds, keyboard shortcuts
     virtual void draw() = 0;               // ImGui widgets, inside the learn screen's window
     virtual bool wantsToLeave() const = 0; // the player pressed Back
+    // Esc (or the Back button) while it runs: true if it handled it itself (a lesson stops the step running in it,
+    // back to the lesson), false to be closed
+    virtual bool back(){ return false; }
 
     // What a lesson's goal counts, for exercises a lesson can include: a drill's clean passes this time, an interval
     // exercise's right answers in a row. 0 for the rest.
