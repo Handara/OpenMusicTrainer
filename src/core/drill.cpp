@@ -72,7 +72,8 @@ Chart drillChart(const std::vector<DrillNote>& notes, const std::vector<int>& tu
 }
 
 int drillTempo(const DrillTempo& rules, const DrillProgress& progress){
-    return progress.tempo > 0 ? progress.tempo : rules.startTempo;
+    // Where it got to, kept within the drill's tempos (they may have changed since)
+    return progress.tempo > 0 ? std::clamp(progress.tempo, rules.startTempo, std::max(rules.startTempo, rules.maxTempo)) : rules.startTempo;
 }
 
 DrillPassOutcome finishDrillPass(const DrillTempo& rules, DrillProgress& progress, int tempo, float accuracyPercent){

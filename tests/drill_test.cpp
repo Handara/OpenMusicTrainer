@@ -98,3 +98,15 @@ TEST_CASE("a drill written as a chart"){
     REQUIRE(buildScaleDrill(config, notes, error));
     CHECK(drillChart(notes, config.tuning, scaleDrillKey(config)).frettedTracks[0].notes[1].tick == 160);
 }
+
+TEST_CASE("a drill's tempo so far stays within its tempos, should they change"){
+    DrillTempo rules{ 100, 120, 5, 80 };
+    DrillProgress progress;
+    CHECK(drillTempo(rules, progress) == 100);
+    progress.tempo = 55;  // played when it started at 50
+    CHECK(drillTempo(rules, progress) == 100);
+    progress.tempo = 110;
+    CHECK(drillTempo(rules, progress) == 110);
+    progress.tempo = 150;
+    CHECK(drillTempo(rules, progress) == 120);
+}
