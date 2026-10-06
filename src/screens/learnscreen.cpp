@@ -44,6 +44,7 @@ static struct {
     int openLevel = -1;                     //   and its level open (its chapters); -1 for none
     int courseRow = 0, levelRow = 0;        // the row chosen on each (the course's first row is Continue)
     float courseScroll = 0.0f, levelScroll = 0.0f;
+    int chapterLesson = -1;                 // the chapter a running CourseChapter shows (it goes on to the next ones)
     MenuList list;                          // the open category's list: its selection, kept while exercises run
     MenuList sections[3];                   // each section's list (courses and lessons, drills, games)
     int section = 0;                        // the section shown
@@ -330,8 +331,8 @@ static std::unique_ptr<Exercise> openLesson(const LessonEntry& entry){
     return std::make_unique<LessonPlayer>(entry, stepExercises, createExercise, lessonPlayOptions(), progressPath(entry.id));
 }
 
-// A course's chapter: its drills, each the exercise its step runs (written in place: kept by the course and drill)
-static std::unique_ptr<Exercise> openCourseChapter(int courseIndex, int lessonIndex){
+// A course's chapter's drills, each the exercise its step runs (written in place: kept by the course and drill)
+static std::vector<ExerciseEntry> courseChapterDrills(int courseIndex, int lessonIndex){
     const CourseEntry& entry = learn.courses[courseIndex];
     const CourseLesson& chapter = entry.course.lessons[lessonIndex];
     std::vector<ExerciseEntry> drills;
@@ -348,19 +349,30 @@ static std::unique_ptr<Exercise> openCourseChapter(int courseIndex, int lessonIn
         }
         drills.push_back(exercise);
     }
-    return std::make_unique<CourseChapter>(entry.course, lessonIndex, drills, createExercise, progressPath(entry.id));
+    return drills;
+}
+
+// A course's chapter, which can go on to the ones after it
+static std::unique_ptr<Exercise> openCourseChapter(int courseIndex, int lessonIndex){
+    const CourseEntry& entry = learn.courses[courseIndex];
+    return std::make_unique<CourseChapter>(entry.course, lessonIndex, [courseIndex](int lesson){ return courseChapterDrills(courseIndex, lesson); },
+                                           createExercise, progressPath(entry.id), &learn.chapterLesson);
 }
 
 static void endExercise(){
     learn.exercise.reset();
     refreshExercises(); // new progress to show, and files may have been edited meanwhile
-    // Back from a course's chapter: on to the next one, if it's passed now
-    if (learn.openCourse >= 0 && learn.openCourse < (int)learn.courses.size() && learn.openLevel >= 0){
+    // Back from a course's chapter (maybe further on than it started): its level, and the next chapter if it's passed
+    if (learn.openCourse >= 0 && learn.openCourse < (int)learn.courses.size() && learn.chapterLesson >= 0){
         const Course& course = learn.courses[learn.openCourse].course;
+        const int chapter = std::min(learn.chapterLesson, (int)course.lessons.size() - 1);
+        learn.openLevel = course.lessons[chapter].unit;
         const CourseUnit& unit = course.units[learn.openLevel];
-        const int chapter = unit.firstLesson + learn.levelRow;
+        learn.levelRow = chapter - unit.firstLesson;
         if (learn.levelRow + 1 < unit.lessonCount && chapterState(course, chapter, learn.courseScores[learn.openCourse]).passed) learn.levelRow++;
+        learn.levelScroll = -1.0f;
     }
+    learn.chapterLesson = -1;
 }
 
 void openLearnScreen(const LearnSetup& setup){

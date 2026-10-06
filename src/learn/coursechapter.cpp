@@ -13,18 +13,32 @@
 const double NEXT_AFTER_S = 1.8;   // a drill passed: the moment to see it before the next starts
 const float BANNER_S = 3.0f;
 
-CourseChapter::CourseChapter(const Course& course, int lesson, std::vector<ExerciseEntry> drills, ExerciseFactory create,
-                             const std::string& scoresPath)
-    : course(course), lesson(lesson), drills(courseDrills(course, lesson)), entries(std::move(drills)), create(create),
-      scoresPath(scoresPath){
+CourseChapter::CourseChapter(const Course& course, int lesson, std::function<std::vector<ExerciseEntry>(int)> drillsFor,
+                             ExerciseFactory create, const std::string& scoresPath, int* shownLesson)
+    : course(course), drillsFor(std::move(drillsFor)), shownLesson(shownLesson), create(create), scoresPath(scoresPath){
     scores = loadCourseScores(scoresPath);
+    load(lesson);
+    ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard; // the arrows and Enter choose here
+}
+
+void CourseChapter::load(int index){
+    lesson = std::clamp(index, 0, (int)course.lessons.size() - 1);
+    drills = courseDrills(course, lesson);
+    entries = drillsFor(lesson);
+    if (shownLesson) *shownLesson = lesson;
     // Words only: read, so passed
-    if (this->drills.empty() && recordCourseScore(scores, course.lessons[lesson].id + "-read", 100)){
+    if (drills.empty() && recordCourseScore(scores, course.lessons[lesson].id + "-read", 100)){
         std::string error;
         if (!saveCourseScores(scoresPath, scores, error)) TraceLog(LOG_WARNING, "Progress: %s", error.c_str());
     }
-    chosen = std::max(0, firstNotPassed());
-    ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard; // the arrows and Enter choose here
+    const int next = firstNotPassed();
+    chosen = next >= 0 ? next : hasNext() ? (int)drills.size() : 0; // all passed: the next chapter, chosen
+    scroll = 0.0f;
+    chapterPassedAt = -100.0;
+}
+
+bool CourseChapter::hasNext() const {
+    return lesson + 1 < (int)course.lessons.size() && chapterState(course, lesson, scores).passed;
 }
 
 CourseChapter::~CourseChapter(){
@@ -91,15 +105,23 @@ void CourseChapter::update(){
         else if (passedAt >= 0.0 && GetTime() - passedAt >= NEXT_AFTER_S){
             const int next = firstNotPassed();
             if (next >= 0 && next != runningIndex) startDrill(next);
-            else stopDrill(); // all passed (or this one again): back to the chapter
+            else {
+                stopDrill(); // all passed (or this one again): back to the chapter, the next one chosen
+                if (next < 0 && hasNext()) chosen = (int)drills.size();
+            }
         }
         return;
     }
-    if (drills.empty()) return;
-    if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) chosen = std::min((int)drills.size() - 1, chosen + 1);
+    // The drills, then (passed) the next chapter as one more row
+    const int rows = (int)drills.size() + (hasNext() ? 1 : 0);
+    if (rows == 0) return;
+    if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) chosen = std::min(rows - 1, chosen + 1);
     if (ImGui::IsKeyPressed(ImGuiKey_UpArrow)) chosen = std::max(0, chosen - 1);
-    if (ImGui::IsKeyPressed(ImGuiKey_Enter, false) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false) || ImGui::IsKeyPressed(ImGuiKey_Space, false))
-        startDrill(chosen);
+    chosen = std::clamp(chosen, 0, rows - 1);
+    const bool confirm = ImGui::IsKeyPressed(ImGuiKey_Enter, false) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false)
+                         || ImGui::IsKeyPressed(ImGuiKey_Space, false);
+    if ((confirm && chosen == (int)drills.size()) || (ImGui::IsKeyPressed(ImGuiKey_N, false) && hasNext())) load(lesson + 1);
+    else if (confirm) startDrill(chosen);
 }
 
 // While a drill runs: a line at the top, which drill, its best, what passes it, and the last run
@@ -154,7 +176,9 @@ void CourseChapter::draw(){
     // Its drills, on the right: each a card with its best, what passes it, and a bar
     const float listX = width * 0.52f, rowHeight = 74 * s, top = height * 0.21f, bottom = height * 0.9f;
     const int next = firstNotPassed();
-    const float target = std::clamp(chosen * rowHeight - (bottom - top) * 0.4f, 0.0f, std::max(0.0f, drills.size() * rowHeight - (bottom - top)));
+    const bool showNext = hasNext();
+    const int rows = (int)drills.size() + (showNext ? 1 : 0);
+    const float target = std::clamp(chosen * rowHeight - (bottom - top) * 0.4f, 0.0f, std::max(0.0f, rows * rowHeight + 30 * s - (bottom - top)));
     scroll += (target - scroll) * std::min(1.0f, GetFrameTime() * 10.0f);
     const ImVec2 mouse = ImGui::GetMousePos();
     const bool click = ImGui::IsMouseClicked(ImGuiMouseButton_Left);
@@ -189,14 +213,39 @@ void CourseChapter::draw(){
             chosen = i;
         }
     }
+    // Passed: the next chapter, as one more card; said plainly when it starts a new level
+    if (showNext){
+        const int nextLesson = lesson + 1;
+        const CourseLesson& following = course.lessons[nextLesson];
+        const bool newLevel = following.unit != chapter.unit;
+        const bool isChosen = chosen == (int)drills.size();
+        const float rowTop = top + drills.size() * rowHeight + 12 * s - scroll;
+        const float cardHeight = newLevel ? 86 * s : 64 * s;
+        const ImVec2 a(listX, rowTop), b(right, rowTop + cardHeight);
+        draw->AddRectFilled(a, b, uiColor(UiColor::Accent, isChosen ? 0.22f : 0.08f), 10 * s);
+        draw->AddRect(a, b, uiColor(UiColor::Accent, isChosen ? 1.0f : 0.5f), 10 * s, 0, (isChosen ? 2.5f : 1.0f) * s);
+        const int nextNumber = nextLesson - course.units[following.unit].firstLesson + 1;
+        const char* label = newLevel ? TextFormat("NEXT LEVEL  ·  LEVEL %d, CHAPTER %d  ·  N", following.unit + 1, nextNumber)
+                                     : TextFormat("NEXT CHAPTER  ·  CHAPTER %d  ·  N", nextNumber);
+        draw->AddText(fonts.mono, 12 * s, ImVec2(a.x + 16 * s, a.y + 10 * s), uiColor(UiColor::Accent), label);
+        draw->AddText(fonts.bold, 19 * s, ImVec2(a.x + 16 * s, a.y + 26 * s), uiColor(UiColor::Ink), following.lesson.title.c_str());
+        if (newLevel)
+            draw->AddText(fonts.text, 15 * s, ImVec2(a.x + 16 * s, a.y + 54 * s), uiColor(UiColor::Accent),
+                          ("A new level begins: " + course.units[following.unit].title).c_str());
+        if (click && mouse.x >= a.x && mouse.x <= b.x && mouse.y >= std::max(a.y, top) && mouse.y <= std::min(b.y, bottom)){
+            if (isChosen) load(nextLesson);
+            else chosen = (int)drills.size();
+        }
+    }
     draw->PopClipRect();
 
     // The chapter passed: said once, big
     const float since = (float)(GetTime() - chapterPassedAt);
     if (since < BANNER_S){
-        const char* text = state.perfect ? "Chapter perfect!" : "Chapter passed! The next one is open.";
+        const char* text = state.perfect ? "Chapter perfect!" : "Chapter passed! The next one is open: Enter.";
         draw->AddText(fonts.heavy, 30 * s, ImVec2(left, bottom - 40 * s), uiColor(UiColor::Good, std::min(1.0f, (BANNER_S - since) * 2.0f)), text);
     }
-    menuScreenHint(drills.empty() ? "Esc  back" : "Up/Down  choose    Enter  play    Esc  back", s);
+    menuScreenHint(showNext ? "Up/Down  choose    Enter  play    N  next chapter    Esc  back"
+                            : drills.empty() ? "Esc  back" : "Up/Down  choose    Enter  play    Esc  back", s);
     ImGui::Dummy(ImVec2(1, 1)); // the title moved ImGui's cursor: an item after it
 }
