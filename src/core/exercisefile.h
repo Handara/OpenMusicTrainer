@@ -3,6 +3,7 @@
 #include "core/chords.h"
 #include "core/drill.h"
 #include "core/necktrainer.h"
+#include "core/notequiz.h"
 #include "core/fretboard.h"
 #include "core/reading.h"
 #include "core/rhythm.h"
@@ -82,6 +83,20 @@
 //   tolerance 30                 (how many cents off still counts as in tune, 5 to 50)
 //   hold 1                       (seconds to hold it in tune, 0.3 to 3)
 //
+// Play this note (`type notes`, core/notequiz): a few notes asked one at a time, no clock, from a first time on the
+// instrument to reading
+//   notes E4 F4 G4               (by name: each where it's lowest on the neck, open strings first)
+//   places 6:0 6:1               (or by place, string:fret, 1 = the lowest string)
+//   strings 5 6                  (names placed only on these, 1 = the lowest)
+//   show neck                    (neck: where to play it; name: the note's name; staff: the note written)
+//   where yes                    (the place on the neck shown too, for name and staff: default no)
+//   octave exact                 (exact, or any: the name's enough; default exact, any for show name)
+//   order random                 (random, or in_order: as written, going round)
+//   count 8                      (notes in a run)
+//   pass 7                       (right the first time, for the run to pass)
+//   key C major                  (the staff's key signature)
+//   instrument guitar            (guitar or bass)
+//
 // Neck walk (`type neck_walk`), a game (core/neckwalk), all optional:
 //   tune neck-walk.groove        (its tune, core/groove: beside the exercise, or in the game's games folder)
 //   level easy                   (the level it starts at: easy, normal or hard; the player changes it before playing)
@@ -92,7 +107,7 @@
 //   step intervals-up 5
 // A built-in routine uses built-in exercises; the player's own routines look in their own exercises first.
 
-enum class ExerciseType { Intervals, Scale, Routine, Fretboard, Rhythm, Reading, Chords, Singing, Neck, NeckWalk };
+enum class ExerciseType { Intervals, Scale, Routine, Fretboard, Rhythm, Reading, Chords, Singing, Neck, NeckWalk, Notes };
 
 struct ExerciseFile {
     ExerciseType type = ExerciseType::Intervals;
@@ -111,6 +126,8 @@ struct ExerciseFile {
     bool neckOnBass = false;   //   played on a bass, not a guitar (Neck and NeckWalk)
     std::string tune = "neck-walk.groove"; // a game's tune, for type NeckWalk
     int walkLevel = 0;                     //   the level it starts at (core/neckwalk)
+    NoteQuizConfig noteQuiz;               // the notes asked, for type Notes (played on a bass: neckOnBass)
+    KeySignature noteQuizKey;              //   the staff's key
     std::vector<RoutineStep> routine; // the steps, for type Routine
 };
 

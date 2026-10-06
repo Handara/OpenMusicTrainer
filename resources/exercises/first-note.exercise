@@ -1,0 +1,11 @@
+# lahn exercise
+version 1
+type notes
+title Your very first note
+category First steps
+author lahn
+description Pluck the thinnest string without pressing anything: that's the open high E. The neck shows it lit; lahn hears it.
+places 6:0
+show neck
+count 4
+pass 3

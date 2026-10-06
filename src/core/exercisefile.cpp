@@ -1,6 +1,7 @@
 #include "core/exercisefile.h"
 
 #include "core/chart.h"
+#include "core/music.h"
 #include "core/neckwalk.h"
 
 #include <algorithm>
@@ -166,8 +167,9 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
             else if (line.rest == "singing") out.type = ExerciseType::Singing;
             else if (line.rest == "neck") out.type = ExerciseType::Neck;
             else if (line.rest == "neck_walk") out.type = ExerciseType::NeckWalk;
+            else if (line.rest == "notes") out.type = ExerciseType::Notes;
             else return lineError("unknown exercise type '" + line.rest + "' (known: intervals, scale, routine, fretboard, rhythm, "
-                                  "reading, chords, singing, neck, neck_walk)");
+                                  "reading, chords, singing, neck, neck_walk, notes)");
             hasType = true;
         }
     }
@@ -184,6 +186,11 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
     int fretboardStringsLine = 0;
     std::vector<int> readingStrings;   // the same, for reading drills
     int readingStringsLine = 0;
+    // Play this note: its notes as written, placed once the instrument is known
+    std::vector<int> quizPitches, quizStrings;
+    std::vector<std::pair<int, int>> quizPlaces; // string (1 = the lowest), fret
+    int quizNotesLine = 0;
+    bool quizOctaveSet = false;
     for (const Line& line : lines){
         lineNumber = line.number;
         std::istringstream ss(line.rest);
@@ -225,6 +232,74 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
                 else return lineError("instrument must be guitar or bass");
             } else {
                 return lineError("unknown setting '" + key + "' for a neck exercise (known: key, scale, fingering, position, pattern, note, instrument)");
+            }
+            continue;
+        }
+
+        // Play this note: which notes, how they're shown and asked
+        if (out.type == ExerciseType::Notes){
+            NoteQuizConfig& quiz = out.noteQuiz;
+            std::string word;
+            if (key == "notes"){
+                quizPitches.clear();
+                while (ss >> word){
+                    int pitch;
+                    if (!parseNoteName(word, pitch)) return lineError("'" + word + "' isn't a note: write them like E4, F#3, Bb2");
+                    quizPitches.push_back(pitch);
+                }
+                if (quizPitches.empty()) return lineError("expected: notes <names, like E4 F4 G4>");
+                quizNotesLine = lineNumber;
+            } else if (key == "places"){
+                quizPlaces.clear();
+                while (ss >> word){
+                    int string = 0, fret = 0;
+                    char colon = 0;
+                    std::istringstream place(word);
+                    if (!(place >> string >> colon >> fret) || colon != ':' || string < 1 || fret < 0 || fret > 24)
+                        return lineError("'" + word + "' isn't a place: write string:fret, like 6:0 (1 = the lowest string)");
+                    quizPlaces.push_back({ string, fret });
+                }
+                if (quizPlaces.empty()) return lineError("expected: places <string:fret, like 6:0 6:1>");
+                quizNotesLine = lineNumber;
+            } else if (key == "strings"){
+                quizStrings.clear();
+                int string;
+                while (ss >> string) quizStrings.push_back(string);
+                if (quizStrings.empty()) return lineError("expected: strings <string numbers, 1 = the lowest>");
+            } else if (key == "show"){
+                ss >> word;
+                if (word == "neck") quiz.prompt = NotePrompt::Neck;
+                else if (word == "name") quiz.prompt = NotePrompt::Name;
+                else if (word == "staff") quiz.prompt = NotePrompt::Staff;
+                else return lineError("show must be neck, name or staff");
+            } else if (key == "where"){
+                ss >> word;
+                if (word != "yes" && word != "no") return lineError("where must be yes or no");
+                quiz.showWhere = word == "yes";
+            } else if (key == "octave"){
+                ss >> word;
+                if (word != "any" && word != "exact") return lineError("octave must be any or exact");
+                quiz.anyOctave = word == "any";
+                quizOctaveSet = true;
+            } else if (key == "order"){
+                ss >> word;
+                if (word != "random" && word != "in_order") return lineError("order must be random or in_order");
+                quiz.inOrder = word == "in_order";
+            } else if (key == "count" || key == "pass"){
+                int number;
+                if (!(ss >> number) || number < 1 || number > 100) return lineError(key + " must be a number from 1 to 100");
+                (key == "count" ? quiz.count : quiz.pass) = number;
+            } else if (key == "key"){
+                std::string tonic, mode = "major";
+                ss >> tonic >> mode;
+                if (!parseKeySignature(tonic, mode, out.noteQuizKey)) return lineError("expected: key <tonic> <major or minor>, like key G major");
+            } else if (key == "instrument"){
+                ss >> word;
+                if (word == "guitar" || word == "bass") out.neckOnBass = word == "bass";
+                else return lineError("instrument must be guitar or bass");
+            } else {
+                return lineError("unknown setting '" + key + "' for play this note (known: notes, places, strings, show, where, octave, "
+                                 "order, count, pass, key, instrument)");
             }
             continue;
         }
@@ -385,6 +460,30 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
         return true;
     }
     if (out.type == ExerciseType::Rhythm || out.type == ExerciseType::Chords || out.type == ExerciseType::Singing) return true;
+    if (out.type == ExerciseType::Neck || out.type == ExerciseType::NeckWalk) return true;
+    if (out.type == ExerciseType::Notes){
+        NoteQuizConfig& quiz = out.noteQuiz;
+        quiz.tuning = out.neckOnBass ? std::vector<int>{ 28, 33, 38, 43 } : std::vector<int>{ 40, 45, 50, 55, 59, 64 };
+        const int strings = (int)quiz.tuning.size();
+        lineNumber = quizNotesLine;
+        if (quizPitches.empty() && quizPlaces.empty()) return fileError("missing 'notes' (or 'places'): which notes to ask");
+        std::vector<int> allowed;
+        for (int string : quizStrings){
+            if (string < 1 || string > strings) return lineError("string " + std::to_string(string) + " doesn't exist: this instrument has "
+                                                                  + std::to_string(strings) + " strings");
+            allowed.push_back(string - 1);
+        }
+        std::string placeError;
+        if (!placeNotes(quizPitches, quiz.tuning, allowed, quiz.notes, placeError)) return lineError(placeError);
+        for (const auto& [string, fret] : quizPlaces){
+            if (string > strings) return lineError("string " + std::to_string(string) + " doesn't exist: this instrument has "
+                                                   + std::to_string(strings) + " strings");
+            quiz.notes.push_back({ quiz.tuning[string - 1] + fret, string - 1, fret });
+        }
+        if (!quizOctaveSet) quiz.anyOctave = quiz.prompt == NotePrompt::Name;
+        quiz.pass = std::min(quiz.pass, quiz.count);
+        return true;
+    }
     if (out.type == ExerciseType::Reading){
         for (int string : readingStrings){
             if (string < 1 || string > (int)out.reading.tuning.size()){

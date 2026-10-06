@@ -227,6 +227,7 @@ add_executable(lahn
     src/learn/fretboardexercise.cpp
     src/learn/neckexercise.cpp
     src/learn/neckwalkexercise.cpp
+    src/learn/notequizexercise.cpp
     src/learn/intervalexercise.cpp
     src/learn/lessonplayer.cpp
     src/learn/lessonview.cpp

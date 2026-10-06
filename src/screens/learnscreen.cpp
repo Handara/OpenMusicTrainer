@@ -12,6 +12,7 @@
 #include "learn/lessonplayer.h"
 #include "learn/neckexercise.h"
 #include "learn/neckwalkexercise.h"
+#include "learn/notequizexercise.h"
 #include "learn/routineexercise.h"
 #include "learn/singingexercise.h"
 #include "raylib.h"
@@ -93,6 +94,9 @@ static std::unique_ptr<Exercise> createExercise(const ExerciseEntry& entry){
         case ExerciseType::Neck:
             return std::make_unique<NeckExercise>(entry.exercise.title, entry.exercise.neck, entry.exercise.neckOnBass, progressPath(entry),
                                                   learn.setup.settings);
+        case ExerciseType::Notes:
+            return std::make_unique<NoteQuizExercise>(entry.exercise.title, entry.exercise.noteQuiz, entry.exercise.noteQuizKey,
+                                                      entry.exercise.neckOnBass, progressPath(entry), learn.setup.settings);
         case ExerciseType::NeckWalk: {
             // Its tune beside the exercise, or else in the game's own games folder
             namespace fs = std::filesystem;
@@ -179,6 +183,10 @@ static std::string progressSummary(const ExerciseEntry& entry){
         case ExerciseType::Singing: {
             int best = loadQuizProgress(progressPath(entry)).bestStreak;
             return best > 0 ? TextFormat("best streak %d", best) : "";
+        }
+        case ExerciseType::Notes: {
+            const NoteQuizStats stats = loadNoteQuizStats(progressPath(entry));
+            return stats.runs == 0 ? "" : TextFormat("passed %d of %d", stats.passed, stats.runs);
         }
         case ExerciseType::NeckWalk: {
             const NeckWalkStats stats = loadNeckWalkStats(progressPath(entry));
