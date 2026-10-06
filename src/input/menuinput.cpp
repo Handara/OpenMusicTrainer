@@ -26,6 +26,8 @@ struct MenuInputState {
     int item = -1;
     int heard = -1;
     double heardAt = -100.0;
+    bool wanted = false;   // a menu screen this frame, with the instrument connected
+    std::string error;     // why it can't listen, for the legend to say
 };
 }
 static MenuInputState menuInput;
@@ -38,7 +40,8 @@ static void stopListening(){
     else releaseNoteInput();                                             // the capture is another screen's
 }
 
-void updateMenuInput(bool listen, const Settings& settings, InputRole instrument){
+void updateMenuInput(bool menuScreen, const std::string& problem, const Settings& settings, InputRole instrument){
+    const bool listen = menuScreen && problem.empty();
     ImGuiIO& io = ImGui::GetIO();
     if (menuInput.release != ImGuiKey_None){
         io.AddKeyEvent(menuInput.release, false);
@@ -46,13 +49,20 @@ void updateMenuInput(bool listen, const Settings& settings, InputRole instrument
     }
     menuInput.back = false;
     menuInput.item = -1;
+    menuInput.wanted = menuScreen;
+    if (menuScreen && !problem.empty()) menuInput.error = problem;
     const bool bass = instrument == InputRole::Bass;
     if (!listen || (menuInput.listening && bass != menuInput.bass)){
         stopListening();
         if (!listen) return;
     }
-    const bool ours = menuInput.listening && noteInputActive() && noteInputGeneration() == menuInput.noteGeneration;
+    // Still ours: the note input this listener started, on the capture as it started it. Anyone opening the capture
+    // since (the check of which instruments are connected opens and closes it) leaves it unread or closed under us:
+    // then it's started again.
+    const bool noteInputOurs = menuInput.listening && noteInputActive() && noteInputGeneration() == menuInput.noteGeneration;
+    const bool ours = noteInputOurs && captureGeneration() == menuInput.captureGeneration;
     if (!ours){
+        if (noteInputOurs) releaseNoteInput(); // ours, on a capture someone else opened since: start over on it
         menuInput.listening = false;
         if (GetTime() - menuInput.failedAt < RETRY_AFTER_S) return;
         std::string error;
@@ -60,8 +70,11 @@ void updateMenuInput(bool listen, const Settings& settings, InputRole instrument
         const float lowest = midiToFrequency(bass ? 28.0f : 40.0f) * 0.9f;
         if (!startNoteInput(settings.inputDevice, lowest, error, channel)){
             menuInput.failedAt = GetTime();
+            menuInput.error = error;
+            TraceLog(LOG_WARNING, "Menus by the instrument: %s", error.c_str());
             return;
         }
+        menuInput.error.clear();
         menuInput.listening = true;
         menuInput.bass = bass;
         menuInput.noteGeneration = noteInputGeneration();
@@ -106,9 +119,18 @@ int menuInputHeard(double& at){
 }
 
 void drawMenuInputLegend(float s){
-    if (!menuInput.listening) return;
     ImDrawList* draw = ImGui::GetForegroundDrawList();
     const UiFonts& fonts = uiFonts();
+    if (!menuInput.listening){
+        // Wanted but not listening: say why, so it isn't just silently gone
+        if (menuInput.wanted && !menuInput.error.empty()){
+            const ImVec2 display = ImGui::GetIO().DisplaySize;
+            const std::string text = "Playing to move: " + menuInput.error;
+            const ImVec2 size = fonts.mono->CalcTextSizeA(11 * s, FLT_MAX, 0.0f, text.c_str());
+            draw->AddText(fonts.mono, 11 * s, ImVec2(display.x * 0.93f - size.x, display.y - 70 * s), uiColor(UiColor::Bad), text.c_str());
+        }
+        return;
+    }
     const MenuNoteMap& map = menuNoteMap(menuInput.bass);
     const ImVec2 display = ImGui::GetIO().DisplaySize;
     const int strings = (int)map.tuning.size(), frets = menuInput.bass ? 5 : 0;

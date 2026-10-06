@@ -871,7 +871,9 @@ int main(void){
 
         // The instrument steers the menus (its open strings as arrows), on the screens that are menus
         const bool menuScreen = app.screen == Screen::MainMenu || app.screen == Screen::SongSelect || (app.screen == Screen::Learn && learnInMenus());
-        updateMenuInput(menuScreen && statusOf(app.settings.heardInstrument).ready, app.settings, app.settings.heardInstrument);
+        const InstrumentStatus& played = statusOf(app.settings.heardInstrument);
+        updateMenuInput(menuScreen, played.ready ? "" : played.problem.empty() ? "no instrument connected" : played.problem, app.settings,
+                        app.settings.heardInstrument);
 
         BeginDrawing();
         if (app.screen == Screen::Playing) drawGameplay();

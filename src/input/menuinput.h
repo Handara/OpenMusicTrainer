@@ -2,13 +2,16 @@
 
 #include "core/settings.h"
 
+#include <string>
+
 // The instrument as a controller in the menus (core/menunotes): while a menu screen is up, the instrument played is
 // listened to; its open strings press the arrows, Enter and Esc for the menus (as keys do), and on a short menu a
 // note picks an item. Call once a frame, before the UI's frame starts: the keys it presses count in that frame.
 //
 // It shares the input with the screens that listen: it starts note input only while a menu is up, and leaving the
 // menus it closes it only if nobody else started listening since (an exercise, the tuning check).
-void updateMenuInput(bool listen, const Settings& settings, InputRole instrument);
+// `menuScreen`: a menu is up; `problem`: why the instrument can't be listened to (not connected...), empty if it can
+void updateMenuInput(bool menuScreen, const std::string& problem, const Settings& settings, InputRole instrument);
 bool menuInputActive();          // listening now: the menus show the notes
 bool menuInputBass();            // listening to a bass
 bool menuInputBack();            // the note for back was played this frame (Esc's job: the app's own back)
