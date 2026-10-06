@@ -66,7 +66,7 @@ void DrillExercise::startPass(bool fresh){
     passEndTime = firstNoteTime + lastBeat * beat + NEAR_WINDOW_S + 0.2;
     nextClick = 0;
     totalClicks = countIn + (int)std::ceil(lastBeat) + 1;
-    hits = perfects = 0;
+    hits = 0;
 }
 
 // The pass's notes and its written score, on the audio clock from `downbeat` (the first bar's first beat) at the
@@ -123,7 +123,6 @@ void DrillExercise::update(){
         JudgeResult result = judgeInput(notes, input);
         if (result.judgement == Judgement::Ignored) return;
         hits += result.notesHit;
-        if (result.judgement == Judgement::Perfect) perfects += result.notesHit;
         if (result.notesHit > 0 && result.noteIndex >= 0){
             lastHit = notes[result.noteIndex];
             hitAt = GetTime();
@@ -167,8 +166,10 @@ void DrillExercise::draw(){
         centeredText("Press Space to start. The metronome counts one bar in, then play along.");
     } else {
         double t = drillTime();
+        // How it's going: hit of the notes so far, out of the pass's
+        const int sofar = (int)std::count_if(notes.begin(), notes.end(), [](const PlayNote& note){ return note.judged; });
         if (t < firstNoteTime) centeredText("Get ready...");
-        else centeredText(TextFormat("%d of %d notes hit (%d perfect)    Space to stop", hits, (int)notes.size(), perfects));
+        else centeredText(TextFormat("%d of %d hit (out of %d)    Space to stop", hits, sofar, (int)notes.size()));
     }
     if (!passText.empty()) centeredColoredText(passText.c_str(), uiColor(UiColor::Good));
     if (!inputError.empty()) centeredErrorText(inputError);

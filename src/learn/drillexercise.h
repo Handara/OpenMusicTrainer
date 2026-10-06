@@ -64,7 +64,7 @@ private:
     std::vector<PlayNote> notes;   // the pass's notes in audio time, for judging and the views
     Score score;                   // the pass written down, in audio time
 
-    int hits = 0, perfects = 0;
+    int hits = 0;
     int cleanPassesNow = 0;        // clean passes since the drill was opened (a lesson's goal counts these)
     int finishedPercent = -1;      // a pass just ended, its share of notes hit: until it's taken
     std::string passText;          // the last pass's result

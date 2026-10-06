@@ -69,7 +69,11 @@ static struct {
 } screen;
 
 void applyDisplaySettings(const Settings& settings){
-    if (settings.fullscreen != IsWindowState(FLAG_BORDERLESS_WINDOWED_MODE)) ToggleBorderlessWindowed();
+    if (settings.fullscreen != IsWindowState(FLAG_BORDERLESS_WINDOWED_MODE)){
+        ToggleBorderlessWindowed();
+        // raylib keeps its borderless window above every other: Alt+Tab would switch to a window hidden behind it
+        if (IsWindowState(FLAG_WINDOW_TOPMOST)) ClearWindowState(FLAG_WINDOW_TOPMOST);
+    }
     SetTargetFPS(settings.frameRateLimit);
 }
 
