@@ -183,7 +183,7 @@ static std::string progressSummary(const ExerciseEntry& entry){
         case ExerciseType::NeckWalk: {
             const NeckWalkStats stats = loadNeckWalkStats(progressPath(entry));
             if (stats.games.empty()) return "";
-            const int level = std::max(0, stats.lastLevel);
+            const int level = stats.chosen ? stats.choice.level : 0;
             return TextFormat("best %lld on %s  ·  %d %s", neckWalkBest(stats, level), neckWalkLevel(level).name, (int)stats.games.size(),
                               stats.games.size() == 1 ? "game" : "games");
         }

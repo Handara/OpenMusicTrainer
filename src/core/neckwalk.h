@@ -17,9 +17,10 @@
 // starts. Half a beat before the round ends, the verdict: the crowd cheering a sequence all right, clapping politely
 // at one at least half right, going "awww" at less. Less than half right costs a life; with none left, it's over.
 //
-// Learning little by little: the sequences start on as many strings as the player chose (two, say), side by side, and
-// every two rounds all right on that many, one more string, up to all of them. A key lasts two rounds, then the next
-// is a fourth up (round the circle of fourths).
+// Learning little by little: the sequences start on as many strings as the player chose (two, say), side by side, at
+// the tempo chosen; every so many rounds all right (the player says how many), one more string, up to all of them;
+// and, counted apart, every so many, a little faster. A key lasts two rounds, then the next is a fourth up (round the
+// circle of fourths).
 //
 // The levels differ in what's played:
 //   Easy:   the key's note on the strings, from the highest down and back up, a note every beat
@@ -47,8 +48,19 @@ const int NECK_WALK_BAR_BEATS = 4;
 const int NECK_WALK_INTRO_BARS = 1;   // the bar before the first round
 const int NECK_WALK_MAX_NOTES = 12;   // in a sequence
 const int NECK_WALK_MIN_STRINGS = 2;
-const int NECK_WALK_CLEARS_TO_GROW = 2; // rounds all right on so many strings before one more
 const int NECK_WALK_ROUNDS_A_KEY = 2;
+const int NECK_WALK_MIN_BPM = 60, NECK_WALK_MAX_BPM = 200;
+const int NECK_WALK_TEMPO_STEP = 5;    // bpm, each time it goes faster
+const int NECK_WALK_MOST_EVERY = 8;    // the most rounds all right asked before growing
+
+// What the player chooses before a game
+struct NeckWalkSetup {
+    int level = 0;
+    int strings = NECK_WALK_MIN_STRINGS; // to start on
+    int bpm = 100;                       // to start at
+    int stringsEvery = 2;                // rounds all right before one more string; 0: never
+    int tempoEvery = 4;                  // rounds all right before NECK_WALK_TEMPO_STEP faster; 0: never
+};
 
 // The note (a pitch class) on `count` strings from `firstString` up, each place the nearest to the one before (the
 // first nearest `nearFret`), none above `maxFret`; walked from the highest string down and back up, bouncing between
@@ -73,22 +85,26 @@ struct NeckWalkRound {
     int partBars = 1;            // the computer's part, then the player's, this many bars each
     int firstBar = 0;            // counted from the tune's first
     int strings = 0;             // how many strings it goes across
+    float tempo = 120.0f;        // its tempo: the game's, as it was when the round was made
+    double beatSeconds = 0.5;
+    double startTime = 0.0;      // its first beat (seconds, the game's clock)
 };
 
 struct NeckWalkGame {
+    NeckWalkSetup setup;
     int levelIndex = 0;
     NeckWalkLevel level = neckWalkLevel(0);
     std::vector<int> tuning;
     std::mt19937 random;
     double startTime = 0.0;      // the tune's first beat, a bar before the first round's (seconds, the game's clock)
-    double beatSeconds = 0.5;
-    float tempo = 120.0f;
     int round = 0;               // from 0
     int firstRoot = 0;           // the first round's key
-    int startStrings = 2;        // as chosen
     int strings = 2;             // the strings the rounds being made go across: more as the player gets them right
     int clearsOnStrings = 0;     //   rounds all right on that many so far
+    float tempo = 100.0f;        // the tempo of the rounds being made: faster as the player gets them right
+    int clearsOnTempo = 0;       //   rounds all right at it so far
     int mostStrings = 0;         // the most a round has gone across, this game
+    float fastest = 0.0f;        // the fastest a round has gone, this game
     NeckWalkRound now;           // this round
     NeckWalkRound next;          // the next, known a round ahead: its first notes are played on time
     std::vector<WalkNote> notes; // how each of the player's went
@@ -109,15 +125,19 @@ struct NeckWalkEvents {
     NeckWalkVerdict how = NeckWalkVerdict::Aww;
     bool newRound = false;
     bool moreStrings = false;                 // from the round after next, one string more
+    bool faster = false;                      // from the round after next, faster
     bool over = false;
 };
 
-// `strings`: how many to start on (kept between two and the instrument's)
-void startNeckWalk(NeckWalkGame& game, int levelIndex, int strings, const std::vector<int>& tuning, unsigned seed,
-                   double startTime, float tempo);
-// When things are due (seconds, the game's clock): a bar of the tune; a round's start; a round's notes as the computer
-// plays them; this round's as the player should; this round's verdict
+// The tune starts at `startTime` (a bar before the first round); the strings asked are kept between two and the
+// instrument's, the tempo between NECK_WALK_MIN_BPM and NECK_WALK_MAX_BPM
+void startNeckWalk(NeckWalkGame& game, const NeckWalkSetup& setup, const std::vector<int>& tuning, unsigned seed,
+                   double startTime);
+// When things are due (seconds, the game's clock): a bar of the tune (each round's at its own tempo), and the bar
+// going on at a time; a round's start; a round's notes as the computer plays them; this round's as the player should;
+// this round's verdict
 double neckWalkBarTime(const NeckWalkGame& game, int bar);
+int neckWalkBarAt(const NeckWalkGame& game, double time);
 double neckWalkRoundStart(const NeckWalkGame& game, const NeckWalkRound& round);
 double neckWalkShowTime(const NeckWalkGame& game, const NeckWalkRound& round, int note);
 double neckWalkNoteTime(const NeckWalkGame& game, int note);
@@ -140,15 +160,15 @@ struct NeckWalkRecord {
     int cleared = 0;
     int bestStreak = 0;
     std::string level = "easy"; // its key
-    int bpm = 0;
+    int bpm = 0;                // to start at
     int strings = 0;            // the most a round went across
+    int fastest = 0;            // the fastest a round went (bpm)
 };
 struct NeckWalkStats {
     std::vector<NeckWalkRecord> games; // oldest first
     std::array<int, 12> right{}, wrong{};
-    int lastLevel = -1; // -1: none chosen yet
-    int lastBpm = 0;
-    int lastStrings = 0; // to start on
+    bool chosen = false;  // a game was played: the next starts with its setup
+    NeckWalkSetup choice;
 };
 NeckWalkStats loadNeckWalkStats(const std::string& path);
 bool saveNeckWalkStats(const std::string& path, const NeckWalkStats& stats, std::string& error);

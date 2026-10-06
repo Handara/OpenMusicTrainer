@@ -180,17 +180,26 @@ static std::vector<NeckStep> randomSequence(NeckWalkGame& game, int root, int wa
     return sequence;
 }
 
-// Round `index` (from 0): its key (two rounds a key, then a fourth up), on as many strings as the player is at now
-static NeckWalkRound makeRound(NeckWalkGame& game, int index, int firstBar){
+// Round `index` (from 0), from `firstBar` at `startTime`: its key (two rounds a key, then a fourth up), on as many
+// strings and at the tempo the player is at now
+static NeckWalkRound makeRound(NeckWalkGame& game, int index, int firstBar, double startTime){
     NeckWalkRound round;
     round.root = (game.firstRoot + FOURTH * (index / NECK_WALK_ROUNDS_A_KEY)) % 12;
     round.firstBar = firstBar;
+    round.tempo = game.tempo;
+    round.beatSeconds = 60.0 / game.tempo;
+    round.startTime = startTime;
     round.walk = randomSequence(game, round.root, game.strings);
     std::vector<int> on;
     for (const NeckStep& step : round.walk) if (std::find(on.begin(), on.end(), step.string) == on.end()) on.push_back(step.string);
     round.strings = (int)on.size();
     round.onsets = neckWalkRhythm(game.level.rhythm, (int)round.walk.size(), game.random, round.partBars);
     return round;
+}
+
+// Where a round ends: the computer's part and the player's, at its tempo
+static double roundEnd(const NeckWalkRound& round){
+    return round.startTime + 2.0 * round.partBars * NECK_WALK_BAR_BEATS * round.beatSeconds;
 }
 
 // The next round: the one prepared a round ahead, and the one after it prepared
@@ -201,52 +210,65 @@ static void nextRound(NeckWalkGame& game, int round){
     game.notes.assign(game.now.walk.size(), WalkNote::Due);
     game.heardWrong.assign(game.now.walk.size(), false);
     game.mostStrings = std::max(game.mostStrings, game.now.strings);
-    game.next = makeRound(game, round + 1, game.now.firstBar + 2 * game.now.partBars);
+    game.fastest = std::max(game.fastest, game.now.tempo);
+    game.next = makeRound(game, round + 1, game.now.firstBar + 2 * game.now.partBars, roundEnd(game.now));
 }
 
-void startNeckWalk(NeckWalkGame& game, int levelIndex, int strings, const std::vector<int>& tuning, unsigned seed,
-                   double startTime, float tempo){
+void startNeckWalk(NeckWalkGame& game, const NeckWalkSetup& setup, const std::vector<int>& tuning, unsigned seed,
+                   double startTime){
     game = NeckWalkGame{};
-    game.levelIndex = std::clamp(levelIndex, 0, NECK_WALK_LEVELS - 1);
+    game.setup = setup;
+    game.levelIndex = game.setup.level = std::clamp(setup.level, 0, NECK_WALK_LEVELS - 1);
     game.level = neckWalkLevel(game.levelIndex);
     game.tuning = tuning;
     game.random.seed(seed);
     game.startTime = startTime;
-    game.tempo = std::max(1.0f, tempo);
-    game.beatSeconds = 60.0 / game.tempo;
+    game.setup.bpm = std::clamp(setup.bpm, NECK_WALK_MIN_BPM, NECK_WALK_MAX_BPM);
+    game.tempo = (float)game.setup.bpm;
     game.lives = NECK_WALK_LIVES;
     if (tuning.empty()){
         game.over = true;
         return;
     }
-    game.startStrings = game.strings = std::clamp(strings, std::min(NECK_WALK_MIN_STRINGS, (int)tuning.size()), (int)tuning.size());
+    game.setup.strings = game.strings = std::clamp(setup.strings, std::min(NECK_WALK_MIN_STRINGS, (int)tuning.size()), (int)tuning.size());
     game.firstRoot = std::uniform_int_distribution<int>(0, 11)(game.random);
-    game.next = makeRound(game, 0, NECK_WALK_INTRO_BARS);
+    game.next = makeRound(game, 0, NECK_WALK_INTRO_BARS, startTime + NECK_WALK_INTRO_BARS * NECK_WALK_BAR_BEATS * 60.0 / game.tempo);
     nextRound(game, 0);
 }
 
+// A bar is the round's it's in, at that round's tempo (the bar before the first round, at the first round's)
+static const NeckWalkRound& roundOfBar(const NeckWalkGame& game, int bar){
+    return bar >= game.next.firstBar ? game.next : game.now;
+}
+
 double neckWalkBarTime(const NeckWalkGame& game, int bar){
-    return game.startTime + (double)bar * NECK_WALK_BAR_BEATS * game.beatSeconds;
+    const NeckWalkRound& round = roundOfBar(game, bar);
+    return round.startTime + (double)(bar - round.firstBar) * NECK_WALK_BAR_BEATS * round.beatSeconds;
 }
 
-double neckWalkRoundStart(const NeckWalkGame& game, const NeckWalkRound& round){
-    return neckWalkBarTime(game, round.firstBar);
+int neckWalkBarAt(const NeckWalkGame& game, double time){
+    const NeckWalkRound& round = time >= game.next.startTime ? game.next : game.now;
+    return round.firstBar + (int)std::floor((time - round.startTime) / (NECK_WALK_BAR_BEATS * round.beatSeconds));
 }
 
-double neckWalkShowTime(const NeckWalkGame& game, const NeckWalkRound& round, int note){
-    return neckWalkRoundStart(game, round) + round.onsets[note] * game.beatSeconds;
+double neckWalkRoundStart(const NeckWalkGame&, const NeckWalkRound& round){
+    return round.startTime;
+}
+
+double neckWalkShowTime(const NeckWalkGame&, const NeckWalkRound& round, int note){
+    return round.startTime + round.onsets[note] * round.beatSeconds;
 }
 
 double neckWalkNoteTime(const NeckWalkGame& game, int note){
-    return neckWalkShowTime(game, game.now, note) + game.now.partBars * NECK_WALK_BAR_BEATS * game.beatSeconds;
+    return neckWalkShowTime(game, game.now, note) + game.now.partBars * NECK_WALK_BAR_BEATS * game.now.beatSeconds;
 }
 
 double neckWalkVerdictTime(const NeckWalkGame& game){
-    return neckWalkBarTime(game, game.now.firstBar + 2 * game.now.partBars) - VERDICT_BEFORE_END * game.beatSeconds;
+    return roundEnd(game.now) - VERDICT_BEFORE_END * game.now.beatSeconds;
 }
 
 static double window(const NeckWalkGame& game){
-    return std::min((double)game.level.windowSeconds, MAX_WINDOW_BEATS * game.beatSeconds);
+    return std::min((double)game.level.windowSeconds, MAX_WINDOW_BEATS * game.now.beatSeconds);
 }
 
 NeckWalkEvents neckWalkPlayed(NeckWalkGame& game, int pitch, double time){
@@ -293,12 +315,19 @@ NeckWalkEvents neckWalkUpdate(NeckWalkGame& game, double time){
             game.bestStreak = std::max(game.bestStreak, game.streak);
             game.cleared++;
             game.score += (long long)CLEARED_POINTS * game.level.points * game.streak;
-            // Enough of them on this many strings: one more, from the round after next (the next is made already)
-            if (game.now.strings >= game.strings && ++game.clearsOnStrings >= NECK_WALK_CLEARS_TO_GROW
-                && game.strings < (int)game.tuning.size()){
+            // Enough of them on this many strings: one more, from the round after next (the next is made already);
+            // and, counted apart, enough at this tempo: faster
+            if (game.setup.stringsEvery > 0 && game.now.strings >= game.strings && game.strings < (int)game.tuning.size()
+                && ++game.clearsOnStrings >= game.setup.stringsEvery){
                 game.strings++;
                 game.clearsOnStrings = 0;
                 events.moreStrings = true;
+            }
+            if (game.setup.tempoEvery > 0 && game.now.tempo >= game.tempo && game.tempo < NECK_WALK_MAX_BPM
+                && ++game.clearsOnTempo >= game.setup.tempoEvery){
+                game.tempo = std::min((float)NECK_WALK_MAX_BPM, game.tempo + NECK_WALK_TEMPO_STEP);
+                game.clearsOnTempo = 0;
+                events.faster = true;
             }
         } else if (events.how == NeckWalkVerdict::Claps){
             game.streak = 0; // not a fail: no life lost, but the streak is of walks all right
@@ -332,7 +361,7 @@ NeckWalkStats loadNeckWalkStats(const std::string& path){
             if (!(ss >> record.date >> record.score >> record.cleared >> record.bestStreak)) continue;
             std::string level;
             if (ss >> level && neckWalkLevelIndex(level) >= 0) record.level = level;
-            ss >> record.bpm >> record.strings;
+            ss >> record.bpm >> record.strings >> record.fastest;
             stats.games.push_back(record);
         } else if (kind == "note"){
             int note, right, wrong;
@@ -342,11 +371,12 @@ NeckWalkStats loadNeckWalkStats(const std::string& path){
             }
         } else if (kind == "choice"){
             std::string level;
-            int bpm;
-            if (ss >> level >> bpm && neckWalkLevelIndex(level) >= 0){
-                stats.lastLevel = neckWalkLevelIndex(level);
-                stats.lastBpm = bpm;
-                ss >> stats.lastStrings;
+            NeckWalkSetup choice;
+            if (ss >> level >> choice.bpm && neckWalkLevelIndex(level) >= 0){
+                choice.level = neckWalkLevelIndex(level);
+                ss >> choice.strings >> choice.stringsEvery >> choice.tempoEvery; // older files stop sooner: the defaults
+                stats.choice = choice;
+                stats.chosen = true;
             }
         }
     }
@@ -355,26 +385,30 @@ NeckWalkStats loadNeckWalkStats(const std::string& path){
 
 bool saveNeckWalkStats(const std::string& path, const NeckWalkStats& stats, std::string& error){
     std::ostringstream out;
-    out << "# lahn neck walk: game <date> <score> <rounds cleared> <best streak> <level> <bpm> <most strings>; "
-           "note <pitch class> <right> <wrong>; choice <level> <bpm> <strings>\n";
+    out << "# lahn neck walk: game <date> <score> <rounds cleared> <best streak> <level> <bpm> <most strings> <fastest bpm>; "
+           "note <pitch class> <right> <wrong>; choice <level> <bpm> <strings> <rounds a string> <rounds a tempo step>\n";
     for (const NeckWalkRecord& game : stats.games)
         out << "game " << game.date << " " << game.score << " " << game.cleared << " " << game.bestStreak << " " << game.level << " "
-            << game.bpm << " " << game.strings << "\n";
+            << game.bpm << " " << game.strings << " " << game.fastest << "\n";
     for (int note = 0; note < 12; note++)
         if (stats.right[note] || stats.wrong[note]) out << "note " << note << " " << stats.right[note] << " " << stats.wrong[note] << "\n";
-    if (stats.lastLevel >= 0) out << "choice " << neckWalkLevel(stats.lastLevel).key << " " << stats.lastBpm << " " << stats.lastStrings << "\n";
+    if (stats.chosen){
+        const NeckWalkSetup& choice = stats.choice;
+        out << "choice " << neckWalkLevel(choice.level).key << " " << choice.bpm << " " << choice.strings << " " << choice.stringsEvery << " "
+            << choice.tempoEvery << "\n";
+    }
     return writeFileAtomically(path, out.str(), error);
 }
 
 void addNeckWalkGame(NeckWalkStats& stats, const NeckWalkGame& game, const std::string& date){
-    stats.games.push_back({ date, game.score, game.cleared, game.bestStreak, game.level.key, (int)std::lround(game.tempo), game.mostStrings });
+    stats.games.push_back({ date, game.score, game.cleared, game.bestStreak, game.level.key, game.setup.bpm, game.mostStrings,
+                            (int)std::lround(game.fastest) });
     for (int note = 0; note < 12; note++){
         stats.right[note] += game.rightByNote[note];
         stats.wrong[note] += game.wrongByNote[note];
     }
-    stats.lastLevel = game.levelIndex;
-    stats.lastBpm = (int)std::lround(game.tempo);
-    stats.lastStrings = game.startStrings;
+    stats.choice = game.setup;
+    stats.chosen = true;
 }
 
 long long neckWalkBest(const NeckWalkStats& stats, int levelIndex){
