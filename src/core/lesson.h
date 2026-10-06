@@ -45,6 +45,8 @@ struct LessonStep {
     std::string caption;                 // image, audio and video steps, optional
     std::string exercise;                // exercise steps: an exercise's file name
     int goal = 0;                        // exercise and play steps: 0 = the usual goal (lessonGoal)
+    bool inlined = false;                // exercise steps written in place (a course's lessons): `inlineExercise`
+    ExerciseFile inlineExercise;
 };
 
 struct Lesson {

@@ -122,13 +122,20 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
         error = path + ": could not open file";
         return false;
     }
+    std::stringstream text;
+    text << file.rdbuf();
+    return parseExercise(text.str(), path, 1, "", out, error);
+}
 
+bool parseExercise(const std::string& source, const std::string& path, int firstLine, const std::string& inlineTitle,
+                   ExerciseFile& out, std::string& error){
     // First pass: collect the lines. The type decides which settings are allowed, and it
     // doesn't have to come first in the file, so settings are checked once everything is read.
     struct Line { int number; std::string key; std::string rest; };
     std::vector<Line> lines;
+    std::istringstream file(source);
     std::string text;
-    for (int number = 1; std::getline(file, text); number++){
+    for (int number = firstLine; std::getline(file, text); number++){
         if (!text.empty() && text.back() == '\r') text.pop_back();
         std::istringstream ss(text);
         std::string key;
@@ -136,6 +143,12 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
         std::string rest;
         std::getline(ss >> std::ws, rest);
         lines.push_back({number, key, rest});
+    }
+    // Written inside a course: no version or title of its own needed
+    if (!inlineTitle.empty()){
+        lines.insert(lines.begin(), { firstLine, "version", "1" });
+        if (std::none_of(lines.begin(), lines.end(), [](const Line& line){ return line.key == "title"; }))
+            lines.insert(lines.begin() + 1, { firstLine, "title", inlineTitle });
     }
 
     out = ExerciseFile{};

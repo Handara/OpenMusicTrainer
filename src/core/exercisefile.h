@@ -133,6 +133,10 @@ struct ExerciseFile {
 
 // Strict, like charts: exercises are shared, so authors get a clear error with its line number.
 bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& error);
+// The same from text: `path` and `firstLine` say where it's from in errors. With `inlineTitle`, it's written inside
+// another file (a course's lesson): no version line needed, and the title is that unless it has its own.
+bool parseExercise(const std::string& text, const std::string& path, int firstLine, const std::string& inlineTitle,
+                   ExerciseFile& out, std::string& error);
 
 struct ExerciseEntry {
     std::string path;

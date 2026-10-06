@@ -135,6 +135,7 @@ add_library(lahn_core STATIC
     src/core/calibration.cpp
     src/core/chart.cpp
     src/core/chords.cpp
+    src/core/course.cpp
     src/core/drill.cpp
     src/core/exercisefile.cpp
     src/core/fft.cpp
@@ -289,6 +290,7 @@ if(BUILD_TESTING)
         tests/calibration_test.cpp
         tests/chart_test.cpp
         tests/chords_test.cpp
+        tests/course_test.cpp
         tests/drill_test.cpp
         tests/groove_test.cpp
         tests/guitarpro_test.cpp
