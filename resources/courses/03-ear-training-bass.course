@@ -1,31 +1,31 @@
 # lahn course: written by tools/courses/make_ear_course.py (change it there, and run it again)
 version 1
 title Ear training
-description lahn plays a note, you find it on your guitar and play it back: from two notes far apart to every note of a scale, then intervals by name.
-instrument guitar
+description lahn plays a note, you find it on your bass and play it back: from two notes far apart to every note of a scale, then intervals by name.
+instrument bass
 
 
 unit Hear it, find it
 
 lesson High or low
-text lahn plays an open string: the low E string or the high E string. They're far apart: listen, and play the one you hear.
+text lahn plays an open string: the E string or the G string. They're far apart: listen, and play the one you hear.
 text The first drill shows you where it is as it plays: sound and place, together. Then by ear: every string it could be is outlined. Space plays it again.
 drill Heard and shown
 type notes
-notes E2 E4
+notes E1 G2
 show ear
 where yes
 count 6
 pass 5
 drill By ear
 type notes
-notes E2 E4
+notes E1 G2
 show ear
 count 8
 pass 7
 drill No slips
 type notes
-notes E2 E4
+notes E1 G2
 show ear
 count 8
 pass 8
@@ -35,43 +35,20 @@ text One more: the A string, open. Listen, then play back the one you hear.
 text The first drill shows you where it is as it plays: sound and place, together. Then by ear: every string it could be is outlined. Space plays it again.
 drill Heard and shown
 type notes
-notes E2 E4 A2
+notes E1 G2 A1
 show ear
 where yes
 count 6
 pass 5
 drill By ear
 type notes
-notes E2 E4 A2
+notes E1 G2 A1
 show ear
 count 8
 pass 7
 drill No slips
 type notes
-notes E2 E4 A2
-show ear
-count 8
-pass 8
-
-lesson Add the G string
-text One more: the G string, open. Listen, then play back the one you hear.
-text The first drill shows you where it is as it plays: sound and place, together. Then by ear: every string it could be is outlined. Space plays it again.
-drill Heard and shown
-type notes
-notes E2 E4 A2 G3
-show ear
-where yes
-count 6
-pass 5
-drill By ear
-type notes
-notes E2 E4 A2 G3
-show ear
-count 8
-pass 7
-drill No slips
-type notes
-notes E2 E4 A2 G3
+notes E1 G2 A1
 show ear
 count 8
 pass 8
@@ -81,43 +58,20 @@ text One more: the D string, open. Listen, then play back the one you hear.
 text The first drill shows you where it is as it plays: sound and place, together. Then by ear: every string it could be is outlined. Space plays it again.
 drill Heard and shown
 type notes
-notes E2 E4 A2 G3 D3
+notes E1 G2 A1 D2
 show ear
 where yes
 count 6
 pass 5
 drill By ear
 type notes
-notes E2 E4 A2 G3 D3
+notes E1 G2 A1 D2
 show ear
 count 8
 pass 7
 drill No slips
 type notes
-notes E2 E4 A2 G3 D3
-show ear
-count 8
-pass 8
-
-lesson Add the B string
-text One more: the B string, open. Listen, then play back the one you hear.
-text The first drill shows you where it is as it plays: sound and place, together. Then by ear: every string it could be is outlined. Space plays it again.
-drill Heard and shown
-type notes
-notes E2 E4 A2 G3 D3 B3
-show ear
-where yes
-count 6
-pass 5
-drill By ear
-type notes
-notes E2 E4 A2 G3 D3 B3
-show ear
-count 8
-pass 7
-drill No slips
-type notes
-notes E2 E4 A2 G3 D3 B3
+notes E1 G2 A1 D2
 show ear
 count 8
 pass 8
@@ -126,266 +80,176 @@ pass 8
 unit One string, step by step
 
 lesson The root and the fifth
-text The open E, then either the same E or the note at the 7th fret: five steps up the E major scale.
-text The root, E, plays first each time: hear the other note against it. The notes it could be are outlined on the high E string.
+text The open G, then either the same G or the note at the 7th fret: five steps up the G major scale.
+text The root, G, plays first each time: hear the other note against it. The notes it could be are outlined on the G string.
 drill Heard and shown
 type notes
-notes E4 B4
+notes G2 D3
 show ear
-strings 6
-reference E4
+strings 4
+reference G2
 where yes
 count 6
 pass 5
 drill By ear
 type notes
-notes E4 B4
+notes G2 D3
 show ear
-strings 6
-reference E4
+strings 4
+reference G2
 count 8
 pass 7
 drill No slips
 type notes
-notes E4 B4
+notes G2 D3
 show ear
-strings 6
-reference E4
+strings 4
+reference G2
 count 8
 pass 8
 
 lesson 1, 3 and 5
-text The notes of the E major chord: the open string, the 4th fret and the 7th.
-text The root, E, plays first each time: hear the other note against it. The notes it could be are outlined on the high E string.
+text The notes of the G major chord: the open string, the 4th fret and the 7th.
+text The root, G, plays first each time: hear the other note against it. The notes it could be are outlined on the G string.
 drill Heard and shown
 type notes
-notes E4 G#4 B4
+notes G2 B2 D3
 show ear
-strings 6
-reference E4
+strings 4
+reference G2
 where yes
 count 6
 pass 5
 drill By ear
 type notes
-notes E4 G#4 B4
+notes G2 B2 D3
 show ear
-strings 6
-reference E4
+strings 4
+reference G2
 count 8
 pass 7
 drill No slips
 type notes
-notes E4 G#4 B4
+notes G2 B2 D3
 show ear
-strings 6
-reference E4
+strings 4
+reference G2
 count 8
 pass 8
 
 lesson 1 to 5
-text The first five notes of the E major scale, frets 0, 2, 4, 5 and 7.
-text The root, E, plays first each time: hear the other note against it. The notes it could be are outlined on the high E string.
+text The first five notes of the G major scale, frets 0, 2, 4, 5 and 7.
+text The root, G, plays first each time: hear the other note against it. The notes it could be are outlined on the G string.
 drill Heard and shown
 type notes
-notes E4 F#4 G#4 A4 B4
+notes G2 A2 B2 C3 D3
 show ear
-strings 6
-reference E4
+strings 4
+reference G2
 where yes
 count 6
 pass 5
 drill By ear
 type notes
-notes E4 F#4 G#4 A4 B4
+notes G2 A2 B2 C3 D3
 show ear
-strings 6
-reference E4
+strings 4
+reference G2
 count 8
 pass 7
 drill No slips
 type notes
-notes E4 F#4 G#4 A4 B4
+notes G2 A2 B2 C3 D3
 show ear
-strings 6
-reference E4
+strings 4
+reference G2
 count 8
 pass 8
 
 lesson The whole scale
 text All eight, up to the octave at the 12th fret.
-text The root, E, plays first each time: hear the other note against it. The notes it could be are outlined on the high E string.
+text The root, G, plays first each time: hear the other note against it. The notes it could be are outlined on the G string.
 drill Heard and shown
 type notes
-notes E4 F#4 G#4 A4 B4 C#5 D#5 E5
+notes G2 A2 B2 C3 D3 E3 F#3 G3
 show ear
-strings 6
-reference E4
+strings 4
+reference G2
 where yes
 count 6
 pass 5
 drill By ear
 type notes
-notes E4 F#4 G#4 A4 B4 C#5 D#5 E5
+notes G2 A2 B2 C3 D3 E3 F#3 G3
 show ear
-strings 6
-reference E4
+strings 4
+reference G2
 count 8
 pass 7
 drill No slips
 type notes
-notes E4 F#4 G#4 A4 B4 C#5 D#5 E5
+notes G2 A2 B2 C3 D3 E3 F#3 G3
 show ear
-strings 6
-reference E4
+strings 4
+reference G2
 count 8
 pass 8
 
 lesson 1 and the octave
 text The same note, an octave apart: the open string and the 12th fret.
-text The root, E, plays first each time: hear the other note against it. The notes it could be are outlined on the high E string.
+text The root, G, plays first each time: hear the other note against it. The notes it could be are outlined on the G string.
 drill Heard and shown
 type notes
-notes E4 E5
+notes G2 G3
 show ear
-strings 6
-reference E4
+strings 4
+reference G2
 where yes
 count 6
 pass 5
 drill By ear
 type notes
-notes E4 E5
+notes G2 G3
 show ear
-strings 6
-reference E4
+strings 4
+reference G2
 count 8
 pass 7
 drill No slips
 type notes
-notes E4 E5
+notes G2 G3
 show ear
-strings 6
-reference E4
+strings 4
+reference G2
 count 8
 pass 8
 
 lesson The top of the scale
 text 5, 6, 7 and 8: frets 7, 9, 11 and 12.
-text The root, E, plays first each time: hear the other note against it. The notes it could be are outlined on the high E string.
+text The root, G, plays first each time: hear the other note against it. The notes it could be are outlined on the G string.
 drill Heard and shown
 type notes
-notes B4 C#5 D#5 E5
+notes D3 E3 F#3 G3
 show ear
-strings 6
-reference E4
+strings 4
+reference G2
 where yes
 count 6
 pass 5
 drill By ear
 type notes
-notes B4 C#5 D#5 E5
+notes D3 E3 F#3 G3
 show ear
-strings 6
-reference E4
+strings 4
+reference G2
 count 8
 pass 7
 drill No slips
 type notes
-notes B4 C#5 D#5 E5
+notes D3 E3 F#3 G3
 show ear
-strings 6
-reference E4
-count 8
-pass 8
-
-
-unit In A, on the A string
-
-lesson A: 1, 3 and 5
-text The A major chord's notes, from the open string.
-text The root, A, plays first each time: hear the other note against it. The notes it could be are outlined on the A string.
-drill Heard and shown
-type notes
-notes A2 C#3 E3
-show ear
-strings 2
-reference A2
-where yes
-count 6
-pass 5
-drill By ear
-type notes
-notes A2 C#3 E3
-show ear
-strings 2
-reference A2
-count 8
-pass 7
-drill No slips
-type notes
-notes A2 C#3 E3
-show ear
-strings 2
-reference A2
-count 8
-pass 8
-
-lesson A: 1 to 5
-text The first five notes of A major.
-text The root, A, plays first each time: hear the other note against it. The notes it could be are outlined on the A string.
-drill Heard and shown
-type notes
-notes A2 B2 C#3 D3 E3
-show ear
-strings 2
-reference A2
-where yes
-count 6
-pass 5
-drill By ear
-type notes
-notes A2 B2 C#3 D3 E3
-show ear
-strings 2
-reference A2
-count 8
-pass 7
-drill No slips
-type notes
-notes A2 B2 C#3 D3 E3
-show ear
-strings 2
-reference A2
-count 8
-pass 8
-
-lesson A: the whole scale
-text A major, up the string to its 12th fret.
-text The root, A, plays first each time: hear the other note against it. The notes it could be are outlined on the A string.
-drill Heard and shown
-type notes
-notes A2 B2 C#3 D3 E3 F#3 G#3 A3
-show ear
-strings 2
-reference A2
-where yes
-count 6
-pass 5
-drill By ear
-type notes
-notes A2 B2 C#3 D3 E3 F#3 G#3 A3
-show ear
-strings 2
-reference A2
-count 8
-pass 7
-drill No slips
-type notes
-notes A2 B2 C#3 D3 E3 F#3 G#3 A3
-show ear
-strings 2
-reference A2
+strings 4
+reference G2
 count 8
 pass 8
 
@@ -397,27 +261,27 @@ text The D major chord's notes, from the open string.
 text The root, D, plays first each time: hear the other note against it. The notes it could be are outlined on the D string.
 drill Heard and shown
 type notes
-notes D3 F#3 A3
+notes D2 F#2 A2
 show ear
 strings 3
-reference D3
+reference D2
 where yes
 count 6
 pass 5
 drill By ear
 type notes
-notes D3 F#3 A3
+notes D2 F#2 A2
 show ear
 strings 3
-reference D3
+reference D2
 count 8
 pass 7
 drill No slips
 type notes
-notes D3 F#3 A3
+notes D2 F#2 A2
 show ear
 strings 3
-reference D3
+reference D2
 count 8
 pass 8
 
@@ -426,27 +290,27 @@ text The first five notes of D major.
 text The root, D, plays first each time: hear the other note against it. The notes it could be are outlined on the D string.
 drill Heard and shown
 type notes
-notes D3 E3 F#3 G3 A3
+notes D2 E2 F#2 G2 A2
 show ear
 strings 3
-reference D3
+reference D2
 where yes
 count 6
 pass 5
 drill By ear
 type notes
-notes D3 E3 F#3 G3 A3
+notes D2 E2 F#2 G2 A2
 show ear
 strings 3
-reference D3
+reference D2
 count 8
 pass 7
 drill No slips
 type notes
-notes D3 E3 F#3 G3 A3
+notes D2 E2 F#2 G2 A2
 show ear
 strings 3
-reference D3
+reference D2
 count 8
 pass 8
 
@@ -455,117 +319,207 @@ text D major, up the string to its 12th fret.
 text The root, D, plays first each time: hear the other note against it. The notes it could be are outlined on the D string.
 drill Heard and shown
 type notes
-notes D3 E3 F#3 G3 A3 B3 C#4 D4
+notes D2 E2 F#2 G2 A2 B2 C#3 D3
 show ear
 strings 3
-reference D3
+reference D2
 where yes
 count 6
 pass 5
 drill By ear
 type notes
-notes D3 E3 F#3 G3 A3 B3 C#4 D4
+notes D2 E2 F#2 G2 A2 B2 C#3 D3
 show ear
 strings 3
-reference D3
+reference D2
 count 8
 pass 7
 drill No slips
 type notes
-notes D3 E3 F#3 G3 A3 B3 C#4 D4
+notes D2 E2 F#2 G2 A2 B2 C#3 D3
 show ear
 strings 3
-reference D3
+reference D2
 count 8
 pass 8
 
 
-unit In G, on the G string
+unit In A, on the A string
 
-lesson G: 1, 3 and 5
-text The G major chord's notes, from the open string.
-text The root, G, plays first each time: hear the other note against it. The notes it could be are outlined on the G string.
+lesson A: 1, 3 and 5
+text The A major chord's notes, from the open string.
+text The root, A, plays first each time: hear the other note against it. The notes it could be are outlined on the A string.
 drill Heard and shown
 type notes
-notes G3 B3 D4
+notes A1 C#2 E2
 show ear
-strings 4
-reference G3
+strings 2
+reference A1
 where yes
 count 6
 pass 5
 drill By ear
 type notes
-notes G3 B3 D4
+notes A1 C#2 E2
 show ear
-strings 4
-reference G3
+strings 2
+reference A1
 count 8
 pass 7
 drill No slips
 type notes
-notes G3 B3 D4
+notes A1 C#2 E2
 show ear
-strings 4
-reference G3
+strings 2
+reference A1
 count 8
 pass 8
 
-lesson G: 1 to 5
-text The first five notes of G major.
-text The root, G, plays first each time: hear the other note against it. The notes it could be are outlined on the G string.
+lesson A: 1 to 5
+text The first five notes of A major.
+text The root, A, plays first each time: hear the other note against it. The notes it could be are outlined on the A string.
 drill Heard and shown
 type notes
-notes G3 A3 B3 C4 D4
+notes A1 B1 C#2 D2 E2
 show ear
-strings 4
-reference G3
+strings 2
+reference A1
 where yes
 count 6
 pass 5
 drill By ear
 type notes
-notes G3 A3 B3 C4 D4
+notes A1 B1 C#2 D2 E2
 show ear
-strings 4
-reference G3
+strings 2
+reference A1
 count 8
 pass 7
 drill No slips
 type notes
-notes G3 A3 B3 C4 D4
+notes A1 B1 C#2 D2 E2
 show ear
-strings 4
-reference G3
+strings 2
+reference A1
 count 8
 pass 8
 
-lesson G: the whole scale
-text G major, up the string to its 12th fret.
-text The root, G, plays first each time: hear the other note against it. The notes it could be are outlined on the G string.
+lesson A: the whole scale
+text A major, up the string to its 12th fret.
+text The root, A, plays first each time: hear the other note against it. The notes it could be are outlined on the A string.
 drill Heard and shown
 type notes
-notes G3 A3 B3 C4 D4 E4 F#4 G4
+notes A1 B1 C#2 D2 E2 F#2 G#2 A2
 show ear
-strings 4
-reference G3
+strings 2
+reference A1
 where yes
 count 6
 pass 5
 drill By ear
 type notes
-notes G3 A3 B3 C4 D4 E4 F#4 G4
+notes A1 B1 C#2 D2 E2 F#2 G#2 A2
 show ear
-strings 4
-reference G3
+strings 2
+reference A1
 count 8
 pass 7
 drill No slips
 type notes
-notes G3 A3 B3 C4 D4 E4 F#4 G4
+notes A1 B1 C#2 D2 E2 F#2 G#2 A2
 show ear
-strings 4
-reference G3
+strings 2
+reference A1
+count 8
+pass 8
+
+
+unit In E, on the E string
+
+lesson E: 1, 3 and 5
+text The E major chord's notes, from the open string.
+text The root, E, plays first each time: hear the other note against it. The notes it could be are outlined on the E string.
+drill Heard and shown
+type notes
+notes E1 G#1 B1
+show ear
+strings 1
+reference E1
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes E1 G#1 B1
+show ear
+strings 1
+reference E1
+count 8
+pass 7
+drill No slips
+type notes
+notes E1 G#1 B1
+show ear
+strings 1
+reference E1
+count 8
+pass 8
+
+lesson E: 1 to 5
+text The first five notes of E major.
+text The root, E, plays first each time: hear the other note against it. The notes it could be are outlined on the E string.
+drill Heard and shown
+type notes
+notes E1 F#1 G#1 A1 B1
+show ear
+strings 1
+reference E1
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes E1 F#1 G#1 A1 B1
+show ear
+strings 1
+reference E1
+count 8
+pass 7
+drill No slips
+type notes
+notes E1 F#1 G#1 A1 B1
+show ear
+strings 1
+reference E1
+count 8
+pass 8
+
+lesson E: the whole scale
+text E major, up the string to its 12th fret.
+text The root, E, plays first each time: hear the other note against it. The notes it could be are outlined on the E string.
+drill Heard and shown
+type notes
+notes E1 F#1 G#1 A1 B1 C#2 D#2 E2
+show ear
+strings 1
+reference E1
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes E1 F#1 G#1 A1 B1 C#2 D#2 E2
+show ear
+strings 1
+reference E1
+count 8
+pass 7
+drill No slips
+type notes
+notes E1 F#1 G#1 A1 B1 C#2 D#2 E2
+show ear
+strings 1
+reference E1
 count 8
 pass 8
 
@@ -577,27 +531,27 @@ text The 3rd decides it: three frets up sounds minor, four sounds major.
 text The root, A, plays first each time: hear the other note against it. The notes it could be are outlined on the A string.
 drill Heard and shown
 type notes
-notes A2 C3 C#3
+notes A1 C2 C#2
 show ear
 strings 2
-reference A2
+reference A1
 where yes
 count 6
 pass 5
 drill By ear
 type notes
-notes A2 C3 C#3
+notes A1 C2 C#2
 show ear
 strings 2
-reference A2
+reference A1
 count 8
 pass 7
 drill No slips
 type notes
-notes A2 C3 C#3
+notes A1 C2 C#2
 show ear
 strings 2
-reference A2
+reference A1
 count 8
 pass 8
 
@@ -606,27 +560,27 @@ text The A minor chord's notes.
 text The root, A, plays first each time: hear the other note against it. The notes it could be are outlined on the A string.
 drill Heard and shown
 type notes
-notes A2 C3 E3
+notes A1 C2 E2
 show ear
 strings 2
-reference A2
+reference A1
 where yes
 count 6
 pass 5
 drill By ear
 type notes
-notes A2 C3 E3
+notes A1 C2 E2
 show ear
 strings 2
-reference A2
+reference A1
 count 8
 pass 7
 drill No slips
 type notes
-notes A2 C3 E3
+notes A1 C2 E2
 show ear
 strings 2
-reference A2
+reference A1
 count 8
 pass 8
 
@@ -635,27 +589,27 @@ text The first five notes of A minor.
 text The root, A, plays first each time: hear the other note against it. The notes it could be are outlined on the A string.
 drill Heard and shown
 type notes
-notes A2 B2 C3 D3 E3
+notes A1 B1 C2 D2 E2
 show ear
 strings 2
-reference A2
+reference A1
 where yes
 count 6
 pass 5
 drill By ear
 type notes
-notes A2 B2 C3 D3 E3
+notes A1 B1 C2 D2 E2
 show ear
 strings 2
-reference A2
+reference A1
 count 8
 pass 7
 drill No slips
 type notes
-notes A2 B2 C3 D3 E3
+notes A1 B1 C2 D2 E2
 show ear
 strings 2
-reference A2
+reference A1
 count 8
 pass 8
 
@@ -664,27 +618,27 @@ text All of A minor, up the A string.
 text The root, A, plays first each time: hear the other note against it. The notes it could be are outlined on the A string.
 drill Heard and shown
 type notes
-notes A2 B2 C3 D3 E3 F3 G3 A3
+notes A1 B1 C2 D2 E2 F2 G2 A2
 show ear
 strings 2
-reference A2
+reference A1
 where yes
 count 6
 pass 5
 drill By ear
 type notes
-notes A2 B2 C3 D3 E3 F3 G3 A3
+notes A1 B1 C2 D2 E2 F2 G2 A2
 show ear
 strings 2
-reference A2
+reference A1
 count 8
 pass 7
 drill No slips
 type notes
-notes A2 B2 C3 D3 E3 F3 G3 A3
+notes A1 B1 C2 D2 E2 F2 G2 A2
 show ear
 strings 2
-reference A2
+reference A1
 count 8
 pass 8
 

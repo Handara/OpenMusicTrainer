@@ -1,0 +1,178 @@
+# lahn course
+version 1
+title First steps
+description Never held a bass? Start here. One string, then the next, then your first frets and the names of the notes: a little at a time, at your own pace.
+instrument bass
+
+unit Meet your bass
+
+lesson Your very first note
+title Four strings
+text Your bass has four strings. The thickest one sounds the lowest, the thinnest one the highest.
+text On lahn's neck the thinnest string is at the top, the thickest at the bottom, the way bass tab shows them.
+title Open strings
+text Playing a string "open" means you don't press anything on it: you just pluck it with a finger (or a pick).
+text Pluck the thinnest string now: the G string. lahn lights it on the neck, and hears you when you play it.
+text No sound reaching lahn? Check that your bass is plugged in, and the input in Settings.
+exercise
+type notes
+places 4:0
+show neck
+count 3
+pass 2
+
+lesson The thickest string
+text Now the other end: the thickest string, at the bottom of the neck. It's the E string, the lowest note of the bass.
+exercise
+type notes
+places 1:0
+show neck
+count 3
+pass 2
+
+lesson Up and down the open strings
+title E, A, D, G
+text From the thickest to the thinnest, the open strings are E, A, D and G.
+text To remember them: Eat All Day, Girl. Play them one after the other, then back.
+exercise
+type notes
+places 1:0 2:0 3:0 4:0 3:0 2:0
+show neck
+order in_order
+count 6
+pass 5
+
+lesson Any open string
+text Now in any order: watch which string lights up.
+exercise
+type notes
+places 1:0 2:0 3:0 4:0
+show neck
+count 8
+pass 7
+
+lesson Strings by name
+text This time lahn says the string's name, and shows where it is. Play it open.
+exercise
+type notes
+places 1:0 2:0 3:0 4:0
+show name
+where yes
+count 8
+pass 7
+
+lesson Strings by name, no hints
+text The same, without the neck showing you where. If you slip, lahn shows the right one.
+exercise
+type notes
+places 1:0 2:0 3:0 4:0
+show name
+count 8
+pass 7
+
+unit Your first frets
+
+lesson Pressing a fret
+title Frets
+text The metal bars across the neck are the frets. Pressing a string down just behind one makes it shorter, and the note higher.
+text Press with the tip of your finger, close to the fret, firmly enough for the note to ring clean. Then pluck.
+title Fret 2
+text Press the G string at the 2nd fret with your first finger, and pluck it.
+exercise
+type notes
+places 4:2
+show neck
+count 3
+pass 2
+
+lesson Fret 4
+text Now the 4th fret, with your third or fourth finger: one finger a fret, your hand stays put.
+exercise
+type notes
+places 4:4
+show neck
+count 3
+pass 2
+
+lesson Open, 2, 4
+text The G string open, then fret 2, then fret 4, in any order.
+exercise
+type notes
+places 4:0 4:2 4:4
+show neck
+count 8
+pass 7
+
+lesson On the D string
+text The same on the next string down, the D string: open, fret 2, fret 3.
+exercise
+type notes
+places 3:0 3:2 3:3
+show neck
+count 8
+pass 7
+
+lesson Two strings
+text Both strings now, all six places. Watch which string lights up.
+exercise
+type notes
+places 3:0 3:2 3:3 4:0 4:2 4:4
+show neck
+count 10
+pass 8
+
+unit The names of the notes
+
+lesson G, A and B
+title Every note has a name
+text Notes are named with letters, A to G. The open G string is a G, its 2nd fret is A, its 4th fret is B.
+text lahn says the name and shows where it is. Play it.
+exercise
+type notes
+notes G2 A2 B2
+show name
+where yes
+count 8
+pass 7
+
+lesson G, A and B, no hints
+text Now just the name. A slip shows you where it was.
+exercise
+type notes
+notes G2 A2 B2
+show name
+octave exact
+count 8
+pass 7
+
+lesson D, E and F
+text On the D string: open is D, fret 2 is E, fret 3 is F.
+exercise
+type notes
+notes D2 E2 F2
+show name
+where yes
+count 8
+pass 7
+
+lesson D, E and F, no hints
+exercise
+type notes
+notes D2 E2 F2
+show name
+octave exact
+count 8
+pass 7
+
+lesson Six notes
+title From D to B
+text D, E, F on the D string, then G, A, B on the G string: six notes in a row, the alphabet going on from one string to the next.
+exercise
+type notes
+notes D2 E2 F2 G2 A2 B2
+show name
+octave exact
+count 12
+pass 10
+title What next
+text You can find twelve places and six notes by name. The Reading course writes these same notes on the staff; Neck walk, in Games, plays with them to music.

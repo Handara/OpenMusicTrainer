@@ -112,8 +112,14 @@
 
 enum class ExerciseType { Intervals, Scale, Routine, Fretboard, Rhythm, Reading, Chords, Singing, Neck, NeckWalk, Notes };
 
+// What an exercise is played on: Learn lists it only for that instrument (Any: whichever)
+enum class ExerciseInstrument { Any, Guitar, Bass };
+
 struct ExerciseFile {
     ExerciseType type = ExerciseType::Intervals;
+    // Its 'instrument' line, else by what it is: played on the instrument, a guitar's unless its tuning is a bass's
+    // (its lowest string below C2); answered some other way (intervals, singing, rhythm), any
+    ExerciseInstrument instrument = ExerciseInstrument::Any;
     std::string title;
     std::string category = "Other";
     std::string author;
@@ -136,6 +142,8 @@ struct ExerciseFile {
 
 // Strict, like charts: exercises are shared, so authors get a clear error with its line number.
 bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& error);
+// Whether it's played on the instrument (so it's checked in tune before): notes, the neck, reading, scales, chords...
+bool exercisePlayedOnInstrument(const ExerciseFile& exercise);
 // The same from text: `path` and `firstLine` say where it's from in errors. With `inlineTitle`, it's written inside
 // another file (a course's lesson): no version line needed, and the title is that unless it has its own.
 bool parseExercise(const std::string& text, const std::string& path, int firstLine, const std::string& inlineTitle,

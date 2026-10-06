@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Writes lahn's Ear training course (resources/courses/03-ear-training.course): you hear a note, and play it back
-on your guitar, a few more notes at a time; then intervals by name. Change the plan below and run it again:
+"""Writes lahn's Ear training courses, for guitar (resources/courses/03-ear-training.course) and for bass
+(03-ear-training-bass.course): you hear a note, and play it back, a few more notes at a time; then intervals by
+name. Learn shows the one for the instrument played. Change the plans below and run it again:
 
     python3 tools/courses/make_ear_course.py
 
@@ -44,11 +45,11 @@ def ear_drills(notes, string=None, reference=None, hold_where=True):
     return lines
 
 
-def degrees_chapter(title, root, degrees, string, text):
+def degrees_chapter(strings, title, root, degrees, string, text):
     pitches = [root + d for d in degrees]
     lines = [f"lesson {title}", f"text {text}"]
     lines.append(f"text The root, {NAMES[root % 12]}, plays first each time: hear the other note against it. "
-                 f"The notes it could be are outlined on the {['low E', 'A', 'D', 'G', 'B', 'high E'][string - 1]} string.")
+                 f"The notes it could be are outlined on the {strings[string - 1]} string.")
     lines += ear_drills([note(p) for p in pitches], string=string, reference=note(root))
     return lines
 
@@ -61,12 +62,34 @@ def interval_chapter(title, pool, text):
     return lines
 
 
-def build():
+# Each instrument's plan: its open strings (far apart first), the string the scale degrees start on, the keys after
+PLANS = {
+    "guitar": {
+        "strings": ["low E", "A", "D", "G", "B", "high E"],
+        "opens": [("E2", "the low E string"), ("E4", "the high E string"), ("A2", "the A string"), ("G3", "the G string"),
+                  ("D3", "the D string"), ("B3", "the B string")],
+        "first_key": ("E", 64, 6),  # name, the root (MIDI), its string (1 = the lowest)
+        "keys": [("A", 45, 2), ("D", 50, 3), ("G", 55, 4)],
+        "minor": ("A", 45, 2),
+    },
+    "bass": {
+        "strings": ["E", "A", "D", "G"],
+        "opens": [("E1", "the E string"), ("G2", "the G string"), ("A1", "the A string"), ("D2", "the D string")],
+        "first_key": ("G", 43, 4),
+        "keys": [("D", 38, 3), ("A", 33, 2), ("E", 28, 1)],
+        "minor": ("A", 33, 2),
+    },
+}
+
+
+def build(instrument):
+    plan = PLANS[instrument]
+    strings = plan["strings"]
     out = ["# lahn course: written by tools/courses/make_ear_course.py (change it there, and run it again)",
            "version 1",
            "title Ear training",
-           "description lahn plays a note, you find it on your guitar and play it back: from two notes far apart to every note of a scale, then intervals by name.",
-           "instrument guitar", ""]
+           f"description lahn plays a note, you find it on your {instrument} and play it back: from two notes far apart to every note of a scale, then intervals by name.",
+           f"instrument {instrument}", ""]
 
     def level(title):
         out.extend(["", f"unit {title}", ""])
@@ -76,13 +99,13 @@ def build():
 
     # Open strings, one more each chapter: far apart first
     level("Hear it, find it")
-    opens = [("E2", "the low E string"), ("E4", "the high E string"), ("A2", "the A string"), ("G3", "the G string"),
-             ("D3", "the D string"), ("B3", "the B string")]
+    opens = plan["opens"]
     for count in range(2, len(opens) + 1):
         pool = [n for n, _ in opens[:count]]
         newest = opens[count - 1]
         if count == 2:
-            title, text = "High or low", "lahn plays an open string: the low E or the high E. They're two octaves apart: listen, and play the one you hear."
+            title = "High or low"
+            text = f"lahn plays an open string: {opens[0][1]} or {opens[1][1]}. They're far apart: listen, and play the one you hear."
         else:
             title, text = f"Add {newest[1]}", f"One more: {newest[1]}, open. Listen, then play back the one you hear."
         lines = [f"lesson {title}", f"text {text}",
@@ -91,37 +114,38 @@ def build():
         chapter(lines)
 
     # Scale degrees on one string, against the root played first
+    name, root, string = plan["first_key"]
     level("One string, step by step")
-    e = 64  # E4: the high E string, open
     for title, degrees, text in [
-        ("The root and the fifth", [0, 7], "The open E, then either the same E or the B at the 7th fret: five steps up the E major scale."),
-        ("1, 3 and 5", [0, 4, 7], "The notes of the E major chord: E, G# (fret 4) and B (fret 7)."),
-        ("1 to 5", [0, 2, 4, 5, 7], "The first five notes of the E major scale, frets 0, 2, 4, 5 and 7."),
-        ("The whole scale", [0, 2, 4, 5, 7, 9, 11, 12], "All eight, up to the E at the 12th fret."),
-        ("1 and the octave", [0, 12], "The same note, an octave apart: the open E and the 12th fret."),
-        ("The top of the scale", [7, 9, 11, 12], "5, 6, 7 and 8: B, C#, D# and E."),
+        ("The root and the fifth", [0, 7], f"The open {name}, then either the same {name} or the note at the 7th fret: five steps up the {name} major scale."),
+        ("1, 3 and 5", [0, 4, 7], f"The notes of the {name} major chord: the open string, the 4th fret and the 7th."),
+        ("1 to 5", [0, 2, 4, 5, 7], f"The first five notes of the {name} major scale, frets 0, 2, 4, 5 and 7."),
+        ("The whole scale", [0, 2, 4, 5, 7, 9, 11, 12], "All eight, up to the octave at the 12th fret."),
+        ("1 and the octave", [0, 12], "The same note, an octave apart: the open string and the 12th fret."),
+        ("The top of the scale", [7, 9, 11, 12], "5, 6, 7 and 8: frets 7, 9, 11 and 12."),
     ]:
-        chapter(degrees_chapter(title, e, degrees, 6, text))
+        chapter(degrees_chapter(strings, title, root, degrees, string, text))
 
     # The same in other keys, on other strings
-    for key_name, root, string in [("A", 45, 2), ("D", 50, 3), ("G", 55, 4)]:
-        level(f"In {key_name}, on the {['low E', 'A', 'D', 'G', 'B', 'high E'][string - 1]} string")
+    for key_name, key_root, key_string in plan["keys"]:
+        level(f"In {key_name}, on the {strings[key_string - 1]} string")
         for title, degrees, text in [
             (f"{key_name}: 1, 3 and 5", [0, 4, 7], f"The {key_name} major chord's notes, from the open string."),
             (f"{key_name}: 1 to 5", [0, 2, 4, 5, 7], f"The first five notes of {key_name} major."),
             (f"{key_name}: the whole scale", [0, 2, 4, 5, 7, 9, 11, 12], f"{key_name} major, up the string to its 12th fret."),
         ]:
-            chapter(degrees_chapter(title, root, degrees, string, text))
+            chapter(degrees_chapter(strings, title, key_root, degrees, key_string, text))
 
     # Minor
+    name, root, string = plan["minor"]
     level("Minor")
     for title, degrees, text in [
         ("Major or minor third", [0, 3, 4], "The 3rd decides it: three frets up sounds minor, four sounds major."),
-        ("A minor: 1, b3 and 5", [0, 3, 7], "The A minor chord's notes: A, C and E."),
-        ("A minor: 1 to 5", [0, 2, 3, 5, 7], "The first five notes of A minor."),
-        ("A minor: the whole scale", [0, 2, 3, 5, 7, 8, 10, 12], "All of A minor, up the A string."),
+        (f"{name} minor: 1, b3 and 5", [0, 3, 7], f"The {name} minor chord's notes."),
+        (f"{name} minor: 1 to 5", [0, 2, 3, 5, 7], f"The first five notes of {name} minor."),
+        (f"{name} minor: the whole scale", [0, 2, 3, 5, 7, 8, 10, 12], f"All of {name} minor, up the {strings[string - 1]} string."),
     ]:
-        chapter(degrees_chapter(title, 45, degrees, 2, text))
+        chapter(degrees_chapter(strings, title, root, degrees, string, text))
 
     # Intervals by name, one more each chapter: very different sounds first
     level("Intervals by name")
@@ -138,11 +162,12 @@ def build():
 
 if __name__ == "__main__":
     here = os.path.dirname(os.path.abspath(__file__))
-    path = os.path.join(here, "..", "..", "resources", "courses", "03-ear-training.course")
-    text = build()
-    with open(path, "w") as f:
-        f.write(text)
-    drills = sum(1 for line in text.splitlines() if line.startswith("drill "))
-    chapters = sum(1 for line in text.splitlines() if line.startswith("lesson "))
-    levels = sum(1 for line in text.splitlines() if line.startswith("unit "))
-    print(f"{os.path.normpath(path)}: {levels} levels, {chapters} chapters, {drills} drills")
+    for instrument, file in (("guitar", "03-ear-training.course"), ("bass", "03-ear-training-bass.course")):
+        path = os.path.join(here, "..", "..", "resources", "courses", file)
+        text = build(instrument)
+        with open(path, "w") as f:
+            f.write(text)
+        drills = sum(1 for line in text.splitlines() if line.startswith("drill "))
+        chapters = sum(1 for line in text.splitlines() if line.startswith("lesson "))
+        levels = sum(1 for line in text.splitlines() if line.startswith("unit "))
+        print(f"{os.path.normpath(path)}: {levels} levels, {chapters} chapters, {drills} drills")

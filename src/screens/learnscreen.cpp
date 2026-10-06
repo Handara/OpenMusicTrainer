@@ -27,6 +27,7 @@
 #include <cfloat>
 #include <cmath>
 #include <filesystem>
+#include <functional>
 #include <map>
 #include <memory>
 #include <random>
@@ -51,6 +52,10 @@ static struct {
     // The running exercise, whatever kind it is. unique_ptr owns it: resetting it deletes the exercise
     // (running its destructor), so there's no manual delete to forget.
     std::unique_ptr<Exercise> exercise;
+    InputRole instrument = InputRole::Guitar;         // what's played: only its courses and exercises are listed
+    bool instrumentChanged = false;                   //   switched this frame
+    std::function<std::unique_ptr<Exercise>()> pending; // waiting for the tuning check
+    bool tuningAsked = false;
 } learn;
 
 static std::string progressPath(const std::string& id){
@@ -79,6 +84,45 @@ static std::string playsText(const std::string& id){
 
 static std::string progressPath(const ExerciseEntry& entry){
     return progressPath(entry.id);
+}
+
+// Listed for the instrument played: one of its own, or one for any
+static bool forInstrument(const ExerciseFile& exercise){
+    if (exercise.instrument == ExerciseInstrument::Any) return true;
+    return (exercise.instrument == ExerciseInstrument::Bass) == (learn.instrument == InputRole::Bass);
+}
+static bool forInstrument(const Course& course){
+    return course.bass == (learn.instrument == InputRole::Bass);
+}
+
+// Something to start: played on the instrument, it waits for the tuning check (main asks, learnWantsTuning)
+static void startWhenTuned(bool onInstrument, std::function<std::unique_ptr<Exercise>()> make){
+    if (!onInstrument){
+        learn.exercise = make();
+        return;
+    }
+    learn.pending = std::move(make);
+    learn.tuningAsked = false;
+}
+
+bool learnWantsTuning(InputRole& instrument){
+    if (!learn.pending || learn.tuningAsked) return false;
+    learn.tuningAsked = true;
+    instrument = learn.instrument;
+    return true;
+}
+
+void learnTuningDone(bool go){
+    if (go && learn.pending) learn.exercise = learn.pending();
+    learn.pending = nullptr;
+    learn.tuningAsked = false;
+}
+
+bool learnChangedInstrument(InputRole& instrument){
+    if (!learn.instrumentChanged) return false;
+    learn.instrumentChanged = false;
+    instrument = learn.instrument;
+    return true;
 }
 
 // The only place that knows every exercise type: a new type is a new case here (and its class)
@@ -321,6 +365,8 @@ static void endExercise(){
 
 void openLearnScreen(const LearnSetup& setup){
     learn.setup = setup;
+    learn.instrument = setup.instrument;
+    learn.pending = nullptr;
     learn.exercise.reset();
     refreshExercises();
 }
@@ -530,7 +576,7 @@ static void courseLevels(){
         learn.levelRow = next - course.units[nextChapter.unit].firstLesson;
         learn.levelScroll = -1.0f;
         countPlay(learn.courses[c].id + "-" + nextChapter.id);
-        learn.exercise = openCourseChapter(c, next);
+        startWhenTuned(true, [c, next](){ return openCourseChapter(c, next); });
     } else if (confirmed > 0){
         const int u = confirmed - 1;
         learn.openLevel = u;
@@ -576,7 +622,7 @@ static void levelChapters(){
     if (confirmed >= 0 && !rows[confirmed].locked){
         const int lesson = unit.firstLesson + confirmed;
         countPlay(learn.courses[c].id + "-" + course.lessons[lesson].id);
-        learn.exercise = openCourseChapter(c, lesson);
+        startWhenTuned(true, [c, lesson](){ return openCourseChapter(c, lesson); });
     }
 }
 
@@ -635,7 +681,8 @@ static void exerciseMenu(){
     MenuList* list = &learn.list;
     if (inKind){
         // Inside a category of drills: its exercises, with their progress and how many times each was done
-        for (int i = 0; i < (int)learn.exercises.size(); i++) if (learn.exercises[i].exercise.category == learn.openKind) exerciseRow(i);
+        for (int i = 0; i < (int)learn.exercises.size(); i++)
+            if (learn.exercises[i].exercise.category == learn.openKind && forInstrument(learn.exercises[i].exercise)) exerciseRow(i);
         if (rows.empty()){ // the category is gone (its files were removed meanwhile)
             learn.openKind.clear();
             return;
@@ -646,6 +693,15 @@ static void exerciseMenu(){
         int mode = 0;
         menuSwitchRow("MODE", modes, 2, mode, width * 0.55f, height * 0.09f + 14 * s, s);
         wantsEditor = mode == 1 || ImGui::IsKeyPressed(ImGuiKey_Tab);
+        // Under it, the instrument played: its courses and exercises (I switches)
+        const char* const instruments[] = { "GUITAR", "BASS" };
+        int played = learn.instrument == InputRole::Bass ? 1 : 0;
+        const bool clicked = menuSwitchRow("INSTRUMENT", instruments, 2, played, width * 0.55f, height * 0.165f, s);
+        if (clicked || ImGui::IsKeyPressed(ImGuiKey_I, false)){
+            learn.instrument = (clicked ? played == 1 : learn.instrument == InputRole::Guitar) ? InputRole::Bass : InputRole::Guitar;
+            learn.instrumentChanged = true;
+            for (MenuList& sectionList : learn.sections) sectionList.selected = -1; // the lists changed
+        }
         // Under it, the sections: clicked, or Left and Right
         int section = learn.section;
         menuSwitchRow("SECTION", SECTION_NAMES, SECTION_COUNT, section, width * 0.07f, height * 0.165f, s);
@@ -657,6 +713,7 @@ static void exerciseMenu(){
             // The courses, a path each, then the lessons on their own (the player's)
             for (int i = 0; i < (int)learn.courses.size(); i++){
                 const CourseEntry& entry = learn.courses[i];
+                if (!forInstrument(entry.course)) continue;
                 MenuRow row;
                 row.label = entry.course.title;
                 row.detail = TextFormat("%d%%  ·  %d chapters", coursePercent(entry.course, learn.courseScores[i]), (int)entry.course.lessons.size());
@@ -686,10 +743,11 @@ static void exerciseMenu(){
                 const std::string& category = learn.exercises[i].exercise.category;
                 int count = 0, times = 0;
                 for (; i < learn.exercises.size() && learn.exercises[i].exercise.category == category; i++){
+                    if (!forInstrument(learn.exercises[i].exercise)) continue;
                     count++;
                     times += learn.plays.count(learn.exercises[i].id) ? learn.plays[learn.exercises[i].id].times : 0;
                 }
-                if (category == GAMES_CATEGORY) continue;
+                if (category == GAMES_CATEGORY || count == 0) continue;
                 MenuRow row;
                 row.label = category;
                 row.detail = TextFormat("%d exercise%s", count, count == 1 ? "" : "s");
@@ -698,7 +756,8 @@ static void exerciseMenu(){
             }
             folderRows(false);
         } else {
-            for (int i = 0; i < (int)learn.exercises.size(); i++) if (learn.exercises[i].exercise.category == GAMES_CATEGORY) exerciseRow(i);
+            for (int i = 0; i < (int)learn.exercises.size(); i++)
+                if (learn.exercises[i].exercise.category == GAMES_CATEGORY && forInstrument(learn.exercises[i].exercise)) exerciseRow(i);
             folderRows(false);
         }
     }
@@ -706,7 +765,7 @@ static void exerciseMenu(){
     int confirmed = menuList(*list, rows, area);
     if (list->selected >= 0 && list->selected < (int)targets.size()) drawAbout(targets[list->selected], s);
     menuScreenHint(inKind ? "Up/Down  choose    Enter  start    Esc  back to the drills"
-                          : "Left/Right  section    Up/Down  choose    Enter  open    Tab  edit lessons    Esc  back", s);
+                          : "Left/Right  section    Up/Down  choose    Enter  open    I  guitar or bass    Tab  edit lessons    Esc  back", s);
     if (confirmed < 0) return;
     const LearnRow& target = targets[confirmed];
     if (!kinds[confirmed].empty()){
@@ -717,7 +776,8 @@ static void exerciseMenu(){
         learn.exercise = openLesson(learn.lessons[target.index]);
     } else if (target.kind == LearnRow::Exercise){
         countPlay(learn.exercises[target.index].id);
-        learn.exercise = createExercise(learn.exercises[target.index]);
+        const ExerciseEntry entry = learn.exercises[target.index];
+        startWhenTuned(exercisePlayedOnInstrument(entry.exercise), [entry](){ return createExercise(entry); });
     } else if (target.kind == LearnRow::Course){
         learn.openCourse = target.index;
         learn.openLevel = -1;

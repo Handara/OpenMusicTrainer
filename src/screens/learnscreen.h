@@ -13,10 +13,17 @@ struct LearnSetup {
     std::string userLessons;
     std::string progress;         // one progress file per exercise
     Settings settings;            // input device, offsets, note view... as they are when learn mode opens
+    InputRole instrument = InputRole::Guitar; // what's played: only its courses and exercises are listed
 };
 
 void openLearnScreen(const LearnSetup& setup); // scans both exercise folders
 void learnScreen();  // draws the menu or the running exercise
 bool learnWantsEditor(); // the mode switch beside the title chose EDIT: the lesson editor, this frame
 bool learnBack();    // Esc: ends the running exercise, or (from the menu) returns true to leave learn mode
+// The instrument switch moved this frame (true once): the settings keep it as the one played now
+bool learnChangedInstrument(InputRole& instrument);
+// Something played on the instrument waits to start: it's checked in tune first, as before a song (true once). Then
+// learnTuningDone says whether to go on (tuned, skipped, or no check needed) or not (the check was left).
+bool learnWantsTuning(InputRole& instrument);
+void learnTuningDone(bool go);
 void closeLearnScreen();

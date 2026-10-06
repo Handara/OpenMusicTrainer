@@ -77,7 +77,8 @@ static struct App {
     bool tuned[2] = {false, false}; // the guitar and the bass were checked in tune (or the player skipped it) this session
     SongEntry tuningFor;          // the song and part to go on with once the instrument is tuned...
     int tuningPart = 0;
-    enum class AfterTuning { Play, ChoosePractice, Practise } afterTuning = AfterTuning::Play; // ...and how
+    enum class AfterTuning { Play, ChoosePractice, Practise, Learn } afterTuning = AfterTuning::Play; // ...and how
+    InputRole tuningRole = InputRole::Guitar; // the instrument checked, for Learn (it has no song)
 } app;
 
 // --- Screen transitions -----------------------------------------------------------------------------
@@ -96,9 +97,17 @@ static void goToSongList(Screen listScreen){
     app.screen = listScreen;
 }
 
+static void checkInstruments();
+
 static void goToLearn(){
-    openLearnScreen({app.resourcesDir + "exercises", app.userExercisesDir, app.resourcesDir + "lessons", app.userLessonsDir,
-                     app.progressDir, app.settings});
+    // The instrument played: the only one connected, or else the one played last
+    checkInstruments();
+    InputRole instrument = app.settings.heardInstrument;
+    if (app.guitar.ready != app.bass.ready) instrument = app.guitar.ready ? InputRole::Guitar : InputRole::Bass;
+    LearnSetup setup{ app.resourcesDir + "exercises", app.userExercisesDir, app.resourcesDir + "lessons", app.userLessonsDir,
+                      app.progressDir, app.settings };
+    setup.instrument = instrument;
+    openLearnScreen(setup);
     app.screen = Screen::Learn;
 }
 
@@ -451,8 +460,29 @@ static void chooseSong(const SongEntry& song, int part, bool practice){
     else startSong(song, part);
 }
 
+// Before something in Learn played on the instrument: its standard tuning checked, the first time this session
+static bool goToLearnTuningCheck(InputRole role){
+    const std::vector<int> tuning = role == InputRole::Bass ? std::vector<int>{ 28, 33, 38, 43 } : std::vector<int>{ 40, 45, 50, 55, 59, 64 };
+    const int channel = role == InputRole::Bass ? app.settings.bassChannel : app.settings.guitarChannel;
+    std::string error;
+    if (!openTuningScreen(tuning, role, app.settings.inputDevice, channel, "", error)){
+        TraceLog(LOG_WARNING, "Tuning check: %s", error.c_str());
+        return false;
+    }
+    app.afterTuning = App::AfterTuning::Learn;
+    app.tuningRole = role;
+    app.screen = Screen::TuningCheck;
+    return true;
+}
+
 static void leaveTuningCheck(bool tuned){
     closeTuningScreen();
+    if (app.afterTuning == App::AfterTuning::Learn){
+        if (tuned) app.tuned[(int)app.tuningRole] = true;
+        app.screen = Screen::Learn;
+        learnTuningDone(tuned);
+        return;
+    }
     InputRole role;
     if (!tuned){
         app.screen = Screen::SongSelect;
@@ -463,6 +493,7 @@ static void leaveTuningCheck(bool tuned){
         case App::AfterTuning::Play: startSong(app.tuningFor, app.tuningPart); break;
         case App::AfterTuning::ChoosePractice: goToPractice(app.tuningFor, app.tuningPart, -1, ""); break;
         case App::AfterTuning::Practise: app.currentSong = app.tuningFor; app.currentPart = app.tuningPart; startPractice(); break;
+        case App::AfterTuning::Learn: break; // handled above
     }
 }
 
@@ -693,14 +724,25 @@ static void runMenus(){
                 case TuningChoice::None: break;
             }
             break;
-        case Screen::Learn:
+        case Screen::Learn: {
             learnScreen();
+            // The instrument switched: kept as the one played now (and heard through its tone)
+            InputRole played;
+            if (learnChangedInstrument(played)){
+                hearInstrument(app.settings, played);
+                saveAppSettings();
+            }
+            // Something played on it about to start: in tune first, once a session, as before a song
+            if (learnWantsTuning(played)){
+                if (!(statusOf(played).ready && !app.tuned[(int)played] && goToLearnTuningCheck(played))) learnTuningDone(true);
+            }
             if (learnWantsEditor()){
                 closeLearnScreen();
                 openLessonEditor({app.resourcesDir + "lessons", app.userLessonsDir, app.resourcesDir + "exercises", app.userExercisesDir});
                 app.screen = Screen::LessonEditor;
             }
             break;
+        }
         case Screen::Playing: // the note views are drawn before the UI, with raylib
             float cents;
             if (!gameplayPaused()) drawGameplayHud(); // paused, the menu takes over the screen

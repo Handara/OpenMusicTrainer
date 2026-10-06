@@ -241,7 +241,7 @@ bool parseExercise(const std::string& source, const std::string& path, int first
                 else if (word == "triads") neck.pattern = NeckPattern::Triads;
                 else return lineError("pattern must be every_string, straight, thirds or triads");
             } else if (key == "instrument"){
-                if (word == "guitar" || word == "bass") out.neckOnBass = word == "bass";
+                if (word == "guitar" || word == "bass")out.neckOnBass = word == "bass";
                 else return lineError("instrument must be guitar or bass");
             } else {
                 return lineError("unknown setting '" + key + "' for a neck exercise (known: key, scale, fingering, position, pattern, note, instrument)");
@@ -319,7 +319,7 @@ bool parseExercise(const std::string& source, const std::string& path, int first
                 if (!parseKeySignature(tonic, mode, out.noteQuizKey)) return lineError("expected: key <tonic> <major or minor>, like key G major");
             } else if (key == "instrument"){
                 ss >> word;
-                if (word == "guitar" || word == "bass") out.neckOnBass = word == "bass";
+                if (word == "guitar" || word == "bass")out.neckOnBass = word == "bass";
                 else return lineError("instrument must be guitar or bass");
             } else {
                 return lineError("unknown setting '" + key + "' for play this note (known: notes, places, strings, show, where, candidates, "
@@ -339,7 +339,7 @@ bool parseExercise(const std::string& source, const std::string& path, int first
                 out.walkLevel = neckWalkLevelIndex(word);
                 if (out.walkLevel < 0) return lineError("level must be easy, normal or hard");
             } else if (key == "instrument"){
-                if (word == "guitar" || word == "bass") out.neckOnBass = word == "bass";
+                if (word == "guitar" || word == "bass")out.neckOnBass = word == "bass";
                 else return lineError("instrument must be guitar or bass");
             } else {
                 return lineError("unknown setting '" + key + "' for neck walk (known: tune, level, instrument)");
@@ -479,6 +479,20 @@ bool parseExercise(const std::string& source, const std::string& path, int first
     }
 
     if (out.title.empty()) return fileError("missing 'title'");
+    // What it's played on
+    auto byTuning = [](const std::vector<int>& tuning){
+        return !tuning.empty() && *std::min_element(tuning.begin(), tuning.end()) < 36 ? ExerciseInstrument::Bass : ExerciseInstrument::Guitar;
+    };
+    switch (out.type){
+        case ExerciseType::Notes: case ExerciseType::Neck: case ExerciseType::NeckWalk:
+            out.instrument = out.neckOnBass ? ExerciseInstrument::Bass : ExerciseInstrument::Guitar;
+            break;
+        case ExerciseType::Reading: out.instrument = byTuning(out.reading.tuning); break;
+        case ExerciseType::Scale: out.instrument = byTuning(out.drill.tuning); break;
+        case ExerciseType::Fretboard: out.instrument = byTuning(out.fretboard.tuning); break;
+        case ExerciseType::Chords: out.instrument = ExerciseInstrument::Guitar; break;
+        default: out.instrument = ExerciseInstrument::Any; break;
+    }
     if (out.type == ExerciseType::Routine){
         if (out.routine.empty()) return fileError("a routine needs at least one 'step'");
         return true;
@@ -595,5 +609,15 @@ void checkRoutines(std::vector<ExerciseEntry>& entries){
             else if (found->exercise.type == ExerciseType::Routine) entry.error = fileName + ": step '" + step.exercise + "' is a routine: routines can't contain routines";
             if (!entry.error.empty()) break;
         }
+    }
+}
+
+bool exercisePlayedOnInstrument(const ExerciseFile& exercise){
+    switch (exercise.type){
+        case ExerciseType::Notes: case ExerciseType::Neck: case ExerciseType::NeckWalk: case ExerciseType::Reading:
+        case ExerciseType::Scale: case ExerciseType::Chords: case ExerciseType::Fretboard:
+            return true;
+        default:
+            return false;
     }
 }
