@@ -98,7 +98,8 @@ struct ChapterState {
     bool perfect = false;// every drill at 100%
 };
 ChapterState chapterState(const Course& course, int lesson, const CourseScores& scores);
-bool chapterOpen(const Course& course, int lesson, const CourseScores& scores); // the first, or the one before passed
+// The first, one whose chapter before is passed, or one played in already
+bool chapterOpen(const Course& course, int lesson, const CourseScores& scores);
 int levelPercent(const Course& course, int unit, const CourseScores& scores);
 int coursePercent(const Course& course, const CourseScores& scores);
 int courseContinue(const Course& course, const CourseScores& scores); // the first chapter not passed (the last if all are)

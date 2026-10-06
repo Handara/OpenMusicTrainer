@@ -163,6 +163,11 @@ TEST_CASE("courses: drills scored by their best run; a chapter passed with all o
     recordCourseScore(scores, "words-only-read", 100);
     CHECK(chapterState(course, 2, scores).passed);
     CHECK(levelPercent(course, 1, scores) == 100);
+    // Played in once, a chapter stays open, whatever comes before it
+    CourseScores later;
+    CHECK_FALSE(chapterOpen(course, 1, later));
+    recordCourseScore(later, "second-1", 40);
+    CHECK(chapterOpen(course, 1, later));
     CHECK(levelPercent(course, 0, scores) == 50); // 100 and 0
     // Kept in a file
     const std::string path = (std::filesystem::temp_directory_path() / "lahn-course-scores-test.txt").string();

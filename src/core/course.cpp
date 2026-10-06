@@ -282,7 +282,10 @@ ChapterState chapterState(const Course& course, int lesson, const CourseScores& 
 }
 
 bool chapterOpen(const Course& course, int lesson, const CourseScores& scores){
-    return lesson <= 0 || chapterState(course, lesson - 1, scores).passed;
+    if (lesson <= 0 || chapterState(course, lesson - 1, scores).passed) return true;
+    // Once played in, it stays open (a drill added to a chapter before it later doesn't close it again)
+    for (const CourseDrill& drill : courseDrills(course, lesson)) if (scores.best.count(drill.id)) return true;
+    return lesson < (int)course.lessons.size() && scores.best.count(course.lessons[lesson].id + "-read") > 0;
 }
 
 int levelPercent(const Course& course, int unit, const CourseScores& scores){
