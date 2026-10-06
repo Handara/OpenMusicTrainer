@@ -1,32 +1,11 @@
 #include "core/groove.h"
 
+#include "core/music.h"
 #include "core/scales.h"
 
 #include <cctype>
 #include <fstream>
 #include <sstream>
-
-// "F#3", "Bb1", "C4" -> MIDI (C4 = 60); false if it isn't one
-static bool parseNote(const std::string& text, int& pitch){
-    const int LETTER_PITCHES[7] = { 9, 11, 0, 2, 4, 5, 7 }; // A B C D E F G
-    if (text.size() < 2) return false;
-    const char letter = (char)std::toupper((unsigned char)text[0]);
-    if (letter < 'A' || letter > 'G') return false;
-    int semitone = LETTER_PITCHES[letter - 'A'];
-    size_t at = 1;
-    if (text[at] == '#'){ semitone++; at++; }
-    else if (text[at] == 'b'){ semitone--; at++; }
-    if (at >= text.size()) return false;
-    try {
-        size_t used = 0;
-        const int octave = std::stoi(text.substr(at), &used);
-        if (at + used != text.size()) return false;
-        pitch = (octave + 1) * 12 + semitone;
-    } catch (...){
-        return false;
-    }
-    return pitch >= 0 && pitch <= 127;
-}
 
 static bool parseDrum(const std::string& name, KitDrum& drum){
     if (name == "kick") drum = KitDrum::Kick;
@@ -78,7 +57,7 @@ bool parseGroove(const std::string& text, Groove& groove, std::string& error){
             } else if (partName == "guitar" || partName == "bass"){
                 hit.part = partName == "bass" ? GroovePart::Bass : GroovePart::Guitar;
                 std::string note;
-                if (!(words >> hit.length >> note) || !parseNote(note, hit.pitch)) return fail("expected <length in beats> <note, like F#3>");
+                if (!(words >> hit.length >> note) || !parseNoteName(note, hit.pitch)) return fail("expected <length in beats> <note, like F#3>");
             } else {
                 return fail("unknown part '" + partName + "' (guitar, bass or drums)");
             }

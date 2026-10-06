@@ -1,5 +1,6 @@
 #include "core/music.h"
 
+#include <cctype>
 #include <cmath>
 
 const float A4_FREQUENCY = 440.0f;
@@ -22,4 +23,27 @@ float frequencyToMidi(float frequency){
 
 float midiToFrequency(float midiPitch){
     return A4_FREQUENCY * std::exp2((midiPitch - A4_MIDI) / 12.0f);
+}
+
+bool parseNoteName(const std::string& text, int& pitch){
+    const int LETTER_PITCHES[7] = { 9, 11, 0, 2, 4, 5, 7 }; // A B C D E F G
+    if (text.size() < 2) return false;
+    const char letter = (char)std::toupper((unsigned char)text[0]);
+    if (letter < 'A' || letter > 'G') return false;
+    int semitone = LETTER_PITCHES[letter - 'A'];
+    size_t at = 1;
+    if (text[at] == '#'){ semitone++; at++; }
+    else if (text[at] == 'b'){ semitone--; at++; }
+    if (at >= text.size()) return false;
+    int octave = 0;
+    bool negative = text[at] == '-';
+    if (negative) at++;
+    if (at >= text.size()) return false;
+    for (; at < text.size(); at++){
+        if (!std::isdigit((unsigned char)text[at])) return false;
+        octave = octave * 10 + (text[at] - '0');
+        if (octave > 10) return false;
+    }
+    pitch = ((negative ? -octave : octave) + 1) * 12 + semitone;
+    return pitch >= 0 && pitch <= 127;
 }
