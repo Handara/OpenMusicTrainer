@@ -54,7 +54,7 @@
 // A rhythm drill (`type rhythm`) reads a new rhythm each pass, all optional:
 //   cells quarter eighths rest   (the beat-long figures it's built from: quarter, rest, eighths, offbeat, triplets,
 //                                 sixteenths, gallop, reverse_gallop, dotted)
-//   bars 2                       (1 to 8)
+//   bars 2                       (1 to 16)
 //   time 4                       (beats per bar, 2 to 7: x/4)
 //   tempo 60 140 4               (start, goal, step, in bpm)
 //   pass 90                      (percent right for a pass to count as clean and speed up)

@@ -27,8 +27,8 @@ drill To a beat
 type reading
 notes G2
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -65,8 +65,8 @@ drill To a beat
 type reading
 notes G2 A2
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -103,8 +103,8 @@ drill To a beat
 type reading
 notes G2 A2 B2
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -141,8 +141,8 @@ drill To a beat
 type reading
 notes G2 A2 B2 C3
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -172,8 +172,8 @@ drill To a beat
 type reading
 notes G2 A2 B2 C3
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -206,8 +206,8 @@ drill To a beat
 type reading
 notes G2 A2 B2 C3 D2
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -250,8 +250,8 @@ drill To a beat
 type reading
 notes G2 A2 B2 C3 D2 E2
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -294,8 +294,8 @@ drill To a beat
 type reading
 notes G2 A2 B2 C3 D2 E2 F2
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -325,8 +325,8 @@ drill To a beat
 type reading
 notes G2 A2 B2 C3 D2 E2 F2
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -359,8 +359,8 @@ drill To a beat
 type reading
 notes G2 A2 B2 C3 D2 E2 F2 A1
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -403,8 +403,8 @@ drill To a beat
 type reading
 notes G2 A2 B2 C3 D2 E2 F2 A1 B1
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -447,8 +447,8 @@ drill To a beat
 type reading
 notes A2 B2 C3 D2 E2 F2 A1 B1 C2
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -478,8 +478,8 @@ drill To a beat
 type reading
 notes A2 B2 C3 D2 E2 F2 A1 B1 C2
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -513,8 +513,8 @@ drill To a beat
 type reading
 notes B2 C3 D2 E2 F2 A1 B1 C2 E1
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -557,8 +557,8 @@ drill To a beat
 type reading
 notes C3 D2 E2 F2 A1 B1 C2 E1 F1
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -601,8 +601,8 @@ drill To a beat
 type reading
 notes D2 E2 F2 A1 B1 C2 E1 F1 G1
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -632,8 +632,8 @@ drill To a beat
 type reading
 notes D2 E2 F2 A1 B1 C2 E1 F1 G1
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -666,8 +666,8 @@ drill To a beat
 type reading
 notes D2 E2 F2 G2 A2 B2 C3
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -697,8 +697,8 @@ drill To a beat
 type reading
 notes E1 F1 G1 A1 B1 C2
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -728,8 +728,8 @@ drill To a beat
 type reading
 notes A1 B1 C2 D2 E2 F2
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -759,8 +759,8 @@ drill To a beat
 type reading
 notes E1 G1 C2 F2 A2 C3
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -790,8 +790,8 @@ drill To a beat
 type reading
 notes E1 F1 G1 A1 B1 C2 D2 E2 F2 G2 A2 B2 C3
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -837,8 +837,8 @@ drill To a beat
 type reading
 notes E2 F2 A1 B1 C2 E1 F1 G1 D3
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -881,8 +881,8 @@ drill To a beat
 type reading
 notes F2 A1 B1 C2 E1 F1 G1 D3 E3
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -925,8 +925,8 @@ drill To a beat
 type reading
 notes A1 B1 C2 E1 F1 G1 D3 E3 F3
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -969,8 +969,8 @@ drill To a beat
 type reading
 notes B1 C2 E1 F1 G1 D3 E3 F3 G3
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -1017,8 +1017,8 @@ drill To a beat
 type reading
 notes C2 E1 F1 G1 D3 E3 F3 G3 F#1
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -1061,8 +1061,8 @@ drill To a beat
 type reading
 notes E1 F1 G1 D3 E3 F3 G3 F#1 C#2
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -1106,8 +1106,8 @@ drill To a beat
 type reading
 notes F1 G1 D3 E3 F3 G3 F#1 C#2 Bb1
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -1150,8 +1150,8 @@ drill To a beat
 type reading
 notes G1 D3 E3 F3 G3 F#1 C#2 Bb1 Eb2
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -1194,8 +1194,8 @@ drill To a beat
 type reading
 notes D3 E3 F3 G3 F#1 C#2 Bb1 Eb2 F#2
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -1238,8 +1238,8 @@ drill To a beat
 type reading
 notes E3 F3 G3 F#1 C#2 Bb1 Eb2 F#2 G#2
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -1282,8 +1282,8 @@ drill To a beat
 type reading
 notes F3 G3 F#1 C#2 Bb1 Eb2 F#2 G#2 Bb2
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -1326,8 +1326,8 @@ drill To a beat
 type reading
 notes G3 F#1 C#2 Bb1 Eb2 F#2 G#2 Bb2 G#1
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 tuning 28 33 38 43
@@ -1363,8 +1363,8 @@ drill To a beat
 type reading
 notes G1 A1 B1 C2 D2 E2 F#2 G2 A2 B2 C3
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 key G
@@ -1399,8 +1399,8 @@ drill To a beat
 type reading
 notes A1 B1 C#2 D2 E2 F#2 G2 A2 B2 C#3
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 key D
@@ -1435,8 +1435,8 @@ drill To a beat
 type reading
 notes F1 G1 A1 Bb1 C2 D2 E2 F2 G2 A2 Bb2 C3
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 key F
@@ -1471,8 +1471,8 @@ drill To a beat
 type reading
 notes E1 F#1 G#1 A1 B1 C#2 D2 E2 F#2 G#2 A2
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 key A
@@ -1507,8 +1507,8 @@ drill To a beat
 type reading
 notes F1 G1 A1 Bb1 C2 D2 Eb2 F2 G2 A2 Bb2
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 key Bb
@@ -1543,8 +1543,8 @@ drill To a beat
 type reading
 notes E1 F#1 G#1 A1 B1 C#2 D#2 E2 F#2 G#2 B2
 cells quarter
-bars 2
-tempo 50 70 5
+bars 10
+tempo 100 120 5
 pass 80
 goal 1
 key E
@@ -1564,8 +1564,8 @@ frets 0 5
 strings 3 4
 leap 2
 cells quarter
-bars 2
-tempo 50 60 5
+bars 10
+tempo 60 80 5
 goal 1
 tuning 28 33 38 43
 drill Steady
@@ -1576,8 +1576,8 @@ frets 0 5
 strings 3 4
 leap 2
 cells quarter
-bars 2
-tempo 60 75 5
+bars 10
+tempo 75 100 5
 goal 1
 tuning 28 33 38 43
 drill Moving on
@@ -1588,8 +1588,8 @@ frets 0 5
 strings 3 4
 leap 2
 cells quarter
-bars 2
-tempo 75 95 5
+bars 10
+tempo 90 120 5
 goal 1
 tuning 28 33 38 43
 
@@ -1603,8 +1603,8 @@ frets 0 5
 strings 2 3 4
 leap 2
 cells quarter
-bars 2
-tempo 50 60 5
+bars 10
+tempo 60 80 5
 goal 1
 tuning 28 33 38 43
 drill Steady
@@ -1615,8 +1615,8 @@ frets 0 5
 strings 2 3 4
 leap 2
 cells quarter
-bars 2
-tempo 60 75 5
+bars 10
+tempo 75 100 5
 goal 1
 tuning 28 33 38 43
 drill Moving on
@@ -1627,8 +1627,8 @@ frets 0 5
 strings 2 3 4
 leap 2
 cells quarter
-bars 2
-tempo 75 95 5
+bars 10
+tempo 90 120 5
 goal 1
 tuning 28 33 38 43
 
@@ -1642,8 +1642,8 @@ frets 0 5
 strings 2 3 4
 leap 2
 cells quarter rest
-bars 2
-tempo 50 60 5
+bars 10
+tempo 60 80 5
 goal 1
 tuning 28 33 38 43
 drill Steady
@@ -1654,8 +1654,8 @@ frets 0 5
 strings 2 3 4
 leap 2
 cells quarter rest
-bars 2
-tempo 60 75 5
+bars 10
+tempo 75 100 5
 goal 1
 tuning 28 33 38 43
 drill Moving on
@@ -1666,8 +1666,8 @@ frets 0 5
 strings 2 3 4
 leap 2
 cells quarter rest
-bars 2
-tempo 75 95 5
+bars 10
+tempo 90 120 5
 goal 1
 tuning 28 33 38 43
 
@@ -1681,8 +1681,8 @@ frets 0 5
 strings 1 2 3 4
 leap 2
 cells quarter rest
-bars 2
-tempo 50 60 5
+bars 10
+tempo 60 80 5
 goal 1
 tuning 28 33 38 43
 drill Steady
@@ -1693,8 +1693,8 @@ frets 0 5
 strings 1 2 3 4
 leap 2
 cells quarter rest
-bars 2
-tempo 60 75 5
+bars 10
+tempo 75 100 5
 goal 1
 tuning 28 33 38 43
 drill Moving on
@@ -1705,8 +1705,8 @@ frets 0 5
 strings 1 2 3 4
 leap 2
 cells quarter rest
-bars 2
-tempo 75 95 5
+bars 10
+tempo 90 120 5
 goal 1
 tuning 28 33 38 43
 
@@ -1720,8 +1720,8 @@ frets 0 5
 strings 2 3 4
 leap 2
 cells quarter eighths
-bars 2
-tempo 50 60 5
+bars 10
+tempo 60 80 5
 goal 1
 tuning 28 33 38 43
 drill Steady
@@ -1732,8 +1732,8 @@ frets 0 5
 strings 2 3 4
 leap 2
 cells quarter eighths
-bars 2
-tempo 60 75 5
+bars 10
+tempo 75 100 5
 goal 1
 tuning 28 33 38 43
 drill Moving on
@@ -1744,8 +1744,8 @@ frets 0 5
 strings 2 3 4
 leap 2
 cells quarter eighths
-bars 2
-tempo 75 95 5
+bars 10
+tempo 90 120 5
 goal 1
 tuning 28 33 38 43
 
@@ -1759,8 +1759,8 @@ frets 0 5
 strings 1 2 3 4
 leap 2
 cells quarter eighths rest
-bars 2
-tempo 50 60 5
+bars 10
+tempo 60 80 5
 goal 1
 tuning 28 33 38 43
 drill Steady
@@ -1771,8 +1771,8 @@ frets 0 5
 strings 1 2 3 4
 leap 2
 cells quarter eighths rest
-bars 2
-tempo 60 75 5
+bars 10
+tempo 75 100 5
 goal 1
 tuning 28 33 38 43
 drill Moving on
@@ -1783,8 +1783,8 @@ frets 0 5
 strings 1 2 3 4
 leap 2
 cells quarter eighths rest
-bars 2
-tempo 75 95 5
+bars 10
+tempo 90 120 5
 goal 1
 tuning 28 33 38 43
 
@@ -1798,8 +1798,8 @@ frets 0 5
 strings 2 3 4
 leap 2
 cells quarter offbeat rest
-bars 2
-tempo 50 60 5
+bars 10
+tempo 60 80 5
 goal 1
 tuning 28 33 38 43
 drill Steady
@@ -1810,8 +1810,8 @@ frets 0 5
 strings 2 3 4
 leap 2
 cells quarter offbeat rest
-bars 2
-tempo 60 75 5
+bars 10
+tempo 75 100 5
 goal 1
 tuning 28 33 38 43
 drill Moving on
@@ -1822,8 +1822,8 @@ frets 0 5
 strings 2 3 4
 leap 2
 cells quarter offbeat rest
-bars 2
-tempo 75 95 5
+bars 10
+tempo 90 120 5
 goal 1
 tuning 28 33 38 43
 
@@ -1837,8 +1837,8 @@ frets 0 5
 strings 2 3 4
 leap 2
 cells quarter dotted
-bars 2
-tempo 50 60 5
+bars 10
+tempo 60 80 5
 goal 1
 tuning 28 33 38 43
 drill Steady
@@ -1849,8 +1849,8 @@ frets 0 5
 strings 2 3 4
 leap 2
 cells quarter dotted
-bars 2
-tempo 60 75 5
+bars 10
+tempo 75 100 5
 goal 1
 tuning 28 33 38 43
 drill Moving on
@@ -1861,8 +1861,8 @@ frets 0 5
 strings 2 3 4
 leap 2
 cells quarter dotted
-bars 2
-tempo 75 95 5
+bars 10
+tempo 90 120 5
 goal 1
 tuning 28 33 38 43
 
@@ -1876,8 +1876,8 @@ frets 0 5
 strings 3 4
 leap 2
 cells quarter triplets
-bars 2
-tempo 50 60 5
+bars 10
+tempo 60 80 5
 goal 1
 tuning 28 33 38 43
 drill Steady
@@ -1888,8 +1888,8 @@ frets 0 5
 strings 3 4
 leap 2
 cells quarter triplets
-bars 2
-tempo 60 75 5
+bars 10
+tempo 75 100 5
 goal 1
 tuning 28 33 38 43
 drill Moving on
@@ -1900,8 +1900,8 @@ frets 0 5
 strings 3 4
 leap 2
 cells quarter triplets
-bars 2
-tempo 75 95 5
+bars 10
+tempo 90 120 5
 goal 1
 tuning 28 33 38 43
 
@@ -1915,8 +1915,8 @@ frets 0 5
 strings 3 4
 leap 2
 cells quarter sixteenths
-bars 2
-tempo 50 60 5
+bars 10
+tempo 60 80 5
 goal 1
 tuning 28 33 38 43
 drill Steady
@@ -1927,8 +1927,8 @@ frets 0 5
 strings 3 4
 leap 2
 cells quarter sixteenths
-bars 2
-tempo 60 75 5
+bars 10
+tempo 75 100 5
 goal 1
 tuning 28 33 38 43
 drill Moving on
@@ -1939,8 +1939,8 @@ frets 0 5
 strings 3 4
 leap 2
 cells quarter sixteenths
-bars 2
-tempo 75 95 5
+bars 10
+tempo 90 120 5
 goal 1
 tuning 28 33 38 43
 
@@ -1957,8 +1957,8 @@ frets 0 5
 strings 1 2 3 4
 leap 2
 cells quarter eighths rest
-bars 2
-tempo 50 60 5
+bars 10
+tempo 60 80 5
 goal 1
 tuning 28 33 38 43
 drill Steady
@@ -1969,8 +1969,8 @@ frets 0 5
 strings 1 2 3 4
 leap 2
 cells quarter eighths rest
-bars 2
-tempo 60 75 5
+bars 10
+tempo 75 100 5
 goal 1
 tuning 28 33 38 43
 drill Moving on
@@ -1981,8 +1981,8 @@ frets 0 5
 strings 1 2 3 4
 leap 2
 cells quarter eighths rest
-bars 2
-tempo 75 95 5
+bars 10
+tempo 90 120 5
 goal 1
 tuning 28 33 38 43
 
@@ -1996,8 +1996,8 @@ frets 0 5
 strings 1 2 3 4
 leap 2
 cells quarter eighths rest
-bars 2
-tempo 50 60 5
+bars 10
+tempo 60 80 5
 goal 1
 tuning 28 33 38 43
 drill Steady
@@ -2008,8 +2008,8 @@ frets 0 5
 strings 1 2 3 4
 leap 2
 cells quarter eighths rest
-bars 2
-tempo 60 75 5
+bars 10
+tempo 75 100 5
 goal 1
 tuning 28 33 38 43
 drill Moving on
@@ -2020,8 +2020,8 @@ frets 0 5
 strings 1 2 3 4
 leap 2
 cells quarter eighths rest
-bars 2
-tempo 75 95 5
+bars 10
+tempo 90 120 5
 goal 1
 tuning 28 33 38 43
 
@@ -2035,8 +2035,8 @@ frets 0 5
 strings 1 2 3 4
 leap 2
 cells quarter eighths rest
-bars 2
-tempo 50 60 5
+bars 10
+tempo 60 80 5
 goal 1
 tuning 28 33 38 43
 drill Steady
@@ -2047,8 +2047,8 @@ frets 0 5
 strings 1 2 3 4
 leap 2
 cells quarter eighths rest
-bars 2
-tempo 60 75 5
+bars 10
+tempo 75 100 5
 goal 1
 tuning 28 33 38 43
 drill Moving on
@@ -2059,8 +2059,8 @@ frets 0 5
 strings 1 2 3 4
 leap 2
 cells quarter eighths rest
-bars 2
-tempo 75 95 5
+bars 10
+tempo 90 120 5
 goal 1
 tuning 28 33 38 43
 
@@ -2074,8 +2074,8 @@ frets 0 5
 strings 1 2 3 4
 leap 2
 cells quarter eighths rest
-bars 2
-tempo 50 60 5
+bars 10
+tempo 60 80 5
 goal 1
 tuning 28 33 38 43
 drill Steady
@@ -2086,8 +2086,8 @@ frets 0 5
 strings 1 2 3 4
 leap 2
 cells quarter eighths rest
-bars 2
-tempo 60 75 5
+bars 10
+tempo 75 100 5
 goal 1
 tuning 28 33 38 43
 drill Moving on
@@ -2098,8 +2098,8 @@ frets 0 5
 strings 1 2 3 4
 leap 2
 cells quarter eighths rest
-bars 2
-tempo 75 95 5
+bars 10
+tempo 90 120 5
 goal 1
 tuning 28 33 38 43
 
@@ -2113,8 +2113,8 @@ frets 0 5
 strings 1 2 3 4
 leap 2
 cells quarter eighths rest
-bars 2
-tempo 50 60 5
+bars 10
+tempo 60 80 5
 goal 1
 tuning 28 33 38 43
 drill Steady
@@ -2125,8 +2125,8 @@ frets 0 5
 strings 1 2 3 4
 leap 2
 cells quarter eighths rest
-bars 2
-tempo 60 75 5
+bars 10
+tempo 75 100 5
 goal 1
 tuning 28 33 38 43
 drill Moving on
@@ -2137,7 +2137,7 @@ frets 0 5
 strings 1 2 3 4
 leap 2
 cells quarter eighths rest
-bars 2
-tempo 75 95 5
+bars 10
+tempo 90 120 5
 goal 1
 tuning 28 33 38 43

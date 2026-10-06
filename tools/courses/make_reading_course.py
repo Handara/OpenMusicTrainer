@@ -11,7 +11,7 @@ Each chapter brings in its new notes the same way, always in a random order (not
   3. the same with no hints (a slip shows where it was)
   4. mixed with what's been learned so far
   5. no slips allowed
-  6. to a beat: the same notes at random on a metronome, faster as it's passed
+  6. to a beat: the same notes at random on a metronome, forty of them, from 100 bpm, faster as it's passed
 Then come levels read to a beat (the timed reading drill), more and more rhythms, then key signatures.
 """
 
@@ -142,7 +142,8 @@ def note_chapter(instrument, title, new, string_notes, known, key=None, intro=No
 
 def beat_drill(instrument, notes, key=None):
     """The chapter's notes at random, to a metronome: read in time, a little faster each clean pass"""
-    lines = ["drill To a beat", "type reading", "notes " + " ".join(notes), "cells quarter", "bars 2", "tempo 50 70 5", "pass 80", "goal 1"]
+    lines = ["drill To a beat", "type reading", "notes " + " ".join(notes), "cells quarter", f"bars {BEAT_BARS}", "tempo 100 120 5", "pass 80",
+             "goal 1"]
     if key:
         tonic, mode = key.split()
         lines += [f"key {tonic}", f"scale {'major' if mode == 'major' else 'minor'}"]
@@ -167,14 +168,15 @@ def timed_chapter(instrument, title, text, strings, frets, cells, tempos, key="C
     lines = [f"lesson {title}", f"text {text}"]
     for label, start, goal in tempos:
         lines += [f"drill {label}", "type reading", f"key {tonic}", f"scale {scale}", f"frets {frets[0]} {frets[1]}",
-                  "strings " + " ".join(str(s) for s in strings), f"leap {leap}", "cells " + " ".join(cells), "bars 2",
+                  "strings " + " ".join(str(s) for s in strings), f"leap {leap}", "cells " + " ".join(cells), f"bars {BEAT_BARS}",
                   f"tempo {start} {goal} 5", "goal 1"]
         if instrument is BASS:
             lines.append("tuning " + " ".join(str(p) for p in BASS.tuning))
     return lines
 
 
-SLOW = [("Slowly", 50, 60), ("Steady", 60, 75), ("Moving on", 75, 95)]
+BEAT_BARS = 10  # a run to a beat: ten bars, forty quarter notes
+SLOW = [("Slowly", 60, 80), ("Steady", 75, 100), ("Moving on", 90, 120)]
 
 # What each instrument's course goes through: its open strings, top to bottom, a note a chapter; then what follows
 PLANS = {

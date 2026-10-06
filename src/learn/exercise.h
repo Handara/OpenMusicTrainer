@@ -25,6 +25,9 @@ public:
     // keep its best. False for exercises that don't score runs (the course falls back on lessonScore).
     virtual bool takeFinishedRun(int& percent){ (void)percent; return false; }
     virtual bool scoresRuns() const { return false; }
+    // It goes on after a run passes, the next one harder (a timed drill, faster): a course doesn't move on by itself
+    // from it, the player does
+    virtual bool goesOn() const { return false; }
 };
 
 struct ExerciseEntry;

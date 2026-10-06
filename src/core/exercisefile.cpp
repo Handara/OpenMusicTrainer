@@ -55,7 +55,7 @@ static bool readRhythmSetting(const std::string& key, std::istringstream& ss, Co
         }
         if (config.cells.empty()) lineError("expected: cells <names>");
     } else if (key == "bars"){
-        if (!(ss >> config.bars) || config.bars < 1 || config.bars > 8) lineError("bars must be 1 to 8");
+        if (!(ss >> config.bars) || config.bars < 1 || config.bars > 16) lineError("bars must be 1 to 16");
     } else if (key == "time"){
         if (!(ss >> config.beatsPerBar) || config.beatsPerBar < 2 || config.beatsPerBar > 7) lineError("time must be 2 to 7 beats a bar");
     } else if (key == "tuning"){

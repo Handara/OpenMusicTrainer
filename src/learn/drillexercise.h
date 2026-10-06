@@ -36,6 +36,7 @@ public:
     int lessonScore() const override { return cleanPassesNow; }
     bool takeFinishedRun(int& percent) override;
     bool scoresRuns() const override { return true; }
+    bool goesOn() const override { return true; } // each clean pass, faster
 
 private:
     void startPass(bool fresh); // fresh: new notes from the setup (not for the first pass: it plays what's shown)
