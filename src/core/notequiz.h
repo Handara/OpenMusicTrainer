@@ -8,16 +8,19 @@
 
 // "Play this note": a few notes asked one at a time, with no clock: the player plays each when ready and gets the
 // next. Small enough for a first time on an instrument (the place shown on the neck: "the open high E string"), then
-// for learning the notes' names, then for reading (the note on the staff). Pure logic: which notes, in what order,
-// and how the player did; the screen shows them (learn/notequizexercise).
+// for learning the notes' names, for reading (the note on the staff), and for the ear (the note heard, played back).
+// Pure logic: which notes, in what order, and how the player did; the screen shows them (learn/notequizexercise).
 
-enum class NotePrompt { Neck, Name, Staff }; // what's shown: where it's played, its name, the note written
+// What's given: where it's played, its name, the note written, or the note heard
+enum class NotePrompt { Neck, Name, Staff, Ear };
 
 struct NoteQuizConfig {
     std::vector<int> tuning = { 40, 45, 50, 55, 59, 64 };
     std::vector<NeckStep> notes; // the notes asked, each where it's played (string 0 the lowest)
     NotePrompt prompt = NotePrompt::Neck;
     bool showWhere = false;      // the place on the neck shown too (a name or a note on the staff): to learn it
+    bool candidates = false;     // every note that could be asked outlined on the neck (by ear: which one is it?)
+    int reference = -1;          // by ear: a note played before each one (the key's root), -1 for none
     bool anyOctave = false;      // the note's name is enough, in any octave
     bool inOrder = false;        // asked in the order written, going round; otherwise at random
     int count = 8;               // notes asked in a run

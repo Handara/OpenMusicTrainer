@@ -203,7 +203,7 @@ bool parseExercise(const std::string& source, const std::string& path, int first
     std::vector<int> quizPitches, quizStrings;
     std::vector<std::pair<int, int>> quizPlaces; // string (1 = the lowest), fret
     int quizNotesLine = 0;
-    bool quizOctaveSet = false;
+    bool quizOctaveSet = false, quizCandidatesSet = false;
     for (const Line& line : lines){
         lineNumber = line.number;
         std::istringstream ss(line.rest);
@@ -284,11 +284,22 @@ bool parseExercise(const std::string& source, const std::string& path, int first
                 if (word == "neck") quiz.prompt = NotePrompt::Neck;
                 else if (word == "name") quiz.prompt = NotePrompt::Name;
                 else if (word == "staff") quiz.prompt = NotePrompt::Staff;
-                else return lineError("show must be neck, name or staff");
+                else if (word == "ear"){
+                    quiz.prompt = NotePrompt::Ear;
+                    if (!quizCandidatesSet) quiz.candidates = true;
+                } else return lineError("show must be neck, name, staff or ear");
             } else if (key == "where"){
                 ss >> word;
                 if (word != "yes" && word != "no") return lineError("where must be yes or no");
                 quiz.showWhere = word == "yes";
+            } else if (key == "candidates"){
+                ss >> word;
+                if (word != "yes" && word != "no") return lineError("candidates must be yes or no");
+                quiz.candidates = word == "yes";
+                quizCandidatesSet = true;
+            } else if (key == "reference"){
+                ss >> word;
+                if (!parseNoteName(word, quiz.reference)) return lineError("expected: reference <a note, like E4>");
             } else if (key == "octave"){
                 ss >> word;
                 if (word != "any" && word != "exact") return lineError("octave must be any or exact");
@@ -311,8 +322,8 @@ bool parseExercise(const std::string& source, const std::string& path, int first
                 if (word == "guitar" || word == "bass") out.neckOnBass = word == "bass";
                 else return lineError("instrument must be guitar or bass");
             } else {
-                return lineError("unknown setting '" + key + "' for play this note (known: notes, places, strings, show, where, octave, "
-                                 "order, count, pass, key, instrument)");
+                return lineError("unknown setting '" + key + "' for play this note (known: notes, places, strings, show, where, candidates, "
+                                 "reference, octave, order, count, pass, key, instrument)");
             }
             continue;
         }

@@ -14,7 +14,8 @@
 #include <vector>
 
 // Play this note (core/notequiz): a few notes asked one at a time, no clock, on play mode's neck. A note is asked by
-// where it's played (the card lit: "Play the open high E string"), by its name, or written on the staff; played
+// where it's played (the card lit: "Play the open high E string"), by its name, written on the staff, or by ear (it
+// plays, the notes it could be outlined on the neck, Space to hear it again); played
 // right, the next; played wrong, what it was and where the right one is. A run of them passes with enough right the
 // first time, and the crowd cheers. The smallest step there is, for someone who's never played.
 class NoteQuizExercise : public Exercise {
@@ -31,6 +32,7 @@ public:
 
 private:
     void startRun();
+    void playPrompt();      // by ear: the reference, then the note asked
     void played(int pitch);
     void finish();
     std::string promptText() const;
@@ -51,6 +53,9 @@ private:
     int passedNow = 0;
     int finishedPercent = -1; // a run just ended, its score: until it's taken
     double rightAt = -100.0, wrongAt = -100.0, finishedAt = -100.0;
+    double playPromptAt = -1.0;  // by ear: when to play the note asked (GetTime), -1 for not to
+    double soundingUntil = -1.0; //   while it sounds, what's heard is lahn's own (a microphone hears the speakers)
+    double heardAt = -100.0;     //   when the note asked started sounding: a ring pulses with it
     NeckStep lastRight{ -1, -1, -1 }; // the note just played right: its ring
     // The prompts written down, for the staff: a bar of four at a time, the one now lit
     Chart chart;

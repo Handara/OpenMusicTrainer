@@ -24,6 +24,11 @@ const float CHEER_S = 1.6f;
 const float CHEER_VOLUME = 0.7f;
 const int STAFF_NOTES_A_BAR = 4;
 const float STAFF_EASE = 8.0f;     // how fast the staff follows to the note now
+const double FIRST_PROMPT_S = 0.6; // by ear: the first note asked plays this long after the run starts
+const double NEXT_PROMPT_S = 0.9;  //   the next, this long after a right one (it rings out first)
+const float REFERENCE_S = 0.8f;    //   the reference note, then the one asked
+const float PROMPT_S = 1.4f;
+const float PROMPT_VOLUME = 0.85f;
 
 // "an E", "a G": a note's name with its article, as it's said
 static std::string withArticle(const char* name){
@@ -67,10 +72,25 @@ void NoteQuizExercise::startRun(){
         staffNotes.push_back(play);
     }
     shownTime = 0.0f;
+    if (config.prompt == NotePrompt::Ear) playPromptAt = GetTime() + FIRST_PROMPT_S;
+}
+
+void NoteQuizExercise::playPrompt(){
+    if (run.next >= run.prompts.size()) return;
+    double at = audioTime() + 0.05;
+    const double start = at;
+    if (config.reference >= 0){
+        playStringNoteAt(midiToFrequency((float)config.reference), onBass, REFERENCE_S, at, PROMPT_VOLUME);
+        at += REFERENCE_S;
+    }
+    playStringNoteAt(midiToFrequency((float)run.prompts[run.next].pitch), onBass, PROMPT_S, at, PROMPT_VOLUME);
+    heardAt = GetTime() + (at - start);
+    soundingUntil = GetTime() + (at - start) + PROMPT_S * 0.6;
 }
 
 void NoteQuizExercise::played(int pitch){
     if (finished) return;
+    if (config.prompt == NotePrompt::Ear && GetTime() < soundingUntil) return; // lahn's own note, heard through a microphone
     const size_t asked = run.next;
     if (playNoteQuiz(run, config, pitch)){
         rightAt = GetTime();
@@ -81,6 +101,7 @@ void NoteQuizExercise::played(int pitch){
         }
         playHitSound(true);
         if (noteQuizDone(run)) finish();
+        else if (config.prompt == NotePrompt::Ear) playPromptAt = GetTime() + NEXT_PROMPT_S;
     } else {
         wrongAt = GetTime();
     }
@@ -104,6 +125,12 @@ void NoteQuizExercise::finish(){
 void NoteQuizExercise::update(){
     if (listening) for (const PlayedNote& note : updateNoteInput()) played(note.pitch);
     if (finished && ImGui::IsKeyPressed(ImGuiKey_Space, false)) startRun();
+    else if (config.prompt == NotePrompt::Ear && !finished && (ImGui::IsKeyPressed(ImGuiKey_Space, false) || ImGui::IsKeyPressed(ImGuiKey_R, false)))
+        playPrompt(); // hear it again
+    if (playPromptAt >= 0.0 && GetTime() >= playPromptAt){
+        playPromptAt = -1.0;
+        playPrompt();
+    }
     // The staff follows to the note now
     const float target = staffNotes.empty() ? 0.0f : staffNotes[std::min(run.next, staffNotes.size() - 1)].time;
     shownTime += (target - shownTime) * std::min(1.0f, GetFrameTime() * STAFF_EASE);
@@ -117,6 +144,7 @@ std::string NoteQuizExercise::promptText() const {
         case NotePrompt::Neck: return "Play " + notePlaceText(note, config.tuning);
         case NotePrompt::Name: return "Play " + withArticle(pitchClassName(note.pitch));
         case NotePrompt::Staff: return "Play the note that's lit on the staff";
+        case NotePrompt::Ear: return "Listen, then play it back";
     }
     return "";
 }
@@ -161,6 +189,15 @@ void NoteQuizExercise::drawNeck(float left, float right, float top, float bottom
     drawFretboard(board, config.tuning);
     float halfW, halfH;
     cardSize(board, halfW, halfH);
+    // The notes it could be, outlined: which one is it?
+    if (config.candidates && !finished){
+        for (size_t i = 0; i < config.notes.size(); i++){
+            bool seen = false;
+            for (size_t j = 0; j < i; j++) seen = seen || (config.notes[j].string == config.notes[i].string && config.notes[j].fret == config.notes[i].fret);
+            if (!seen) cardOutline(draw, ImVec2(board.fretX(config.notes[i].fret), board.stringY(config.notes[i].string)), halfW, halfH, 0.0f,
+                                   uiColor(UiColor::Ink, 0.35f), 1.5f * s);
+        }
+    }
     if (!finished && run.next < run.prompts.size()){
         const NeckStep& note = run.prompts[run.next];
         const bool shown = config.prompt == NotePrompt::Neck || config.showWhere || run.slipped;
@@ -204,9 +241,21 @@ void NoteQuizExercise::draw(){
         } else if (config.prompt == NotePrompt::Name && run.next < run.prompts.size()){
             draw->AddText(fonts.heavy, 72 * s, ImVec2(left, promptTop - 8 * s), uiColor(UiColor::Ink), pitchClassName(run.prompts[run.next].pitch));
         }
+        if (config.prompt == NotePrompt::Ear){
+            // A ring going out as the note sounds
+            const float since = (float)(GetTime() - heardAt);
+            const ImVec2 at(left + 30 * s, promptTop + 30 * s);
+            draw->AddCircleFilled(at, 18 * s, uiColor(UiColor::Accent, since >= 0.0f && since < 1.2f ? 1.0f : 0.5f), 32);
+            if (since >= 0.0f && since < 1.2f) draw->AddCircle(at, 18 * s + 30 * s * since, uiColor(UiColor::Accent, 1.0f - since / 1.2f), 40, 2.5f * s);
+            const std::string again = config.reference >= 0 ? std::string("Space: hear it again (first ") + pitchClassName(config.reference) + ", then the note)"
+                                                            : "Space: hear it again";
+            draw->AddText(fonts.text, 17 * s, ImVec2(left + 64 * s, promptTop + 52 * s), uiColor(UiColor::Dim), again.c_str());
+        }
         const std::string text = promptText();
         const float textY = config.prompt == NotePrompt::Staff ? promptTop - 2 * s : config.prompt == NotePrompt::Name ? promptTop + 84 * s : promptTop + 10 * s;
-        draw->AddText(fonts.bold, (config.prompt == NotePrompt::Neck ? 32 : 22) * s, ImVec2(left, textY), uiColor(UiColor::Ink), text.c_str());
+        const float textX = config.prompt == NotePrompt::Ear ? left + 64 * s : left;
+        draw->AddText(fonts.bold, (config.prompt == NotePrompt::Neck || config.prompt == NotePrompt::Ear ? 32 : 22) * s, ImVec2(textX, textY),
+                      uiColor(UiColor::Ink), text.c_str());
         // After a slip: what it was, and where the right one is
         const float wrongSince = (float)(GetTime() - wrongAt);
         if (run.slipped && wrongSince < WRONG_SHOWN_S && run.next < run.prompts.size()){
@@ -242,7 +291,7 @@ void NoteQuizExercise::draw(){
     float textY = neckBottom + 36 * s;
     if (!inputError.empty()) draw->AddText(fonts.text, 16 * s, ImVec2(left, textY), uiColor(UiColor::Bad), inputError.c_str());
     else if (!listening) draw->AddText(fonts.text, 16 * s, ImVec2(left, textY), uiColor(UiColor::Dim), "No instrument: click the frets to play");
-    menuScreenHint(finished ? "Space  again    Esc  back" : "Esc  back", s);
+    menuScreenHint(finished ? "Space  again    Esc  back" : config.prompt == NotePrompt::Ear ? "Space  hear it again    Esc  back" : "Esc  back", s);
     ImGui::Dummy(ImVec2(1, 1)); // the board moved ImGui's cursor (ui/fretboardview): an item after it
 }
 

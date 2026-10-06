@@ -1,0 +1,923 @@
+# lahn course: written by tools/courses/make_ear_course.py (change it there, and run it again)
+version 1
+title Ear training
+description lahn plays a note, you find it on your guitar and play it back: from two notes far apart to every note of a scale, then intervals by name.
+instrument guitar
+
+
+unit Hear it, find it
+
+lesson High or low
+text lahn plays an open string: the low E or the high E. They're two octaves apart: listen, and play the one you hear.
+text The first drill shows you where it is as it plays: sound and place, together. Then by ear: every string it could be is outlined. Space plays it again.
+drill Heard and shown
+type notes
+notes E2 E4
+show ear
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes E2 E4
+show ear
+count 8
+pass 7
+drill No slips
+type notes
+notes E2 E4
+show ear
+count 8
+pass 8
+
+lesson Add the A string
+text One more: the A string, open. Listen, then play back the one you hear.
+text The first drill shows you where it is as it plays: sound and place, together. Then by ear: every string it could be is outlined. Space plays it again.
+drill Heard and shown
+type notes
+notes E2 E4 A2
+show ear
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes E2 E4 A2
+show ear
+count 8
+pass 7
+drill No slips
+type notes
+notes E2 E4 A2
+show ear
+count 8
+pass 8
+
+lesson Add the G string
+text One more: the G string, open. Listen, then play back the one you hear.
+text The first drill shows you where it is as it plays: sound and place, together. Then by ear: every string it could be is outlined. Space plays it again.
+drill Heard and shown
+type notes
+notes E2 E4 A2 G3
+show ear
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes E2 E4 A2 G3
+show ear
+count 8
+pass 7
+drill No slips
+type notes
+notes E2 E4 A2 G3
+show ear
+count 8
+pass 8
+
+lesson Add the D string
+text One more: the D string, open. Listen, then play back the one you hear.
+text The first drill shows you where it is as it plays: sound and place, together. Then by ear: every string it could be is outlined. Space plays it again.
+drill Heard and shown
+type notes
+notes E2 E4 A2 G3 D3
+show ear
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes E2 E4 A2 G3 D3
+show ear
+count 8
+pass 7
+drill No slips
+type notes
+notes E2 E4 A2 G3 D3
+show ear
+count 8
+pass 8
+
+lesson Add the B string
+text One more: the B string, open. Listen, then play back the one you hear.
+text The first drill shows you where it is as it plays: sound and place, together. Then by ear: every string it could be is outlined. Space plays it again.
+drill Heard and shown
+type notes
+notes E2 E4 A2 G3 D3 B3
+show ear
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes E2 E4 A2 G3 D3 B3
+show ear
+count 8
+pass 7
+drill No slips
+type notes
+notes E2 E4 A2 G3 D3 B3
+show ear
+count 8
+pass 8
+
+
+unit One string, step by step
+
+lesson The root and the fifth
+text The open E, then either the same E or the B at the 7th fret: five steps up the E major scale.
+text The root, E, plays first each time: hear the other note against it. The notes it could be are outlined on the high E string.
+drill Heard and shown
+type notes
+notes E4 B4
+show ear
+strings 6
+reference E4
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes E4 B4
+show ear
+strings 6
+reference E4
+count 8
+pass 7
+drill No slips
+type notes
+notes E4 B4
+show ear
+strings 6
+reference E4
+count 8
+pass 8
+
+lesson 1, 3 and 5
+text The notes of the E major chord: E, G# (fret 4) and B (fret 7).
+text The root, E, plays first each time: hear the other note against it. The notes it could be are outlined on the high E string.
+drill Heard and shown
+type notes
+notes E4 G#4 B4
+show ear
+strings 6
+reference E4
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes E4 G#4 B4
+show ear
+strings 6
+reference E4
+count 8
+pass 7
+drill No slips
+type notes
+notes E4 G#4 B4
+show ear
+strings 6
+reference E4
+count 8
+pass 8
+
+lesson 1 to 5
+text The first five notes of the E major scale, frets 0, 2, 4, 5 and 7.
+text The root, E, plays first each time: hear the other note against it. The notes it could be are outlined on the high E string.
+drill Heard and shown
+type notes
+notes E4 F#4 G#4 A4 B4
+show ear
+strings 6
+reference E4
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes E4 F#4 G#4 A4 B4
+show ear
+strings 6
+reference E4
+count 8
+pass 7
+drill No slips
+type notes
+notes E4 F#4 G#4 A4 B4
+show ear
+strings 6
+reference E4
+count 8
+pass 8
+
+lesson The whole scale
+text All eight, up to the E at the 12th fret.
+text The root, E, plays first each time: hear the other note against it. The notes it could be are outlined on the high E string.
+drill Heard and shown
+type notes
+notes E4 F#4 G#4 A4 B4 C#5 D#5 E5
+show ear
+strings 6
+reference E4
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes E4 F#4 G#4 A4 B4 C#5 D#5 E5
+show ear
+strings 6
+reference E4
+count 8
+pass 7
+drill No slips
+type notes
+notes E4 F#4 G#4 A4 B4 C#5 D#5 E5
+show ear
+strings 6
+reference E4
+count 8
+pass 8
+
+lesson 1 and the octave
+text The same note, an octave apart: the open E and the 12th fret.
+text The root, E, plays first each time: hear the other note against it. The notes it could be are outlined on the high E string.
+drill Heard and shown
+type notes
+notes E4 E5
+show ear
+strings 6
+reference E4
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes E4 E5
+show ear
+strings 6
+reference E4
+count 8
+pass 7
+drill No slips
+type notes
+notes E4 E5
+show ear
+strings 6
+reference E4
+count 8
+pass 8
+
+lesson The top of the scale
+text 5, 6, 7 and 8: B, C#, D# and E.
+text The root, E, plays first each time: hear the other note against it. The notes it could be are outlined on the high E string.
+drill Heard and shown
+type notes
+notes B4 C#5 D#5 E5
+show ear
+strings 6
+reference E4
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes B4 C#5 D#5 E5
+show ear
+strings 6
+reference E4
+count 8
+pass 7
+drill No slips
+type notes
+notes B4 C#5 D#5 E5
+show ear
+strings 6
+reference E4
+count 8
+pass 8
+
+
+unit In A, on the A string
+
+lesson A: 1, 3 and 5
+text The A major chord's notes, from the open string.
+text The root, A, plays first each time: hear the other note against it. The notes it could be are outlined on the A string.
+drill Heard and shown
+type notes
+notes A2 C#3 E3
+show ear
+strings 2
+reference A2
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes A2 C#3 E3
+show ear
+strings 2
+reference A2
+count 8
+pass 7
+drill No slips
+type notes
+notes A2 C#3 E3
+show ear
+strings 2
+reference A2
+count 8
+pass 8
+
+lesson A: 1 to 5
+text The first five notes of A major.
+text The root, A, plays first each time: hear the other note against it. The notes it could be are outlined on the A string.
+drill Heard and shown
+type notes
+notes A2 B2 C#3 D3 E3
+show ear
+strings 2
+reference A2
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes A2 B2 C#3 D3 E3
+show ear
+strings 2
+reference A2
+count 8
+pass 7
+drill No slips
+type notes
+notes A2 B2 C#3 D3 E3
+show ear
+strings 2
+reference A2
+count 8
+pass 8
+
+lesson A: the whole scale
+text A major, up the string to its 12th fret.
+text The root, A, plays first each time: hear the other note against it. The notes it could be are outlined on the A string.
+drill Heard and shown
+type notes
+notes A2 B2 C#3 D3 E3 F#3 G#3 A3
+show ear
+strings 2
+reference A2
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes A2 B2 C#3 D3 E3 F#3 G#3 A3
+show ear
+strings 2
+reference A2
+count 8
+pass 7
+drill No slips
+type notes
+notes A2 B2 C#3 D3 E3 F#3 G#3 A3
+show ear
+strings 2
+reference A2
+count 8
+pass 8
+
+
+unit In D, on the D string
+
+lesson D: 1, 3 and 5
+text The D major chord's notes, from the open string.
+text The root, D, plays first each time: hear the other note against it. The notes it could be are outlined on the D string.
+drill Heard and shown
+type notes
+notes D3 F#3 A3
+show ear
+strings 3
+reference D3
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes D3 F#3 A3
+show ear
+strings 3
+reference D3
+count 8
+pass 7
+drill No slips
+type notes
+notes D3 F#3 A3
+show ear
+strings 3
+reference D3
+count 8
+pass 8
+
+lesson D: 1 to 5
+text The first five notes of D major.
+text The root, D, plays first each time: hear the other note against it. The notes it could be are outlined on the D string.
+drill Heard and shown
+type notes
+notes D3 E3 F#3 G3 A3
+show ear
+strings 3
+reference D3
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes D3 E3 F#3 G3 A3
+show ear
+strings 3
+reference D3
+count 8
+pass 7
+drill No slips
+type notes
+notes D3 E3 F#3 G3 A3
+show ear
+strings 3
+reference D3
+count 8
+pass 8
+
+lesson D: the whole scale
+text D major, up the string to its 12th fret.
+text The root, D, plays first each time: hear the other note against it. The notes it could be are outlined on the D string.
+drill Heard and shown
+type notes
+notes D3 E3 F#3 G3 A3 B3 C#4 D4
+show ear
+strings 3
+reference D3
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes D3 E3 F#3 G3 A3 B3 C#4 D4
+show ear
+strings 3
+reference D3
+count 8
+pass 7
+drill No slips
+type notes
+notes D3 E3 F#3 G3 A3 B3 C#4 D4
+show ear
+strings 3
+reference D3
+count 8
+pass 8
+
+
+unit In G, on the G string
+
+lesson G: 1, 3 and 5
+text The G major chord's notes, from the open string.
+text The root, G, plays first each time: hear the other note against it. The notes it could be are outlined on the G string.
+drill Heard and shown
+type notes
+notes G3 B3 D4
+show ear
+strings 4
+reference G3
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes G3 B3 D4
+show ear
+strings 4
+reference G3
+count 8
+pass 7
+drill No slips
+type notes
+notes G3 B3 D4
+show ear
+strings 4
+reference G3
+count 8
+pass 8
+
+lesson G: 1 to 5
+text The first five notes of G major.
+text The root, G, plays first each time: hear the other note against it. The notes it could be are outlined on the G string.
+drill Heard and shown
+type notes
+notes G3 A3 B3 C4 D4
+show ear
+strings 4
+reference G3
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes G3 A3 B3 C4 D4
+show ear
+strings 4
+reference G3
+count 8
+pass 7
+drill No slips
+type notes
+notes G3 A3 B3 C4 D4
+show ear
+strings 4
+reference G3
+count 8
+pass 8
+
+lesson G: the whole scale
+text G major, up the string to its 12th fret.
+text The root, G, plays first each time: hear the other note against it. The notes it could be are outlined on the G string.
+drill Heard and shown
+type notes
+notes G3 A3 B3 C4 D4 E4 F#4 G4
+show ear
+strings 4
+reference G3
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes G3 A3 B3 C4 D4 E4 F#4 G4
+show ear
+strings 4
+reference G3
+count 8
+pass 7
+drill No slips
+type notes
+notes G3 A3 B3 C4 D4 E4 F#4 G4
+show ear
+strings 4
+reference G3
+count 8
+pass 8
+
+
+unit Minor
+
+lesson Major or minor third
+text The 3rd decides it: three frets up sounds minor, four sounds major.
+text The root, A, plays first each time: hear the other note against it. The notes it could be are outlined on the A string.
+drill Heard and shown
+type notes
+notes A2 C3 C#3
+show ear
+strings 2
+reference A2
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes A2 C3 C#3
+show ear
+strings 2
+reference A2
+count 8
+pass 7
+drill No slips
+type notes
+notes A2 C3 C#3
+show ear
+strings 2
+reference A2
+count 8
+pass 8
+
+lesson A minor: 1, b3 and 5
+text The A minor chord's notes: A, C and E.
+text The root, A, plays first each time: hear the other note against it. The notes it could be are outlined on the A string.
+drill Heard and shown
+type notes
+notes A2 C3 E3
+show ear
+strings 2
+reference A2
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes A2 C3 E3
+show ear
+strings 2
+reference A2
+count 8
+pass 7
+drill No slips
+type notes
+notes A2 C3 E3
+show ear
+strings 2
+reference A2
+count 8
+pass 8
+
+lesson A minor: 1 to 5
+text The first five notes of A minor.
+text The root, A, plays first each time: hear the other note against it. The notes it could be are outlined on the A string.
+drill Heard and shown
+type notes
+notes A2 B2 C3 D3 E3
+show ear
+strings 2
+reference A2
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes A2 B2 C3 D3 E3
+show ear
+strings 2
+reference A2
+count 8
+pass 7
+drill No slips
+type notes
+notes A2 B2 C3 D3 E3
+show ear
+strings 2
+reference A2
+count 8
+pass 8
+
+lesson A minor: the whole scale
+text All of A minor, up the A string.
+text The root, A, plays first each time: hear the other note against it. The notes it could be are outlined on the A string.
+drill Heard and shown
+type notes
+notes A2 B2 C3 D3 E3 F3 G3 A3
+show ear
+strings 2
+reference A2
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes A2 B2 C3 D3 E3 F3 G3 A3
+show ear
+strings 2
+reference A2
+count 8
+pass 7
+drill No slips
+type notes
+notes A2 B2 C3 D3 E3 F3 G3 A3
+show ear
+strings 2
+reference A2
+count 8
+pass 8
+
+
+unit Intervals by name
+
+lesson Fifth or third
+text Two notes: how far apart? A perfect 5th or a major 3rd.
+drill Going up
+type intervals
+direction up
+intervals 7 4
+start 2
+goal 8
+drill Going down
+type intervals
+direction down
+intervals 7 4
+start 2
+goal 8
+drill Played together
+type intervals
+direction together
+intervals 7 4
+start 2
+goal 8
+
+lesson Octave
+text One more: the octave. Going up, going down, then both notes at once.
+drill Going up
+type intervals
+direction up
+intervals 7 4 12
+start 3
+goal 8
+drill Going down
+type intervals
+direction down
+intervals 7 4 12
+start 3
+goal 8
+drill Played together
+type intervals
+direction together
+intervals 7 4 12
+start 3
+goal 8
+
+lesson Perfect 4th
+text One more: the perfect 4th. Going up, going down, then both notes at once.
+drill Going up
+type intervals
+direction up
+intervals 7 4 12 5
+start 4
+goal 8
+drill Going down
+type intervals
+direction down
+intervals 7 4 12 5
+start 4
+goal 8
+drill Played together
+type intervals
+direction together
+intervals 7 4 12 5
+start 4
+goal 8
+
+lesson Minor 3rd
+text One more: the minor 3rd. Going up, going down, then both notes at once.
+drill Going up
+type intervals
+direction up
+intervals 7 4 12 5 3
+start 5
+goal 8
+drill Going down
+type intervals
+direction down
+intervals 7 4 12 5 3
+start 5
+goal 8
+drill Played together
+type intervals
+direction together
+intervals 7 4 12 5 3
+start 5
+goal 8
+
+lesson Major 2nd
+text One more: the major 2nd. Going up, going down, then both notes at once.
+drill Going up
+type intervals
+direction up
+intervals 7 4 12 5 3 2
+start 6
+goal 8
+drill Going down
+type intervals
+direction down
+intervals 7 4 12 5 3 2
+start 6
+goal 8
+drill Played together
+type intervals
+direction together
+intervals 7 4 12 5 3 2
+start 6
+goal 8
+
+lesson Major 6th
+text One more: the major 6th. Going up, going down, then both notes at once.
+drill Going up
+type intervals
+direction up
+intervals 7 4 12 5 3 2 9
+start 7
+goal 8
+drill Going down
+type intervals
+direction down
+intervals 7 4 12 5 3 2 9
+start 7
+goal 8
+drill Played together
+type intervals
+direction together
+intervals 7 4 12 5 3 2 9
+start 7
+goal 8
+
+lesson Minor 7th
+text One more: the minor 7th. Going up, going down, then both notes at once.
+drill Going up
+type intervals
+direction up
+intervals 7 4 12 5 3 2 9 10
+start 8
+goal 8
+drill Going down
+type intervals
+direction down
+intervals 7 4 12 5 3 2 9 10
+start 8
+goal 8
+drill Played together
+type intervals
+direction together
+intervals 7 4 12 5 3 2 9 10
+start 8
+goal 8
+
+lesson Minor 6th
+text One more: the minor 6th. Going up, going down, then both notes at once.
+drill Going up
+type intervals
+direction up
+intervals 7 4 12 5 3 2 9 10 8
+start 9
+goal 8
+drill Going down
+type intervals
+direction down
+intervals 7 4 12 5 3 2 9 10 8
+start 9
+goal 8
+drill Played together
+type intervals
+direction together
+intervals 7 4 12 5 3 2 9 10 8
+start 9
+goal 8
+
+lesson Minor 2nd
+text One more: the minor 2nd. Going up, going down, then both notes at once.
+drill Going up
+type intervals
+direction up
+intervals 7 4 12 5 3 2 9 10 8 1
+start 10
+goal 8
+drill Going down
+type intervals
+direction down
+intervals 7 4 12 5 3 2 9 10 8 1
+start 10
+goal 8
+drill Played together
+type intervals
+direction together
+intervals 7 4 12 5 3 2 9 10 8 1
+start 10
+goal 8
+
+lesson Major 7th
+text One more: the major 7th. Going up, going down, then both notes at once.
+drill Going up
+type intervals
+direction up
+intervals 7 4 12 5 3 2 9 10 8 1 11
+start 11
+goal 8
+drill Going down
+type intervals
+direction down
+intervals 7 4 12 5 3 2 9 10 8 1 11
+start 11
+goal 8
+drill Played together
+type intervals
+direction together
+intervals 7 4 12 5 3 2 9 10 8 1 11
+start 11
+goal 8
+
+lesson Tritone
+text One more: the tritone. Going up, going down, then both notes at once.
+drill Going up
+type intervals
+direction up
+intervals 7 4 12 5 3 2 9 10 8 1 11 6
+start 12
+goal 8
+drill Going down
+type intervals
+direction down
+intervals 7 4 12 5 3 2 9 10 8 1 11 6
+start 12
+goal 8
+drill Played together
+type intervals
+direction together
+intervals 7 4 12 5 3 2 9 10 8 1 11 6
+start 12
+goal 8

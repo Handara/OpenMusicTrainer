@@ -88,8 +88,11 @@
 //   notes E4 F4 G4               (by name: each where it's lowest on the neck, open strings first)
 //   places 6:0 6:1               (or by place, string:fret, 1 = the lowest string)
 //   strings 5 6                  (names placed only on these, 1 = the lowest)
-//   show neck                    (neck: where to play it; name: the note's name; staff: the note written)
-//   where yes                    (the place on the neck shown too, for name and staff: default no)
+//   show neck                    (neck: where to play it; name: the note's name; staff: the note written;
+//                                 ear: the note heard, to play back)
+//   where yes                    (the place on the neck shown too, for name, staff and ear: default no)
+//   candidates yes               (every note that could be asked outlined on the neck: default yes by ear)
+//   reference E4                 (by ear: a note played first, each time, to hear the other against)
 //   octave exact                 (exact, or any: the name's enough; default exact, any for show name)
 //   order random                 (random, or in_order: as written, going round)
 //   count 8                      (notes in a run)
