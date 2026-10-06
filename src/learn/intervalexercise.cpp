@@ -221,6 +221,5 @@ void IntervalExercise::draw(){
     }
     if (!saveError.empty()) centeredErrorText("Progress could not be saved: " + saveError);
 
-    ImGui::Dummy(ImVec2(0, 16));
-    if (menuButton("Back")) leave = true;
+    ImGui::Dummy(ImVec2(0, 16)); // (back: Esc, or the Back button at the top left)
 }

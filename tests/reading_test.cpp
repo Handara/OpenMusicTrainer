@@ -54,3 +54,35 @@ TEST_CASE("a position without enough of the scale is refused"){
     CHECK_FALSE(buildReading(config, rng, melody, error));
     CHECK_FALSE(error.empty());
 }
+
+TEST_CASE("reading just the notes asked: at random, each where it's lowest, no long runs"){
+    ReadingConfig config;
+    config.pool = { 64, 65 };   // E4 and F4
+    config.cells = { "quarter" };
+    config.bars = 4;
+    std::vector<DrillNote> notes;
+    std::string error;
+    int turns = 0;
+    for (unsigned seed = 1; seed <= 50; seed++){
+        std::mt19937 rng(seed);
+        REQUIRE_MESSAGE(buildReading(config, rng, notes, error), error);
+        REQUIRE(notes.size() == 16);
+        bool alternates = true;
+        int run = 1;
+        for (size_t i = 0; i < notes.size(); i++){
+            CHECK((notes[i].pitch == 64 || notes[i].pitch == 65));
+            CHECK(notes[i].stringIndex == 5); // the high E string, frets 0 and 1
+            CHECK(notes[i].fret == notes[i].pitch - 64);
+            if (i == 0) continue;
+            run = notes[i].pitch == notes[i - 1].pitch ? run + 1 : 1;
+            if (run > 1) alternates = false;
+            CHECK(run <= 3);
+        }
+        if (alternates) turns++;
+    }
+    CHECK(turns < 3); // not just E F E F
+    // A note off the neck is refused
+    config.pool = { 20 };
+    std::mt19937 rng(1);
+    CHECK_FALSE(buildReading(config, rng, notes, error));
+}

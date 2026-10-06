@@ -168,6 +168,16 @@ static std::unique_ptr<Exercise> createExercise(const ExerciseEntry& entry){
             if (!scaleName.empty()) scaleName[0] = (char)std::tolower((unsigned char)scaleName[0]); // "G major", as it's said
             setup.about = TextFormat("Reading in %s %s, frets %d to %d", pitchClassName(config.rootPitchClass),
                                      scaleName.c_str(), config.lowestFret, config.highestFret);
+            if (!config.pool.empty()){ // just some notes: say which
+                std::vector<std::string> names;
+                for (int pitch : config.pool){
+                    const std::string name = pitchClassName(pitch);
+                    if (std::find(names.begin(), names.end(), name) == names.end()) names.push_back(name);
+                }
+                std::string list;
+                for (size_t i = 0; i < names.size(); i++) list += (i == 0 ? "" : i + 1 == names.size() ? " and " : ", ") + names[i];
+                setup.about = "Reading " + list + ", in time";
+            }
             setup.tempo = config.tempo;
             setup.tuning = config.tuning;
             setup.key = scale ? scaleKeySignature(config.rootPitchClass, *scale) : KeySignature{};

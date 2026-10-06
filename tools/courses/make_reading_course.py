@@ -5,12 +5,13 @@ every time. Learn shows the one for the instrument played. Change the plans belo
 
     python3 tools/courses/make_reading_course.py
 
-Each chapter brings in its new notes the same way:
+Each chapter brings in its new notes the same way, always in a random order (nothing to learn by heart):
   1. the new note alone, the neck showing where it is
   2. with the other notes of its string, still shown
   3. the same with no hints (a slip shows where it was)
   4. mixed with what's been learned so far
   5. no slips allowed
+  6. to a beat: the same notes at random on a metronome, faster as it's passed
 Then come levels read to a beat (the timed reading drill), more and more rhythms, then key signatures.
 """
 
@@ -132,16 +133,30 @@ def note_chapter(instrument, title, new, string_notes, known, key=None, intro=No
         recent = mixed[-9:]  # the last notes learned: enough to mix, not so many it's a lottery
         lines += notes_drill("Mixed with what you know", recent, False, 12, 11, key)
         lines += notes_drill("No slips", recent, False, 12, 12, key)
+        lines += beat_drill(instrument, recent, key)
     else:
         lines += notes_drill("No slips", group, False, 6 if len(group) == 1 else 10, 6 if len(group) == 1 else 10, key)
+        lines += beat_drill(instrument, group, key)
     return lines
 
 
-def review_chapter(title, notes, text, key=None):
+def beat_drill(instrument, notes, key=None):
+    """The chapter's notes at random, to a metronome: read in time, a little faster each clean pass"""
+    lines = ["drill To a beat", "type reading", "notes " + " ".join(notes), "cells quarter", "bars 2", "tempo 50 70 5", "pass 80", "goal 1"]
+    if key:
+        tonic, mode = key.split()
+        lines += [f"key {tonic}", f"scale {'major' if mode == 'major' else 'minor'}"]
+    if instrument is BASS:
+        lines.append("tuning " + " ".join(str(p) for p in BASS.tuning))
+    return lines
+
+
+def review_chapter(instrument, title, notes, text, key=None):
     lines = [f"lesson {title}", f"text {text}"]
     lines += notes_drill("Shown where", notes, True, 12, 11, key)
     lines += notes_drill("On your own", notes, False, 16, 15, key)
     lines += notes_drill("No slips", notes, False, 16, 16, key)
+    lines += beat_drill(instrument, notes, key)
     return lines
 
 
@@ -283,13 +298,13 @@ def build(instrument):
             chapter(note_chapter(instrument, f"{title}: {listing(new)}", new, string_notes[:string_notes.index(new[-1]) + 1], known,
                                  intro=intro if i == 0 else None))
             known = list(dict.fromkeys(known + new))
-        chapter(review_chapter(f"{title}: all of it", list(dict.fromkeys(known[-9:])),
+        chapter(review_chapter(instrument, f"{title}: all of it", list(dict.fromkeys(known[-9:])),
                                f"{listing(string_notes)}, and the strings before: read them as they come."))
 
     # Every natural note in the open position, in groups that cross the strings
     level("The whole open position")
     for title, notes in plan["groups"]:
-        chapter(review_chapter(title, notes, f"{len(notes)} notes, from {spoken(notes[0])} to {spoken(notes[-1])}."))
+        chapter(review_chapter(instrument, title, notes, f"{len(notes)} notes, from {spoken(notes[0])} to {spoken(notes[-1])}."))
 
     # Up the top string, into the ledger lines above
     level("Above the staff")
@@ -308,7 +323,7 @@ def build(instrument):
     # Key signatures: the sharps or flats written once, at the start
     level("Key signatures")
     for key, text, notes in plan["keys"]:
-        chapter(review_chapter(f"In {key}", notes, text, key=key))
+        chapter(review_chapter(instrument, f"In {key}", notes, text, key=key))
 
     # To a beat: the timed reading drill, a little more each chapter
     level("Reading to a beat")

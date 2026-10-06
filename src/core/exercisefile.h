@@ -66,6 +66,7 @@
 //   frets 0 3                    (the position: the notes are found in these frets...)
 //   strings 1 2 3                (...on these strings, 1 = the lowest; default: all)
 //   leap 2                       (the widest move, in notes of the scale: 1 = by step only)
+//   notes E4 F4                  (or just these notes, at random, each where it's lowest on the neck)
 //   and a rhythm drill's cells, bars, time, tempo, pass and tuning
 //
 // A chord change drill (`type chords`), all optional:

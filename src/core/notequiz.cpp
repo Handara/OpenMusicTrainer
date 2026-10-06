@@ -7,18 +7,41 @@
 #include <fstream>
 #include <sstream>
 
+const int MOST_IN_A_ROW = 3; // at random, the same note at most this many times running
+
 std::vector<NeckStep> noteQuizPrompts(const NoteQuizConfig& config, std::mt19937& random){
     std::vector<NeckStep> prompts;
     if (config.notes.empty()) return prompts;
     const int size = (int)config.notes.size();
-    int last = -1;
-    for (int i = 0; i < config.count; i++){
-        int pick;
-        if (config.inOrder) pick = i % size;
-        else do pick = std::uniform_int_distribution<int>(0, size - 1)(random); while (size > 1 && pick == last);
-        prompts.push_back(config.notes[pick]);
-        last = pick;
+    if (config.inOrder){
+        for (int i = 0; i < config.count; i++) prompts.push_back(config.notes[i % size]);
+        return prompts;
     }
+    // At random, really: no pattern to learn (two notes don't just take turns), but never one note on and on, and
+    // every note asked at least once when the run is long enough
+    std::vector<int> picks;
+    for (int i = 0; i < config.count; i++){
+        int pick = std::uniform_int_distribution<int>(0, size - 1)(random);
+        const int run = (int)picks.size();
+        if (size > 1 && run >= MOST_IN_A_ROW
+            && std::all_of(picks.end() - MOST_IN_A_ROW, picks.end(), [&](int p){ return p == pick; })){
+            pick = (pick + std::uniform_int_distribution<int>(1, size - 1)(random)) % size; // another one
+        }
+        picks.push_back(pick);
+    }
+    if (config.count >= size){
+        for (int note = 0; note < size; note++){
+            if (std::find(picks.begin(), picks.end(), note) != picks.end()) continue;
+            // In place of a note asked more than once
+            std::vector<int> spots;
+            for (int i = 0; i < (int)picks.size(); i++){
+                const int count = (int)std::count(picks.begin(), picks.end(), picks[i]);
+                if (count > 1) spots.push_back(i);
+            }
+            if (!spots.empty()) picks[spots[std::uniform_int_distribution<int>(0, (int)spots.size() - 1)(random)]] = note;
+        }
+    }
+    for (int pick : picks) prompts.push_back(config.notes[pick]);
     return prompts;
 }
 

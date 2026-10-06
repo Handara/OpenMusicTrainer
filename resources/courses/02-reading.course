@@ -23,6 +23,14 @@ notes E4
 show staff
 count 6
 pass 6
+drill To a beat
+type reading
+notes E4
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 lesson The high E string: F
 text F sits on the top line. On the guitar it's the 1st fret of the high E string.
@@ -52,6 +60,14 @@ notes E4 F4
 show staff
 count 10
 pass 10
+drill To a beat
+type reading
+notes E4 F4
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 lesson The high E string: G
 text G sits just above the staff. On the guitar it's the 3rd fret of the high E string.
@@ -81,6 +97,14 @@ notes E4 F4 G4
 show staff
 count 10
 pass 10
+drill To a beat
+type reading
+notes E4 F4 G4
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 lesson The high E string: all of it
 text E, F and G, and the strings before: read them as they come.
@@ -103,6 +127,14 @@ notes E4 F4 G4
 show staff
 count 16
 pass 16
+drill To a beat
+type reading
+notes E4 F4 G4
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 
 unit The B string
@@ -128,6 +160,14 @@ notes E4 F4 G4 B3
 show staff
 count 12
 pass 12
+drill To a beat
+type reading
+notes E4 F4 G4 B3
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 lesson The B string: C
 text C sits in the third space. On the guitar it's the 1st fret of the B string.
@@ -163,6 +203,14 @@ notes E4 F4 G4 B3 C4
 show staff
 count 12
 pass 12
+drill To a beat
+type reading
+notes E4 F4 G4 B3 C4
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 lesson The B string: D
 text D sits on the fourth line. On the guitar it's the 3rd fret of the B string.
@@ -198,6 +246,14 @@ notes E4 F4 G4 B3 C4 D4
 show staff
 count 12
 pass 12
+drill To a beat
+type reading
+notes E4 F4 G4 B3 C4 D4
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 lesson The B string: all of it
 text B, C and D, and the strings before: read them as they come.
@@ -220,6 +276,14 @@ notes E4 F4 G4 B3 C4 D4
 show staff
 count 16
 pass 16
+drill To a beat
+type reading
+notes E4 F4 G4 B3 C4 D4
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 
 unit The G string
@@ -245,6 +309,14 @@ notes E4 F4 G4 B3 C4 D4 G3
 show staff
 count 12
 pass 12
+drill To a beat
+type reading
+notes E4 F4 G4 B3 C4 D4 G3
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 lesson The G string: A
 text A sits in the second space. On the guitar it's the 2nd fret of the G string.
@@ -280,6 +352,14 @@ notes E4 F4 G4 B3 C4 D4 G3 A3
 show staff
 count 12
 pass 12
+drill To a beat
+type reading
+notes E4 F4 G4 B3 C4 D4 G3 A3
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 lesson The G string: all of it
 text G and A, and the strings before: read them as they come.
@@ -302,6 +382,14 @@ notes E4 F4 G4 B3 C4 D4 G3 A3
 show staff
 count 16
 pass 16
+drill To a beat
+type reading
+notes E4 F4 G4 B3 C4 D4 G3 A3
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 
 unit The D string
@@ -328,6 +416,14 @@ notes E4 F4 G4 B3 C4 D4 G3 A3 D3
 show staff
 count 12
 pass 12
+drill To a beat
+type reading
+notes E4 F4 G4 B3 C4 D4 G3 A3 D3
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 lesson The D string: E
 text E sits on the bottom line. On the guitar it's the 2nd fret of the D string.
@@ -363,6 +459,14 @@ notes F4 G4 B3 C4 D4 G3 A3 D3 E3
 show staff
 count 12
 pass 12
+drill To a beat
+type reading
+notes F4 G4 B3 C4 D4 G3 A3 D3 E3
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 lesson The D string: F
 text F sits in the bottom space. On the guitar it's the 3rd fret of the D string.
@@ -398,6 +502,14 @@ notes G4 B3 C4 D4 G3 A3 D3 E3 F3
 show staff
 count 12
 pass 12
+drill To a beat
+type reading
+notes G4 B3 C4 D4 G3 A3 D3 E3 F3
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 lesson The D string: all of it
 text D, E and F, and the strings before: read them as they come.
@@ -420,6 +532,14 @@ notes G4 B3 C4 D4 G3 A3 D3 E3 F3
 show staff
 count 16
 pass 16
+drill To a beat
+type reading
+notes G4 B3 C4 D4 G3 A3 D3 E3 F3
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 
 unit The A string
@@ -445,6 +565,14 @@ notes B3 C4 D4 G3 A3 D3 E3 F3 A2
 show staff
 count 12
 pass 12
+drill To a beat
+type reading
+notes B3 C4 D4 G3 A3 D3 E3 F3 A2
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 lesson The A string: B
 text B sits below the 1st ledger line under the staff. On the guitar it's the 2nd fret of the A string.
@@ -480,6 +608,14 @@ notes C4 D4 G3 A3 D3 E3 F3 A2 B2
 show staff
 count 12
 pass 12
+drill To a beat
+type reading
+notes C4 D4 G3 A3 D3 E3 F3 A2 B2
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 lesson The A string: C
 text C sits on the 1st ledger line below the staff. On the guitar it's the 3rd fret of the A string.
@@ -515,6 +651,14 @@ notes D4 G3 A3 D3 E3 F3 A2 B2 C3
 show staff
 count 12
 pass 12
+drill To a beat
+type reading
+notes D4 G3 A3 D3 E3 F3 A2 B2 C3
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 lesson The A string: all of it
 text A, B and C, and the strings before: read them as they come.
@@ -537,6 +681,14 @@ notes D4 G3 A3 D3 E3 F3 A2 B2 C3
 show staff
 count 16
 pass 16
+drill To a beat
+type reading
+notes D4 G3 A3 D3 E3 F3 A2 B2 C3
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 
 unit The low E string
@@ -562,6 +714,14 @@ notes G3 A3 D3 E3 F3 A2 B2 C3 E2
 show staff
 count 12
 pass 12
+drill To a beat
+type reading
+notes G3 A3 D3 E3 F3 A2 B2 C3 E2
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 lesson The low E string: F
 text F sits on the 3rd ledger line below the staff. On the guitar it's the 1st fret of the low E string.
@@ -597,6 +757,14 @@ notes A3 D3 E3 F3 A2 B2 C3 E2 F2
 show staff
 count 12
 pass 12
+drill To a beat
+type reading
+notes A3 D3 E3 F3 A2 B2 C3 E2 F2
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 lesson The low E string: G
 text G sits below the 2nd ledger line under the staff. On the guitar it's the 3rd fret of the low E string.
@@ -632,6 +800,14 @@ notes D3 E3 F3 A2 B2 C3 E2 F2 G2
 show staff
 count 12
 pass 12
+drill To a beat
+type reading
+notes D3 E3 F3 A2 B2 C3 E2 F2 G2
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 lesson The low E string: all of it
 text E, F and G, and the strings before: read them as they come.
@@ -654,6 +830,14 @@ notes D3 E3 F3 A2 B2 C3 E2 F2 G2
 show staff
 count 16
 pass 16
+drill To a beat
+type reading
+notes D3 E3 F3 A2 B2 C3 E2 F2 G2
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 
 unit The whole open position
@@ -679,6 +863,14 @@ notes G3 A3 B3 C4 D4 E4 F4 G4
 show staff
 count 16
 pass 16
+drill To a beat
+type reading
+notes G3 A3 B3 C4 D4 E4 F4 G4
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 lesson The middle strings
 text 7 notes, from D to C.
@@ -701,6 +893,14 @@ notes D3 E3 F3 G3 A3 B3 C4
 show staff
 count 16
 pass 16
+drill To a beat
+type reading
+notes D3 E3 F3 G3 A3 B3 C4
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 lesson The bottom three strings
 text 9 notes, from E to F.
@@ -723,6 +923,14 @@ notes E2 F2 G2 A2 B2 C3 D3 E3 F3
 show staff
 count 16
 pass 16
+drill To a beat
+type reading
+notes E2 F2 G2 A2 B2 C3 D3 E3 F3
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 lesson Low and high
 text 7 notes, from E to G.
@@ -745,6 +953,14 @@ notes E2 G2 C3 F3 A3 D4 G4
 show staff
 count 16
 pass 16
+drill To a beat
+type reading
+notes E2 G2 C3 F3 A3 D4 G4
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 lesson Everything
 text 17 notes, from E to G.
@@ -767,6 +983,14 @@ notes E2 F2 G2 A2 B2 C3 D3 E3 F3 G3 A3 B3 C4 D4 E4 F4 G4
 show staff
 count 16
 pass 16
+drill To a beat
+type reading
+notes E2 F2 G2 A2 B2 C3 D3 E3 F3 G3 A3 B3 C4 D4 E4 F4 G4
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 
 unit Above the staff
@@ -805,6 +1029,14 @@ notes E3 F3 A2 B2 C3 E2 F2 G2 A4
 show staff
 count 12
 pass 12
+drill To a beat
+type reading
+notes E3 F3 A2 B2 C3 E2 F2 G2 A4
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 lesson Above the staff: B
 text B sits above the 1st ledger line over the staff. On the guitar it's the 7th fret of the high E string.
@@ -840,6 +1072,14 @@ notes F3 A2 B2 C3 E2 F2 G2 A4 B4
 show staff
 count 12
 pass 12
+drill To a beat
+type reading
+notes F3 A2 B2 C3 E2 F2 G2 A4 B4
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 lesson Above the staff: C
 text C sits on the 2nd ledger line above the staff. On the guitar it's the 8th fret of the high E string.
@@ -875,6 +1115,14 @@ notes A2 B2 C3 E2 F2 G2 A4 B4 C5
 show staff
 count 12
 pass 12
+drill To a beat
+type reading
+notes A2 B2 C3 E2 F2 G2 A4 B4 C5
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 
 unit Sharps and flats
@@ -914,6 +1162,14 @@ notes B2 C3 E2 F2 G2 A4 B4 C5 F#4
 show staff
 count 12
 pass 12
+drill To a beat
+type reading
+notes B2 C3 E2 F2 G2 A4 B4 C5 F#4
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 lesson C sharp on the B string
 text C sharp sits in the third space. On the guitar it's the 2nd fret of the B string.
@@ -949,6 +1205,14 @@ notes C3 E2 F2 G2 A4 B4 C5 F#4 C#4
 show staff
 count 12
 pass 12
+drill To a beat
+type reading
+notes C3 E2 F2 G2 A4 B4 C5 F#4 C#4
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 lesson G sharp on the G string
 text G sharp sits on the second line. On the guitar it's the 1st fret of the G string.
@@ -984,6 +1248,14 @@ notes E2 F2 G2 A4 B4 C5 F#4 C#4 G#3
 show staff
 count 12
 pass 12
+drill To a beat
+type reading
+notes E2 F2 G2 A4 B4 C5 F#4 C#4 G#3
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 lesson B flat on the G string
 text Bb is B flat: a fret below B.
@@ -1020,6 +1292,14 @@ notes F2 G2 A4 B4 C5 F#4 C#4 G#3 Bb3
 show staff
 count 12
 pass 12
+drill To a beat
+type reading
+notes F2 G2 A4 B4 C5 F#4 C#4 G#3 Bb3
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 lesson E flat on the B string
 text E flat sits in the top space. On the guitar it's the 4th fret of the B string.
@@ -1055,6 +1335,14 @@ notes G2 A4 B4 C5 F#4 C#4 G#3 Bb3 Eb4
 show staff
 count 12
 pass 12
+drill To a beat
+type reading
+notes G2 A4 B4 C5 F#4 C#4 G#3 Bb3 Eb4
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 lesson F sharp on the D string
 text F sharp sits in the bottom space. On the guitar it's the 4th fret of the D string.
@@ -1090,6 +1378,14 @@ notes A4 B4 C5 F#4 C#4 G#3 Bb3 Eb4 F#3
 show staff
 count 12
 pass 12
+drill To a beat
+type reading
+notes A4 B4 C5 F#4 C#4 G#3 Bb3 Eb4 F#3
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 lesson C sharp on the A string
 text C sharp sits on the 1st ledger line below the staff. On the guitar it's the 4th fret of the A string.
@@ -1125,6 +1421,14 @@ notes B4 C5 F#4 C#4 G#3 Bb3 Eb4 F#3 C#3
 show staff
 count 12
 pass 12
+drill To a beat
+type reading
+notes B4 C5 F#4 C#4 G#3 Bb3 Eb4 F#3 C#3
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 lesson F sharp on the low E string
 text F sharp sits on the 3rd ledger line below the staff. On the guitar it's the 2nd fret of the low E string.
@@ -1160,6 +1464,14 @@ notes C5 F#4 C#4 G#3 Bb3 Eb4 F#3 C#3 F#2
 show staff
 count 12
 pass 12
+drill To a beat
+type reading
+notes C5 F#4 C#4 G#3 Bb3 Eb4 F#3 C#3 F#2
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
 
 
 unit Key signatures
@@ -1188,6 +1500,16 @@ show staff
 count 16
 pass 16
 key G major
+drill To a beat
+type reading
+notes D3 E3 F#3 G3 A3 B3 C4 D4 E4 F#4 G4
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
+key G
+scale major
 
 lesson In D major
 text Two sharps, F# and C#.
@@ -1213,6 +1535,16 @@ show staff
 count 16
 pass 16
 key D major
+drill To a beat
+type reading
+notes D3 E3 F#3 G3 A3 B3 C#4 D4 E4 F#4 G4
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
+key D
+scale major
 
 lesson In F major
 text One flat, Bb: every B is played B flat.
@@ -1238,6 +1570,16 @@ show staff
 count 16
 pass 16
 key F major
+drill To a beat
+type reading
+notes C3 D3 E3 F3 G3 A3 Bb3 C4 D4 E4 F4
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
+key F
+scale major
 
 lesson In A major
 text Three sharps: F#, C#, G#.
@@ -1263,6 +1605,16 @@ show staff
 count 16
 pass 16
 key A major
+drill To a beat
+type reading
+notes A2 B2 C#3 E3 F#3 G#3 A3 B3 C#4 E4 F#4
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
+key A
+scale major
 
 lesson In Bb major
 text Two flats: Bb, Eb.
@@ -1288,6 +1640,16 @@ show staff
 count 16
 pass 16
 key Bb major
+drill To a beat
+type reading
+notes Bb2 C3 D3 Eb3 F3 G3 A3 Bb3 C4 D4 Eb4 F4
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
+key Bb
+scale major
 
 lesson In E major
 text Four sharps: F#, C#, G#, D#.
@@ -1313,6 +1675,16 @@ show staff
 count 16
 pass 16
 key E major
+drill To a beat
+type reading
+notes E2 F#2 G#2 B2 C#3 E3 F#3 G#3 B3 C#4 E4
+cells quarter
+bars 2
+tempo 50 70 5
+pass 80
+goal 1
+key E
+scale major
 
 
 unit Reading to a beat

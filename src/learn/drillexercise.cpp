@@ -148,13 +148,7 @@ void DrillExercise::update(){
 }
 
 void DrillExercise::draw(){
-    // Back sits in the top-right corner, out of the way of the title, the text and the notes
-    float textTop = ImGui::GetCursorPosY();
-    float backWidth = ImGui::CalcTextSize("Back").x + 2 * ImGui::GetStyle().FramePadding.x;
-    ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() - backWidth - 20, 20));
-    if (ImGui::Button("Back")) leave = true;
-    ImGui::SetCursorPosY(textTop);
-    menuTitle(title.c_str());
+    menuTitle(title.c_str()); // (back: Esc, or the Back button at the top left)
     int shownTempo = running ? tempo : drillTempo(setup.tempo, progress);
     drawScoreboard({
         { "TEMPO", TextFormat("%d", shownTempo), UiColor::Ink, "bpm" },

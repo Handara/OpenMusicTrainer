@@ -23,11 +23,15 @@ struct ReadingConfig {
     int beatsPerBar = 4;
     DrillTempo tempo{ 50, 120, 4, 90 };
     std::vector<int> tuning = { 40, 45, 50, 55, 59, 64 };
+    // Or just these notes (MIDI), at random (no walk to follow): each where it's lowest on the neck. The key still
+    // writes the staff's signature; frets, strings and leap don't count then.
+    std::vector<int> pool;
 };
 
 // The notes the position holds, low to high, each where it's played: for a note found twice, the lower fret
 // (in open position, the open string). Empty if the scale has no note there.
 std::vector<DrillNote> readingPositionNotes(const ReadingConfig& config);
 
-// One pass. False (with a reason) if the position holds fewer than two of the scale's notes.
+// One pass. False (with a reason) if the position holds fewer than two of the scale's notes, or a note of the pool
+// isn't on the neck.
 bool buildReading(const ReadingConfig& config, std::mt19937& rng, std::vector<DrillNote>& out, std::string& error);

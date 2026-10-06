@@ -153,7 +153,5 @@ void SingingExercise::draw(){
     } else if (listening) line(UiColor::Dim, "Listening...");
     if (!inputError.empty()) line(UiColor::Bad, "No input device: " + inputError);
     if (!saveError.empty()) line(UiColor::Bad, "Progress could not be saved: " + saveError);
-    ImGui::SetCursorScreenPos(ImVec2(left, textY + 10 * s));
-    if (ImGui::Button("Back")) leave = true;
     menuScreenHint("Space  hear it again    S  skip    Esc  back", s);
 }

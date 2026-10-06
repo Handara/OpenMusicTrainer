@@ -36,8 +36,8 @@ struct NoteQuizRun {
     int lastWrong = -1;          // the latest wrong note (MIDI), for showing it
 };
 
-// `count` notes from the config's: in order (going round), or at random, never the same twice in a row when there's
-// a choice
+// `count` notes from the config's: in order (going round), or at random (no pattern to follow: the same note up to
+// three times running, every note at least once when there's room)
 std::vector<NeckStep> noteQuizPrompts(const NoteQuizConfig& config, std::mt19937& random);
 void startNoteQuiz(NoteQuizRun& run, const std::vector<NeckStep>& prompts);
 // A note heard: true if it's the one asked (then the next is), false for another (it stays)

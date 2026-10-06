@@ -155,7 +155,5 @@ void FretboardExercise::draw(){
         ImGui::SetCursorPosX(left);
         ImGui::TextColored(uiColorVec(UiColor::Bad), "Progress could not be saved: %s", saveError.c_str());
     }
-    ImGui::SetCursorPosX(left);
-    if (ImGui::Button("Back")) leave = true;
     menuScreenHint("Click or play the note    Space  next    Esc  back", s);
 }

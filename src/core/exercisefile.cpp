@@ -448,6 +448,15 @@ bool parseExercise(const std::string& source, const std::string& path, int first
             if (!(ss >> out.chords.rounds) || out.chords.rounds < 1 || out.chords.rounds > 8) return lineError("rounds must be 1 to 8");
         } else if (out.type == ExerciseType::Chords && readTempoSetting(key, ss, out.chords.tempo, lineError)){
             if (!error.empty()) return false;
+        } else if (out.type == ExerciseType::Reading && key == "notes"){
+            out.reading.pool.clear();
+            std::string word;
+            while (ss >> word){
+                int pitch;
+                if (!parseNoteName(word, pitch)) return lineError("'" + word + "' isn't a note: write them like E4, F#3, Bb2");
+                out.reading.pool.push_back(pitch);
+            }
+            if (out.reading.pool.empty()) return lineError("expected: notes <names, like E4 F4 G4>");
         } else if (out.type == ExerciseType::Reading && key == "key"){
             std::string word;
             if (!(ss >> word) || !parsePitchClass(word, out.reading.rootPitchClass)) return lineError("key must be a note name like G, F# or Bb");

@@ -26,7 +26,44 @@ std::vector<DrillNote> readingPositionNotes(const ReadingConfig& config){
     return found;
 }
 
+// A pool's notes at random, each where it's lowest on the neck: the same one at most three times running
+static bool buildPoolReading(const ReadingConfig& config, std::mt19937& rng, std::vector<DrillNote>& out, std::string& error){
+    std::vector<DrillNote> places;
+    for (int pitch : config.pool){
+        DrillNote best{ 0.0, -1, -1, pitch };
+        for (int s = 0; s < (int)config.tuning.size(); s++){
+            const int fret = pitch - config.tuning[s];
+            if (fret >= 0 && fret <= 24 && (best.stringIndex < 0 || fret < best.fret)) best = { 0.0, s, fret, pitch };
+        }
+        if (best.stringIndex < 0){
+            error = "a note of 'notes' isn't on this instrument's neck";
+            return false;
+        }
+        places.push_back(best);
+    }
+    RhythmConfig rhythm;
+    rhythm.cells = config.cells;
+    rhythm.bars = config.bars;
+    rhythm.beatsPerBar = config.beatsPerBar;
+    rhythm.tuning = config.tuning;
+    out = buildRhythm(rhythm, rng);
+    const int count = (int)places.size();
+    std::uniform_int_distribution<int> pick(0, count - 1);
+    int last = -1, run = 0;
+    for (DrillNote& note : out){
+        int at = pick(rng);
+        if (count > 1 && at == last && run >= 3) at = (at + 1 + std::uniform_int_distribution<int>(0, count - 2)(rng)) % count;
+        run = at == last ? run + 1 : 1;
+        last = at;
+        const double beat = note.beat;
+        note = places[at];
+        note.beat = beat;
+    }
+    return true;
+}
+
 bool buildReading(const ReadingConfig& config, std::mt19937& rng, std::vector<DrillNote>& out, std::string& error){
+    if (!config.pool.empty()) return buildPoolReading(config, rng, out, error);
     std::vector<DrillNote> notes = readingPositionNotes(config);
     if (notes.size() < 2){
         error = "the position has fewer than two notes of the scale: widen the frets or the strings";

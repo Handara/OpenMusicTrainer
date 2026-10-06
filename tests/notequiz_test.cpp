@@ -62,7 +62,6 @@ TEST_CASE("play this note: one at a time, the next when it's right; right the fi
     std::mt19937 random(3);
     const std::vector<NeckStep> prompts = noteQuizPrompts(config, random);
     REQUIRE(prompts.size() == 6);
-    for (size_t i = 1; i < prompts.size(); i++) CHECK(prompts[i].pitch != prompts[i - 1].pitch); // never twice in a row
     NoteQuizRun run;
     startNoteQuiz(run, prompts);
     CHECK_FALSE(playNoteQuiz(run, config, prompts[0].pitch + 1)); // wrong: it stays
@@ -110,4 +109,37 @@ TEST_CASE("play this note: runs played and passed are kept"){
     CHECK(stats.runs == 4);
     CHECK(stats.passed == 3);
     std::remove(path.c_str());
+}
+
+TEST_CASE("play this note: at random really, no pattern to follow, every note asked, no long runs"){
+    NoteQuizConfig config;
+    std::string error;
+    REQUIRE(placeNotes({ 64, 65 }, GUITAR, {}, config.notes, error)); // E and F: they must not just take turns
+    config.count = 12;
+    int alternating = 0, repeats = 0;
+    for (unsigned seed = 1; seed <= 200; seed++){
+        std::mt19937 random(seed);
+        const std::vector<NeckStep> prompts = noteQuizPrompts(config, random);
+        REQUIRE(prompts.size() == 12);
+        bool takesTurns = true, hasE = false, hasF = false;
+        int run = 1;
+        for (size_t i = 0; i < prompts.size(); i++){
+            hasE = hasE || prompts[i].pitch == 64;
+            hasF = hasF || prompts[i].pitch == 65;
+            if (i == 0) continue;
+            if (prompts[i].pitch == prompts[i - 1].pitch){
+                takesTurns = false;
+                repeats++;
+                run++;
+            } else {
+                run = 1;
+            }
+            CHECK(run <= 3);
+        }
+        CHECK(hasE);
+        CHECK(hasF);
+        if (takesTurns) alternating++;
+    }
+    CHECK(alternating < 5);  // almost never E F E F...
+    CHECK(repeats > 500);    // the same note again comes often
 }
