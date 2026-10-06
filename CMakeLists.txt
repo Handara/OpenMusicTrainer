@@ -224,6 +224,7 @@ add_executable(lahn
     src/screens/lessoneditor.cpp
     src/screens/mainmenu.cpp
     src/learn/chordexercise.cpp
+    src/learn/coursechapter.cpp
     src/learn/drillexercise.cpp
     src/learn/fretboardexercise.cpp
     src/learn/neckexercise.cpp

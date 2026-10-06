@@ -90,6 +90,7 @@ void NoteQuizExercise::finish(){
     finished = true;
     finishedAt = GetTime();
     passed = noteQuizPassed(run, config);
+    finishedPercent = run.prompts.empty() ? 0 : noteQuizRight(run) * 100 / (int)run.prompts.size();
     stats.runs++;
     if (passed){
         stats.passed++;
@@ -243,4 +244,11 @@ void NoteQuizExercise::draw(){
     else if (!listening) draw->AddText(fonts.text, 16 * s, ImVec2(left, textY), uiColor(UiColor::Dim), "No instrument: click the frets to play");
     menuScreenHint(finished ? "Space  again    Esc  back" : "Esc  back", s);
     ImGui::Dummy(ImVec2(1, 1)); // the board moved ImGui's cursor (ui/fretboardview): an item after it
+}
+
+bool NoteQuizExercise::takeFinishedRun(int& percent){
+    if (finishedPercent < 0) return false;
+    percent = finishedPercent;
+    finishedPercent = -1;
+    return true;
 }

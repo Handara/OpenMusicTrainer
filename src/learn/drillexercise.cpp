@@ -84,6 +84,7 @@ void DrillExercise::placePass(double downbeat){
 void DrillExercise::finishPass(){
     int total = (int)notes.size();
     float accuracy = total > 0 ? 100.0f * hits / total : 0.0f;
+    finishedPercent = (int)accuracy;
     DrillPassOutcome outcome = finishDrillPass(setup.tempo, progress, tempo, accuracy);
     if (outcome.clean) cleanPassesNow++;
     std::string error;
@@ -184,4 +185,11 @@ void DrillExercise::draw(){
     NoteViews views = settings.noteViews;
     if (setup.staffOnly){ views.staff = true; views.neck = false; }
     drawNoteViews({0, height * 0.48f, width, height * 0.51f}, views, notes, score, setup.tuning, settings.lowStringOnTop, axis);
+}
+
+bool DrillExercise::takeFinishedRun(int& percent){
+    if (finishedPercent < 0) return false;
+    percent = finishedPercent;
+    finishedPercent = -1;
+    return true;
 }

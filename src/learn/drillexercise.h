@@ -34,6 +34,8 @@ public:
     void draw() override;
     bool wantsToLeave() const override { return leave; }
     int lessonScore() const override { return cleanPassesNow; }
+    bool takeFinishedRun(int& percent) override;
+    bool scoresRuns() const override { return true; }
 
 private:
     void startPass(bool fresh); // fresh: new notes from the setup (not for the first pass: it plays what's shown)
@@ -61,6 +63,7 @@ private:
 
     int hits = 0, perfects = 0;
     int cleanPassesNow = 0;        // clean passes since the drill was opened (a lesson's goal counts these)
+    int finishedPercent = -1;      // a pass just ended, its share of notes hit: until it's taken
     std::string passText;          // the last pass's result
     std::string inputError;
     int lastPlayedPitch = -1;

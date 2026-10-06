@@ -1,5 +1,7 @@
 #include "core/course.h"
 
+#include "core/files.h"
+
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
@@ -41,7 +43,7 @@ bool parseCourse(const std::string& source, const std::string& path, Course& out
         const bool playedOnOne = block.find("type notes") != std::string::npos || block.find("type neck") != std::string::npos;
         if (out.bass && playedOnOne && !saysInstrument) block += "instrument bass\n";
         std::string exerciseError;
-        if (!parseExercise(block, path, blockLine, lesson()->title, step.inlineExercise, exerciseError)){
+        if (!parseExercise(block, path, blockLine, step.title.empty() ? lesson()->title : step.title, step.inlineExercise, exerciseError)){
             error = exerciseError;
             return false;
         }
@@ -66,7 +68,8 @@ bool parseCourse(const std::string& source, const std::string& path, Course& out
         std::string rest;
         std::getline(ss >> std::ws, rest);
         while (!rest.empty() && std::isspace((unsigned char)rest.back())) rest.pop_back();
-        const bool structural = key == "unit" || key == "lesson" || key == "title" || key == "text" || key == "exercise" || key == "goal";
+        const bool structural = key == "unit" || key == "lesson" || key == "title" || key == "text" || key == "exercise" || key == "drill"
+                                || key == "goal";
 
         if (inBlock && !structural){
             block += text + "\n";
@@ -124,9 +127,14 @@ bool parseCourse(const std::string& source, const std::string& path, Course& out
             continue;
         }
         lastWasText = false;
-        if (key == "exercise"){
+        if (key == "exercise" || key == "drill"){
             LessonStep step;
             step.type = LessonStepType::Exercise;
+            if (key == "drill"){ // written in place, named
+                if (rest.empty()) return lineError("a drill needs a name");
+                step.title = rest;
+                rest.clear();
+            }
             if (rest.empty()){
                 step.inlined = true;
                 inBlock = true;
@@ -188,4 +196,111 @@ std::vector<CourseEntry> scanCourses(const std::string& dir){
     }
     std::sort(entries.begin(), entries.end(), [](const CourseEntry& a, const CourseEntry& b){ return a.path < b.path; });
     return entries;
+}
+
+int exercisePassPercent(const ExerciseFile& exercise){
+    switch (exercise.type){
+        case ExerciseType::Notes: {
+            const NoteQuizConfig& quiz = exercise.noteQuiz;
+            return quiz.count > 0 ? (std::min(quiz.pass, quiz.count) * 100 + quiz.count - 1) / quiz.count : 100; // rounded up
+        }
+        case ExerciseType::Reading: return exercise.reading.tempo.passPercent;
+        case ExerciseType::Scale: return exercise.drill.tempo.passPercent;
+        case ExerciseType::Rhythm: return exercise.rhythm.tempo.passPercent;
+        case ExerciseType::Chords: return exercise.chords.tempo.passPercent;
+        default: return 100;
+    }
+}
+
+std::vector<CourseDrill> courseDrills(const Course& course, int lesson){
+    std::vector<CourseDrill> drills;
+    if (lesson < 0 || lesson >= (int)course.lessons.size()) return drills;
+    const CourseLesson& chapter = course.lessons[lesson];
+    for (int i = 0; i < (int)chapter.lesson.steps.size(); i++){
+        const LessonStep& step = chapter.lesson.steps[i];
+        if (step.type != LessonStepType::Exercise) continue;
+        CourseDrill drill;
+        drill.lesson = lesson;
+        drill.step = i;
+        drill.id = chapter.id + "-" + std::to_string(i + 1);
+        drill.name = !step.title.empty() ? step.title : step.inlined ? "" : step.exercise;
+        drill.passPercent = step.inlined ? exercisePassPercent(step.inlineExercise) : 100;
+        drills.push_back(drill);
+    }
+    for (size_t i = 0; i < drills.size(); i++)
+        if (drills[i].name.empty()) drills[i].name = drills.size() == 1 ? chapter.lesson.title : chapter.lesson.title + " " + std::to_string(i + 1);
+    return drills;
+}
+
+CourseScores loadCourseScores(const std::string& path){
+    CourseScores scores;
+    std::ifstream in(path);
+    std::string drill;
+    int percent;
+    while (in >> drill >> percent) scores.best[drill] = std::clamp(percent, 0, 100);
+    return scores;
+}
+
+bool saveCourseScores(const std::string& path, const CourseScores& scores, std::string& error){
+    std::ostringstream out;
+    for (const auto& [drill, percent] : scores.best) out << drill << " " << percent << "\n";
+    return writeFileAtomically(path, out.str(), error);
+}
+
+bool recordCourseScore(CourseScores& scores, const std::string& drill, int percent){
+    percent = std::clamp(percent, 0, 100);
+    auto found = scores.best.find(drill);
+    if (found != scores.best.end() && found->second >= percent) return false;
+    scores.best[drill] = percent;
+    return true;
+}
+
+static int bestOf(const CourseScores& scores, const std::string& drill){
+    auto found = scores.best.find(drill);
+    return found == scores.best.end() ? 0 : found->second;
+}
+
+ChapterState chapterState(const Course& course, int lesson, const CourseScores& scores){
+    ChapterState state;
+    const std::vector<CourseDrill> drills = courseDrills(course, lesson);
+    if (drills.empty()){
+        const bool read = lesson >= 0 && lesson < (int)course.lessons.size() && bestOf(scores, course.lessons[lesson].id + "-read") > 0;
+        state.percent = read ? 100 : 0;
+        state.passed = state.perfect = read;
+        return state;
+    }
+    int sum = 0;
+    state.passed = state.perfect = true;
+    for (const CourseDrill& drill : drills){
+        const int best = bestOf(scores, drill.id);
+        sum += best;
+        if (best < drill.passPercent) state.passed = false;
+        if (best < 100) state.perfect = false;
+    }
+    state.percent = sum / (int)drills.size();
+    return state;
+}
+
+bool chapterOpen(const Course& course, int lesson, const CourseScores& scores){
+    return lesson <= 0 || chapterState(course, lesson - 1, scores).passed;
+}
+
+int levelPercent(const Course& course, int unit, const CourseScores& scores){
+    if (unit < 0 || unit >= (int)course.units.size() || course.units[unit].lessonCount == 0) return 0;
+    int sum = 0;
+    for (int i = course.units[unit].firstLesson; i < course.units[unit].firstLesson + course.units[unit].lessonCount; i++)
+        sum += chapterState(course, i, scores).percent;
+    return sum / course.units[unit].lessonCount;
+}
+
+int coursePercent(const Course& course, const CourseScores& scores){
+    if (course.lessons.empty()) return 0;
+    int sum = 0;
+    for (int i = 0; i < (int)course.lessons.size(); i++) sum += chapterState(course, i, scores).percent;
+    return sum / (int)course.lessons.size();
+}
+
+int courseContinue(const Course& course, const CourseScores& scores){
+    for (int i = 0; i < (int)course.lessons.size(); i++) if (!chapterState(course, i, scores).passed) return i;
+    return std::max(0, (int)course.lessons.size() - 1);
 }

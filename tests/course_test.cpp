@@ -117,3 +117,56 @@ TEST_CASE("courses: the ones shipped all load"){
         if (!entry.error.empty()) MESSAGE(entry.error);
     }
 }
+
+TEST_CASE("courses: drills scored by their best run; a chapter passed with all of them, then the next opens"){
+    Course course;
+    std::string error;
+    REQUIRE_MESSAGE(parseCourse("version 1\ntitle T\n"
+                                "unit Level one\n"
+                                "lesson First\n"
+                                "text Hello.\n"
+                                "drill E alone\ntype notes\nnotes E4\ncount 4\npass 3\n"
+                                "drill E and F\ntype notes\nnotes E4 F4\ncount 8\npass 8\n"
+                                "lesson Second\n"
+                                "exercise\ntype notes\nnotes G4\ncount 5\npass 4\n"
+                                "unit Level two\n"
+                                "lesson Words only\n"
+                                "text Read me.\n",
+                                "t.course", course, error), error);
+    const std::vector<CourseDrill> drills = courseDrills(course, 0);
+    REQUIRE(drills.size() == 2);
+    CHECK(drills[0].name == "E alone");
+    CHECK(drills[0].id == "first-2");       // the second step (the text is the first)
+    CHECK(drills[0].passPercent == 75);     // 3 of 4
+    CHECK(drills[1].passPercent == 100);
+    CHECK(course.lessons[0].lesson.steps[1].inlineExercise.title == "E alone");
+    CHECK(courseDrills(course, 1)[0].name == "Second"); // no name of its own: the chapter's
+    CourseScores scores;
+    CHECK_FALSE(chapterOpen(course, 1, scores));
+    CHECK(courseContinue(course, scores) == 0);
+    CHECK(recordCourseScore(scores, "first-2", 75));
+    CHECK_FALSE(recordCourseScore(scores, "first-2", 50)); // not a best
+    CHECK(recordCourseScore(scores, "first-3", 90));
+    ChapterState first = chapterState(course, 0, scores);
+    CHECK(first.percent == 82);
+    CHECK_FALSE(first.passed); // 90 of the 100 needed
+    recordCourseScore(scores, "first-3", 100);
+    first = chapterState(course, 0, scores);
+    CHECK(first.passed);
+    CHECK_FALSE(first.perfect);
+    CHECK(chapterOpen(course, 1, scores));
+    CHECK(courseContinue(course, scores) == 1);
+    recordCourseScore(scores, "first-2", 100);
+    CHECK(chapterState(course, 0, scores).perfect);
+    // A chapter of words only: passed once read
+    CHECK_FALSE(chapterState(course, 2, scores).passed);
+    recordCourseScore(scores, "words-only-read", 100);
+    CHECK(chapterState(course, 2, scores).passed);
+    CHECK(levelPercent(course, 1, scores) == 100);
+    CHECK(levelPercent(course, 0, scores) == 50); // 100 and 0
+    // Kept in a file
+    const std::string path = (std::filesystem::temp_directory_path() / "lahn-course-scores-test.txt").string();
+    REQUIRE(saveCourseScores(path, scores, error));
+    CHECK(loadCourseScores(path).best == scores.best);
+    std::filesystem::remove(path);
+}

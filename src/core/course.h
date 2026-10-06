@@ -2,12 +2,14 @@
 
 #include "core/lesson.h"
 
+#include <map>
 #include <string>
 #include <vector>
 
-// Courses: a path through many small lessons, Duolingo-style, from the very start (never having held an instrument)
-// a little at a time; each lesson opens once the one before is done. One text file, units of lessons, each lesson a
-// few steps: text to read, and exercises, written in place or named.
+// Courses: many small steps, from the very start (never having held an instrument) a little at a time. A course is
+// levels (its units), a level is chapters (its lessons), a chapter is a few words to read and drills (its exercises,
+// written in place or named), each drill scored by its best run; a chapter opens once the one before is passed. One
+// text file.
 //
 //   # lahn course
 //   version 1
@@ -28,6 +30,9 @@
 //
 //   lesson E and F
 //   exercise reading-first-notes    (or an exercise by its file name)
+//   drill E and F, no hints         (an exercise written in place, with its own name)
+//   type notes
+//   notes E4 F4
 //
 // Lesson titles are unique within a course: a lesson's progress is kept by its title.
 
@@ -65,3 +70,35 @@ std::vector<CourseEntry> scanCourses(const std::string& dir);
 
 // "Your first note" -> "your-first-note"
 std::string courseSlug(const std::string& title);
+
+// A course's drills: every exercise step, chapter by chapter, with what passes it
+struct CourseDrill {
+    int lesson = 0;          // its chapter
+    int step = 0;            // its step in the chapter
+    std::string id;          // "<chapter id>-<step from 1>": its score and its own progress are kept by it
+    std::string name;        // for the list: its own, or the chapter's with its number
+    int passPercent = 100;   // the score a run needs
+};
+std::vector<CourseDrill> courseDrills(const Course& course, int lesson);
+// What a run of an exercise must score to pass it (percent): its own rule (so many right of so many, a pass's share)
+int exercisePassPercent(const ExerciseFile& exercise);
+
+// Each drill's best score, kept in one file per course; a chapter with no drills is passed once it's been read
+struct CourseScores {
+    std::map<std::string, int> best; // drill id (or "<chapter id>-read") -> percent
+};
+CourseScores loadCourseScores(const std::string& path);
+bool saveCourseScores(const std::string& path, const CourseScores& scores, std::string& error);
+// A run's score, kept if it's the best: true if it is
+bool recordCourseScore(CourseScores& scores, const std::string& drill, int percent);
+
+struct ChapterState {
+    int percent = 0;     // its drills' best scores, on average
+    bool passed = false; // every drill passed (or, without drills, read)
+    bool perfect = false;// every drill at 100%
+};
+ChapterState chapterState(const Course& course, int lesson, const CourseScores& scores);
+bool chapterOpen(const Course& course, int lesson, const CourseScores& scores); // the first, or the one before passed
+int levelPercent(const Course& course, int unit, const CourseScores& scores);
+int coursePercent(const Course& course, const CourseScores& scores);
+int courseContinue(const Course& course, const CourseScores& scores); // the first chapter not passed (the last if all are)

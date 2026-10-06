@@ -20,6 +20,11 @@ public:
     // What a lesson's goal counts, for exercises a lesson can include: a drill's clean passes this time, an interval
     // exercise's right answers in a row. 0 for the rest.
     virtual int lessonScore() const { return 0; }
+
+    // A run (a pass, a set of questions) just ended: true once, with its score in percent, for a course's drill to
+    // keep its best. False for exercises that don't score runs (the course falls back on lessonScore).
+    virtual bool takeFinishedRun(int& percent){ (void)percent; return false; }
+    virtual bool scoresRuns() const { return false; }
 };
 
 struct ExerciseEntry;

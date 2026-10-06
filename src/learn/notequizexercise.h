@@ -26,6 +26,8 @@ public:
     void draw() override;
     bool wantsToLeave() const override { return false; } // Esc (learnBack) ends it
     int lessonScore() const override { return passedNow; } // runs passed, this time
+    bool takeFinishedRun(int& percent) override;
+    bool scoresRuns() const override { return true; }
 
 private:
     void startRun();
@@ -47,6 +49,7 @@ private:
     std::mt19937 random;
     bool finished = false, passed = false;
     int passedNow = 0;
+    int finishedPercent = -1; // a run just ended, its score: until it's taken
     double rightAt = -100.0, wrongAt = -100.0, finishedAt = -100.0;
     NeckStep lastRight{ -1, -1, -1 }; // the note just played right: its ring
     // The prompts written down, for the staff: a bar of four at a time, the one now lit
