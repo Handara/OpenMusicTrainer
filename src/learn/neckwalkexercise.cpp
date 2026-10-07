@@ -4,6 +4,7 @@
 #include "core/music.h"
 #include "core/routine.h"
 #include "imgui.h"
+#include "input/menuinput.h"
 #include "input/noteinput.h"
 #include "raylib.h"
 #include "ui/menulist.h"
@@ -195,7 +196,7 @@ void NeckWalkExercise::played(int pitch, double time){
 
 void NeckWalkExercise::update(){
     // The notes heard, placed on the tune's clock (the device's own delay taken off)
-    if (listening){
+    if (listening && (state == State::Playing || !menuInputActive())){ // between games, the menus read the instrument
         for (const PlayedNote& note : updateNoteInput())
             played(note.pitch, gameTime() - note.age - settings.inputOffsetMs / 1000.0);
     }
@@ -210,7 +211,8 @@ void NeckWalkExercise::update(){
         if (ImGui::IsKeyPressed(ImGuiKey_S)) cycleChoice(2, back);
         if (ImGui::IsKeyPressed(ImGuiKey_G)) cycleChoice(3, back);
         if (ImGui::IsKeyPressed(ImGuiKey_T)) cycleChoice(4, back);
-        if (ImGui::IsKeyPressed(ImGuiKey_Space, false) && grooveError.empty()) start();
+        const bool go = ImGui::IsKeyPressed(ImGuiKey_Space, false) || ImGui::IsKeyPressed(ImGuiKey_Enter, false) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false);
+        if (go && grooveError.empty()) start(); // Enter: the instrument's choose too
     }
     if (state == State::Playing) handle(neckWalkUpdate(game, gameTime()));
     if (state != State::Ready) scheduleTune(); // over, the round it's in still plays out
@@ -408,7 +410,7 @@ void NeckWalkExercise::drawResults(float left, float top, float width, float s){
         draw->AddText(fonts.mono, 12 * s, ImVec2(x + 10 * s, y + 32 * s), uiColor(UiColor::Dim), TextFormat("%d/%d", right, right + wrong));
         x += cell;
     }
-    draw->AddText(fonts.bold, 20 * s, ImVec2(left, y + 76 * s), uiColor(UiColor::Ink), "Space to play again.");
+    draw->AddText(fonts.bold, 20 * s, ImVec2(left, y + 76 * s), uiColor(UiColor::Ink), menuInputActive() ? "Space, or the open G string, to play again." : "Space to play again.");
 }
 
 void NeckWalkExercise::draw(){
@@ -501,7 +503,7 @@ void NeckWalkExercise::draw(){
 
     float textY = neckBottom + 40 * s;
     if (state == State::Ready){
-        draw->AddText(fonts.bold, 20 * s, ImVec2(left, textY), uiColor(UiColor::Ink), "Space to start.");
+        draw->AddText(fonts.bold, 20 * s, ImVec2(left, textY), uiColor(UiColor::Ink), menuInputActive() ? "Space, or the open G string, to start." : "Space to start.");
         draw->AddText(fonts.text, 16 * s, ImVec2(left, textY + 28 * s), uiColor(UiColor::Dim),
                       "The computer plays a few notes on the neck: watch and listen. Then play them back, from memory, in the same rhythm.");
         draw->AddText(fonts.text, 16 * s, ImVec2(left, textY + 50 * s), uiColor(UiColor::Dim),

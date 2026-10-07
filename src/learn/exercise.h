@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 
 // One kind of learn-mode activity: interval ear training now, later scale drills, rhythm, sight reading...
 // The learn screen runs whichever one is active through this interface, without knowing which kind it is.
@@ -28,9 +29,14 @@ public:
     // It goes on after a run passes, the next one harder (a timed drill, faster): a course doesn't move on by itself
     // from it, the player does
     virtual bool goesOn() const { return false; }
-    // It's a page to choose from just now, not something being played (a course's chapter between its drills): the
-    // instrument can move around it as in the menus
+    // It's a page to choose from just now, not something being played (a course's chapter between its drills, a
+    // drill waiting to start or showing how a run went): the instrument can move around it as in the menus
     virtual bool isMenu() const { return false; }
+    // After a run it stops on a menu (again, faster, next, back) instead of going on by itself. A course offers what
+    // comes next there ("Next drill: F alone"; "" for nothing), and hears when it's chosen (true once).
+    virtual bool hasEndMenu() const { return false; }
+    virtual void offerNext(const std::string& label){ (void)label; }
+    virtual bool takeNextChosen(){ return false; }
 };
 
 struct ExerciseEntry;

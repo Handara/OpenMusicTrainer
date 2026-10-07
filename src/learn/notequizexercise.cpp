@@ -7,6 +7,7 @@
 #include "imgui.h"
 #include "input/keynotes.h"
 #include "input/keysinput.h"
+#include "input/menuinput.h"
 #include "input/noteinput.h"
 #include "raylib.h"
 #include "ui/menulist.h"
@@ -126,6 +127,7 @@ void NoteQuizExercise::played(int pitch, bool heard){
 void NoteQuizExercise::finish(){
     finished = true;
     finishedAt = GetTime();
+    endMenu = MenuList{}; // its first row chosen: again
     passed = noteQuizPassed(run, config);
     finishedPercent = run.prompts.empty() ? 0 : noteQuizRight(run) * 100 / (int)run.prompts.size();
     stats.runs++;
@@ -145,7 +147,8 @@ void NoteQuizExercise::update(){
             playKeysNote(midiToFrequency((float)note.pitch));
             played(note.pitch, false);
         }
-    } else if (listening) for (const PlayedNote& note : updateNoteInput()) played(note.pitch, true);
+    } else if (listening && !(finished && menuInputActive())) // on the end menu, the menus read the instrument
+        for (const PlayedNote& note : updateNoteInput()) played(note.pitch, true);
     // The keyboard's notes by name (input/keynotes), in the octave of the note asked, and heard; not while the
     // computer keyboard is the piano (its letters are keys)
     const int keyClass = config.piano && !keysInputIsMidi() ? -1 : keyboardNoteClass();
@@ -155,8 +158,7 @@ void NoteQuizExercise::update(){
         else playStringNote(midiToFrequency((float)pitch), onBass, 0.8f, 0.8f);
         played(pitch, false);
     }
-    if (finished && ImGui::IsKeyPressed(ImGuiKey_Space, false)) startRun();
-    else if (config.prompt == NotePrompt::Ear && !finished && (ImGui::IsKeyPressed(ImGuiKey_Space, false)
+    if (config.prompt == NotePrompt::Ear && !finished && (ImGui::IsKeyPressed(ImGuiKey_Space, false)
                                                               || (ImGui::IsKeyPressed(ImGuiKey_R, false) && !(config.piano && !keysInputIsMidi()))))
         playPrompt(); // hear it again (R too, unless it's a key of the piano)
     if (playPromptAt >= 0.0 && GetTime() >= playPromptAt){
@@ -305,6 +307,12 @@ void NoteQuizExercise::draw(){
 
     // What to play: the instruction, big (and for a name or the staff, the note's name or the staff itself)
     const float promptTop = height * 0.26f;
+    if (finished){
+        drawEnd(promptTop, s);
+        menuScreenHint("Enter choose    Esc back", s);
+        ImGui::Dummy(ImVec2(1, 1)); // the list moved ImGui's cursor: an item after it
+        return;
+    }
     float neckTop = height * 0.45f;
     if (!finished){
         if (config.prompt == NotePrompt::Staff){
@@ -360,14 +368,6 @@ void NoteQuizExercise::draw(){
     }
 
     // The run's end: passed, or not yet
-    if (finished){
-        const float grow = 1.0f + 0.3f * std::exp(-(float)(GetTime() - finishedAt) * 8.0f);
-        draw->AddText(fonts.heavy, 54 * s * grow, ImVec2(left, promptTop - 10 * s), uiColor(passed ? UiColor::Good : UiColor::Ink),
-                      passed ? "Passed!" : "Nearly");
-        draw->AddText(fonts.bold, 20 * s, ImVec2(left, promptTop + 62 * s), uiColor(UiColor::Ink),
-                      TextFormat("%d of %d right the first time (%d to pass).  Space to go again.", noteQuizRight(run), (int)run.prompts.size(),
-                                 std::min(config.pass, (int)run.prompts.size())));
-    }
     float textY = neckBottom + 36 * s;
     if (config.piano){
         const char* how = keysInputIsMidi() ? "Play on your MIDI keyboard, or click the keys. On the computer keyboard, name the notes (A to G, Shift sharp, Ctrl flat)"
@@ -375,8 +375,34 @@ void NoteQuizExercise::draw(){
         draw->AddText(fonts.text, 16 * s, ImVec2(left, textY), uiColor(UiColor::Dim), how);
     } else if (!inputError.empty()) draw->AddText(fonts.text, 16 * s, ImVec2(left, textY), uiColor(UiColor::Bad), inputError.c_str());
     else if (!listening) draw->AddText(fonts.text, 16 * s, ImVec2(left, textY), uiColor(UiColor::Dim), "No instrument: click the frets, or name the notes on the keyboard (A to G, Shift sharp, Ctrl flat)");
-    menuScreenHint(finished ? "Space  again    Esc  back" : config.prompt == NotePrompt::Ear ? "Space  hear it again    Esc  back" : "Esc  back", s);
+    menuScreenHint(config.prompt == NotePrompt::Ear ? "Space  hear it again    Esc  back" : "Esc  back", s);
     ImGui::Dummy(ImVec2(1, 1)); // the board moved ImGui's cursor (ui/fretboardview): an item after it
+}
+
+bool NoteQuizExercise::takeNextChosen(){
+    const bool chosen = nextChosen;
+    nextChosen = false;
+    return chosen;
+}
+
+// The run's end: passed or not yet, how many right, then what to do (again, the course's next drill, back)
+void NoteQuizExercise::drawEnd(float top, float s){
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    const UiFonts& fonts = uiFonts();
+    const float width = ImGui::GetWindowWidth(), height = ImGui::GetWindowHeight(), left = width * 0.07f;
+    const float grow = 1.0f + 0.3f * std::exp(-(float)(GetTime() - finishedAt) * 8.0f);
+    draw->AddText(fonts.heavy, 54 * s * grow, ImVec2(left, top - 10 * s), uiColor(passed ? UiColor::Good : UiColor::Ink), passed ? "Passed!" : "Nearly");
+    draw->AddText(fonts.bold, 20 * s, ImVec2(left, top + 62 * s), uiColor(UiColor::Ink),
+                  TextFormat("%d of %d right the first time (%d to pass)", noteQuizRight(run), (int)run.prompts.size(),
+                             std::min(config.pass, (int)run.prompts.size())));
+    std::vector<MenuRow> rows = { actionRow(passed ? "Again" : "Try again", "Space") };
+    if (!nextLabel.empty()) rows.push_back(actionRow(nextLabel, "N"));
+    rows.push_back(actionRow("Back", "Esc"));
+    int picked = menuList(endMenu, rows, { ImVec2(left, height * 0.45f), width * 0.5f, height * 0.42f, s });
+    if (!nextLabel.empty() && ImGui::IsKeyPressed(ImGuiKey_N, false)) picked = 1;
+    if (picked == 0) startRun();
+    else if (picked == (int)rows.size() - 1) leave = true;
+    else if (picked == 1) nextChosen = true;
 }
 
 bool NoteQuizExercise::takeFinishedRun(int& percent){

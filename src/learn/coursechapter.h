@@ -10,7 +10,8 @@
 
 // A course's chapter (core/course): its few words to read beside its drills, each with its best score, passed or
 // PERFECT. Enter goes on with the first drill not passed yet (or the one chosen); a drill's run scored, its best is
-// kept, and once it's passed the next one starts by itself. A chapter passed offers the next one (N, or Enter on it),
+// kept. A drill with an end menu (again, faster...) offers the next drill there, or the next chapter after the last;
+// any other, once passed, gives way to the next by itself. A chapter passed offers the next one (N, or Enter on it),
 // saying so when it starts a new level. Esc from a drill comes back here, from here to the level.
 class CourseChapter : public Exercise {
 public:
@@ -23,7 +24,7 @@ public:
     void draw() override;
     bool wantsToLeave() const override { return false; } // Esc (learnBack) ends it
     bool back() override;                                // a drill running: back to the chapter
-    bool isMenu() const override { return !running; }
+    bool isMenu() const override { return !running || running->isMenu(); } // its page, or a drill's own menu
 
 private:
     void load(int lesson);      // a chapter: its drills, the one to go on with
@@ -31,6 +32,7 @@ private:
     void startDrill(int index);
     void stopDrill();
     void scored(int percent);
+    std::string nextLabel() const; // what comes after the running drill, for its end menu: "" for nothing
     int firstNotPassed() const;
     void drawRunningBar(float s);
 

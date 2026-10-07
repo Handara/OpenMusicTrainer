@@ -9,7 +9,9 @@
 // note picks an item. Call once a frame, before the UI's frame starts: the keys it presses count in that frame.
 //
 // It shares the input with the screens that listen: it starts note input only while a menu is up, and leaving the
-// menus it closes it only if nobody else started listening since (an exercise, the tuning check).
+// menus it closes it only if nobody else started listening since (an exercise, the tuning check). A screen showing a
+// menu with its own input still open (a drill waiting to start, or after a pass) is read from, not reopened: that
+// screen leaves the reading to it meanwhile (menuInputActive).
 // `menuScreen`: a menu is up; `problem`: why the instrument can't be listened to (not connected...), empty if it can
 void updateMenuInput(bool menuScreen, const std::string& problem, const Settings& settings, InputRole instrument);
 bool menuInputActive();          // listening now: the menus show the notes

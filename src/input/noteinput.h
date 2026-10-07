@@ -25,6 +25,9 @@ int noteInputGeneration();
 // Stops listening without closing the capture: another screen opened it since, and reads it now
 void releaseNoteInput();
 bool noteInputActive();
+// Active, and still on the capture it started on: nobody has started reading the capture since (which closes or
+// reopens it under this input)
+bool noteInputCurrent();
 
 // Reads everything the input delivered since the last call; returns the notes that started in it. Call once per frame.
 const std::vector<PlayedNote>& updateNoteInput();

@@ -5,6 +5,7 @@
 #include "core/score.h"
 #include "core/settings.h"
 #include "learn/exercise.h"
+#include "ui/menulist.h"
 
 #include <functional>
 #include <string>
@@ -24,8 +25,11 @@ struct DrillSetup {
                                                       // a rhythm's new
 };
 
-// A drill: notes scroll by in time with a metronome, pass after pass, faster each time they're played cleanly.
-// Judged from the number keys or the player's instrument; the best clean tempo is saved.
+// A drill: notes scroll by in time with a metronome, a pass at a time, faster each time they're played cleanly.
+// Judged from the number keys or the player's instrument; the best clean tempo is saved. It waits on the first pass's
+// notes until Space (or the instrument's choose, its open G string: input/menuinput), and after each pass shows how
+// it went with a menu: again (at the tempo it earned), faster or the same, the course's next drill, back. Waiting and
+// on that menu, the instrument steers as in the menus.
 class DrillExercise : public Exercise {
 public:
     DrillExercise(const std::string& title, const DrillSetup& setup, const std::string& progressPath, const Settings& settings);
@@ -38,13 +42,20 @@ public:
     bool takeFinishedRun(int& percent) override;
     bool scoresRuns() const override { return true; }
     bool goesOn() const override { return true; } // each clean pass, faster
+    bool isMenu() const override { return stage != Stage::Running; }
+    bool hasEndMenu() const override { return true; }
+    void offerNext(const std::string& label) override { nextLabel = label; }
+    bool takeNextChosen() override;
 
 private:
+    enum class Stage { Waiting, Running, Ended };
     void startPass(bool fresh); // fresh: new notes from the setup (not for the first pass: it plays what's shown)
+    void stopPass();            // Space while playing: back to waiting on the same notes
     void placePass(double downbeat);
     void finishPass();
     double drillTime() const; // the audio clock, minus the output offset: what the notes are timed against
     void drawWhere(float left, float right, float top, float bottom, float s); // the neck, the next note lit
+    void drawEnd(float s);      // how the pass went, and the menu after it
 
     std::string title;
     DrillSetup setup;
@@ -54,7 +65,7 @@ private:
     std::vector<DrillNote> drillNotes; // this pass, in beats
     Chart chart;                       // the same pass as a chart, timed for this pass
 
-    bool running = false;          // Space starts and stops
+    Stage stage = Stage::Waiting;  // Space starts and stops; a pass played to its end stops on the end menu
     int tempo = 0;                 // of the current pass
     double countInStart = 0.0;     // audio time of the first count-in click
     double firstNoteTime = 0.0;    // audio time of the pass's first bar's first beat
@@ -73,4 +84,11 @@ private:
     PlayNote lastHit{ 0.0f, -1, -1, -1 }; // the last note hit, and when: ringed on the neck a moment
     double hitAt = -100.0;
     bool leave = false;
+    // The end menu: the pass just played, and what's offered after it
+    MenuList endMenu;
+    int endTempo = 0, endHits = 0, endTotal = 0;
+    DrillPassOutcome endOutcome{ false, 0, false };
+    double endedAt = -100.0;
+    std::string nextLabel;         // the course's next drill, offered there ("" for none)
+    bool nextChosen = false;
 };

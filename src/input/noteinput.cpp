@@ -25,6 +25,7 @@ static struct {
     int channel = -1;                      // the device's input listened to, -1 for all mixed
     float minFrequency = 0.0f;
     bool active = false;
+    int captureGeneration = -1;            // the capture's, as this input started it (audio captureGeneration)
     // A check being recorded (startInputRecording)
     bool recording = false;
     long long recordFrom = 0;              // the detector's position when it began
@@ -49,6 +50,7 @@ bool startNoteInput(const std::string& inputDevice, float minFrequency, std::str
     stopNoteInput();
     noteInputStarts++;
     if (!startCapture(inputDevice, error)) return false;
+    input.captureGeneration = captureGeneration();
     NoteDetectorConfig config;
     config.minFrequency = minFrequency;
     initNoteDetector(input.detector, captureSampleRate(), config);
@@ -72,6 +74,10 @@ void stopNoteInput(){
 
 bool noteInputActive(){
     return input.active;
+}
+
+bool noteInputCurrent(){
+    return input.active && captureGeneration() == input.captureGeneration;
 }
 
 const std::vector<PlayedNote>& updateNoteInput(){

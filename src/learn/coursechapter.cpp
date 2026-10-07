@@ -89,6 +89,16 @@ void CourseChapter::scored(int percent){
     }
     if (percent >= drill.passPercent) passedAt = GetTime();
     if (!wasPassed && chapterState(course, lesson, scores).passed) chapterPassedAt = GetTime();
+    if (running && running->hasEndMenu()) running->offerNext(nextLabel());
+}
+
+// The drill after the running one; after the last, the next chapter once this one's passed (and whether it starts a
+// new level)
+std::string CourseChapter::nextLabel() const {
+    if (runningIndex + 1 < (int)drills.size()) return "Next drill: " + drills[runningIndex + 1].name;
+    if (!hasNext()) return "";
+    const CourseLesson& next = course.lessons[lesson + 1];
+    return "Next chapter: " + next.lesson.title + (next.unit != course.lessons[lesson].unit ? TextFormat("  (level %d)", next.unit + 1) : "");
 }
 
 void CourseChapter::update(){
@@ -101,9 +111,20 @@ void CourseChapter::update(){
             const LessonStep& step = course.lessons[lesson].lesson.steps[drills[runningIndex].step];
             if (running->lessonScore() >= lessonGoal(step, entries[runningIndex].exercise.type)) scored(100);
         }
-        // On to the next drill: by itself a moment after a pass, or, from a drill that gets harder as it goes on
-        // (it's passed, and it keeps climbing), when the player says (Enter or N)
-        const bool onward = running && running->goesOn() ? passedAt >= 0.0 && (ImGui::IsKeyPressed(ImGuiKey_Enter, false) || ImGui::IsKeyPressed(ImGuiKey_N, false))
+        // Its end menu's "next": the next drill, or after the last, the next chapter's page
+        if (running && running->takeNextChosen()){
+            if (runningIndex + 1 < (int)drills.size()) startDrill(runningIndex + 1);
+            else {
+                stopDrill();
+                if (hasNext()) load(lesson + 1);
+            }
+            return;
+        }
+        // Without one: on to the next drill by itself a moment after a pass, or, from a drill that gets harder as it
+        // goes on (it's passed, and it keeps climbing), when the player says (Enter or N)
+        const bool menu = running && running->hasEndMenu();
+        const bool onward = menu ? false
+                          : running && running->goesOn() ? passedAt >= 0.0 && (ImGui::IsKeyPressed(ImGuiKey_Enter, false) || ImGui::IsKeyPressed(ImGuiKey_N, false))
                                                          : passedAt >= 0.0 && GetTime() - passedAt >= NEXT_AFTER_S;
         if (running && running->wantsToLeave()) stopDrill();
         else if (onward){
@@ -137,7 +158,8 @@ void CourseChapter::drawRunningBar(float s){
     const int best = found == scores.best.end() ? 0 : found->second;
     std::string text = TextFormat("DRILL %d OF %d  ·  BEST %d%%  ·  %d%% TO PASS", runningIndex + 1, (int)drills.size(), best, drill.passPercent);
     if (lastPercent >= 0) text += TextFormat("  ·  THIS RUN %d%%%s", lastPercent, lastWasBest ? " (BEST!)" : "");
-    if (passedAt >= 0.0 && running->goesOn()) text += "  ·  PASSED: KEEP GOING, OR ENTER FOR THE NEXT";
+    if (passedAt >= 0.0 && running->goesOn() && !running->hasEndMenu()) text += "  ·  PASSED: KEEP GOING, OR ENTER FOR THE NEXT";
+    else if (passedAt >= 0.0) text += "  ·  PASSED";
     const float width = ImGui::GetWindowWidth();
     const ImVec2 size = fonts.mono->CalcTextSizeA(13 * s, FLT_MAX, 0.0f, text.c_str());
     const bool passed = passedAt >= 0.0;

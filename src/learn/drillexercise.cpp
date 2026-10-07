@@ -4,6 +4,7 @@
 #include "core/music.h"
 #include "imgui.h"
 #include "input/keynotes.h"
+#include "input/menuinput.h"
 #include "input/noteinput.h"
 #include "raylib.h"
 #include "ui/ui.h"
@@ -17,8 +18,11 @@
 #include <cmath>
 
 const double LEAD_IN_S = 0.3;      // silence before the count-in
-const double LOOKAHEAD_S = 0.2;
-const double WAITING_AHEAD_S = 1e5; // before the first pass, its notes wait this far ahead: off the screen    // metronome clicks are handed to the audio engine this far ahead
+const double LOOKAHEAD_S = 0.2;     // metronome clicks are handed to the audio engine this far ahead
+// Waiting to start, the pass is placed at this time and shown as at a moment before it, standing still. Small
+// numbers: the views place notes by subtracting times, and far ahead (once 1e5 s) a float's steps made them shake.
+const double WAITING_DOWNBEAT = 1000.0;
+const double WAITING_SHOWN_S = 1.0;
 const float HIT_LINE_X = 180.0f;
 const int MAX_KEY_LANES = 6;
 const float HIT_RING_S = 0.6f;      // shown where: the ring round a note hit, on the neck
@@ -27,11 +31,11 @@ DrillExercise::DrillExercise(const std::string& title, const DrillSetup& setup, 
                              const Settings& settings)
     : title(title), setup(setup), progressPath(progressPath), settings(settings){
     progress = loadDrillProgress(progressPath);
-    // The first pass, placed far ahead until it starts: the staff shows its clef, key and meter, but no notes yet
+    // The first pass, waiting to start: its first bar shown, to read ahead
     drillNotes = this->setup.nextPass();
     chart = drillChart(drillNotes, setup.tuning, setup.key, setup.beatsPerBar);
     tempo = drillTempo(setup.tempo, progress);
-    placePass(audioTime() + WAITING_AHEAD_S);
+    placePass(WAITING_DOWNBEAT);
     if (settings.playWithInstrument){
         float lowest = midiToFrequency((float)*std::min_element(setup.tuning.begin(), setup.tuning.end())) * 0.9f;
         int lowestPitch = *std::min_element(setup.tuning.begin(), setup.tuning.end());
@@ -84,6 +88,7 @@ void DrillExercise::placePass(double downbeat){
     score = buildScore(chart, chart.frettedTracks[0]);
 }
 
+// The pass played to its end: judged and kept, then the end menu, the next pass's notes ready behind it
 void DrillExercise::finishPass(){
     int total = (int)notes.size();
     float accuracy = total > 0 ? 100.0f * hits / total : 0.0f;
@@ -92,24 +97,50 @@ void DrillExercise::finishPass(){
     if (outcome.clean) cleanPassesNow++;
     std::string error;
     saveDrillProgress(progressPath, progress, error);
+    endTempo = tempo;
+    endHits = hits;
+    endTotal = total;
+    endOutcome = outcome;
+    endedAt = GetTime();
+    endMenu = MenuList{}; // its first row chosen: again
+    stage = Stage::Ended;
+    passText.clear();
+    drillNotes = setup.nextPass();
+    chart = drillChart(drillNotes, setup.tuning, setup.key, setup.beatsPerBar);
+    tempo = drillTempo(setup.tempo, progress);
+    placePass(WAITING_DOWNBEAT);
+}
 
-    passText = TextFormat("Last pass at %d bpm: %d of %d notes (%.0f%%). ", tempo, hits, total, accuracy);
-    if (outcome.newBest) passText += TextFormat("New best clean tempo! Next: %d bpm", outcome.nextTempo);
-    else if (outcome.clean) passText += TextFormat("Clean. Next: %d bpm", outcome.nextTempo);
-    else if (outcome.nextTempo < tempo) passText += TextFormat("Slowing down to %d bpm", outcome.nextTempo);
-    else passText += TextFormat("Again at %d bpm (%d of %d to speed up)", outcome.nextTempo, (total * setup.tempo.passPercent + 99) / 100, total);
-    startPass(true); // straight into the next pass: practice keeps flowing
+void DrillExercise::stopPass(){
+    stopPreviews();
+    stage = Stage::Waiting;
+    tempo = drillTempo(setup.tempo, progress);
+    placePass(WAITING_DOWNBEAT); // the same notes, from their start
+}
+
+bool DrillExercise::takeNextChosen(){
+    const bool chosen = nextChosen;
+    nextChosen = false;
+    return chosen;
 }
 
 void DrillExercise::update(){
-    if (ImGui::IsKeyPressed(ImGuiKey_Space, false)){ // not repeated: held, it would stop what it started
-        running = !running;
-        if (running) startPass(false);
-        else stopPreviews();
+    if (stage != Stage::Running){
+        // Waiting: Space, or Enter (the instrument's choose, through the menus' listening) starts. The end menu
+        // handles its own keys as it's drawn.
+        if (stage == Stage::Waiting && (ImGui::IsKeyPressed(ImGuiKey_Space, false) || ImGui::IsKeyPressed(ImGuiKey_Enter, false)
+                                        || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false))){
+            stage = Stage::Running;
+            startPass(false);
+        }
+        // The input kept drained meanwhile, unless the menus read it now (input/menuinput)
+        if (noteInputActive() && !menuInputActive()) updateNoteInput();
+        return;
     }
-    if (noteInputActive() && !running) updateNoteInput(); // keep the input drained while paused
-
-    if (!running) return;
+    if (ImGui::IsKeyPressed(ImGuiKey_Space, false)){ // not repeated: held, it would stop what it started
+        stopPass();
+        return;
+    }
     double now = audioTime();
     double beat = 60.0 / tempo;
     while (nextClick < totalClicks && countInStart + nextClick * beat < now + LOOKAHEAD_S){
@@ -176,16 +207,22 @@ void DrillExercise::update(){
 
 void DrillExercise::draw(){
     menuTitle(title.c_str()); // (back: Esc, or the Back button at the top left)
+    const bool running = stage == Stage::Running;
     int shownTempo = running ? tempo : drillTempo(setup.tempo, progress);
     drawScoreboard({
         { "TEMPO", TextFormat("%d", shownTempo), UiColor::Ink, "bpm" },
         { "BEST CLEAN", progress.bestCleanTempo > 0 ? std::string(TextFormat("%d", progress.bestCleanTempo)) : std::string("-"), UiColor::Accent, "bpm" },
         { "GOAL", TextFormat("%d", setup.tempo.maxTempo), progress.bestCleanTempo >= setup.tempo.maxTempo ? UiColor::Good : UiColor::Ink, "bpm" },
     }, ImGui::GetWindowWidth() * 0.93f, ImGui::GetWindowHeight() * 0.03f + 36 * menuScale(), menuScale());
+    if (stage == Stage::Ended){
+        drawEnd(menuScale());
+        return;
+    }
     // (shown where: the title says what's read, and an input's error takes its line's place, for the neck's room)
     if (!setup.showWhere) centeredColoredText(setup.about.c_str(), uiColor(UiColor::Dim));
     if (!running){
-        centeredText("Press Space to start. The metronome counts one bar in, then play along.");
+        centeredText(menuInputActive() ? "Press Space or play the open G string to start. The metronome counts one bar in, then play along."
+                                       : "Press Space to start. The metronome counts one bar in, then play along.");
     } else {
         double t = drillTime();
         // How it's going: hit of the notes so far, out of the pass's
@@ -210,7 +247,8 @@ void DrillExercise::draw(){
         DrawRectangleRec({ 0, height * 0.35f, width, notesTop - height * 0.35f }, themeColor(UiColor::Card));
         drawWhere(width * 0.07f, width * 0.93f, height * 0.35f, height * 0.57f, menuScale());
     }
-    TimeAxis axis = { (float)drillTime(), HIT_LINE_X, settings.noteSpeed };
+    // Waiting, the pass stands still, shown as a moment before it starts
+    TimeAxis axis = { running ? (float)drillTime() : (float)(WAITING_DOWNBEAT - WAITING_SHOWN_S), HIT_LINE_X, settings.noteSpeed };
     NoteViews views = settings.noteViews;
     if (setup.staffOnly){ views.staff = true; views.neck = false; }
     drawNoteViews({0, notesTop, width, height * 0.99f - notesTop}, views, notes, score, setup.tuning, settings.lowStringOnTop, axis);
@@ -241,6 +279,62 @@ void DrillExercise::drawWhere(float left, float right, float top, float bottom, 
         cardOutline(draw, ImVec2(board.fretX(lastHit.fret), board.stringY(lastHit.stringIndex)), halfW, halfH, 3 * s + 14 * s * since / HIT_RING_S,
                     uiColor(UiColor::Good, fade), 2.5f * s);
     }
+}
+
+// How the pass went, big, then what to do: again (at the tempo it earned), the other tempo, the course's next drill,
+// back. Chosen with the arrows and Enter, the mouse, or the instrument (its strings, or each row's own note).
+void DrillExercise::drawEnd(float s){
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    const UiFonts& fonts = uiFonts();
+    const float width = ImGui::GetWindowWidth(), height = ImGui::GetWindowHeight(), left = width * 0.07f;
+    const bool clean = endOutcome.clean;
+    const int percent = endTotal > 0 ? endHits * 100 / endTotal : 0, toPass = (endTotal * setup.tempo.passPercent + 99) / 100;
+    const float grow = 1.0f + 0.25f * std::exp(-(float)(GetTime() - endedAt) * 8.0f);
+    float y = height * 0.19f;
+    draw->AddText(fonts.heavy, 54 * s * grow, ImVec2(left, y), uiColor(clean ? UiColor::Good : UiColor::Ink), clean ? "Clean!" : "Not yet");
+    y += 70 * s;
+    draw->AddText(fonts.bold, 20 * s, ImVec2(left, y), uiColor(UiColor::Ink),
+                  TextFormat("%d of %d notes at %d bpm: %d%%  (%d to pass)", endHits, endTotal, endTempo, percent, toPass));
+    y += 30 * s;
+    if (endOutcome.newBest) draw->AddText(fonts.bold, 18 * s, ImVec2(left, y), uiColor(UiColor::Accent), "New best clean tempo!");
+
+    // The choices
+    const int next = drillTempo(setup.tempo, progress); // what the pass earned: faster, the same, or slower
+    const int faster = std::min(setup.tempo.maxTempo, endTempo + setup.tempo.tempoStep);
+    enum class Choice { Again, Tempo, Next, Back };
+    std::vector<MenuRow> rows;
+    std::vector<std::pair<Choice, int>> choices; // with the tempo it plays at
+    auto add = [&](const std::string& label, Choice choice, int at, const std::string& key = ""){
+        rows.push_back(actionRow(label, key));
+        choices.push_back({ choice, at });
+    };
+    add(next > endTempo ? TextFormat("Again, faster: %d bpm", next) : next < endTempo ? TextFormat("Again, slower: %d bpm", next)
+                        : TextFormat("Again: %d bpm", next), Choice::Again, next, "Space");
+    if (next != endTempo) add(TextFormat("Same tempo: %d bpm", endTempo), Choice::Tempo, endTempo);
+    else if (faster > endTempo) add(TextFormat("Faster: %d bpm", faster), Choice::Tempo, faster);
+    if (!nextLabel.empty()) add(nextLabel, Choice::Next, 0, "N");
+    add("Back", Choice::Back, 0, "Esc");
+    int picked = menuList(endMenu, rows, { ImVec2(left, height * 0.42f), width * 0.5f, height * 0.45f, s });
+    if (ImGui::IsKeyPressed(ImGuiKey_N, false))
+        for (size_t i = 0; i < choices.size(); i++) if (choices[i].first == Choice::Next) picked = (int)i;
+    if (picked >= 0 && picked < (int)choices.size()){
+        const auto [choice, at] = choices[(size_t)picked];
+        switch (choice){
+            case Choice::Again: case Choice::Tempo:
+                if (choice == Choice::Tempo){
+                    progress.tempo = at;
+                    std::string error;
+                    saveDrillProgress(progressPath, progress, error);
+                }
+                stage = Stage::Running;
+                startPass(false); // the notes ready behind the menu
+                break;
+            case Choice::Next: nextChosen = true; break;
+            case Choice::Back: leave = true; break;
+        }
+    }
+    menuScreenHint("Enter choose    Esc back", s);
+    ImGui::Dummy(ImVec2(1, 1)); // the list moved ImGui's cursor: an item after it
 }
 
 bool DrillExercise::takeFinishedRun(int& percent){

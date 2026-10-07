@@ -7,6 +7,7 @@
 #include "core/settings.h"
 #include "learn/exercise.h"
 #include "ui/fretboardview.h"
+#include "ui/menulist.h"
 #include "ui/pianoboard.h"
 #include "views/playnote.h"
 
@@ -28,10 +29,15 @@ public:
     ~NoteQuizExercise() override;
     void update() override;
     void draw() override;
-    bool wantsToLeave() const override { return false; } // Esc (learnBack) ends it
+    bool wantsToLeave() const override { return leave; } // Esc (learnBack) ends it, or the end menu's Back
     int lessonScore() const override { return passedNow; } // runs passed, this time
     bool takeFinishedRun(int& percent) override;
     bool scoresRuns() const override { return true; }
+    // A run over: how it went and a menu (again, the course's next drill, back), the instrument steering it
+    bool isMenu() const override { return finished; }
+    bool hasEndMenu() const override { return true; }
+    void offerNext(const std::string& label) override { nextLabel = label; }
+    bool takeNextChosen() override;
 
 private:
     void startRun();
@@ -42,6 +48,7 @@ private:
     void drawProgress(float left, float right, float top, float s);
     void drawStaffPrompts(float left, float top, float width, float height);
     void drawNeck(float left, float right, float top, float bottom, float s);
+    void drawEnd(float top, float s);
     int drawKeys(float left, float right, float top, float bottom, float s); // the key clicked, -1 for none
     void sound(int pitch, float seconds, double at); // on the instrument's own sound, at a time on the engine's clock
 
@@ -72,4 +79,8 @@ private:
     PianoBoard keys;        //   on a piano
     bool listening = false;
     std::string inputError;
+    MenuList endMenu;
+    std::string nextLabel;    // the course's next drill, offered on the end menu ("" for none)
+    bool nextChosen = false;
+    bool leave = false;
 };

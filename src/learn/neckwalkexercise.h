@@ -23,6 +23,9 @@ public:
     void update() override;
     void draw() override;
     bool wantsToLeave() const override { return false; } // Esc (learnBack) ends it
+    // Before a game and after it: the instrument steers as in the menus (its open strings the arrows: level and tempo;
+    // the open G string starts)
+    bool isMenu() const override { return state != State::Playing; }
     int lessonScore() const override { return bestCleared; } // the most rounds cleared in a game, this time
 
 private:

@@ -17,6 +17,7 @@ const double RETRY_AFTER_S = 3.0;   // the input wouldn't open: try again after 
 namespace {
 struct MenuInputState {
     bool listening = false;
+    bool borrowed = false; // reading another screen's note input (a drill on its menu): not ours to start or stop
     bool bass = false;
     int noteGeneration = -1, captureGeneration = -1; // what was started, to know it's still ours
     double failedAt = -100.0;
@@ -35,6 +36,10 @@ static MenuInputState menuInput;
 static void stopListening(){
     if (!menuInput.listening) return;
     menuInput.listening = false;
+    if (menuInput.borrowed){
+        menuInput.borrowed = false;
+        return;
+    }
     if (noteInputGeneration() != menuInput.noteGeneration) return;        // another screen's now: leave it be
     if (captureGeneration() == menuInput.captureGeneration) stopNoteInput();
     else releaseNoteInput();                                             // the capture is another screen's
@@ -61,7 +66,15 @@ void updateMenuInput(bool menuScreen, const std::string& problem, const Settings
     // then it's started again.
     const bool noteInputOurs = menuInput.listening && noteInputActive() && noteInputGeneration() == menuInput.noteGeneration;
     const bool ours = noteInputOurs && captureGeneration() == menuInput.captureGeneration;
-    if (!ours){
+    if (!ours && !noteInputOurs && noteInputCurrent()){
+        // A screen that listens (a drill) keeps its input open while it shows a menu: read from it, as it is, rather
+        // than closing it to open another
+        menuInput.listening = true;
+        menuInput.borrowed = true;
+        menuInput.bass = bass;
+        menuInput.error.clear();
+    } else if (!ours){
+        menuInput.borrowed = false;
         if (noteInputOurs) releaseNoteInput(); // ours, on a capture someone else opened since: start over on it
         menuInput.listening = false;
         if (GetTime() - menuInput.failedAt < RETRY_AFTER_S) return;
