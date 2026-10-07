@@ -626,7 +626,7 @@ static void handleBackKey(bool backClicked){
 static void runMenus(){
     switch (app.screen){
         case Screen::MainMenu:
-            switch (mainMenuScreen({app.settings.inputDevice, app.resourcesDir + "exercises", app.userExercisesDir, app.progressDir},
+            switch (mainMenuScreen({app.settings.inputDevice, app.resourcesDir + "exercises", app.userExercisesDir, app.progressDir, app.resourcesDir + "courses"},
                                    app.mainMenuError)){
                 case MainMenuChoice::Play: goToSongSelect(); break;
                 case MainMenuChoice::Learn: goToLearn(); break;

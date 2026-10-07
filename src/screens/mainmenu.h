@@ -15,6 +15,7 @@ struct MainMenuInfo {
     std::string builtInExercises; // for the "today" panel: the exercises, and the player's progress with them
     std::string userExercises;
     std::string progressDir;
+    std::string coursesDir;       // the courses: the one played last, to go on with
 };
 
 MainMenuChoice mainMenuScreen(const MainMenuInfo& info, const std::string& error);

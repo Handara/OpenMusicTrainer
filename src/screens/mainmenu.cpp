@@ -1,6 +1,7 @@
 #include "screens/mainmenu.h"
 
 #include "app/playerprogress.h"
+#include "core/course.h"
 #include "core/routine.h"
 #include "core/today.h"
 #include "imgui.h"
@@ -11,6 +12,7 @@
 
 #include <algorithm>
 #include <cfloat>
+#include <filesystem>
 #include <string>
 
 const float WORDMARK_SIZE = 40.0f;   // at a 720-pixel-tall window; everything scales with the window's height
@@ -37,6 +39,8 @@ static struct {
     MenuList list;
     std::vector<MenuRow> rows;      // made once from ITEMS
     TodaySummary today;             // read when the menu appears, not every frame
+    std::string continueCourse;     // the course played last, and its next chapter ("" for none yet)
+    std::string continueChapter;
 } menu;
 
 // The player's card, on the right, level with the list: their level and its bar, today's practice against the daily
@@ -85,9 +89,10 @@ static void drawPlayerCard(ImDrawList* draw, ImVec2 topLeft, float width, float 
     y += 2 * radius + 26 * s;
 
     // Next: the drill to go on with (or a routine), and the profile's way in
-    draw->AddText(fonts.mono, 12 * s, ImVec2(x, y), uiColor(UiColor::Dim), "NEXT GOAL");
+    draw->AddText(fonts.mono, 12 * s, ImVec2(x, y), uiColor(UiColor::Dim), menu.continueCourse.empty() ? "NEXT GOAL" : "CONTINUE  ·  LEARN: 2");
     y += 18 * s;
-    std::string next = today.hasDrill ? today.drillTitle + TextFormat(" at %d bpm", today.drillTempo)
+    std::string next = !menu.continueCourse.empty() ? menu.continueCourse + (menu.continueChapter.empty() ? "" : ": " + menu.continueChapter)
+                     : today.hasDrill ? today.drillTitle + TextFormat(" at %d bpm", today.drillTempo)
                      : today.hasRoutine ? today.routineTitle + (today.routineDoneToday ? "  ·  done today" : TextFormat("  ·  %.0f min", today.routineMinutes))
                      : "Start a course in Learn";
     draw->AddText(fonts.bold, 17 * s, ImVec2(x, y), uiColor(UiColor::Accent), next.c_str(), nullptr, inner);
@@ -107,6 +112,21 @@ MainMenuChoice mainMenuScreen(const MainMenuInfo& info, const std::string& error
         checkRoutines(exercises);
         menu.today = summarizeToday(exercises, info.progressDir, today());
         refreshPlayerProgress(); // a new day: the streak, today's minutes
+        // The course played last (its scores written last), and the chapter to go on with
+        menu.continueCourse.clear();
+        menu.continueChapter.clear();
+        std::filesystem::file_time_type latest{};
+        for (const CourseEntry& entry : scanCourses(info.coursesDir)){
+            if (!entry.error.empty()) continue;
+            const std::filesystem::path scores = std::filesystem::path(info.progressDir) / (entry.id + ".txt");
+            std::error_code ec;
+            const auto written = std::filesystem::last_write_time(scores, ec);
+            if (ec || (!menu.continueCourse.empty() && written <= latest)) continue;
+            latest = written;
+            menu.continueCourse = entry.course.title;
+            const int chapter = courseContinue(entry.course, loadCourseScores(scores.string()));
+            menu.continueChapter = chapter >= 0 && chapter < (int)entry.course.lessons.size() ? entry.course.lessons[(size_t)chapter].lesson.title : "";
+        }
     }
     ImDrawList* draw = ImGui::GetWindowDrawList();
     const UiFonts& fonts = uiFonts();
