@@ -88,7 +88,8 @@ TEST_CASE("play this note: one at a time, the next when it's right; right the fi
     startNoteQuiz(run, prompts);
     CHECK_FALSE(playNoteQuiz(run, config, prompts[0].pitch + 12));
     config.anyOctave = true;
-    CHECK(playNoteQuiz(run, config, prompts[1].pitch - 12) == false); // the next isn't asked yet: still the first
+    const int other = prompts[0].pitch == 64 ? 65 : 64; // the note not asked first (the order is random: the second may be the same)
+    CHECK(playNoteQuiz(run, config, other - 12) == false);      // any octave of another note: still wrong
     CHECK(playNoteQuiz(run, config, prompts[0].pitch - 24));
 }
 
