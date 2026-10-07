@@ -17,3 +17,5 @@ enum class PracticeChoice { None, Start };
 PracticeChoice practiceScreen();
 PracticeOptions practiceChoice(); // what was chosen, for GameplayOptions::practice
 void closePracticeScreen();       // stops listening and lets the song go: leaving the screen any way but Start
+// The metronome switched in the pause menu: the next practice starts with it as it was left
+void rememberPracticeMetronome(bool on);

@@ -42,12 +42,13 @@ void selectSongInList(int songIndex);
 // the screen stays)
 bool songSelectBack();
 
-enum class PauseChoice { None, Resume, Retry, PracticeSettings, SwitchMode, Tune, Quit };
+enum class PauseChoice { None, Resume, Retry, PracticeSettings, Metronome, SwitchMode, Tune, Quit };
 // Over the paused play screen: the song, and what to do
 // `practising`: the pause is in a practice (its rows say so). `instrument`: "bass" or "guitar", to offer tuning it;
 // null for none (a keys part)
 // `canSwitch`: practising and playing through can be switched between (not in a test play from the editor)
-PauseChoice pauseScreen(const std::string& song, bool practising, const char* instrument, bool canSwitch = true);
+// `metronome`: practising, the metronome's switch (0 off, 1 on); -1 not offered
+PauseChoice pauseScreen(const std::string& song, bool practising, const char* instrument, bool canSwitch = true, int metronome = -1);
 
 // Over the play screen, paused because the instrument sounds out of tune (`cents` off, + sharp): tune it and start
 // the song over, or play on

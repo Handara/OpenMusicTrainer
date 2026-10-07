@@ -58,6 +58,7 @@ struct PracticeOptions {
     int passes = 0;               // how many; 0 for until a pass plays every note at the song's own tempo
     enum class StartOver { Never, OnMiss, UnlessPerfect };
     StartOver startOver = StartOver::Never; // strict: a miss (or any hit short of perfect) starts the pass over at once
+    bool metronome = false;       // a click on every beat of the song, its bars' first louder (not note by note)
 };
 
 // How the practice is going
@@ -112,6 +113,9 @@ void drawGameplayHud(); // the song, the score and the meters over them, with Im
 void pauseGameplay();
 void resumeGameplay();
 bool gameplayPaused();
+// Practising, a click on every beat: whether it's on, and switching it (while paused: it starts with the song again)
+bool gameplayMetronome();
+void setGameplayMetronome(bool on);
 // Paused because the instrument sounds out of tune: its notes kept coming off the same way (core/tuningcheck).
 // `cents`: by how much (+ sharp). Resuming plays on, out of tune, and isn't stopped for it again.
 bool gameplayOutOfTune(float& cents);

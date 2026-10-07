@@ -38,6 +38,7 @@ static struct PracticeState {
     int repeat = 0;                 // into REPEATS
     int ownRepeats = 20;            // the number of the player's own (1 to 100)
     int startOver = 0;              // PracticeOptions::StartOver: never, on a miss, unless perfect
+    bool metronome = false;         // a click on every beat
     // The mouse on the timeline
     enum class Drag { None, Select, From, To } drag = Drag::None;
     int anchorTick = 0;
@@ -146,6 +147,7 @@ PracticeOptions practiceChoice(){
     options.noteByNote = practice.noteByNote;
     options.passes = REPEATS[practice.repeat] < 0 ? practice.ownRepeats : REPEATS[practice.repeat];
     options.startOver = (PracticeOptions::StartOver)practice.startOver;
+    options.metronome = practice.metronome;
     return options;
 }
 
@@ -308,6 +310,10 @@ PracticeChoice practiceScreen(){
     ImGui::EndDisabled();
     ImGui::EndDisabled();
     settingToggle("Note by note", "The song waits on each note until you play it", &practice.noteByNote);
+    ImGui::BeginDisabled(practice.noteByNote);
+    settingToggle("Metronome", "A click on every beat of the song, each bar's first louder, at the tempo it's played. Also in the pause menu",
+                  &practice.metronome);
+    ImGui::EndDisabled();
     settingSegments("Repeat", "How many times the section is played. Until 100%: until every note is played, at the tempo aimed for",
                     &practice.repeat, { "Until 100%", "3 times", "5 times", "10 times", "Other" });
     if (REPEATS[practice.repeat] < 0) settingSliderInt("Times", "Any number, 1 to 100", &practice.ownRepeats, 1, 100, "%d times");
@@ -350,4 +356,8 @@ PracticeChoice practiceScreen(){
     if (choice == PracticeChoice::Start) closePracticeScreen(); // the play screen loads the song itself
     ImGui::End();
     return choice;
+}
+
+void rememberPracticeMetronome(bool on){
+    practice.metronome = on;
 }

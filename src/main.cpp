@@ -808,8 +808,12 @@ static void runMenus(){
                 InputRole role;
                 const bool tunable = !app.testPlaying && partInstrument(app.currentSong, app.currentPart, role) && statusOf(role).ready;
                 const char* instrument = tunable ? (role == InputRole::Bass ? "bass" : "guitar") : nullptr;
-                switch (pauseScreen(song, app.currentPractice, instrument, !app.testPlaying)){
+                switch (pauseScreen(song, app.currentPractice, instrument, !app.testPlaying, app.currentPractice ? (gameplayMetronome() ? 1 : 0) : -1)){
                     case PauseChoice::Resume: resumeGameplay(); break;
+                    case PauseChoice::Metronome: // switched; it clicks again with the song, and the next practice starts with it as left
+                        setGameplayMetronome(!gameplayMetronome());
+                        rememberPracticeMetronome(gameplayMetronome());
+                        break;
                     case PauseChoice::Retry:
                         if (app.testPlaying){ stopGameplay(); startTestPlay(); }
                         else if (app.currentPractice){ stopGameplay(); startPractice(); }

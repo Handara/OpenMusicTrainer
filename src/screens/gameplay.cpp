@@ -59,6 +59,7 @@ const double LEAD_IN_S = 2.0; // starting part-way into a song, it plays this lo
 const double MIN_COUNT_IN_S = 1.5; // from the top, a bar is counted in; two when one is shorter than this (fast songs)
 const double TRIM_FADE_S = 0.4;    // a trimmed song's end fades out over this long rather than being cut
 const double RESUME_RUNUP_S = 1.5; // resuming, the song picks up this long before where it was paused
+const double CLICK_LOOKAHEAD_S = 0.2; // the metronome's clicks are handed to the audio engine this far ahead
 
 const float PASS_TAIL_S = 0.35f;   // practising, a pass ends this long after its section does: its last note's judgement
 const float TEMPO_BANNER_S = 2.0f; // how long the new tempo shows after a pass raises it
@@ -394,6 +395,9 @@ static struct {
     float countInBeat = 0.0f; // from the top: the count-in's beat (seconds), before the song's start; 0 for none
     int countInBeats = 0;
     float startsAt = 0.0f;    // where in the audio the song starts: 0, or a trimmed song's start
+    // The metronome (practising): when the engine plays a point of the song (its last start), and the next beat to click
+    double beatAnchorTime = -1.0, beatAnchorSong = 0.0;
+    int nextBeatTick = -1;
     float endsAt = 0.0f;      // where a trimmed song ends, 0 for the audio's own end
     std::string fingerprint;  // of the part being played
     ChordListening chords;    // plucks near a chord, checked for its notes
@@ -457,6 +461,46 @@ static void handleDrumKeys(){
 // From the top, a bar is counted in (two for a fast song), clicking on each beat with the count on screen: a note on
 // the very first beat isn't a surprise, and the first notes' rings are already closing in while it counts. The song
 // is started that long before its start (its clock counts up from below it): the audio's own, or where it's trimmed to.
+// The song's beats: the first at or after a tick, and whether one starts its bar
+static int beatAtOrAfter(const Chart& chart, int tick){
+    const int bar = barNumberAt(chart, std::max(0, tick)), start = barStartTick(chart, bar), next = barStartTick(chart, bar + 1);
+    const int beat = chart.resolution * 4 / std::max(1, timeSignatureAt(chart, start).beatUnit);
+    const int at = start + (std::max(0, tick - start) + beat - 1) / beat * beat;
+    return std::min(at, next);
+}
+static bool startsBar(const Chart& chart, int tick){
+    return barStartTick(chart, barNumberAt(chart, tick)) == tick;
+}
+
+// The song started (again): `engineTime` is when it plays `songSeconds`; the metronome goes on from `fromSeconds`
+static void anchorBeats(double engineTime, double songSeconds, double fromSeconds){
+    game.beatAnchorTime = engineTime;
+    game.beatAnchorSong = songSeconds;
+    game.nextBeatTick = engineTime < 0.0 ? -1 : beatAtOrAfter(game.chart, (int)std::ceil(secondsToTick(game.chart, fromSeconds) - 1e-6));
+}
+
+// Practising with the metronome: the beats about to come handed to the engine, at the song's speed (not note by
+// note: the song waits there)
+static void scheduleBeats(){
+    const PracticeOptions& practice = game.options.practice;
+    if (!practice.on || !practice.metronome || practice.noteByNote || game.nextBeatTick < 0) return;
+    const double now = audioTime(), speed = std::max(0.05f, songSpeed());
+    while (game.nextBeatTick < practice.toTick){
+        const double at = game.beatAnchorTime + (tickToSeconds(game.chart, game.nextBeatTick) - game.beatAnchorSong) / speed;
+        if (at > now + CLICK_LOOKAHEAD_S) break;
+        if (at >= now - 0.03) playClickAt(at, startsBar(game.chart, game.nextBeatTick));
+        game.nextBeatTick = beatAtOrAfter(game.chart, game.nextBeatTick + 1);
+    }
+}
+
+bool gameplayMetronome(){
+    return game.options.practice.metronome;
+}
+
+void setGameplayMetronome(bool on){
+    game.options.practice.metronome = on;
+}
+
 static void startWithCountIn(float from){
     const int startTick = std::max(0, (int)std::lround(secondsToTick(game.chart, from)));
     const TimeSignatureChange& time = timeSignatureAt(game.chart, startTick);
@@ -471,6 +515,7 @@ static void startWithCountIn(float from){
     game.countInBeat = (float)beat;
     game.countInBeats = time.beats * bars;
     for (int k = 0; k < game.countInBeats; k++) playClickAt(begins + k * beat / songSpeed(), k % time.beats == 0); // the song's beats, at its speed
+    anchorBeats(begins, from - countIn, from); // the metronome, if it's on, goes on from where the count ends
 }
 
 bool startGameplay(const std::string& chartPath, const GameplayOptions& options, std::string& error){
@@ -714,7 +759,8 @@ void resumeGameplay(){
     game.outOfTune = false;
     game.paused = false;
     game.resumeAt = game.songTime;
-    playSongFrom(game.songTime + game.options.offsetSeconds * songSpeed() - RESUME_RUNUP_S, game.startsAt);
+    const double from = game.songTime + game.options.offsetSeconds * songSpeed() - RESUME_RUNUP_S;
+    anchorBeats(playSongFrom(from, game.startsAt), from, from);
 }
 
 bool gameplayPaused(){
@@ -764,6 +810,7 @@ bool updateGameplay(){
         }
     }
     inputScale = speed;
+    scheduleBeats();
     frozenTime = game.waiting;
     frozenAt = game.waitTime;
     checkSongTime = game.songTime;
@@ -959,6 +1006,7 @@ void drawGameplayHud(){
         if (practice.passes > 0) line += TextFormat(" OF %d", practice.passes);
         if (progress.passes > 0) line += TextFormat("  ·  LAST %d%%", (int)std::lround(progress.lastAccuracy * 100.0f));
         if (progress.startedOver > 0) line += TextFormat("  ·  STARTED OVER %d", progress.startedOver);
+        if (practice.metronome && !practice.noteByNote) line += "  ·  METRONOME";
         draw->AddText(fonts.mono, 14 * s, ImVec2(margin, top + 56 * s), uiColor(UiColor::Accent), line.c_str());
         if (game.waiting){
             std::string waiting = "WAITING FOR";

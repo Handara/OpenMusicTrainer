@@ -260,7 +260,7 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
     return choice;
 }
 
-PauseChoice pauseScreen(const std::string& song, bool practising, const char* instrument, bool canSwitch){
+PauseChoice pauseScreen(const std::string& song, bool practising, const char* instrument, bool canSwitch, int metronome){
     static MenuList list;
     // Resume, start over, switch between playing it through and practising part of it, tune, leave
     std::vector<MenuRow> rows = { actionRow("Resume", "Esc"), actionRow(practising ? "Start the practice over" : "Retry") };
@@ -268,6 +268,12 @@ PauseChoice pauseScreen(const std::string& song, bool practising, const char* in
     if (practising){
         rows.push_back(actionRow("Practice settings"));
         choices.push_back(PauseChoice::PracticeSettings);
+    }
+    if (metronome >= 0){
+        MenuRow row = actionRow("Metronome", "M");
+        row.detail = metronome ? "on" : "off";
+        rows.push_back(row);
+        choices.push_back(PauseChoice::Metronome);
     }
     if (canSwitch){
         rows.push_back(actionRow(practising ? "Quit practice mode" : "Practise this part")); // quitting it, the song is played through
@@ -289,6 +295,7 @@ PauseChoice pauseScreen(const std::string& song, bool practising, const char* in
     ImGui::GetWindowDrawList()->AddText(uiFonts().text, 18 * s, ImVec2(width * 0.07f, height * 0.09f + 50 * s), uiColor(UiColor::Dim), song.c_str());
     int confirmed = menuList(list, rows, {ImVec2(width * 0.07f, height * 0.25f), width * 0.45f, rows.size() * 48 * s, s});
     if (confirmed >= 0 && confirmed < (int)choices.size()) choice = choices[confirmed];
+    if (metronome >= 0 && ImGui::IsKeyPressed(ImGuiKey_M, false)) choice = PauseChoice::Metronome;
     menuScreenHint("Enter  choose    Esc  resume", s);
     ImGui::End();
     return choice;
