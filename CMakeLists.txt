@@ -176,6 +176,7 @@ add_library(lahn_core STATIC
     src/core/guitarpro.cpp
     src/core/inputs.cpp
     src/core/intervals.cpp
+    src/core/journal.cpp
     src/core/judge.cpp
     src/core/lesson.cpp
     src/core/menunotes.cpp
@@ -191,6 +192,7 @@ add_library(lahn_core STATIC
     src/core/pianokeys.cpp
     src/core/pitch.cpp
     src/core/polyphony.cpp
+    src/core/profile.cpp
     src/core/positions.cpp
     src/core/quiz.cpp
     src/core/ranking.cpp
@@ -336,6 +338,7 @@ if(BUILD_TESTING)
         tests/chart_test.cpp
         tests/chords_test.cpp
         tests/course_test.cpp
+        tests/profile_test.cpp
         tests/drill_test.cpp
         tests/groove_test.cpp
         tests/guitarpro_test.cpp
