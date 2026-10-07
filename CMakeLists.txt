@@ -202,6 +202,7 @@ add_executable(lahn
     src/audio/asiodriver.cpp
     src/input/midi.cpp
     src/input/keynotes.cpp
+    src/input/keysinput.cpp
     src/input/menuinput.cpp
     src/input/noteinput.cpp
     src/input/pianokeys.cpp
@@ -211,6 +212,7 @@ add_executable(lahn
     src/ui/fretboardview.cpp
     src/ui/neckcards.cpp
     src/ui/scoreboard.cpp
+    src/ui/pianoboard.cpp
     src/ui/pianoview.cpp
     src/ui/rungraph.cpp
     src/ui/settingsui.cpp
