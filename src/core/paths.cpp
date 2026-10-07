@@ -39,12 +39,36 @@ std::vector<std::string> oldUserDataDirs(){
     return dirs;
 }
 
+// No file anywhere in it: only the empty folders a start makes (one where the move failed left the new name like
+// that, and the player's files still under the old one)
+static bool holdsNoFiles(const fs::path& dir){
+    std::error_code ec;
+    for (fs::recursive_directory_iterator it(dir, ec), end; !ec && it != end; it.increment(ec))
+        if (it->is_regular_file(ec)) return false;
+    return true;
+}
+
 bool moveUserDataFolder(const std::string& from, const std::string& to, std::string& error){
     std::error_code ec;
-    if (!fs::is_directory(from, ec) || fs::exists(to, ec)) return true; // nothing to move, or already moved
+    if (!fs::is_directory(from, ec)) return true; // nothing to move
+    if (fs::exists(to, ec)){
+        if (!holdsNoFiles(to)) return true;       // already moved, or the player's own: never overwritten
+        fs::remove_all(to, ec);
+        if (ec){
+            error = "Could not clear the empty " + to + ": " + ec.message();
+            return false;
+        }
+    }
     fs::rename(from, to, ec); // one rename: the folder moves whole, or not at all
+    if (!ec) return true;
+    // Something holds a file in it (a window open on it, a virus scan): copied instead, the old one left as it was
+    const std::string renameError = ec.message();
+    ec.clear();
+    fs::copy(from, to, fs::copy_options::recursive, ec);
     if (ec){
-        error = "Could not move " + from + " to " + to + ": " + ec.message();
+        error = "Could not move " + from + " to " + to + " (" + renameError + "), nor copy it: " + ec.message();
+        std::error_code ignored;
+        fs::remove_all(to, ignored); // half a copy: tried again next time, from the start
         return false;
     }
     return true;

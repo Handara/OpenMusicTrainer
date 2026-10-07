@@ -14,6 +14,8 @@ std::string userDataDir();
 // before a rename is
 std::vector<std::string> oldUserDataDirs();
 
-// Moves a data folder to its new name, once: only if `from` exists and `to` doesn't, so it never overwrites
-// anything. False (with a reason) if the move failed; nothing to move is not a failure.
+// Moves a data folder to its new name, once: only if `from` exists and `to` doesn't (or holds no file at all: the
+// empty folders a start whose move failed made), so it never overwrites anything. Renamed whole, or, when something
+// holds one of its files, copied (the old left as it was). False (with a reason) if it couldn't be moved either way;
+// nothing to move is not a failure.
 bool moveUserDataFolder(const std::string& from, const std::string& to, std::string& error);

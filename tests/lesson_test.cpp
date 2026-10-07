@@ -201,3 +201,15 @@ TEST_CASE("the data folder moves to the new name once, and never over anything")
     CHECK(moveUserDataFolder((dir / "nothing").string(), (dir / "new2").string(), error)); // nothing to move: fine
     CHECK_FALSE(fs::exists(dir / "new2"));
 }
+
+TEST_CASE("the data folder still moves when a start whose move failed left only empty folders under the new name"){
+    fs::path dir = fs::temp_directory_path() / "hardthz_tests" / "rename-retry";
+    fs::remove_all(dir);
+    fs::create_directories(dir / "old" / "progress");
+    std::ofstream(dir / "old" / "progress" / "journal.txt") << "2026-10-07 18:00 drill sec=30\n";
+    fs::create_directories(dir / "new" / "songs"); // what the failed start made
+    fs::create_directories(dir / "new" / "progress");
+    std::string error;
+    REQUIRE(moveUserDataFolder((dir / "old").string(), (dir / "new").string(), error));
+    CHECK(fs::exists(dir / "new" / "progress" / "journal.txt"));
+}
