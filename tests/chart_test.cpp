@@ -8,7 +8,7 @@
 namespace fs = std::filesystem;
 
 static std::string tempPath(const std::string& name){
-    fs::path dir = fs::temp_directory_path() / "hardthz_tests";
+    fs::path dir = fs::temp_directory_path() / "lahn_tests";
     fs::create_directories(dir);
     return (dir / name).string();
 }
@@ -25,7 +25,7 @@ static const std::string TRACK = "track guitar Lead\ntuning 40 45 50 55 59 64\n"
 TEST_CASE("the sample song shipped with the game loads"){
     Chart chart;
     std::string error;
-    REQUIRE_MESSAGE(loadChart(HARDTHZ_RESOURCES_DIR "songs/first-light/song.chart", chart, error), error);
+    REQUIRE_MESSAGE(loadChart(LAHN_RESOURCES_DIR "songs/first-light/song.chart", chart, error), error);
     CHECK(chart.title == "First Light");
     CHECK(chart.audioFile == "audio.wav");
     CHECK(chart.keys[0].key.fifths == 1);   // E minor
@@ -220,7 +220,7 @@ TEST_CASE("bars follow the time signatures"){
 }
 
 TEST_CASE("keys parts: notes as pitches, saved and read back"){
-    std::filesystem::path path = std::filesystem::temp_directory_path() / "hardthz_tests" / "keys.chart";
+    std::filesystem::path path = std::filesystem::temp_directory_path() / "lahn_tests" / "keys.chart";
     std::filesystem::create_directories(path.parent_path());
     std::ofstream(path, std::ios::binary) << "version 2\ntitle Keys\nresolution 480\nend 1920\ntempo 0 100\n"
                                              "track keys Piano\nn 480 64 240\nn 0 60\nn 0 67 480\n";

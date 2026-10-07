@@ -2,15 +2,14 @@
 
 #include <string>
 
-// Add-ons: parts of hardthz that are optional, and too big to give everyone (the stems add-on's model and its runtime are
-// 40 MB). One is a zip named .hardthzaddon holding plain files, among them addon.txt, which says what it is:
-//     hardthz_addon 1
+// Add-ons: parts of lahn that are optional, and too big to give everyone (the stems add-on's model and its runtime are
+// 40 MB). One is a zip named .lahnaddon holding plain files, among them addon.txt, which says what it is:
+//     lahn_addon 1
 //     name stems
 //     version 1
 // Installed, it's a folder of that name in the player's add-ons folder.
 
-const char* const ADDON_EXTENSION = ".hardthzaddon";
-const char* const OLD_ADDON_EXTENSION = ".lahnaddon"; // the add-ons made when the game was called lahn: still taken
+const char* const ADDON_EXTENSION = ".lahnaddon";
 
 struct AddonInfo {
     std::string name;

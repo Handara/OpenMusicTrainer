@@ -1,9 +1,9 @@
-# hardthz exercise
+# lahn exercise
 version 1
 type scale
 title C major, three notes per string
 category Technique
-author hardthz
+author lahn
 description Three notes on every string, in triplets: the pattern for fast, even runs.
 key C
 scale major

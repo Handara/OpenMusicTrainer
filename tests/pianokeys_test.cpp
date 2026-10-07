@@ -33,7 +33,7 @@ TEST_CASE("the piano keys are kept in the settings"){
     Settings settings;
     CHECK(settings.pianoKeys == defaultPianoKeys());
     bindPianoKey(settings.pianoKeys, 4, ",");
-    std::filesystem::path path = std::filesystem::temp_directory_path() / "hardthz_tests" / "piano_settings.txt";
+    std::filesystem::path path = std::filesystem::temp_directory_path() / "lahn_tests" / "piano_settings.txt";
     std::filesystem::create_directories(path.parent_path());
     std::string error;
     REQUIRE_MESSAGE(saveSettings(path.string(), settings, error), error);

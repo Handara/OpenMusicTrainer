@@ -21,6 +21,7 @@ const Palette DARK = {
 static struct {
     ThemeMode mode = ThemeMode::Light;
     UiFonts fonts;
+    Texture2D arabicWordmark{};
 } theme;
 
 static const Palette& palette(){
@@ -123,10 +124,21 @@ void initTheme(const std::string& resourcesDir, ThemeMode mode){
     theme.fonts.mono = load("ChivoMono-Regular.ttf");
     if (theme.fonts.text) io.FontDefault = theme.fonts.text;
 
+    std::string wordmark = resourcesDir + "images/lahn-arabic.png";
+    if (FileExists(wordmark.c_str())){
+        theme.arabicWordmark = LoadTexture(wordmark.c_str());
+        GenTextureMipmaps(&theme.arabicWordmark);                  // drawn much smaller than it's stored
+        SetTextureFilter(theme.arabicWordmark, TEXTURE_FILTER_TRILINEAR);
+        // The image is cropped tight to the letters: a texture that repeats would blend its opposite edge into
+        // them when drawn small (faint lines along the edges), so it stops at its edges instead
+        SetTextureWrap(theme.arabicWordmark, TEXTURE_WRAP_CLAMP);
+    }
     setTheme(mode);
 }
 
 void closeTheme(){
+    if (theme.arabicWordmark.id != 0) UnloadTexture(theme.arabicWordmark);
+    theme.arabicWordmark = {};
 }
 
 void setTheme(ThemeMode mode){
@@ -144,14 +156,27 @@ const UiFonts& uiFonts(){
 
 float drawWordmark(ImDrawList* draw, ImVec2 topLeft, float height){
     ImFont* font = theme.fonts.heavy ? theme.fonts.heavy : ImGui::GetFont();
-    // Tight letters, each drawn with a little of the space taken out; "hz" in the accent: hertz, what sound is made of
-    const char* name = "hardthz";
+    ImU32 ink = uiColor(UiColor::Ink);
+    // Tight letters, like the mockup: each one drawn with a little of the space taken out
+    const char* latin = "lahn";
     float x = topLeft.x;
-    for (const char* c = name; *c; c++){
+    for (const char* c = latin; *c; c++){
         char letter[2] = { *c, 0 };
-        const bool hertz = c - name >= 5;
-        draw->AddText(font, height, ImVec2(x, topLeft.y), uiColor(hertz ? UiColor::Accent : UiColor::Ink), letter);
+        draw->AddText(font, height, ImVec2(x, topLeft.y), ink, letter);
         x += font->CalcTextSizeA(height, FLT_MAX, 0.0f, letter).x - height * 0.045f;
+    }
+    // The string between the scripts, in the accent
+    float gap = height * 0.32f;
+    float top = topLeft.y + height * 0.18f, bottom = topLeft.y + height * 0.92f;
+    x += gap;
+    verticalLine(draw, x, top, bottom, std::max(1.5f, height * 0.035f), uiColor(UiColor::Accent));
+    x += gap;
+    // The Arabic name: a white image tinted to the ink, as tall as the Latin letters' ascenders
+    if (theme.arabicWordmark.id != 0){
+        float h = bottom - top + height * 0.08f;
+        float w = h * theme.arabicWordmark.width / theme.arabicWordmark.height;
+        draw->AddImage(ImTextureID(theme.arabicWordmark.id), ImVec2(x, top - height * 0.04f), ImVec2(x + w, top - height * 0.04f + h), ImVec2(0, 0), ImVec2(1, 1), ink);
+        x += w;
     }
     return x - topLeft.x;
 }

@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Builds hardthz's video add-on: FFmpeg, the program that reads every kind of video, as one file to drop on hardthz.
+"""Builds lahn's video add-on: FFmpeg, the program that reads every kind of video, as one file to drop on lahn.
 
     python3 tools/make_video_addon.py [windows|linux] [output folder]
 
-hardthz plays one kind of video itself (MPEG-1, src/video). With this add-on, a video of any kind (mp4, mkv, webm,
+lahn plays one kind of video itself (MPEG-1, src/video). With this add-on, a video of any kind (mp4, mkv, webm,
 mov...) is turned into that when it's brought into a song, and its sound into the song's audio (src/app/videoconvert.cpp).
 It downloads, once, into a cache folder, a build of FFmpeg (GPL version 3):
   - Windows: gyan.dev's "essentials" build, github.com/GyanD/codexffmpeg
   - Linux: John Van Sickle's static build, johnvansickle.com/ffmpeg
-and packs the ffmpeg program, its license, the credits and addon.txt into hardthz-video-<system>.hardthzaddon, about 40 MB.
-hardthz itself is built without it, and runs it as a separate program.
+and packs the ffmpeg program, its license, the credits and addon.txt into lahn-video-<system>.lahnaddon, about 40 MB.
+lahn itself is built without it, and runs it as a separate program.
 """
 import os
 import sys
@@ -27,7 +27,7 @@ BUILDS = {
               "ffmpeg-release-amd64-static.tar.xz", "ffmpeg"),
 }
 
-CREDITS = """hardthz's video add-on
+CREDITS = """lahn's video add-on
 
 FFmpeg, by the FFmpeg developers: https://ffmpeg.org
 This build is licensed under the GNU General Public License, version 3 (see LICENSE.txt): you may use it, share it
@@ -35,7 +35,7 @@ and change it under that license's terms. Its source code, and that of the libra
   - the Windows build: https://www.gyan.dev/ffmpeg/builds/ and https://github.com/GyanD/codexffmpeg
   - the Linux build: https://johnvansickle.com/ffmpeg/
   - FFmpeg itself: https://ffmpeg.org/download.html
-The program is used as published, unchanged. hardthz runs it as a separate program.
+The program is used as published, unchanged. lahn runs it as a separate program.
 """
 
 
@@ -43,7 +43,7 @@ def fetch(url, path):
     if os.path.exists(path):
         return
     print("downloading", url)
-    request = urllib.request.Request(url, headers={"User-Agent": "hardthz-tools"})
+    request = urllib.request.Request(url, headers={"User-Agent": "lahn-tools"})
     with urllib.request.urlopen(request) as response, open(path + ".part", "wb") as out:
         while True:
             block = response.read(1 << 20)
@@ -79,15 +79,15 @@ def main():
     out_dir = sys.argv[2] if len(sys.argv) > 2 else "."
     if system not in BUILDS:
         raise SystemExit("windows or linux")
-    cache = os.path.join(os.path.expanduser("~"), ".cache", "hardthz-video")
+    cache = os.path.join(os.path.expanduser("~"), ".cache", "lahn-video")
     os.makedirs(cache, exist_ok=True)
     os.makedirs(out_dir, exist_ok=True)
     url, archive, program = BUILDS[system]
     fetch(url, os.path.join(cache, archive))
     binary, license_text = files_from(os.path.join(cache, archive), program)
-    out = os.path.join(out_dir, f"hardthz-video-{system}.hardthzaddon")
+    out = os.path.join(out_dir, f"lahn-video-{system}.lahnaddon")
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as addon:
-        addon.writestr("addon.txt", f"hardthz_addon 1\nname video\nversion {ADDON_VERSION}\n")
+        addon.writestr("addon.txt", f"lahn_addon 1\nname video\nversion {ADDON_VERSION}\n")
         addon.writestr("CREDITS.txt", CREDITS)
         addon.writestr("LICENSE.txt", license_text)
         info = zipfile.ZipInfo(program)

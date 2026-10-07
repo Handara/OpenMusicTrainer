@@ -124,7 +124,7 @@ static std::vector<RunRecord> readRunLines(const std::string& path){
 
 static bool writeRunLines(const std::string& path, const char* what, const std::vector<RunRecord>& runs, std::string& error){
     std::ostringstream out;
-    out << "# hardthz records: " << what << "\n";
+    out << "# lahn records: " << what << "\n";
     out << "version 1\n";
     out << "# run <score> <accuracy> <max combo> <perfect> <good> <miss> <unstable rate> <instrument 0/1> <date>\n";
     for (const RunRecord& run : runs){

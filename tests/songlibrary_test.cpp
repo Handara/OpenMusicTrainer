@@ -11,7 +11,7 @@ namespace fs = std::filesystem;
 
 // An empty songs folder in the temp directory, and a stand-in audio file (createSong only copies it)
 static fs::path songsFolder(){
-    fs::path root = fs::temp_directory_path() / "hardthz_tests" / "new_songs";
+    fs::path root = fs::temp_directory_path() / "lahn_tests" / "new_songs";
     fs::remove_all(root);
     fs::create_directories(root / "songs");
     std::ofstream(root / "My Take.OGG", std::ios::binary) << "not really audio";
@@ -77,7 +77,7 @@ TEST_CASE("a new song is refused without what it needs, leaving nothing behind")
 
 TEST_CASE("a deleted song goes to the trash folder, where it can be found again"){
     namespace fs = std::filesystem;
-    fs::path root = fs::temp_directory_path() / "hardthz_tests" / "trash";
+    fs::path root = fs::temp_directory_path() / "lahn_tests" / "trash";
     fs::remove_all(root);
     fs::path song = root / "songs" / "My riff", trash = root / "trash";
     fs::create_directories(song);

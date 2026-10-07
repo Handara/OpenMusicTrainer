@@ -121,7 +121,7 @@ static void writeFloatWav(const std::string& path, const std::vector<float>& sam
 }
 
 TEST_CASE("cabinets: a player's impulse response file plays like a built-in one"){
-    const std::string path = (std::filesystem::temp_directory_path() / "hardthz-test-cabinet.wav").string();
+    const std::string path = (std::filesystem::temp_directory_path() / "lahn-test-cabinet.wav").string();
     // 2 ms of silence first (the mic's distance), then a cabinet's response, at 44.1 kHz, too loud
     std::vector<float> file(88, 0.0f);
     for (float tap : cabinetResponse(3, 44100)) file.push_back(tap * 3.0f);

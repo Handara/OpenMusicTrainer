@@ -172,7 +172,7 @@ static struct {
     std::atomic<unsigned> toneVersion{0};
     ToneRunner engineTone;              // the engine's thread's (the monitor source)
     std::atomic<bool> asioGate{false}; // ASIO calls as soon as it starts: its samples go in once the buffer exists
-    // The mixer driven by a callback of hardthz's own instead of a device of its own: the ASIO driver's (startAsioCapture)
+    // The mixer driven by a callback of lahn's own instead of a device of its own: the ASIO driver's (startAsioCapture)
     // or a duplex device's (startDuplexCapture), both ways in one call, the instrument heard straight through. The
     // input then stays open between screens, since everything heard depends on it.
     std::atomic<bool> engineExternal{false};
@@ -278,7 +278,7 @@ static bool startEngine(const std::string& outputDevice, std::string& error){
     return true;
 }
 
-// The engine with no device: hardthz's own callback reads it (renderOutput), at that callback's rate, in stereo
+// The engine with no device: lahn's own callback reads it (renderOutput), at that callback's rate, in stereo
 static bool startEngineExternal(ma_uint32 sampleRate, std::string& error){
     ma_engine_config config = ma_engine_config_init();
     config.pContext = &audio.context;
@@ -343,7 +343,7 @@ void closeAudio(){
 
 bool setOutputDevice(const std::string& outputDevice, std::string& error){
     if (audio.engineExternal && !audio.duplexReady){
-        audio.outputDeviceWanted = outputDevice; // hardthz plays through the ASIO driver: this one's for when it closes
+        audio.outputDeviceWanted = outputDevice; // lahn plays through the ASIO driver: this one's for when it closes
         return true;
     }
     if (audio.duplexReady){
@@ -806,7 +806,7 @@ static void takeTone(ToneRunner& runner, int sampleRate){
     runner.seen = version;
 }
 
-// The outputs, in the same call as the inputs (the ASIO driver's or the duplex device's): everything hardthz plays, and
+// The outputs, in the same call as the inputs (the ASIO driver's or the duplex device's): everything lahn plays, and
 // the instrument heard straight through (the real sound, not the synth), from the input just handed over: one buffer
 // in, one out, as Ableton does
 static void renderOutput(float* stereo, int frameCount){
@@ -832,7 +832,7 @@ static void renderOutput(float* stereo, int frameCount){
 }
 
 // ASIO: the interface's own driver, straight to the hardware (audio/asiodriver). Its inputs fill the same buffer as
-// Windows' would, so everything reading the input works the same. And hardthz plays through it too, when it can: the
+// Windows' would, so everything reading the input works the same. And lahn plays through it too, when it can: the
 // engine is started again without a device, for the driver's callback to read, which takes the output from Windows'
 // 20-30 ms to one of the driver's buffers. Not while a song is loaded (the engine starting again would stop it): then
 // the driver is for listening, and the output stays with Windows.
@@ -868,7 +868,7 @@ static bool startAsioCapture(const std::string& device, std::string& error){
         return false;
     }
     audio.asioDevice = device;
-    audio.captureExclusive = true; // nothing stands between the driver and hardthz
+    audio.captureExclusive = true; // nothing stands between the driver and lahn
     audio.captureReady = true;
     audio.asioGate = true;
     return true;
@@ -888,7 +888,7 @@ static void duplexCallback(ma_device* device, void* output, const void* input, m
 // Windows' own devices, both ways at once: the input device and the output device as one duplex device, in
 // Windows' low-latency shared mode where the device allows it (periods of a few ms instead of 10), the engine read in
 // its callback, the instrument heard straight through, as with ASIO. The output stays shared (other programs still
-// play); the input is hardthz's alone when that's asked (skipping Windows' effects). Not while a song is loaded: starting
+// play); the input is lahn's alone when that's asked (skipping Windows' effects). Not while a song is loaded: starting
 // the output again would stop it. False when it can't be opened: separate devices then, as before.
 static bool startDuplexCapture(const std::string& inputDevice, std::string& error){
     const std::string outputDevice = audio.outputDeviceWanted;

@@ -176,7 +176,7 @@ NeckStats loadNeckStats(const std::string& path){
 
 bool saveNeckStats(const std::string& path, const NeckStats& stats, std::string& error){
     std::ostringstream out;
-    out << "# hardthz neck trainer: run <date> <seconds> <mistakes> <notes> <routine>; cell <string> <fret> <seconds summed> <notes>\n";
+    out << "# lahn neck trainer: run <date> <seconds> <mistakes> <notes> <routine>; cell <string> <fret> <seconds summed> <notes>\n";
     for (const NeckRecord& run : stats.runs)
         out << "run " << run.date << " " << run.seconds << " " << run.mistakes << " " << run.notes << " " << run.routine << "\n";
     for (const auto& [place, sum] : stats.cells)

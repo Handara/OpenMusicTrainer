@@ -53,7 +53,7 @@ bool readActivity(const std::string& line, Activity& out){
     a.minute = std::atoi(time.substr(0, 2).c_str()) * 60 + std::atoi(time.substr(3, 2).c_str());
     int found = -1;
     for (int k = 0; k < (int)ActivityKind::Count; k++) if (kind == KIND_NAMES[k]) found = k;
-    if (found < 0) return false; // a kind from a newer hardthz: skipped
+    if (found < 0) return false; // a kind from a newer lahn: skipped
     a.kind = (ActivityKind)found;
     std::string field;
     while (in >> field){

@@ -5,7 +5,7 @@
 #include "ui/fretboardview.h"
 
 // Play mode's notes (views/neckview) on a neck drawn with ImGui (ui/fretboardview): what the Instrument screen and the
-// exercises draw notes with, so every neck in hardthz reads the same. A note is a rounded card in its string's color with
+// exercises draw notes with, so every neck in lahn reads the same. A note is a rounded card in its string's color with
 // its fret on it and its name under; the way between two notes is dots (a pluck), a tunnel (a slide) or a slur (a
 // hammer-on, a pull-off); a bend is an arrow up from its note.
 

@@ -71,10 +71,10 @@ static bool create(){
     if (fromVideo){
         const std::string ffmpeg = findFfmpeg(form.addonsDir);
         if (ffmpeg.empty()){
-            form.error = "A song from a video needs hardthz's video add-on: drop its file (hardthz-video...hardthzaddon) on the song list first";
+            form.error = "A song from a video needs lahn's video add-on: drop its file (lahn-video...lahnaddon) on the song list first";
             return false;
         }
-        audioPath = (fs::temp_directory_path() / "hardthz-video-sound.mp3").string();
+        audioPath = (fs::temp_directory_path() / "lahn-video-sound.mp3").string();
         std::atomic<bool> cancel{false};
         if (!extractAudio(ffmpeg, form.audioPath, audioPath, nullptr, cancel, error)){
             form.error = fs::path(form.audioPath).filename().string() + ": " + error

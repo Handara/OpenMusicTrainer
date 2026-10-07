@@ -71,7 +71,7 @@ TEST_CASE("the tempo ramp"){
 
 TEST_CASE("drill progress survives a save and load"){
     DrillProgress original{84, 80, 12, 7};
-    std::filesystem::path dir = std::filesystem::temp_directory_path() / "hardthz_tests";
+    std::filesystem::path dir = std::filesystem::temp_directory_path() / "lahn_tests";
     std::filesystem::create_directories(dir);
     std::string path = (dir / "drill.txt").string(), error;
     REQUIRE(saveDrillProgress(path, original, error));

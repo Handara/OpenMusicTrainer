@@ -85,7 +85,7 @@ RoutineProgress loadRoutineProgress(const std::string& path){
 
 bool saveRoutineProgress(const std::string& path, const RoutineProgress& progress, std::string& error){
     std::ostringstream out;
-    out << "# hardthz progress: routine\n";
+    out << "# lahn progress: routine\n";
     out << "version 1\n";
     out << "completed " << progress.completed << "\n";
     if (progress.lastDay >= 0){

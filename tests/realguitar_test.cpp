@@ -15,7 +15,7 @@ TEST_CASE("a real guitar: strummed chords are named, and none wrongly"){
     std::vector<float> samples;
     int rate = 0;
     std::string error;
-    REQUIRE_MESSAGE(readWav(std::string(HARDTHZ_TEST_DATA_DIR) + "guitar-chords.wav", samples, rate, error), error);
+    REQUIRE_MESSAGE(readWav(std::string(LAHN_TEST_DATA_DIR) + "guitar-chords.wav", samples, rate, error), error);
     NoteDetectorConfig config;
     config.minFrequency = 74.0f; // a guitar's low E, a little flat
     NoteDetector detector;

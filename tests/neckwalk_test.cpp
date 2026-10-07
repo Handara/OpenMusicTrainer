@@ -277,7 +277,7 @@ TEST_CASE("neck walk: five rounds wrong and the game is over"){
 }
 
 TEST_CASE("neck walk: games are kept, with each key's notes right and wrong, and the last level and tempo"){
-    const std::string path = (std::filesystem::temp_directory_path() / "hardthz-neckwalk-test.txt").string();
+    const std::string path = (std::filesystem::temp_directory_path() / "lahn-neckwalk-test.txt").string();
     std::remove(path.c_str());
     NeckWalkStats stats = loadNeckWalkStats(path);
     CHECK(stats.games.empty());

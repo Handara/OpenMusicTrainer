@@ -36,7 +36,7 @@ static void say(const char* format, ...){
 
 static LONG WINAPI onCrash(EXCEPTION_POINTERS* crash){
     report = std::fopen(reportPath.c_str(), "w");
-    say("\nhardthz crashed: exception 0x%08lX at %p\n", crash->ExceptionRecord->ExceptionCode, crash->ExceptionRecord->ExceptionAddress);
+    say("\nlahn crashed: exception 0x%08lX at %p\n", crash->ExceptionRecord->ExceptionCode, crash->ExceptionRecord->ExceptionAddress);
 #if defined(_M_X64)
     HANDLE process = GetCurrentProcess(), thread = GetCurrentThread();
     SymSetOptions(SYMOPT_LOAD_LINES | SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS);
@@ -86,7 +86,7 @@ static void put(int file, const char* text){
 
 // Only calls that are safe inside a signal handler: the stack goes straight to the file descriptors
 static void onCrash(int signal){
-    const char* heading = "\nhardthz crashed. Where it was:\n";
+    const char* heading = "\nlahn crashed. Where it was:\n";
     void* frames[64];
     int count = backtrace(frames, 64);
     put(STDERR_FILENO, heading);

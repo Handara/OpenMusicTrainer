@@ -125,7 +125,7 @@ const ToneAsset* captureFromFile(const std::string& path, int slot, std::string&
         for (int runner = 0; runner < TONE_RUNNERS; runner++){
             std::unique_ptr<nam::DSP> dsp = nam::get_dsp(std::filesystem::u8path(path));
             if (!dsp || dsp->NumInputChannels() != 1){
-                entry.error = name + " isn't a capture hardthz can play (one input, one output)";
+                entry.error = name + " isn't a capture lahn can play (one input, one output)";
                 error = entry.error;
                 return nullptr;
             }
@@ -136,7 +136,7 @@ const ToneAsset* captureFromFile(const std::string& path, int slot, std::string&
         }
         entry.asset = std::move(asset);
     } catch (const std::exception& e){
-        entry.error = name + " isn't a capture hardthz can play: " + e.what();
+        entry.error = name + " isn't a capture lahn can play: " + e.what();
     }
     error = entry.error;
     return entry.asset.get();

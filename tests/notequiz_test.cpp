@@ -111,7 +111,7 @@ TEST_CASE("play this note: in order, going round"){
 }
 
 TEST_CASE("play this note: runs played and passed are kept"){
-    const std::string path = (std::filesystem::temp_directory_path() / "hardthz-notequiz-test.txt").string();
+    const std::string path = (std::filesystem::temp_directory_path() / "lahn-notequiz-test.txt").string();
     std::remove(path.c_str());
     CHECK(loadNoteQuizStats(path).runs == 0);
     std::string error;

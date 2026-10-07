@@ -7,7 +7,7 @@
 #include <vector>
 
 // Recordings of a real bass (a Scarlett Solo's instrument input), made with the Instrument screen's "Record a check"
-// on 2026-10-03, where hardthz heard notes that weren't played. tests/data/bass-line.wav: a line around E2 to B2, the
+// on 2026-10-03, where lahn heard notes that weren't played. tests/data/bass-line.wav: a line around E2 to B2, the
 // fretting hand often on the next note before it's plucked. tests/data/bass-octaves.wav: B1 and B2 in turn, the
 // first muted as the second is played.
 
@@ -18,7 +18,7 @@ static std::vector<Heard> hear(const char* file){
     std::vector<float> samples;
     int rate = 0;
     std::string error;
-    REQUIRE_MESSAGE(readWav(std::string(HARDTHZ_TEST_DATA_DIR) + file, samples, rate, error), error);
+    REQUIRE_MESSAGE(readWav(std::string(LAHN_TEST_DATA_DIR) + file, samples, rate, error), error);
     NoteDetectorConfig config;
     config.minFrequency = 37.0f;
     NoteDetector detector;

@@ -197,7 +197,7 @@ static std::string oneLine(const std::string& value){
 
 bool saveLesson(const std::string& folder, const Lesson& lesson, std::string& error){
     std::ostringstream out;
-    out << "# hardthz lesson\n";
+    out << "# lahn lesson\n";
     out << "version " << SUPPORTED_LESSON_VERSION << "\n";
     out << "title " << oneLine(lesson.title) << "\n";
     out << "category " << oneLine(lesson.category) << "\n";
@@ -290,7 +290,7 @@ LessonProgress loadLessonProgress(const std::string& path){
 
 bool saveLessonProgress(const std::string& path, const LessonProgress& progress, std::string& error){
     std::ostringstream out;
-    out << "# hardthz progress: lesson\n";
+    out << "# lahn progress: lesson\n";
     out << "version 1\n";
     out << "reached " << progress.reached << "\n";
     out << "passed";

@@ -5,7 +5,7 @@
 #include <filesystem>
 
 TEST_CASE("plays: each exercise's count and last day, kept in one file"){
-    std::filesystem::path path = std::filesystem::temp_directory_path() / "hardthz_tests" / "plays.txt";
+    std::filesystem::path path = std::filesystem::temp_directory_path() / "lahn_tests" / "plays.txt";
     std::filesystem::create_directories(path.parent_path());
     std::filesystem::remove(path);
     CHECK(loadPlays(path.string()).empty());

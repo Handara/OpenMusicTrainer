@@ -62,7 +62,7 @@ TEST_CASE("the same seed gives the same rhythm, another seed another one"){
 }
 
 TEST_CASE("rhythm exercise files"){
-    std::filesystem::path path = std::filesystem::temp_directory_path() / "hardthz_tests" / "exercises" / "rhythm.exercise";
+    std::filesystem::path path = std::filesystem::temp_directory_path() / "lahn_tests" / "exercises" / "rhythm.exercise";
     std::filesystem::create_directories(path.parent_path());
     std::ofstream(path, std::ios::binary) << "version 1\ntype rhythm\ntitle Offbeats\ncells eighths offbeat\nbars 4\ntime 3\ntempo 70 120 5\npass 80\n";
     ExerciseFile file;

@@ -36,7 +36,7 @@ const char* const AUDIO_PATTERNS[] = { "*.mp3", "*.ogg", "*.flac", "*.wav" };
 // Where a song comes from: a tab; a recording of its bass alone, written down; or the song itself, its bass taken
 // out of it first (the stems add-on)
 enum class Source { Tab, Recording, Song };
-const char* const ADDON_PATTERNS[] = { "*.hardthzaddon", "*.lahnaddon" }; // (lahn: the game's name before)
+const char* const ADDON_PATTERNS[] = { "*.lahnaddon" };
 
 static struct ImportState {
     std::string songsDir;
@@ -46,7 +46,7 @@ static struct ImportState {
     std::string file;           // the tab
     bool loaded = false;
     GuitarProImport import;
-    std::string audio;          // the song's recording, "" for hardthz's backing
+    std::string audio;          // the song's recording, "" for lahn's backing
     bool useRecording = false;
     // From a recording
     std::string recording;      // the bass alone
@@ -207,7 +207,7 @@ void openImportScreen(const std::string& songsDir, const std::string& addonsDir,
     importView = ImportState{};
     importView.songsDir = songsDir;
     importView.addonsDir = addonsDir;
-    if (hasExtension(file, ADDON_PATTERNS, 2)) installStems(file);
+    if (hasExtension(file, ADDON_PATTERNS, 1)) installStems(file);
     else if (isAudio(file)) splitSong(file); // a song, most likely: the screen says so if it needs the add-on
     else if (!file.empty()) loadTab(file);
 }
@@ -232,7 +232,7 @@ static void takeDropped(){
     for (unsigned i = 0; i < dropped.count; i++){
         std::string path = dropped.paths[i];
         if (isTab(path)) loadTab(path);
-        else if (hasExtension(path, ADDON_PATTERNS, 2)) installStems(path);
+        else if (hasExtension(path, ADDON_PATTERNS, 1)) installStems(path);
         else if (isAudio(path)){
             if (importView.source == Source::Tab && importView.loaded){ importView.audio = path; importView.useRecording = true; }
             else if (importView.source == Source::Recording && importView.heard){ importView.wholeSong = path; importView.useWholeSong = true; }
@@ -418,12 +418,12 @@ static void tabScreen(ImportChoice& choice, float s){
     }
     if (settingsButtonAt("another", ImVec2(x, y + cardHeight + 16 * s), ImVec2(x + 200 * s, y + cardHeight + 16 * s + controlHeight), "Another file...")) chooseTab();
 
-    // Its audio: the song's recording, or hardthz's backing
+    // Its audio: the song's recording, or lahn's backing
     x = left + columnWidth + 40 * s;
     draw->AddText(fonts.mono, 13 * s, ImVec2(x, y), uiColor(UiColor::Dim), "WHAT YOU PLAY ALONG TO");
     y += 26 * s;
-    if (optionCard("backing", ImVec2(x, y), ImVec2(x + columnWidth, y + 96 * s), !importView.useRecording, "hardthz's backing",
-                   "Every part on hardthz's synths, with a click on the beat. In time from the start: play it right away.", s)){
+    if (optionCard("backing", ImVec2(x, y), ImVec2(x + columnWidth, y + 96 * s), !importView.useRecording, "lahn's backing",
+                   "Every part on lahn's synths, with a click on the beat. In time from the start: play it right away.", s)){
         importView.useRecording = false;
     }
     y += 110 * s;
@@ -489,12 +489,12 @@ static void songScreen(ImportChoice& choice, float s){
         card(ImVec2(left, top + 10 * s), ImVec2(right, top + 250 * s), s);
         draw->AddText(fonts.bold, 22 * s, ImVec2(left + 28 * s, top + 38 * s), uiColor(UiColor::Ink), "This needs the stems add-on");
         draw->AddText(fonts.text, 16 * s, ImVec2(left + 28 * s, top + 76 * s), uiColor(UiColor::Dim),
-                      "Taking the bass out of a song is done by a neural network, too big to give everyone with hardthz: it's an add-on of its "
-                      "own, free, about 35 MB, and it runs on your computer. Drop its file (hardthz-stems...hardthzaddon) on this window, or choose it.",
+                      "Taking the bass out of a song is done by a neural network, too big to give everyone with lahn: it's an add-on of its "
+                      "own, free, about 35 MB, and it runs on your computer. Drop its file (lahn-stems...lahnaddon) on this window, or choose it.",
                       nullptr, right - left - 56 * s);
         if (settingsButtonAt("addon", ImVec2(left + 28 * s, top + 180 * s), ImVec2(left + 248 * s, top + 180 * s + controlHeight), "Choose the add-on...")){
             std::string path, error;
-            if (chooseFile("Choose hardthz's stems add-on", "hardthz add-ons", patterns(ADDON_PATTERNS, 2), path, error)) installStems(path);
+            if (chooseFile("Choose lahn's stems add-on", "lahn add-ons", patterns(ADDON_PATTERNS, 1), path, error)) installStems(path);
             else if (!error.empty()) importView.error = error;
         }
         if (!importView.song.empty()){
@@ -526,7 +526,7 @@ static void songScreen(ImportChoice& choice, float s){
     }
     if (!importView.split){
         if (dropZone(ImVec2(left, top + 10 * s), ImVec2(right, top + 250 * s), "Drop a song here",
-                     "Any song (mp3, ogg, flac, wav). hardthz takes its bass out of it and writes it down: its notes, rhythm and frets. About a minute for a four-minute song.", s)){
+                     "Any song (mp3, ogg, flac, wav). lahn takes its bass out of it and writes it down: its notes, rhythm and frets. About a minute for a four-minute song.", s)){
             chooseSong();
         }
         if (!importView.notice.empty()) draw->AddText(fonts.text, 16 * s, ImVec2(left, top + 270 * s), uiColor(UiColor::Good), importView.notice.c_str());
@@ -545,7 +545,7 @@ static void songScreen(ImportChoice& choice, float s){
     const char* titles[3] = { "The whole song", "The song without its bass", "Its bass alone" };
     const char* details[3] = { "As it was recorded: its bass shows you the way.",
                                "The band, and you on the bass: its own bass taken out.",
-                               "Only the bass hardthz took out: to hear what it wrote down." };
+                               "Only the bass lahn took out: to hear what it wrote down." };
     for (int i = 0; i < 3; i++){
         ImGui::PushID(i);
         if (optionCard("along", ImVec2(x, y), ImVec2(x + columnWidth, y + 74 * s), importView.playAlong == i, titles[i], details[i], s)) importView.playAlong = i;
@@ -556,7 +556,7 @@ static void songScreen(ImportChoice& choice, float s){
         // The song as it is, or what was split from it, written out for the song's folder to take
         std::string audio = importView.song, error;
         if (importView.playAlong != 0){
-            audio = (fs::temp_directory_path() / "hardthz-import.wav").string();
+            audio = (fs::temp_directory_path() / "lahn-import.wav").string();
             if (!writeWav(audio, importView.playAlong == 1 ? songRest : songBass, STEM_RATE, error, 2)){
                 importView.error = error;
                 importView.importing = 0;
@@ -595,7 +595,7 @@ static void recordingScreen(ImportChoice& choice, float s){
     }
     if (!importView.heard){
         if (dropZone(ImVec2(left, top + 10 * s), ImVec2(right, top + 250 * s), "Drop a recording of a bass alone",
-                     "A bass stem split from a song, or you playing the part (mp3, ogg, flac, wav). hardthz writes its notes, rhythm and frets down: a draft to put right in the song editor.", s)){
+                     "A bass stem split from a song, or you playing the part (mp3, ogg, flac, wav). lahn writes its notes, rhythm and frets down: a draft to put right in the song editor.", s)){
             chooseRecording();
         }
         if (!importView.error.empty()) draw->AddText(fonts.text, 16 * s, ImVec2(left, top + 270 * s), uiColor(UiColor::Bad), importView.error.c_str(), nullptr, right - left);

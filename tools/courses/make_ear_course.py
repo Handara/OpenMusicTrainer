@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Writes hardthz's Ear training courses, for guitar (resources/courses/03-ear-training.course) and for bass
+"""Writes lahn's Ear training courses, for guitar (resources/courses/03-ear-training.course) and for bass
 (03-ear-training-bass.course): you hear a note, and play it back, a few more notes at a time; then intervals by
 name. Learn shows the one for the instrument played. Change the plans below and run it again:
 
@@ -85,10 +85,10 @@ PLANS = {
 def build(instrument):
     plan = PLANS[instrument]
     strings = plan["strings"]
-    out = ["# hardthz course: written by tools/courses/make_ear_course.py (change it there, and run it again)",
+    out = ["# lahn course: written by tools/courses/make_ear_course.py (change it there, and run it again)",
            "version 1",
            "title Ear training",
-           f"description hardthz plays a note, you find it on your {instrument} and play it back: from two notes far apart to every note of a scale, then intervals by name.",
+           f"description lahn plays a note, you find it on your {instrument} and play it back: from two notes far apart to every note of a scale, then intervals by name.",
            f"instrument {instrument}", ""]
 
     def level(title):
@@ -105,7 +105,7 @@ def build(instrument):
         newest = opens[count - 1]
         if count == 2:
             title = "High or low"
-            text = f"hardthz plays an open string: {opens[0][1]} or {opens[1][1]}. They're far apart: listen, and play the one you hear."
+            text = f"lahn plays an open string: {opens[0][1]} or {opens[1][1]}. They're far apart: listen, and play the one you hear."
         else:
             title, text = f"Add {newest[1]}", f"One more: {newest[1]}, open. Listen, then play back the one you hear."
         lines = [f"lesson {title}", f"text {text}",

@@ -84,7 +84,7 @@ TEST_CASE("progress survives a save and load"){
     original.stats[7] = { 40, 37 };
     original.stats[5] = { 3, 1 };
 
-    std::filesystem::path dir = std::filesystem::temp_directory_path() / "hardthz_tests";
+    std::filesystem::path dir = std::filesystem::temp_directory_path() / "lahn_tests";
     std::filesystem::create_directories(dir);
     std::string path = (dir / "intervals.txt").string();
     std::string error;

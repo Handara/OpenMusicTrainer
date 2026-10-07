@@ -10,7 +10,7 @@
 // the mouse (the wheel changes a fret) or the keyboard; the song's details in a drawer; play, record, test play, save, import and export.
 // Built-in songs are read-only; saving one creates an editable copy in the user's songs folder.
 
-// packagesDir: where Export puts the song's package (.hardthz). `settings`: the string order, and the editor's own
+// packagesDir: where Export puts the song's package (.lahn). `settings`: the string order, and the editor's own
 // volumes, which it changes (they're saved with the rest); it must outlive the editor.
 // addonsDir: where add-ons are installed (the video add-on, for bringing videos in).
 bool openEditor(const SongEntry& song, const std::string& userSongsDir, const std::string& packagesDir, const std::string& addonsDir,

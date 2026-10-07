@@ -82,7 +82,7 @@ TEST_CASE("records: the best first, a limited list, kept on disk"){
     detailed.unstableRate = 142.5f;
     detailed.withInstrument = true;
     detailed.date = "2026-09-29";
-    std::filesystem::path path = std::filesystem::temp_directory_path() / "hardthz_tests" / "records.txt";
+    std::filesystem::path path = std::filesystem::temp_directory_path() / "lahn_tests" / "records.txt";
     std::filesystem::create_directories(path.parent_path());
     std::string error;
     REQUIRE_MESSAGE(saveRuns(path.string(), {detailed}, error), error);
@@ -103,7 +103,7 @@ TEST_CASE("records: a score past what an int holds is kept whole (the multiplier
     RunRecord huge;
     huge.score = 5'000'000'123LL; // a perfect run of about 10,000 notes
     huge.date = "2026-10-04";
-    std::filesystem::path path = std::filesystem::temp_directory_path() / "hardthz_tests" / "records-huge.txt";
+    std::filesystem::path path = std::filesystem::temp_directory_path() / "lahn_tests" / "records-huge.txt";
     std::filesystem::create_directories(path.parent_path());
     std::string error;
     REQUIRE_MESSAGE(saveRuns(path.string(), {huge}, error), error);
@@ -113,7 +113,7 @@ TEST_CASE("records: a score past what an int holds is kept whole (the multiplier
 }
 
 TEST_CASE("history: every run in the order played, started from the records kept before it"){
-    std::filesystem::path dir = std::filesystem::temp_directory_path() / "hardthz_tests" / "history";
+    std::filesystem::path dir = std::filesystem::temp_directory_path() / "lahn_tests" / "history";
     std::filesystem::remove_all(dir);
     std::filesystem::create_directories(dir);
     std::string records = (dir / "song-part2-abc.txt").string();

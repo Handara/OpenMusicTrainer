@@ -460,7 +460,7 @@ bool binaryScore(const std::string& data, GpScore& score, std::string& error){
     size_t dot = number.find('.');
     const int v = 100 * std::atoi(number.substr(0, dot).c_str()) + (dot == std::string::npos ? 0 : std::atoi(number.substr(dot + 1).c_str()));
     if (v < 300 || v >= 600){
-        error = "Guitar Pro " + number + " isn't a version hardthz knows";
+        error = "Guitar Pro " + number + " isn't a version lahn knows";
         return false;
     }
 
@@ -674,7 +674,7 @@ bool binaryScore(const std::string& data, GpScore& score, std::string& error){
         }
     }
     if (in.failed){
-        error = "the file is damaged, or of a kind hardthz reads wrong (it ends too soon)";
+        error = "the file is damaged, or of a kind lahn reads wrong (it ends too soon)";
         return false;
     }
     return true;

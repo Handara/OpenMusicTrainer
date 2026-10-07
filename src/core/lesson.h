@@ -8,7 +8,7 @@
 // Lessons: steps to go through in order (text, pictures, sound, video, exercises, songs to play), written as a
 // text file anyone can make and share. A lesson is a folder, like a song: lesson.lesson and its media next to it.
 //
-//   # hardthz lesson
+//   # lahn lesson
 //   version 1
 //   title Your first chords
 //   category Guitar basics

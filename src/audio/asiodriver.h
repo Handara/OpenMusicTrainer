@@ -23,7 +23,7 @@ void stopAsio(); // safe to call more than once
 bool asioActive();
 
 int asioInputChannels();
-int asioOutputChannels();     // 0: hardthz's sound isn't going out through the driver
+int asioOutputChannels();     // 0: lahn's sound isn't going out through the driver
 double asioSampleRate();
 int asioBufferFrames();       // frames in each buffer the driver hands over
 int asioInputLatencyFrames(); // the delays the driver reports: its buffers and its converters

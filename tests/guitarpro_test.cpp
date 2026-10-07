@@ -213,7 +213,7 @@ TEST_CASE("what isn't a Guitar Pro score, or has nothing to play, says so"){
     CHECK_FALSE(importGuitarPro("/nonexistent/song.gp", import, error));
 }
 
-TEST_CASE("an imported tab becomes a song: its chart and a backing of hardthz's own, or its recording"){
+TEST_CASE("an imported tab becomes a song: its chart and a backing of lahn's own, or its recording"){
     namespace fs = std::filesystem;
     GuitarProImport import;
     std::string error;
@@ -231,7 +231,7 @@ TEST_CASE("an imported tab becomes a song: its chart and a backing of hardthz's 
     for (float sample : backing) loudest = std::max(loudest, std::fabs(sample));
     CHECK(loudest <= 0.9f + 1e-4f);
 
-    fs::path songs = fs::temp_directory_path() / "hardthz_tests" / "imported";
+    fs::path songs = fs::temp_directory_path() / "lahn_tests" / "imported";
     fs::remove_all(songs);
     std::string chartPath;
     REQUIRE_MESSAGE(createImportedSong(songs.string(), import.chart, "", rate, chartPath, error), error);
@@ -244,7 +244,7 @@ TEST_CASE("an imported tab becomes a song: its chart and a backing of hardthz's 
     CHECK(loaded.frettedTracks[0].notes.size() == import.chart.frettedTracks[0].notes.size());
 
     // The same song again, with a recording: a folder of its own beside the first, the audio copied in
-    fs::path recording = fs::temp_directory_path() / "hardthz_tests" / "Recording.MP3";
+    fs::path recording = fs::temp_directory_path() / "lahn_tests" / "Recording.MP3";
     { std::ofstream(recording) << "not really audio"; }
     std::string second;
     REQUIRE_MESSAGE(createImportedSong(songs.string(), import.chart, recording.string(), rate, second, error), error);
@@ -316,7 +316,7 @@ TEST_CASE("Guitar Pro 6: its compression and its little file system"){
     CHECK_FALSE(bcfsFile(unpacked, "other.xml", score));
 
     namespace fs = std::filesystem;
-    fs::path path = fs::temp_directory_path() / "hardthz_tests" / "song.gpx";
+    fs::path path = fs::temp_directory_path() / "lahn_tests" / "song.gpx";
     { std::ofstream(path, std::ios::binary) << packed; }
     GuitarProImport import;
     REQUIRE_MESSAGE(importGuitarPro(path.string(), import, error), error);
@@ -378,7 +378,7 @@ TEST_CASE("Guitar Pro 3 to 5: the binary files, a Guitar Pro 3 one written by ha
     gp.beat(-1, true, 0, 0, { { 1, 2, true } });
 
     namespace fs = std::filesystem;
-    fs::path path = fs::temp_directory_path() / "hardthz_tests" / "binary.gp3";
+    fs::path path = fs::temp_directory_path() / "lahn_tests" / "binary.gp3";
     { std::ofstream(path, std::ios::binary) << gp.bytes; }
     GuitarProImport import;
     std::string error;

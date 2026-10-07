@@ -67,7 +67,7 @@ private:
     double rightAt = -100.0, wrongAt = -100.0, finishedAt = -100.0;
     double runStartedAt = 0.0;
     double playPromptAt = -1.0;  // by ear: when to play the note asked (GetTime), -1 for not to
-    double soundingUntil = -1.0; //   while it sounds, what's heard is hardthz's own (a microphone hears the speakers)
+    double soundingUntil = -1.0; //   while it sounds, what's heard is lahn's own (a microphone hears the speakers)
     double heardAt = -100.0;     //   when the note asked started sounding: a ring pulses with it
     NeckStep lastRight{ -1, -1, -1 }; // the note just played right: its ring
     // The prompts written down, for the staff: a bar of four at a time, the one now lit

@@ -903,7 +903,7 @@ static bool matches(const std::string& path, const std::vector<std::string>& pat
     return false;
 }
 
-// A tab (Guitar Pro) or a hardthz chart: read, then its parts are offered (drawImportPopups)
+// A tab (Guitar Pro) or a lahn chart: read, then its parts are offered (drawImportPopups)
 static void readPartsFile(const std::string& path){
     const std::string name = fs::path(path).filename().string();
     Chart chart;
@@ -1010,7 +1010,7 @@ static void importAudio(const std::string& path){
     editor.status = "The song's audio is now " + fs::path(path).filename().string() + ": drag the waveform to line it up with the bars";
 }
 
-// The song's video, from a file: shown behind the notes when the song is played. One hardthz plays as it is (.mpg) is
+// The song's video, from a file: shown behind the notes when the song is played. One lahn plays as it is (.mpg) is
 // copied in; any other kind is converted by FFmpeg (app/videoconvert), on a thread, its sound taken as the song's
 // audio if that's asked.
 static void importVideo(const std::string& path, bool withSound){
@@ -1040,7 +1040,7 @@ static void importVideo(const std::string& path, bool withSound){
     }
     const std::string ffmpeg = findFfmpeg(editor.addonsDir);
     if (ffmpeg.empty()){
-        editor.status = "A video of this kind needs hardthz's video add-on: drop its file (hardthz-video...hardthzaddon) on the editor, then the video again";
+        editor.status = "A video of this kind needs lahn's video add-on: drop its file (lahn-video...lahnaddon) on the editor, then the video again";
         return;
     }
     stopVideoWork();
@@ -1107,7 +1107,7 @@ static void importFile(const std::string& path){
     if (matches(path, AUDIO_PATTERNS)) importAudio(path);
     else if (matches(path, PARTS_PATTERNS)) readPartsFile(path);
     else if (isVideoFile(path)) importVideo(path, editor.chart.audioFile.empty()); // its sound too, for a song with no audio
-    else if (lowerExtension(path) == ADDON_EXTENSION || lowerExtension(path) == OLD_ADDON_EXTENSION) installDroppedAddon(path);
+    else if (lowerExtension(path) == ADDON_EXTENSION) installDroppedAddon(path);
     else editor.status = fs::path(path).filename().string() + " is neither a tab, a chart, an audio file nor a video";
 }
 
@@ -2406,7 +2406,7 @@ static void drawImportExportPopups(float s){
     ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
     if (ImGui::BeginPopupModal(IMPORT_POPUP, nullptr, ImGuiWindowFlags_AlwaysAutoResize)){
         std::string path, error;
-        if (choiceButton("Parts, from a tab or another song...", "A Guitar Pro tab (.gp, .gpx, .gp3 to .gp5) or a hardthz chart (.chart): you choose which of its parts come in, and whether its bars and tempos do.", width)){
+        if (choiceButton("Parts, from a tab or another song...", "A Guitar Pro tab (.gp, .gpx, .gp3 to .gp5) or a lahn chart (.chart): you choose which of its parts come in, and whether its bars and tempos do.", width)){
             if (chooseFile("Choose a tab or a chart", "Tabs and charts", PARTS_PATTERNS, path, error)) readPartsFile(path);
             else if (!error.empty()) editor.status = error;
             ImGui::CloseCurrentPopup();
@@ -2416,7 +2416,7 @@ static void drawImportExportPopups(float s){
             else if (!error.empty()) editor.status = error;
             ImGui::CloseCurrentPopup();
         }
-        if (choiceButton("Its video...", "A video of any kind (mp4, mkv, webm, mov...): shown behind the notes while the song is played. Kinds other than .mpg are converted, which needs hardthz's video add-on.", width)){
+        if (choiceButton("Its video...", "A video of any kind (mp4, mkv, webm, mov...): shown behind the notes while the song is played. Kinds other than .mpg are converted, which needs lahn's video add-on.", width)){
             if (chooseFile("Choose the song's video", "Videos", VIDEO_PATTERNS, path, error)) importVideo(path, editor.importVideoSound);
             else if (!error.empty()) editor.status = error;
             ImGui::CloseCurrentPopup();
@@ -2557,8 +2557,8 @@ static void drawImportExportPopups(float s){
     ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
     if (ImGui::BeginPopupModal(EXPORT_POPUP, nullptr, ImGuiWindowFlags_AlwaysAutoResize)){
         const bool hasVideo = !editor.chart.videoFile.empty();
-        if (choiceButton("The whole song, one file (.hardthz)", hasVideo ? "Its chart, its audio and, if you leave it ticked, its video. Anyone with hardthz installs it by dropping it on their song list."
-                                                                     : "Its chart and its audio. Anyone with hardthz installs it by dropping it on their song list.", width)){
+        if (choiceButton("The whole song, one file (.lahn)", hasVideo ? "Its chart, its audio and, if you leave it ticked, its video. Anyone with lahn installs it by dropping it on their song list."
+                                                                     : "Its chart and its audio. Anyone with lahn installs it by dropping it on their song list.", width)){
             exportPackage();
             ImGui::CloseCurrentPopup();
         }
@@ -2592,7 +2592,7 @@ static void drawImportExportPopups(float s){
     ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
     if (ImGui::BeginPopupModal(VIDEO_POPUP, nullptr, ImGuiWindowFlags_AlwaysAutoResize)){
         ImGui::Text("%s", bringingVideo.file.c_str());
-        ImGui::TextDisabled("%s", bringingVideo.stage == 0 ? "Its sound, into the song's audio" : "Its pictures, into a video hardthz plays");
+        ImGui::TextDisabled("%s", bringingVideo.stage == 0 ? "Its sound, into the song's audio" : "Its pictures, into a video lahn plays");
         ImGui::ProgressBar(bringingVideo.progress.load(), ImVec2(width, 0));
         ImGui::Spacing();
         if (ImGui::Button("Stop")) bringingVideo.cancel = true;

@@ -1,4 +1,4 @@
-// Plays a recording made with the Instrument screen's "Record a check" (a 16-bit mono WAV) through hardthz's note
+// Plays a recording made with the Instrument screen's "Record a check" (a 16-bit mono WAV) through lahn's note
 // detector and pluck listener, as the game would, and prints what they found: to see why a note was misheard, and
 // whether a change to the detectors hears it right.
 //

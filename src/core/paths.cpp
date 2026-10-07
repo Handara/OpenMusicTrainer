@@ -5,8 +5,8 @@
 
 namespace fs = std::filesystem;
 
-const char* const APP_FOLDER_NAME = "hardthz";
-const char* const OLD_APP_FOLDER_NAMES[] = { "lahn", "OpenMusicTrainer" }; // the game's earlier names, the latest first
+const char* const APP_FOLDER_NAME = "lahn";
+const char* const OLD_APP_FOLDER_NAME = "OpenMusicTrainer"; // the game's first name
 
 // Reads an environment variable, empty if it isn't set
 static std::string environment(const char* name){
@@ -33,10 +33,8 @@ std::string userDataDir(){
     return (dataBase() / APP_FOLDER_NAME).string();
 }
 
-std::vector<std::string> oldUserDataDirs(){
-    std::vector<std::string> dirs;
-    for (const char* name : OLD_APP_FOLDER_NAMES) dirs.push_back((dataBase() / name).string());
-    return dirs;
+std::string oldUserDataDir(){
+    return (dataBase() / OLD_APP_FOLDER_NAME).string();
 }
 
 bool moveUserDataFolder(const std::string& from, const std::string& to, std::string& error){

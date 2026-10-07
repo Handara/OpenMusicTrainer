@@ -37,7 +37,7 @@ static struct {
     AsioSink sink = nullptr;
     AsioRender render = nullptr;
     int channels = 0;
-    int outputs = 0;           // the outputs hardthz plays through (the first two), 0 for input only
+    int outputs = 0;           // the outputs lahn plays through (the first two), 0 for input only
     bool postOutput = false;   // the driver wants to be told when its outputs are filled (ASIOOutputReady)
     long bufferFrames = 0;
     double sampleRate = 0.0;
@@ -60,7 +60,7 @@ static void bufferSwitch(long index, ASIOBool){
     }
     asio.sink(asio.frames.data(), frames);
     if (asio.outputs == 0) return;
-    // What hardthz plays, in the same call: the input just heard can be in it, a buffer later (Ableton's way)
+    // What lahn plays, in the same call: the input just heard can be in it, a buffer later (Ableton's way)
     std::fill(asio.out.begin(), asio.out.end(), 0.0f);
     asio.render(asio.out.data(), frames);
     for (int o = 0; o < asio.outputs; o++){
@@ -132,8 +132,8 @@ static std::string openDriver(const std::string& driver, double wantedRate, HWND
     asio.callbacks.sampleRateDidChange = sampleRateDidChange;
     asio.callbacks.asioMessage = asioMessage;
     asio.callbacks.bufferSwitchTimeInfo = bufferSwitchTimeInfo;
-    // Every input, and the first two outputs when hardthz plays through the driver too. A driver that can't give both
-    // is asked again for the inputs alone (hardthz's sound then goes out through Windows).
+    // Every input, and the first two outputs when lahn plays through the driver too. A driver that can't give both
+    // is asked again for the inputs alone (lahn's sound then goes out through Windows).
     auto createBuffers = [&](long outs){
         asio.buffers.assign(inputs + outs, ASIOBufferInfo{});
         for (long c = 0; c < inputs + outs; c++){

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Builds hardthz's stems add-on: the bass model and the runtime that runs it, as one file to drop on hardthz.
+"""Builds lahn's stems add-on: the bass model and the runtime that runs it, as one file to drop on lahn.
 
     python3 tools/make_stems_addon.py [windows|linux] [output folder]
 
@@ -7,7 +7,7 @@ It downloads, once, into a cache folder:
   - ONNX Runtime (MIT), the library that runs the model: github.com/microsoft/onnxruntime
   - KUIELab-MDX-Net's models (code MIT, weights CC-BY 4.0): zenodo.org/record/5717356
 and packs the runtime's library, the bass model, the credits those licenses ask for and addon.txt into
-hardthz-stems-<system>.hardthzaddon, about 40 MB. hardthz itself is built without either (src/app/stemmodel.cpp).
+lahn-stems-<system>.lahnaddon, about 40 MB. lahn itself is built without either (src/app/stemmodel.cpp).
 """
 import io
 import os
@@ -19,14 +19,14 @@ import zipfile
 ORT_VERSION = "1.30.0"  # the headers in third_party/onnxruntime are this version's
 ADDON_VERSION = 1
 RUNTIMES = {
-    # system: (archive, the library's name inside it, the name hardthz loads)
+    # system: (archive, the library's name inside it, the name lahn loads)
     "windows": (f"onnxruntime-win-x64-{ORT_VERSION}.zip", "onnxruntime.dll", "onnxruntime.dll"),
     "linux": (f"onnxruntime-linux-x64-{ORT_VERSION}.tgz", f"libonnxruntime.so.{ORT_VERSION}", "libonnxruntime.so"),
 }
 ORT_URL = "https://github.com/microsoft/onnxruntime/releases/download/v" + ORT_VERSION + "/"
 MODELS_URL = "https://zenodo.org/records/5717356/files/onnx_A.zip?download=1"
 
-CREDITS = f"""hardthz's stems add-on
+CREDITS = f"""lahn's stems add-on
 
 The bass model: KUIELab-MDX-Net, by Minseok Kim, Woosung Choi, Jaehwa Chung, Daewon Lee and Soonyoung Jung
 ("KUIELab-MDX-Net: A Two-Stream Neural Network for Music Demixing", 2021).
@@ -72,7 +72,7 @@ def main():
     out_dir = sys.argv[2] if len(sys.argv) > 2 else "."
     if system not in RUNTIMES:
         raise SystemExit("windows or linux")
-    cache = os.path.join(os.path.expanduser("~"), ".cache", "hardthz-stems")
+    cache = os.path.join(os.path.expanduser("~"), ".cache", "lahn-stems")
     os.makedirs(cache, exist_ok=True)
     os.makedirs(out_dir, exist_ok=True)
     archive, inside, loaded = RUNTIMES[system]
@@ -81,9 +81,9 @@ def main():
     library = library_from(os.path.join(cache, archive), inside)
     with zipfile.ZipFile(os.path.join(cache, "onnx_A.zip")) as models:
         bass = models.read("onnx_A/bass.onnx")
-    out = os.path.join(out_dir, f"hardthz-stems-{system}.hardthzaddon")
+    out = os.path.join(out_dir, f"lahn-stems-{system}.lahnaddon")
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as addon:
-        addon.writestr("addon.txt", f"hardthz_addon 1\nname stems\nversion {ADDON_VERSION}\n")
+        addon.writestr("addon.txt", f"lahn_addon 1\nname stems\nversion {ADDON_VERSION}\n")
         addon.writestr("CREDITS.txt", CREDITS)
         addon.writestr(loaded, library)
         addon.writestr("bass.onnx", bass)

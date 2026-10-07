@@ -93,7 +93,7 @@ TEST_CASE("strums are found where they start, once each"){
 }
 
 TEST_CASE("chord change exercise files"){
-    std::filesystem::path path = std::filesystem::temp_directory_path() / "hardthz_tests" / "exercises" / "changes.exercise";
+    std::filesystem::path path = std::filesystem::temp_directory_path() / "lahn_tests" / "exercises" / "changes.exercise";
     std::filesystem::create_directories(path.parent_path());
     std::ofstream(path, std::ios::binary) << "version 1\ntype chords\ntitle G to C\nchords G C D\nbeats 2\nrounds 3\n";
     ExerciseFile file;

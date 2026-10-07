@@ -4,7 +4,7 @@
 
 #include <vector>
 
-// A backing band's song (core/backingband) played on hardthz's own sounds: its drum kit, a fingered bass, an electric
+// A backing band's song (core/backingband) played on lahn's own sounds: its drum kit, a fingered bass, an electric
 // piano. Its hits are handed to the audio engine a moment before their time, as a metronome's clicks are, so a voice
 // is only taken when it's about to sound.
 class BandPlayer {

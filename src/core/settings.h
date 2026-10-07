@@ -33,7 +33,7 @@ struct Settings {
     int guitarChannel = -1;
     int bassChannel = -1;
     int voiceChannel = -1;
-    bool exclusiveInput = true;        // Windows: the input device for hardthz alone, past Windows' effects (audio.h)
+    bool exclusiveInput = true;        // Windows: the input device for lahn alone, past Windows' effects (audio.h)
     std::string midiDevice;            // a MIDI keyboard or controller, by name; empty = the first one connected
     float masterVolume = 1.0f;         // 0..1
     float previewVolume = 0.6f;        // sounds the game makes itself (the keyboard's notes, ear training)
@@ -44,8 +44,8 @@ struct Settings {
     bool editorNoteNames = true;       // each note's name in it, under its fret, in the editor
     std::string previewSound = "drop";  // a built-in sound, or a file name in the user's sounds folder
     float hitSoundVolume = 0.5f;       // the sound on each note hit with an instrument (0 for none)...
-    bool hitSoundIsNote = true;        // ...the note itself on the part's own instrument (hardthz's bass or guitar), or a drop
-    // Hearing the instrument through hardthz wherever the player is (audio.h: setMonitor)
+    bool hitSoundIsNote = true;        // ...the note itself on the part's own instrument (lahn's bass or guitar), or a drop
+    // Hearing the instrument through lahn wherever the player is (audio.h: setMonitor)
     bool monitorOn = true;
     bool monitorSynth = false;         // heard as a synth bass playing the notes found (input/synthmonitor), not its own sound
     float monitorVolume = 0.8f;
@@ -63,7 +63,7 @@ struct Settings {
     NoteViews noteViews;
     bool lowStringOnTop = true;        // string order on the highway and in the editor: low E at the top (on the left when the
                                        // highway falls), or at the bottom like tab
-    bool darkTheme = true;             // hardthz's colors: dark (the default) or light
+    bool darkTheme = true;             // lahn's colors: dark (the default) or light
     bool songVideo = true;             // a song's video, when it has one, behind the notes
     bool fullscreen = false;
     int frameRateLimit = 60;           // 0 = unlimited

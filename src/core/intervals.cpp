@@ -103,7 +103,7 @@ IntervalProgress loadIntervalProgress(const std::string& path){
 
 bool saveIntervalProgress(const std::string& path, const IntervalProgress& progress, std::string& error){
     std::ostringstream out;
-    out << "# hardthz progress: interval ear training\n";
+    out << "# lahn progress: interval ear training\n";
     out << "version " << SUPPORTED_PROGRESS_VERSION << "\n";
     out << "unlocked " << progress.unlockedCount << "\n";
     out << "best_streak " << progress.bestStreak << "\n";

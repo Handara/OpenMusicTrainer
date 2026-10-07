@@ -1,4 +1,4 @@
-# hardthz course
+# lahn course
 version 1
 title First steps
 description Never held a guitar? Start here. One string, then the next, then your first frets and the names of the notes: a little at a time, at your own pace.
@@ -9,11 +9,11 @@ unit Meet your guitar
 lesson Your very first note
 title Six strings
 text Your guitar has six strings. The thickest one sounds the lowest, the thinnest one the highest.
-text On hardthz's neck the thinnest string is at the top, the thickest at the bottom, the way guitar tab shows them.
+text On lahn's neck the thinnest string is at the top, the thickest at the bottom, the way guitar tab shows them.
 title Open strings
 text Playing a string "open" means you don't press anything on it: you just pluck it with your thumb or a pick.
-text Pluck the thinnest string now. hardthz lights it on the neck, and hears you when you play it.
-text No sound reaching hardthz? Check that your guitar is plugged in, and the input in Settings.
+text Pluck the thinnest string now. lahn lights it on the neck, and hears you when you play it.
+text No sound reaching lahn? Check that your guitar is plugged in, and the input in Settings.
 exercise
 type notes
 places 6:0
@@ -53,7 +53,7 @@ count 8
 pass 7
 
 lesson Strings by name
-text This time hardthz says the string's name, and shows where it is. Play it open.
+text This time lahn says the string's name, and shows where it is. Play it open.
 exercise
 type notes
 places 1:0 2:0 3:0 4:0 5:0 6:0
@@ -63,7 +63,7 @@ count 8
 pass 7
 
 lesson Strings by name, no hints
-text The same, without the neck showing you where. If you slip, hardthz shows the right one.
+text The same, without the neck showing you where. If you slip, lahn shows the right one.
 exercise
 type notes
 places 2:0 3:0 4:0 5:0
@@ -127,7 +127,7 @@ unit The names of the notes
 lesson E, F and G
 title Every note has a name
 text Notes are named with letters, A to G. The open thinnest string is an E, its 1st fret is F, its 3rd fret is G.
-text hardthz says the name and shows where it is. Play it.
+text lahn says the name and shows where it is. Play it.
 exercise
 type notes
 notes E4 F4 G4
