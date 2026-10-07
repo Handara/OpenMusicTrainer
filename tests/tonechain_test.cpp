@@ -3,6 +3,7 @@
 #include "core/tonechain.h"
 #include "core/tonelibrary.h"
 
+#include <algorithm>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -45,7 +46,7 @@ TEST_CASE("a tone survives being written and read back"){
 TEST_CASE("tone files are read leniently, and only tone files"){
     Tone tone;
     std::string error;
-    REQUIRE(readTone("lahn_tone 1\r\n"
+    REQUIRE(readTone("lahn_tone 2\r\n"
                      "name Odd\r\n"
                      "flanger on rate 3\r\n"               // an effect from a newer lahn: skipped
                      "drive on drive 7 sparkle 1\r\n"       // out of range, and a setting it doesn't know
@@ -56,6 +57,31 @@ TEST_CASE("tone files are read leniently, and only tone files"){
     CHECK_FALSE(readTone("version 1\nnote_view neck\n", tone, error)); // a settings file isn't a tone
     CHECK(error == "not a lahn tone");
     CHECK_FALSE(readTone("", tone, error));
+}
+
+TEST_CASE("a tone from before the modelled amp sounds as it did: its knobs made the new ones, its speaker a cabinet"){
+    Tone tone;
+    std::string error;
+    REQUIRE(readTone("lahn_tone 1\n"
+                     "name Old\n"
+                     "drive on drive 0.5 character 0.9 tone 0.6 level 0.6 blend 1\n"
+                     "amp on gain 0.5 bass 6 mid -12 treble 0 cabinet 0.8\n"
+                     "reverb on size 0.5 damping 0.5 mix 0.2\n", tone, error));
+    REQUIRE(tone.effects.size() == 4);
+    CHECK(tone.effects[0].values[1] == doctest::Approx(2.0f)); // character 0.9: a fuzz
+    const Effect& amp = tone.effects[1];
+    CHECK(amp.values[0] == doctest::Approx(1.0f));  // pushed: the crunch
+    CHECK(amp.values[1] == doctest::Approx(0.5f));  // gain
+    CHECK(amp.values[2] == doctest::Approx(0.75f)); // +6 dB of bass: three quarters
+    CHECK(amp.values[3] == doctest::Approx(0.0f));  // -12 dB of mid: all the way down
+    CHECK(amp.values[4] == doctest::Approx(0.5f));
+    CHECK(tone.effects[2].type == EffectType::Cabinet); // its speaker, right after it
+    CHECK(tone.effects[3].type == EffectType::Reverb);
+    // Written again, it's a tone of now: read back the same
+    Tone again;
+    REQUIRE(readTone(writeTone(tone), again, error));
+    REQUIRE(again.effects.size() == 4);
+    CHECK(again.effects[1].values[2] == doctest::Approx(0.75f));
 }
 
 TEST_CASE("the built-in tones: Clean first, every one of them readable"){
@@ -83,7 +109,7 @@ static std::vector<float> pluck(int rate, float seconds, float gain){
     return samples;
 }
 
-TEST_CASE("no effect delays the sound: what's played is heard at once"){
+TEST_CASE("no effect delays the sound: what's played is heard at once (the amp and drive within a tenth of a millisecond)"){
     const int rate = 48000;
     for (int type = 0; type < (int)EffectType::Count; type++){
         CAPTURE(effectInfo((EffectType)type).name);
@@ -97,7 +123,11 @@ TEST_CASE("no effect delays the sound: what's played is heard at once"){
         std::vector<float> samples(64, 0.0f);
         for (int i = 32; i < 64; i++) samples[i] = 0.3f;
         processToneChain(chain, samples.data(), 64);
-        CHECK(std::fabs(samples[32]) > 0.01f);
+        // The amp's and the drive's clipping runs at four times the rate: its filters take a few samples
+        const bool oversampled = type == (int)EffectType::Amp || type == (int)EffectType::Drive;
+        float heard = 0.0f;
+        for (int i = 32; i <= (oversampled ? 36 : 32); i++) heard = std::max(heard, std::fabs(samples[i]));
+        CHECK(heard > 0.01f);
     }
 }
 
@@ -131,7 +161,9 @@ TEST_CASE("every effect turned all the way up stays finite and in range, and the
         Tone tone;
         tone.volume = 1.0f;
         tone.effects = { makeEffect(EffectType::Amp) };
-        tone.effects[0].values[1] = bass;
+        tone.effects[0].values[0] = 0.0f; // the clean one: its bass knob heard plainly
+        tone.effects[0].values[1] = 0.1f;
+        tone.effects[0].values[2] = bass;
         setToneChain(amp, toneParameters(tone));
         std::vector<float> note = pluck(rate, 0.5f, 0.2f);
         processToneChain(amp, note.data(), (int)note.size());
@@ -139,7 +171,7 @@ TEST_CASE("every effect turned all the way up stays finite and in range, and the
         for (float sample : note) energy += sample * sample;
         return energy;
     };
-    CHECK(energyWithBass(12.0f) > 2.0f * energyWithBass(-12.0f));
+    CHECK(energyWithBass(1.0f) > 2.0f * energyWithBass(0.0f));
 }
 
 TEST_CASE("a knob turned while playing keeps the effect's memory: the echo already on its way still comes"){

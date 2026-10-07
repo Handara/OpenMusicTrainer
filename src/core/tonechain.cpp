@@ -1,6 +1,7 @@
 #include "core/tonechain.h"
 
 #include "core/cabinets.h"
+#include "core/filters.h"
 
 #include <algorithm>
 #include <cmath>
@@ -40,28 +41,31 @@ const EffectInfo& effectInfo(EffectType type){
               "How fast it lets go after a loud note: short pumps, long is smooth" },
             { "makeup", "Makeup", 0.0f, 24.0f, 6.0f, "dB",
               "Turns everything back up after the loud parts were turned down" } } },
-        { "drive", "Drive", "A pedal's grit, from warm overdrive to fuzz; blend keeps the clean low end", 5, {
+        { "drive", "Drive", "A pedal's grit: an overdrive, a distortion or a fuzz, modelled on the classics", 5, {
             { "drive", "Drive", 0.0f, 1.0f, 0.5f, "%",
               "How hard the signal is pushed into the clipping: from a touch of warmth to full grit" },
-            { "character", "Character", 0.0f, 1.0f, 0.3f, "%",
-              "The kind of grit: round and warm on the left, harder in the middle, lopsided fuzz on the right" },
+            { "type", "Type", 0.0f, 2.0f, 0.0f, "",
+              "Overdrive: smooth, mids forward, lows clean (a Tube Screamer). Distortion: harder and thicker (a RAT). Fuzz: "
+              "a wall of sound, mids scooped (a Big Muff)", driveTypeNames() },
             { "tone", "Tone", 0.0f, 1.0f, 0.6f, "%",
               "Dark to bright: turn it down to tame the fizz" },
             { "level", "Level", 0.0f, 1.0f, 0.6f, "%",
               "How loud it comes out, to match the sound with it off" },
             { "blend", "Blend", 0.0f, 1.0f, 1.0f, "%",
               "How much of the driven sound, against your clean one: less keeps the clean low end under the grit" } } },
-        { "amp", "Amp", "An amp and its speaker: gain, bass, mid and treble", 5, {
-            { "gain", "Gain", 0.0f, 1.0f, 0.25f, "%",
-              "How hard the amp is pushed: clean at the bottom, warm and rounded higher up" },
-            { "bass", "Bass", -12.0f, 12.0f, 0.0f, "dB",
-              "The low end: the weight and the boom" },
-            { "mid", "Mid", -12.0f, 12.0f, 0.0f, "dB",
+        { "amp", "Amp", "A tube amp, modelled on a classic: its gain stages, its own tone stack, its power amp", 6, {
+            { "model", "Model", 0.0f, (float)(ampModelCount() - 1), 1.0f, "",
+              "Which amp: clean American, British crunch and lead, modern high gain, a tube bass amp, a bass drive", ampModelNames() },
+            { "gain", "Gain", 0.0f, 1.0f, 0.4f, "%",
+              "How hard its tubes are pushed: clean at the bottom, breaking up, then full distortion" },
+            { "bass", "Bass", 0.0f, 1.0f, 0.5f, "%",
+              "The low end: the weight and the boom. The knobs work as the amp's own do, each changing the others a little" },
+            { "mid", "Mid", 0.0f, 1.0f, 0.5f, "%",
               "The middle: what makes a note cut through the rest of the band" },
-            { "treble", "Treble", -12.0f, 12.0f, 0.0f, "dB",
+            { "treble", "Treble", 0.0f, 1.0f, 0.5f, "%",
               "The top: the attack's click and the strings' sparkle" },
-            { "cabinet", "Cabinet", 0.0f, 1.0f, 0.6f, "%",
-              "How much it sounds through a speaker: none is straight from the pickups, full is a real cabinet's softer top" } } },
+            { "presence", "Presence", 0.0f, 1.0f, 0.5f, "%",
+              "The power amp's bite, above the treble: how it cuts through" } } },
         { "equalizer", "Equalizer", "Four bands and a low cut, to shape the sound exactly", 5, {
             { "lowcut", "Low cut", 20.0f, 300.0f, 30.0f, "Hz",
               "Everything below this is cut: clears rumble and mud" },
@@ -147,36 +151,61 @@ static Effect effectWith(EffectType type, std::initializer_list<std::pair<const 
     return effect;
 }
 
+// The amp models (core/ampmodel), by their place in its list
+const float CLEAN_US = 0.0f, CRUNCH_UK = 1.0f, LEAD_UK = 2.0f, MODERN = 3.0f, BASS_TUBE = 4.0f, BASS_DRIVE = 5.0f;
+// The cabinets (core/cabinets)
+const float OPEN_1X12 = 0.0f, ALNICO_2X12 = 1.0f, MODERN_4X12 = 2.0f, VINTAGE_4X12 = 3.0f, BASS_8X10 = 4.0f, BASS_4X10 = 5.0f, BASS_1X15 = 6.0f;
+
 const std::vector<Tone>& builtInTones(){
     static const std::vector<Tone> TONES = {
-        // The speaker is a cabinet of its own (core/cabinets), the amp's own speaker filter left out
+        // For either instrument: a clean amp into a full-range cabinet
         { "Clean", {
             effectWith(EffectType::Compressor, {{"threshold", -22.0f}, {"ratio", 3.0f}, {"attack", 8.0f}, {"makeup", 5.0f}}),
-            effectWith(EffectType::Amp, {{"gain", 0.15f}, {"bass", 2.0f}, {"treble", 1.0f}, {"cabinet", 0.0f}}),
-            effectWith(EffectType::Cabinet, {{"speaker", 5.0f}, {"mic", 0.2f}}), // full range, for a bass or a guitar
+            effectWith(EffectType::Amp, {{"model", CLEAN_US}, {"gain", 0.2f}, {"bass", 0.55f}, {"mid", 0.5f}, {"treble", 0.55f}, {"presence", 0.45f}}),
+            effectWith(EffectType::Cabinet, {{"speaker", BASS_4X10}, {"mic", 0.25f}}),
             effectWith(EffectType::Reverb, {{"size", 0.35f}, {"mix", 0.12f}}) }, 0.8f },
+        // A '59 Bassman into its 4x10, just breaking up: warm for a bass, bluesy for a guitar
         { "Warm", {
             effectWith(EffectType::Compressor, {{"threshold", -20.0f}, {"ratio", 4.0f}, {"makeup", 6.0f}}),
-            effectWith(EffectType::Amp, {{"gain", 0.45f}, {"bass", 3.0f}, {"mid", 2.0f}, {"treble", -2.0f}, {"cabinet", 0.0f}}),
-            effectWith(EffectType::Cabinet, {{"speaker", 3.0f}, {"mic", 0.5f}}) }, 0.8f },
+            effectWith(EffectType::Amp, {{"model", BASS_TUBE}, {"gain", 0.45f}, {"bass", 0.6f}, {"mid", 0.6f}, {"treble", 0.4f}, {"presence", 0.4f}}),
+            effectWith(EffectType::Cabinet, {{"speaker", BASS_4X10}, {"mic", 0.5f}}) }, 0.8f },
+        // Guitar
+        { "Crunch", {
+            effectWith(EffectType::Gate, {{"threshold", -70.0f}}),
+            effectWith(EffectType::Amp, {{"model", CRUNCH_UK}, {"gain", 0.55f}, {"bass", 0.5f}, {"mid", 0.65f}, {"treble", 0.55f}, {"presence", 0.5f}}),
+            effectWith(EffectType::Cabinet, {{"speaker", VINTAGE_4X12}, {"mic", 0.3f}}),
+            effectWith(EffectType::Reverb, {{"size", 0.3f}, {"mix", 0.1f}}) }, 0.75f },
+        { "Lead", {
+            effectWith(EffectType::Gate, {{"threshold", -62.0f}}),
+            effectWith(EffectType::Drive, {{"drive", 0.2f}, {"type", 0.0f}, {"tone", 0.6f}, {"level", 0.8f}, {"blend", 1.0f}}), // a boost, tightening
+            effectWith(EffectType::Amp, {{"model", LEAD_UK}, {"gain", 0.7f}, {"bass", 0.45f}, {"mid", 0.7f}, {"treble", 0.55f}, {"presence", 0.55f}}),
+            effectWith(EffectType::Cabinet, {{"speaker", MODERN_4X12}, {"mic", 0.35f}}),
+            effectWith(EffectType::Delay, {{"time", 420.0f}, {"feedback", 0.25f}, {"mix", 0.15f}}),
+            effectWith(EffectType::Reverb, {{"size", 0.5f}, {"mix", 0.15f}}) }, 0.7f },
+        { "Modern", {
+            effectWith(EffectType::Gate, {{"threshold", -58.0f}, {"release", 40.0f}}),
+            effectWith(EffectType::Amp, {{"model", MODERN}, {"gain", 0.65f}, {"bass", 0.55f}, {"mid", 0.4f}, {"treble", 0.6f}, {"presence", 0.55f}}),
+            effectWith(EffectType::Cabinet, {{"speaker", MODERN_4X12}, {"mic", 0.25f}, {"lowcut", 70.0f}}) }, 0.7f },
+        // Bass
         { "Growl", {
             effectWith(EffectType::Compressor, {{"threshold", -20.0f}, {"makeup", 5.0f}}),
-            effectWith(EffectType::Drive, {{"drive", 0.55f}, {"character", 0.4f}, {"tone", 0.55f}, {"level", 0.6f}, {"blend", 0.55f}}),
-            effectWith(EffectType::Amp, {{"gain", 0.3f}, {"bass", 2.0f}, {"mid", 3.0f}, {"cabinet", 0.0f}}),
-            effectWith(EffectType::Cabinet, {{"speaker", 4.0f}, {"mic", 0.3f}}) }, 0.75f },
+            effectWith(EffectType::Amp, {{"model", BASS_DRIVE}, {"gain", 0.5f}, {"bass", 0.55f}, {"mid", 0.6f}, {"treble", 0.5f}, {"presence", 0.5f}}),
+            effectWith(EffectType::Cabinet, {{"speaker", BASS_8X10}, {"mic", 0.3f}}) }, 0.75f },
         { "Fuzz", {
-            effectWith(EffectType::Drive, {{"drive", 0.9f}, {"character", 1.0f}, {"tone", 0.45f}, {"level", 0.5f}, {"blend", 0.8f}}),
-            effectWith(EffectType::Amp, {{"gain", 0.2f}, {"cabinet", 0.0f}}),
-            effectWith(EffectType::Cabinet, {{"speaker", 2.0f}, {"mic", 0.3f}, {"highcut", 9000.0f}}) }, 0.7f },
+            effectWith(EffectType::Drive, {{"drive", 0.75f}, {"type", 2.0f}, {"tone", 0.45f}, {"level", 0.55f}, {"blend", 0.85f}}),
+            effectWith(EffectType::Amp, {{"model", CLEAN_US}, {"gain", 0.3f}, {"bass", 0.5f}, {"mid", 0.55f}, {"treble", 0.5f}}),
+            effectWith(EffectType::Cabinet, {{"speaker", MODERN_4X12}, {"mic", 0.3f}, {"highcut", 9000.0f}}) }, 0.7f },
         { "Dub", {
             effectWith(EffectType::Octaver, {{"sub", 0.7f}, {"dry", 0.7f}, {"tone", 0.3f}}),
             effectWith(EffectType::Compressor, {{"threshold", -24.0f}, {"makeup", 6.0f}}),
             effectWith(EffectType::Equalizer, {{"low", 4.0f}, {"highmid", -3.0f}, {"high", -6.0f}}),
-            effectWith(EffectType::Cabinet, {{"speaker", 6.0f}, {"mic", 0.4f}}),
+            effectWith(EffectType::Cabinet, {{"speaker", BASS_1X15}, {"mic", 0.4f}}),
             effectWith(EffectType::Reverb, {{"size", 0.5f}, {"damping", 0.6f}, {"mix", 0.18f}}) }, 0.75f },
+        // Either: clean and wide
         { "Space", {
             effectWith(EffectType::Compressor, {{"makeup", 4.0f}}),
-            effectWith(EffectType::Cabinet, {{"speaker", 1.0f}, {"mic", 0.3f}}),
+            effectWith(EffectType::Amp, {{"model", CLEAN_US}, {"gain", 0.15f}, {"bass", 0.5f}, {"mid", 0.45f}, {"treble", 0.6f}}),
+            effectWith(EffectType::Cabinet, {{"speaker", ALNICO_2X12}, {"mic", 0.3f}}),
             effectWith(EffectType::Chorus, {{"rate", 0.6f}, {"depth", 0.5f}, {"mix", 0.45f}}),
             effectWith(EffectType::Delay, {{"time", 380.0f}, {"feedback", 0.35f}, {"mix", 0.25f}}),
             effectWith(EffectType::Reverb, {{"size", 0.75f}, {"damping", 0.4f}, {"mix", 0.3f}}) }, 0.75f },
@@ -191,7 +220,7 @@ const Tone* findBuiltInTone(const std::string& name){
 
 // --- Tone files ---------------------------------------------------------------------------------------------
 
-const int TONE_FILE_VERSION = 1;
+const int TONE_FILE_VERSION = 2; // 2: the amp modelled on real ones (its knobs as theirs), the drive's types
 
 std::string writeTone(const Tone& tone){
     std::ostringstream out;
@@ -209,10 +238,41 @@ std::string writeTone(const Tone& tone){
     return out.str();
 }
 
+// A tone from before version 2: its amp's bass, mid and treble were in dB (now the amp's own pots, 0 to 1), its gain
+// chose no model (a gentle one is, by how hard it was pushed); its drive's character (a continuous knob) is now a type
+static void upgradeEffect(Effect& effect, std::vector<std::pair<std::string, float>>& settings, const std::vector<Effect>&){
+    for (auto& [id, value] : settings){
+        if (effect.type == EffectType::Amp && (id == "bass" || id == "mid" || id == "treble")) value = 0.5f + value / 24.0f;
+        if (effect.type == EffectType::Drive && id == "character"){
+            id = "type";
+            value = value < 0.45f ? 0.0f : value < 0.75f ? 1.0f : 2.0f;
+        }
+    }
+    if (effect.type == EffectType::Amp){
+        float gain = 0.25f;
+        for (const auto& [id, value] : settings) if (id == "gain") gain = value;
+        settings.push_back({ "model", gain < 0.35f ? 0.0f : 1.0f }); // clean, or the crunch
+    }
+}
+
+// ...and its amp had a speaker of its own (how much of it, 0 to 1): a cabinet now, after the amp, when it was used
+// and the tone has none
+static void upgradeAmpSpeaker(float speaker, int ampAt, std::vector<Effect>& effects){
+    for (const Effect& effect : effects) if (effect.type == EffectType::Cabinet) return;
+    if (ampAt < 0 || speaker < 0.05f || (int)effects.size() >= MAX_EFFECTS) return;
+    Effect cabinet = makeEffect(EffectType::Cabinet);
+    cabinet.values[0] = 0.0f; // the open 1x12: the old speaker's gentle top
+    cabinet.values[1] = 0.6f - 0.5f * speaker;
+    effects.insert(effects.begin() + ampAt + 1, cabinet);
+}
+
 bool readTone(const std::string& text, Tone& tone, std::string& error){
     std::istringstream lines(text);
     std::string line;
     bool started = false;
+    int version = 1;
+    int oldAmpAt = -1;       // an older tone's first amp, and how much of its speaker it used (the standard, if unsaid)
+    float oldSpeaker = 0.6f;
     Tone read;
     while (std::getline(lines, line)){
         if (!line.empty() && line.back() == '\r') line.pop_back();
@@ -224,6 +284,7 @@ bool readTone(const std::string& text, Tone& tone, std::string& error){
                 error = "not a lahn tone";
                 return false;
             }
+            if (!(words >> version)) version = 1;
             started = true;
             continue;
         }
@@ -248,6 +309,7 @@ bool readTone(const std::string& text, Tone& tone, std::string& error){
         const EffectInfo& info = effectInfo(effect.type);
         std::string id;
         float value;
+        std::vector<std::pair<std::string, float>> settings; // as written: an older tone's are made new below
         while (words >> id){
             if (id == "file"){
                 std::string name;
@@ -256,9 +318,17 @@ bool readTone(const std::string& text, Tone& tone, std::string& error){
                 break;
             }
             if (!(words >> value)) break;
+            settings.push_back({ id, value });
+        }
+        if (version < 2) upgradeEffect(effect, settings, read.effects);
+        for (const auto& [setting, written] : settings){
             for (int i = 0; i < info.parameterCount; i++){
-                if (id == info.parameters[i].id) effect.values[i] = std::clamp(value, info.parameters[i].min, info.parameters[i].max);
+                if (setting == info.parameters[i].id) effect.values[i] = std::clamp(written, info.parameters[i].min, info.parameters[i].max);
             }
+        }
+        if (version < 2 && effect.type == EffectType::Amp && oldAmpAt < 0){
+            oldAmpAt = (int)read.effects.size();
+            for (const auto& [setting, written] : settings) if (setting == "cabinet") oldSpeaker = written;
         }
         read.effects.push_back(effect);
     }
@@ -266,6 +336,7 @@ bool readTone(const std::string& text, Tone& tone, std::string& error){
         error = "not a lahn tone";
         return false;
     }
+    if (version < 2) upgradeAmpSpeaker(oldSpeaker, oldAmpAt, read.effects);
     tone = read;
     return true;
 }
@@ -318,77 +389,32 @@ void initToneChain(ToneChain& chain, int sampleRate){
     chain.dcIn = chain.dcOut = 0.0f;
 }
 
-// RBJ's cookbook filters
-static void lowPass(Biquad& f, float frequency, float q, float rate){
-    float w = 2.0f * PI_F * std::min(frequency, rate * 0.45f) / rate, c = std::cos(w), alpha = std::sin(w) / (2.0f * q);
-    float a0 = 1.0f + alpha;
-    f.b0 = (1.0f - c) / 2.0f / a0; f.b1 = (1.0f - c) / a0; f.b2 = f.b0;
-    f.a1 = -2.0f * c / a0; f.a2 = (1.0f - alpha) / a0;
-}
-
-static void highPass(Biquad& f, float frequency, float q, float rate){
-    float w = 2.0f * PI_F * std::min(frequency, rate * 0.45f) / rate, c = std::cos(w), alpha = std::sin(w) / (2.0f * q);
-    float a0 = 1.0f + alpha;
-    f.b0 = (1.0f + c) / 2.0f / a0; f.b1 = -(1.0f + c) / a0; f.b2 = f.b0;
-    f.a1 = -2.0f * c / a0; f.a2 = (1.0f - alpha) / a0;
-}
-
-static void peak(Biquad& f, float frequency, float q, float gainDb, float rate){
-    float A = std::pow(10.0f, gainDb / 40.0f), w = 2.0f * PI_F * std::min(frequency, rate * 0.45f) / rate;
-    float c = std::cos(w), alpha = std::sin(w) / (2.0f * q), a0 = 1.0f + alpha / A;
-    f.b0 = (1.0f + alpha * A) / a0; f.b1 = -2.0f * c / a0; f.b2 = (1.0f - alpha * A) / a0;
-    f.a1 = -2.0f * c / a0; f.a2 = (1.0f - alpha / A) / a0;
-}
-
-static void shelf(Biquad& f, float frequency, float gainDb, bool high, float rate){
-    float A = std::pow(10.0f, gainDb / 40.0f), w = 2.0f * PI_F * std::min(frequency, rate * 0.45f) / rate;
-    float c = std::cos(w), s = std::sin(w), alpha = s / 2.0f * std::sqrt(2.0f), root = 2.0f * std::sqrt(A) * alpha;
-    if (high){
-        float a0 = (A + 1) - (A - 1) * c + root;
-        f.b0 = A * ((A + 1) + (A - 1) * c + root) / a0; f.b1 = -2 * A * ((A - 1) + (A + 1) * c) / a0; f.b2 = A * ((A + 1) + (A - 1) * c - root) / a0;
-        f.a1 = 2 * ((A - 1) - (A + 1) * c) / a0; f.a2 = ((A + 1) - (A - 1) * c - root) / a0;
-    } else {
-        float a0 = (A + 1) + (A - 1) * c + root;
-        f.b0 = A * ((A + 1) - (A - 1) * c + root) / a0; f.b1 = 2 * A * ((A - 1) - (A + 1) * c) / a0; f.b2 = A * ((A + 1) - (A - 1) * c - root) / a0;
-        f.a1 = -2 * ((A - 1) + (A + 1) * c) / a0; f.a2 = ((A + 1) + (A - 1) * c - root) / a0;
-    }
-}
-
 // Works out an effect's filters for its settings (keeping the filters' memory, so nothing clicks)
 static void setUp(EffectState& state, const Effect& effect, float rate){
     const float* v = effect.values;
     switch (effect.type){
-        case EffectType::Drive:
-            highPass(state.filters[0], 60.0f, 0.7f, rate);                                    // no mud into the clipping
-            lowPass(state.filters[1], 700.0f * std::pow(12.0f, v[2]), 0.7f, rate);             // tone: 700 Hz to 8.4 kHz
-            break;
-        case EffectType::Amp:
-            shelf(state.filters[0], 120.0f, v[1], false, rate);
-            peak(state.filters[1], 600.0f, 0.7f, v[2], rate);
-            shelf(state.filters[2], 2500.0f, v[3], true, rate);
-            lowPass(state.filters[3], 18000.0f * std::pow(4500.0f / 18000.0f, v[4]), 0.9f + 0.4f * v[4], rate); // the speaker
-            highPass(state.filters[4], 35.0f + 30.0f * v[4], 0.7f, rate);
-            break;
+        case EffectType::Drive: setUpDrive(state.drive, v, rate); break;
+        case EffectType::Amp: setUpAmp(state.amp, v, rate); break;
         case EffectType::Equalizer:
-            highPass(state.filters[0], v[0], 0.7f, rate);
-            shelf(state.filters[1], 100.0f, v[1], false, rate);
-            peak(state.filters[2], 400.0f, 1.0f, v[2], rate);
-            peak(state.filters[3], 1500.0f, 1.0f, v[3], rate);
-            shelf(state.filters[4], 5000.0f, v[4], true, rate);
+            setHighPass(state.filters[0], v[0], 0.7f, rate);
+            setShelf(state.filters[1], 100.0f, v[1], false, rate);
+            setPeak(state.filters[2], 400.0f, 1.0f, v[2], rate);
+            setPeak(state.filters[3], 1500.0f, 1.0f, v[3], rate);
+            setShelf(state.filters[4], 5000.0f, v[4], true, rate);
             break;
         case EffectType::Octaver:
-            lowPass(state.filters[0], 250.0f, 0.7f, rate); // the fundamental alone, for the zero crossings
-            lowPass(state.filters[1], 250.0f, 0.7f, rate);
-            lowPass(state.filters[2], 150.0f * std::pow(10.0f, v[2]), 0.7f, rate); // the square wave, rounded off
+            setLowPass(state.filters[0], 250.0f, 0.7f, rate); // the fundamental alone, for the zero crossings
+            setLowPass(state.filters[1], 250.0f, 0.7f, rate);
+            setLowPass(state.filters[2], 150.0f * std::pow(10.0f, v[2]), 0.7f, rate); // the square wave, rounded off
             break;
         case EffectType::Delay:
-            lowPass(state.filters[0], 1000.0f * std::pow(12.0f, v[3]), 0.7f, rate); // each echo a little darker
+            setLowPass(state.filters[0], 1000.0f * std::pow(12.0f, v[3]), 0.7f, rate); // each echo a little darker
             break;
         case EffectType::Cabinet:
-            shelf(state.filters[0], 2500.0f, 3.0f - 11.0f * v[1], true, rate); // the mic: at the middle bright, toward the edge dark...
-            peak(state.filters[1], 350.0f, 0.8f, 2.5f * v[1], rate);           // ...and fuller
-            highPass(state.filters[2], v[2], 0.7f, rate);
-            lowPass(state.filters[3], v[3], 0.7f, rate);
+            setShelf(state.filters[0], 2500.0f, 3.0f - 11.0f * v[1], true, rate); // the mic: at the middle bright, toward the edge dark...
+            setPeak(state.filters[1], 350.0f, 0.8f, 2.5f * v[1], rate);           // ...and fuller
+            setHighPass(state.filters[2], v[2], 0.7f, rate);
+            setLowPass(state.filters[3], v[3], 0.7f, rate);
             break;
         default: break;
     }
@@ -428,6 +454,8 @@ void setToneChain(ToneChain& chain, const ToneParameters& parameters){
             for (float& store : state.combStore) store = 0.0f;
             std::fill(state.history.begin(), state.history.end(), 0.0f);
             state.historyAt = 0;
+            state.amp = AmpState{};
+            state.drive = DriveState{};
             state.type = effect.type;
         }
         takeResponse(state, effect.type == EffectType::Cabinet ? parameters.assets[i] : nullptr, chain.sampleRate);
@@ -451,7 +479,10 @@ void clearToneChain(ToneChain& chain){
         for (float& store : state.combStore) store = 0.0f;
         std::fill(state.history.begin(), state.history.end(), 0.0f);
         state.historyAt = 0;
+        state.amp = AmpState{};
+        state.drive = DriveState{};
     }
+    for (int i = 0; i < chain.parameters.count; i++) setUp(chain.states[i], chain.parameters.effects[i], (float)chain.sampleRate); // their settings again
     chain.dcIn = chain.dcOut = 0.0f;
 }
 
@@ -509,23 +540,8 @@ static float process(EffectState& state, const Effect& effect, float x, float ra
             float over = std::max(0.0f, levelDb - v[0]);
             return x * dbToGain(-over * (1.0f - 1.0f / std::max(1.0f, v[1])) + v[4]);
         }
-        case EffectType::Drive: {
-            float gain = 1.0f + v[0] * v[0] * 80.0f;
-            float pushed = state.filters[0].process(x) * gain;
-            // The character: from a soft, round clip toward a hard one, then lopsided, like a fuzz
-            float hardness = 2.0f + 8.0f * v[1];
-            float bias = std::max(0.0f, v[1] - 0.6f) * 0.5f;
-            float shaped = (pushed + bias) / std::pow(1.0f + std::pow(std::fabs(pushed + bias), hardness), 1.0f / hardness) - bias / std::pow(1.0f + std::pow(bias, hardness), 1.0f / hardness);
-            float wet = state.filters[1].process(shaped) * v[3] * 1.4f;
-            return wet * v[4] + x * (1.0f - v[4]);
-        }
-        case EffectType::Amp: {
-            float gain = 1.0f + v[0] * 24.0f;
-            float driven = std::tanh(gain * x) / std::tanh(gain) * (1.0f / (1.0f + v[0])); // pushed, rounded, not louder
-            float y = driven;
-            for (int f = 0; f < 5; f++) y = state.filters[f].process(y);
-            return y;
-        }
+        case EffectType::Drive: return processDrive(state.drive, x);
+        case EffectType::Amp: return processAmp(state.amp, x);
         case EffectType::Equalizer: {
             float y = x;
             for (int f = 0; f < 5; f++) y = state.filters[f].process(y);

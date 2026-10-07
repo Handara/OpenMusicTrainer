@@ -1,5 +1,8 @@
 #pragma once
 
+#include "core/ampmodel.h"
+#include "core/filters.h"
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -100,16 +103,6 @@ struct ToneParameters {
 ToneParameters toneParameters(const Tone& tone);
 
 // One effect's workings: its filters' and envelopes' memory, and its delay lines
-struct Biquad {
-    float b0 = 1, b1 = 0, b2 = 0, a1 = 0, a2 = 0;
-    float z1 = 0, z2 = 0;
-    float process(float x){
-        float y = b0 * x + z1;
-        z1 = b1 * x - a1 * y + z2;
-        z2 = b2 * x - a2 * y;
-        return y;
-    }
-};
 
 struct EffectState {
     EffectType type = EffectType::Count; // what it was last set up as: another effect in the slot starts it afresh
@@ -125,6 +118,8 @@ struct EffectState {
     int combLength[8] = {}, allpassLength[4] = {}; // the part of each used at the rate now
     int combAt[8] = {}, allpassAt[4] = {};
     float combStore[8] = {};
+    AmpState amp;                        // the amp's (core/ampmodel)
+    DriveState drive;                    // the drive's
     std::vector<float> history;          // a cabinet's: the input's latest samples, twice over (read in one piece)
     int historyAt = 0;
     const float* taps = nullptr;         //   its response at the rate now, back to front

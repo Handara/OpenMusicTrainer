@@ -169,6 +169,7 @@ add_library(lahn_core STATIC
     src/core/drill.cpp
     src/core/exercisefile.cpp
     src/core/fft.cpp
+    src/core/filters.cpp
     src/core/files.cpp
     src/core/fretboard.cpp
     src/core/groove.cpp
@@ -198,6 +199,7 @@ add_library(lahn_core STATIC
     src/core/rhythmmode.cpp
     src/core/routine.cpp
     src/core/sampleformat.cpp
+    src/core/ampmodel.cpp
     src/core/cabinets.cpp
     src/core/tonechain.cpp
     src/core/transcribe.cpp
@@ -325,6 +327,7 @@ if(BUILD_TESTING)
         tests/main.cpp
         tests/addon_test.cpp
         tests/beats_test.cpp
+        tests/ampmodel_test.cpp
         tests/cabinets_test.cpp
         tests/calibration_test.cpp
         tests/chart_test.cpp
