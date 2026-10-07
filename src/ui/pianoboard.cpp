@@ -14,8 +14,15 @@ ImVec4 PianoBoard::keyRect(int pitch) const {
 
 PianoBoard pianoBoard(float left, float top, float width, float maxHeight, int lowPitch, int highPitch){
     PianoBoard board;
+    // Three octaves at least, like a small keyboard; notes within two of them with an octave below as well, so they
+    // sit towards the middle, where they are on a piano
     board.firstPitch = pianoBaseFor(std::max(0, std::min(lowPitch, highPitch)));
-    int octaves = std::max(2, (std::max(lowPitch, highPitch) - board.firstPitch) / 12 + 1);
+    int octaves = (std::max(lowPitch, highPitch) - board.firstPitch) / 12 + 1;
+    if (octaves <= 2 && board.firstPitch >= 12){
+        board.firstPitch -= 12;
+        octaves++;
+    }
+    octaves = std::max(3, octaves);
     board.keys = octaves * 12 + 1; // ending on a C
     const int whites = pianoWhiteKeys(board.keys);
     board.whiteWidth = width / whites;
@@ -29,6 +36,7 @@ int drawPianoBoard(const PianoBoard& board, float s, const std::function<PianoKe
         const int pitch = board.firstPitch + key;
         PianoKeyStyle look = style(pitch);
         if (look.label.empty() && pitch % 12 == 0) look.label = "C" + std::to_string(pitch / 12 - 1);
+        if (!look.ink && !pianoKeyIsBlack(key)) look.ink = IM_COL32(52, 58, 70, 255); // dark on the white keys, lit or not
         return look;
     });
     // Middle C: a dot over its key

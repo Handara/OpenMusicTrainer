@@ -1,0 +1,268 @@
+# lahn course
+version 1
+title First steps
+description Never touched a piano? Start here. Middle C, then its neighbours, the names of the white keys, the black ones, and your left hand: a little at a time, at your own pace.
+instrument piano
+
+unit Meet the keyboard
+
+lesson Middle C
+title White keys and black keys
+text A piano's keys go from low on the left to high on the right. The black keys come in groups: two, then three, then two again, all the way along.
+text Those groups are how you find your way. A C is always the white key just left of a group of two black keys.
+title Middle C
+text The C nearest the middle of the keyboard is middle C. lahn marks it with a dot, and lights it now: press it with your right thumb.
+text Plugged in a MIDI keyboard? lahn plays from it. No keyboard? The computer's keys are the piano (the letter on each key plays it), or click the keys.
+exercise
+type notes
+notes C4
+show keys
+count 3
+pass 2
+
+lesson Every C
+title Octaves
+text Twelve keys up from middle C, left of the next group of two black keys, is another C, higher. Twelve keys down, a lower one. From one C to the next is an octave.
+text Play the C that lights up.
+exercise
+type notes
+notes C3 C4 C5
+show keys
+count 6
+pass 5
+
+lesson C, D and E
+title Your right hand
+text Right thumb on middle C. Your fingers are numbered from the thumb: 1 the thumb, 2 the pointer, up to 5 the little finger.
+text D is the white key between the two black ones, under finger 2. E is just right of them, under finger 3.
+text Play them up, C D E, then back down.
+exercise
+type notes
+notes C4 D4 E4 D4
+show keys
+order in_order
+count 8
+pass 7
+
+lesson C, D, E in any order
+text Now in any order: watch which key lights up.
+exercise
+type notes
+notes C4 D4 E4
+show keys
+count 8
+pass 7
+
+lesson F, G, A and B
+title By the three black keys
+text F is the white key just left of the group of three black keys, under finger 4. Then G under finger 5.
+text Above them, A and B, up to the next C. For those, move your hand: thumb on F, and fingers 2, 3, 4 on G, A, B.
+exercise
+type notes
+notes F4 G4 A4 B4
+show keys
+count 8
+pass 7
+
+lesson Up to the next C
+title Seven names, then again
+text The white keys are named with seven letters, C D E F G A B, then C again: an octave higher, and the names go round.
+text Play them all from middle C up to the next C, then back down.
+exercise
+type notes
+notes C4 D4 E4 F4 G4 A4 B4 C5 B4 A4 G4 F4 E4 D4
+show keys
+order in_order
+count 14
+pass 12
+
+lesson Any white key
+text Any of them now, in any order.
+exercise
+type notes
+notes C4 D4 E4 F4 G4 A4 B4 C5
+show keys
+count 12
+pass 10
+
+unit The names of the keys
+
+lesson C, D and E by name
+title A key by its name
+text This time lahn says the note's name, and lights its key too. Play it.
+exercise
+type notes
+notes C4 D4 E4
+show name
+where yes
+octave exact
+count 8
+pass 7
+
+lesson C, D and E, no hints
+text Now just the name: find it by the two black keys. A slip shows you where it was.
+exercise
+type notes
+notes C4 D4 E4
+show name
+octave exact
+count 8
+pass 7
+
+lesson F, G, A and B by name
+text The same by the three black keys: F, G, A, B.
+exercise
+type notes
+notes F4 G4 A4 B4
+show name
+where yes
+octave exact
+count 8
+pass 7
+
+lesson F, G, A and B, no hints
+exercise
+type notes
+notes F4 G4 A4 B4
+show name
+octave exact
+count 8
+pass 7
+
+lesson Seven names
+text All seven white keys from middle C, by name.
+exercise
+type notes
+notes C4 D4 E4 F4 G4 A4 B4
+show name
+octave exact
+count 12
+pass 10
+
+lesson Any octave
+title The same name, everywhere
+text Every C is a C, every G a G, whichever octave. Play the name asked anywhere on the keyboard.
+exercise
+type notes
+notes C3 D3 E3 F3 G3 A3 B3 C4 D4 E4 F4 G4 A4 B4 C5
+show name
+octave any
+count 12
+pass 10
+
+unit The black keys
+
+lesson Sharps
+title Black keys
+text A black key is named after a white one beside it. Just right of C is C sharp, written C#: the note a little higher than C.
+text The same for each one: C#, D# between the two black keys, then F#, G#, A# among the three.
+exercise
+type notes
+notes C#4 D#4 F#4 G#4 A#4
+show keys
+count 8
+pass 7
+
+lesson Sharps by name
+text Now by name, the key lit too. C# is right of C, F# right of F.
+exercise
+type notes
+notes C#4 D#4 F#4 G#4 A#4
+show name
+where yes
+octave exact
+count 8
+pass 7
+
+lesson Flats
+title The same key, two names
+text Seen from the other side, a black key is also the flat of the white key on its right: D flat, written Db, is the same key as C#.
+text So the black keys are C# or Db, D# or Eb, F# or Gb, G# or Ab, A# or Bb. Music uses whichever suits the key it's in.
+text Play the black keys as they light up.
+exercise
+type notes
+notes C#4 D#4 F#4 G#4 A#4
+show keys
+count 8
+pass 7
+
+lesson All twelve
+title Every key in an octave
+text Seven white keys and five black ones: twelve, and then the next C. Play whichever lights up.
+exercise
+type notes
+notes C4 C#4 D4 D#4 E4 F4 F#4 G4 G#4 A4 A#4 B4
+show keys
+count 12
+pass 10
+
+lesson Sharps, no hints
+exercise
+type notes
+notes C#4 D#4 F#4 G#4 A#4
+show name
+octave exact
+count 8
+pass 7
+
+unit Your left hand
+
+lesson The C below middle C
+title The low notes
+text Your left hand plays the lower notes, left of middle C. Put its little finger, finger 5, on the C an octave below middle C.
+exercise
+type notes
+notes C3
+show keys
+count 3
+pass 2
+
+lesson Five fingers, five keys
+text Left hand, little finger on that C: fingers 5, 4, 3, 2, 1 rest on C, D, E, F, G. Play them up, then back down.
+exercise
+type notes
+notes C3 D3 E3 F3 G3 F3 E3 D3
+show keys
+order in_order
+count 8
+pass 7
+
+lesson Left hand, any order
+exercise
+type notes
+notes C3 D3 E3 F3 G3
+show keys
+count 10
+pass 8
+
+lesson Left hand by name
+text The left hand's five notes by name, their keys lit.
+exercise
+type notes
+notes C3 D3 E3 F3 G3
+show name
+where yes
+octave exact
+count 8
+pass 7
+
+lesson Left hand, no hints
+exercise
+type notes
+notes C3 D3 E3 F3 G3
+show name
+octave exact
+count 8
+pass 7
+
+lesson Both hands
+title Two hands, ten keys
+text Both hands now: the left on C to G below middle C, the right on C to G from middle C. Play whichever key lights up, with the hand it's under.
+exercise
+type notes
+notes C3 D3 E3 F3 G3 C4 D4 E4 F4 G4
+show keys
+count 12
+pass 10
+title What next
+text You know your way round the keyboard, the white keys by name, the black ones, and both hands. The Reading course writes these same notes on the staff, the right hand's in the treble clef and the left hand's in the bass clef.

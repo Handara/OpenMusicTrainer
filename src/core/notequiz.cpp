@@ -1,5 +1,6 @@
 #include "core/notequiz.h"
 
+#include "core/drill.h"
 #include "core/files.h"
 #include "core/music.h"
 
@@ -105,7 +106,19 @@ static std::string ordinal(int n){
     return std::to_string(n) + suffix;
 }
 
+std::string keyPlaceText(int pitch){
+    const std::string name = pitchClassName(pitch);
+    const std::string written = name + std::to_string(pitch / 12 - 1);
+    if (pitch == 60) return "middle C";
+    if (pitch > 60 && pitch <= 72) return "the " + name + " above middle C";
+    if (pitch >= 48 && pitch < 60) return "the " + name + " below middle C";
+    if (pitch > 72 && pitch < 84) return "the high " + name + " (" + written + ")";
+    if (pitch >= 36 && pitch < 48) return "the low " + name + " (" + written + ")";
+    return written;
+}
+
 std::string notePlaceText(const NeckStep& note, const std::vector<int>& tuning){
+    if (isPianoTuning(tuning)) return keyPlaceText(note.pitch);
     if (note.string < 0 || note.string >= (int)tuning.size()) return "";
     // A string by its note; two of the same name (a guitar's two Es), the low one and the high one
     std::string name = pitchClassName(tuning[note.string]);

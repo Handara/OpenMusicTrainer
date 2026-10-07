@@ -49,6 +49,10 @@ KeySignature scaleDrillKey(const ScaleDrillConfig& config);
 // the bar of the last note. Starts at 60 bpm with no offset: set the tempo and offset for each pass.
 Chart drillChart(const std::vector<DrillNote>& notes, const std::vector<int>& tuning, const KeySignature& key, int beatsPerBar = 4);
 
+// A piano, played as the drills see an instrument: one "string" tuned to 0, so each note's fret is its pitch (as play
+// mode scores keys parts)
+inline bool isPianoTuning(const std::vector<int>& tuning){ return tuning.size() == 1 && tuning[0] == 0; }
+
 struct DrillProgress {
     int tempo = 0;          // the tempo to play next; 0 = not started (the config's start tempo)
     int bestCleanTempo = 0; // the fastest tempo passed cleanly: the muscle-memory number

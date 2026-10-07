@@ -54,7 +54,9 @@ bool placeNotes(const std::vector<int>& pitches, const std::vector<int>& tuning,
 
 // How to say where a note is played, for someone who's never played: "the open high E string", "the 3rd fret of the
 // B string"
+// On a piano (core/drill isPianoTuning), the key by middle C: "middle C", "the E above middle C", "the low G (G3)"
 std::string notePlaceText(const NeckStep& note, const std::vector<int>& tuning);
+std::string keyPlaceText(int pitch);
 
 // What's kept: runs played and passed
 struct NoteQuizStats {

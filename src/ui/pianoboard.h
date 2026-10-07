@@ -6,7 +6,7 @@
 #include <functional>
 
 // A piano keyboard for the drills, in the place a guitar's play mode neck has: whole octaves from a C, covering the
-// notes asked (two octaves at least), as wide as given. Each key's look comes from the drill (the key to play lit,
+// notes asked (three octaves at least, the notes towards the middle), as wide as given. Each key's look comes from the drill (the key to play lit,
 // the ones held, right or wrong); the Cs say which they are, and middle C has a dot.
 struct PianoBoard {
     ImVec2 origin;

@@ -53,6 +53,17 @@ TEST_CASE("where a note is, said for someone who's never played"){
     CHECK(notePlaceText({ 49, 1, 11 }, GUITAR) == "the 11th fret of the A string");
 }
 
+TEST_CASE("where a key is on a piano, said by middle C"){
+    const std::vector<int> PIANO = { 0 };
+    CHECK(notePlaceText({ 60, 0, 60 }, PIANO) == "middle C");
+    CHECK(keyPlaceText(64) == "the E above middle C");
+    CHECK(keyPlaceText(72) == "the C above middle C");
+    CHECK(keyPlaceText(59) == "the B below middle C");
+    CHECK(keyPlaceText(76) == "the high E (E5)");
+    CHECK(keyPlaceText(43) == "the low G (G2)");
+    CHECK(keyPlaceText(28) == "E1");
+}
+
 TEST_CASE("play this note: one at a time, the next when it's right; right the first time counts"){
     NoteQuizConfig config;
     std::string error;

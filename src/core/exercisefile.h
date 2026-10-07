@@ -100,7 +100,8 @@
 //   count 8                      (notes in a run)
 //   pass 7                       (right the first time, for the run to pass)
 //   key C major                  (the staff's key signature)
-//   instrument guitar            (guitar, bass or piano: on a piano, notes only, no places or strings)
+//   instrument guitar            (guitar, bass or piano: on a piano, notes only, no places or strings; show keys
+//                                 is show neck: the key lit)
 //
 // Neck walk (`type neck_walk`), a game (core/neckwalk), all optional:
 //   tune neck-walk.groove        (its tune, core/groove: beside the exercise, or in the game's games folder)

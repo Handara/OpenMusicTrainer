@@ -58,8 +58,10 @@ Chart drillChart(const std::vector<DrillNote>& notes, const std::vector<int>& tu
     chart.timeSignatures = {{0, beatsPerBar, 4}};
     chart.keys = {{0, key}};
     FrettedTrack track;
-    // A bass's tuning (its lowest string below C2) is written in the bass clef
-    track.type = !tuning.empty() && *std::min_element(tuning.begin(), tuning.end()) < 36 ? InstrumentType::Bass : InstrumentType::Guitar;
+    // A bass's tuning (its lowest string below C2) is written in the bass clef; a piano's one "string" tuned to 0 (each
+    // note's fret its pitch) where it sounds, in the clef that suits its notes
+    track.type = isPianoTuning(tuning) ? InstrumentType::Keys
+               : !tuning.empty() && *std::min_element(tuning.begin(), tuning.end()) < 36 ? InstrumentType::Bass : InstrumentType::Guitar;
     track.name = "Drill";
     track.tuning = tuning;
     for (const DrillNote& note : notes){

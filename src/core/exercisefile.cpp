@@ -290,7 +290,7 @@ bool parseExercise(const std::string& source, const std::string& path, int first
                 if (quizStrings.empty()) return lineError("expected: strings <string numbers, 1 = the lowest>");
             } else if (key == "show"){
                 ss >> word;
-                if (word == "neck") quiz.prompt = NotePrompt::Neck;
+                if (word == "neck" || word == "keys") quiz.prompt = NotePrompt::Neck; // where it's played: a piano's key
                 else if (word == "name") quiz.prompt = NotePrompt::Name;
                 else if (word == "staff") quiz.prompt = NotePrompt::Staff;
                 else if (word == "ear"){

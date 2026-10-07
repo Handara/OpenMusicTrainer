@@ -1587,6 +1587,11 @@ void playKeysNote(float frequency){
     startPreview(frequency, ma_engine_get_time_in_pcm_frames(&audio.engine), "keys");
 }
 
+void playKeysNoteAt(float frequency, double time){
+    if (!audio.engineReady) return;
+    startPreview(frequency, (ma_uint64)std::llround(std::max(0.0, time) * ma_engine_get_sample_rate(&audio.engine)), "keys");
+}
+
 void setHitSoundVolume(float volume){
     audio.hitSoundVolume = std::clamp(volume, 0.0f, 1.0f);
 }

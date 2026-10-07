@@ -7,6 +7,7 @@
 #include "core/settings.h"
 #include "learn/exercise.h"
 #include "ui/fretboardview.h"
+#include "ui/pianoboard.h"
 #include "views/playnote.h"
 
 #include <random>
@@ -17,7 +18,9 @@
 // where it's played (the card lit: "Play the open high E string"), by its name, written on the staff, or by ear (it
 // plays, the notes it could be outlined on the neck, Space to hear it again); played
 // right, the next; played wrong, what it was and where the right one is. A run of them passes with enough right the
-// first time, and the crowd cheers. The smallest step there is, for someone who's never played.
+// first time, and the crowd cheers. The smallest step there is, for someone who's never played. On a piano (config
+// piano), the keyboard instead of the neck: the key asked lit, the keys held lit too, played on a MIDI keyboard or
+// the computer's (each key's letter on it).
 class NoteQuizExercise : public Exercise {
 public:
     NoteQuizExercise(const std::string& title, const NoteQuizConfig& config, const KeySignature& key, bool onBass,
@@ -39,6 +42,8 @@ private:
     void drawProgress(float left, float right, float top, float s);
     void drawStaffPrompts(float left, float top, float width, float height);
     void drawNeck(float left, float right, float top, float bottom, float s);
+    int drawKeys(float left, float right, float top, float bottom, float s); // the key clicked, -1 for none
+    void sound(int pitch, float seconds, double at); // on the instrument's own sound, at a time on the engine's clock
 
     std::string title;
     NoteQuizConfig config;
@@ -64,6 +69,7 @@ private:
     float shownTime = 0.0f; // eases to the note now: the page turns smoothly
     std::vector<float> cheer;
     FretboardLayout board;  // as last drawn: for clicks
+    PianoBoard keys;        //   on a piano
     bool listening = false;
     std::string inputError;
 };
