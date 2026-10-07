@@ -114,6 +114,11 @@ const EffectInfo& effectInfo(EffectType type){
               "Everything above this is cut: tames the last of the fizz" },
             { "level", "Level", -12.0f, 12.0f, 0.0f, "dB",
               "How loud it comes out" } } },
+        { "capture", "Capture", "A real amp or pedal, captured with Neural Amp Modeler: drop a .nam file from TONE3000 here", 2, {
+            { "input", "Input", -24.0f, 24.0f, 0.0f, "dB",
+              "How hard you hit it: up for more of the amp's grit, down for cleaner" },
+            { "level", "Level", -24.0f, 24.0f, 0.0f, "dB",
+              "How loud it comes out (every capture starts as loud as the others)" } } },
     };
     return INFOS[std::clamp((int)type, 0, (int)EffectType::Count - 1)];
 }
@@ -602,6 +607,19 @@ static float process(EffectState& state, const Effect& effect, float x, float ra
     }
 }
 
+// A capture: its model plays the block, after the input gain, brought to a common loudness, then its level. Without
+// one (no file yet, or it couldn't be read), the sound goes through as it is.
+static void processCapture(const Effect& effect, const ToneAsset* asset, int runner, float* samples, int count, int sampleRate){
+    CaptureModel* model = asset && runner >= 0 && runner < TONE_RUNNERS ? asset->models[runner].get() : nullptr;
+    if (!model) return;
+    const float input = dbToGain(effect.values[0]), output = dbToGain(-18.0f - asset->loudnessDb + effect.values[1]);
+    for (int i = 0; i < count; i++) samples[i] *= input;
+    model->process(samples, count, sampleRate);
+    for (int i = 0; i < count; i++) samples[i] = std::isfinite(samples[i]) ? samples[i] * output : 0.0f;
+}
+
+// Effect by effect, each over the whole block: the same as sample by sample through them all, since none looks ahead,
+// and a capture's model runs best a block at a time
 void processToneChain(ToneChain& chain, float* samples, int count){
     const ToneParameters& parameters = chain.parameters;
     const float rate = (float)chain.sampleRate;
@@ -610,11 +628,20 @@ void processToneChain(ToneChain& chain, float* samples, int count){
         float blocked = x - chain.dcIn + DC_POLE * chain.dcOut; // no DC: it would only eat into the headroom
         chain.dcIn = x;
         chain.dcOut = quiet(blocked);
-        float y = blocked;
-        for (int e = 0; e < parameters.count; e++){
-            if (parameters.effects[e].on) y = process(chain.states[e], parameters.effects[e], y, rate);
+        samples[i] = blocked;
+    }
+    for (int e = 0; e < parameters.count; e++){
+        const Effect& effect = parameters.effects[e];
+        if (!effect.on) continue;
+        if (effect.type == EffectType::Capture){
+            processCapture(effect, parameters.assets[e], chain.runner, samples, count, chain.sampleRate);
+            continue;
         }
-        y *= parameters.volume;
+        EffectState& state = chain.states[e];
+        for (int i = 0; i < count; i++) samples[i] = process(state, effect, samples[i], rate);
+    }
+    for (int i = 0; i < count; i++){
+        const float y = samples[i] * parameters.volume;
         samples[i] = std::clamp(std::isfinite(y) ? y : 0.0f, -1.0f, 1.0f); // never past full scale, whatever the tone
     }
 }

@@ -1,6 +1,7 @@
 #include "screens/tonewizard.h"
 
 #include "audio/audio.h"
+#include "audio/capture.h"
 #include "core/cabinets.h"
 #include "core/tonelibrary.h"
 #include "imgui.h"
@@ -51,9 +52,13 @@ void initTones(const std::string& tonesFolder){
     tones.userTones = loadUserTones(tonesFolder, tones.problems);
 }
 
-// The player's impulse responses (.wav), beside their tones: what a cabinet with a file plays through
+// The player's impulse responses (.wav) and captures (.nam), beside their tones: what a cabinet or a capture with a
+// file plays
 static std::string cabinetsFolder(){
     return (std::filesystem::path(tones.folder).parent_path() / "cabinets").string();
+}
+static std::string capturesFolder(){
+    return (std::filesystem::path(tones.folder).parent_path() / "captures").string();
 }
 
 static Tone* userTone(const std::string& name){
@@ -74,7 +79,8 @@ std::vector<std::string> toneNames(){
 
 static void playTone(const Tone& tone, float volume){
     ToneParameters parameters = toneParameters(tone);
-    attachCabinets(parameters, cabinetsFolder()); // their impulse responses, worked out here rather than on the audio thread
+    attachCabinets(parameters, cabinetsFolder()); // their impulse responses and models, made ready here rather than on the
+    attachCaptures(parameters, capturesFolder()); // audio thread
     parameters.volume *= volume;
     setMonitorTone(parameters);
 }
@@ -144,38 +150,44 @@ void closeToneWizard(Settings& settings){
     applyTone(settings);
 }
 
-// An impulse response dropped on the window: kept in the cabinets folder, and played by the cabinet under the mouse,
-// else the tone's first, else a new one at the end
-static void importCabinet(Settings& settings, const std::string& path){
+// An impulse response (a cabinet) or a capture dropped on the window: kept in its folder, and played by the effect of
+// its kind under the mouse, else the tone's first, else a new one (a capture goes in before the cabinet, as an amp is)
+static void importEffectFile(Settings& settings, const std::string& path, EffectType type){
     namespace fs = std::filesystem;
-    const std::string name = fs::path(path).filename().string();
+    const bool capture = type == EffectType::Capture;
+    const std::string folder = capture ? capturesFolder() : cabinetsFolder();
+    const std::string name = fs::u8path(path).filename().u8string();
     std::error_code ec;
-    fs::create_directories(cabinetsFolder(), ec);
-    const fs::path kept = fs::path(cabinetsFolder()) / name;
-    if (!fs::equivalent(path, kept, ec)) fs::copy_file(path, kept, fs::copy_options::overwrite_existing, ec);
+    fs::create_directories(fs::u8path(folder), ec);
+    const fs::path kept = fs::u8path(folder) / fs::u8path(name);
+    if (!fs::equivalent(fs::u8path(path), kept, ec)) fs::copy_file(fs::u8path(path), kept, fs::copy_options::overwrite_existing, ec);
     if (ec){
         setStatus("Couldn't keep " + name + ": " + ec.message(), true);
         return;
     }
+    std::vector<Effect>& effects = tones.editing.effects;
+    int target = tones.hovered >= 0 && tones.hovered < (int)effects.size() && effects[tones.hovered].type == type ? tones.hovered : -1;
+    for (int i = 0; i < (int)effects.size() && target < 0; i++) if (effects[i].type == type) target = i;
     std::string error;
-    if (!cabinetFromFile(kept.string(), error)){
+    const bool playable = capture ? captureFromFile(kept.u8string(), target >= 0 ? target : 0, error) != nullptr
+                                  : cabinetFromFile(kept.u8string(), error) != nullptr;
+    if (!playable){
         setStatus(error, true);
         return;
     }
-    std::vector<Effect>& effects = tones.editing.effects;
-    int target = tones.hovered >= 0 && tones.hovered < (int)effects.size() && effects[tones.hovered].type == EffectType::Cabinet ? tones.hovered : -1;
-    for (int i = 0; i < (int)effects.size() && target < 0; i++) if (effects[i].type == EffectType::Cabinet) target = i;
     if (target < 0){
         if ((int)effects.size() >= MAX_EFFECTS){
-            setStatus("No room for a cabinet: take an effect out first", true);
+            setStatus(std::string("No room for a ") + (capture ? "capture" : "cabinet") + ": take an effect out first", true);
             return;
         }
-        effects.push_back(makeEffect(EffectType::Cabinet));
-        target = (int)effects.size() - 1;
+        int at = (int)effects.size();
+        if (capture) for (int i = (int)effects.size() - 1; i >= 0; i--) if (effects[i].type == EffectType::Cabinet) at = i;
+        effects.insert(effects.begin() + at, makeEffect(type));
+        target = at;
     }
     setEffectFile(effects[target], name);
     changed(settings);
-    setStatus("The cabinet plays " + name, false);
+    setStatus(std::string(capture ? "The capture plays " : "The cabinet plays ") + name, false);
 }
 
 // Files dropped on the window: tones added to the player's (the last one shown), impulse responses to a cabinet
@@ -188,9 +200,11 @@ static void importDropped(Settings& settings){
         std::string extension = std::filesystem::path(path).extension().string();
         for (char& c : extension) c = (char)std::tolower((unsigned char)c);
         if (extension == ".wav"){
-            importCabinet(settings, path);
+            importEffectFile(settings, path, EffectType::Cabinet);
+        } else if (extension == ".nam"){
+            importEffectFile(settings, path, EffectType::Capture);
         } else if (extension != TONE_FILE_EXTENSION){
-            setStatus(std::filesystem::path(path).filename().string() + " isn't a tone (a .tone file) or an impulse response (a .wav)", true);
+            setStatus(std::filesystem::path(path).filename().string() + " isn't a tone (.tone), an impulse response (.wav) or a capture (.nam)", true);
         } else if (importTone(path, tones.folder, tones.userTones, imported, error)){
             tones.userTones.push_back(imported);
             show(settings, imported);
@@ -497,6 +511,21 @@ void toneWizardScreen(Settings& settings){
         draw->AddRectFilled(min, ImVec2(max.x, min.y + 5 * s), uiColor(effect.on ? UiColor::Accent : UiColor::StaffLine), 12 * s, ImDrawFlags_RoundCornersTop);
         draw->AddText(fonts.bold, 19 * s, ImVec2(min.x + 16 * s, min.y + 20 * s), uiColor(UiColor::Ink, alpha), info.name);
         if (effectSwitch("on", &effect.on, ImVec2(max.x - 50 * s, min.y + 20 * s), s)) edited = true;
+        // A capture: the file it plays, or what to do for one
+        if (effect.type == EffectType::Capture){
+            std::string line = "Drop a .nam file here", error;
+            UiColor color = UiColor::Dim;
+            if (effect.file[0]){
+                const std::string path = (std::filesystem::u8path(capturesFolder()) / std::filesystem::u8path(effect.file)).u8string();
+                line = std::filesystem::u8path(effect.file).stem().u8string();
+                if (!captureFromFile(path, i, error)){
+                    line = "Can't play " + line;
+                    color = UiColor::Bad;
+                }
+                if (line.size() > 26) line = line.substr(0, 25) + "...";
+            }
+            draw->AddText(fonts.text, 13 * s, ImVec2(min.x + 16 * s, min.y + 46 * s), uiColor(color, alpha), line.c_str());
+        }
         // Its knobs, two to a row
         for (int p = 0; p < info.parameterCount; p++){
             int column = p % 2, row = p / 2;
@@ -624,6 +653,6 @@ void toneWizardScreen(Settings& settings){
 
     // Saved a moment after the last change, once no knob is held
     if (tones.dirty && !ImGui::IsMouseDown(ImGuiMouseButton_Left) && GetTime() - tones.changedAt > SAVE_AFTER_S) save();
-    menuScreenHint("Drag a knob up or down, Shift for fine    Double-click resets it    Drop a .tone file to add it, a .wav for a cabinet    Esc  back", s);
+    menuScreenHint("Drag a knob up or down, Shift for fine    Double-click resets it    Drop a .tone file to add it, a .wav for a cabinet, a .nam capture    Esc  back", s);
     ImGui::End();
 }

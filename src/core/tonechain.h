@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -8,7 +9,7 @@
 // instrument is heard the moment it's played, whatever the tone. Tones are kept as small text files, to save, share
 // and load. Pure; the audio thread runs a chain without allocating.
 
-enum class EffectType { Gate, Compressor, Drive, Amp, Equalizer, Octaver, Chorus, Delay, Reverb, Cabinet, Count };
+enum class EffectType { Gate, Compressor, Drive, Amp, Equalizer, Octaver, Chorus, Delay, Reverb, Cabinet, Capture, Count };
 
 const int MAX_PARAMETERS = 6;
 const int MAX_EFFECTS = 12;
@@ -38,8 +39,8 @@ struct Effect {
     EffectType type = EffectType::Amp;
     bool on = true;
     float values[MAX_PARAMETERS] = {};
-    // A file of the player's it plays through, by name (a cabinet's impulse response, in their cabinets folder); ""
-    // for none. Kept in place, not as a string, so the audio thread can copy a tone as plain bytes.
+    // A file of the player's it plays through, by name (a cabinet's impulse response in their cabinets folder, a
+    // capture's model in their captures folder); "" for none. Kept in place, not as a string, so the audio thread can copy a tone as plain bytes.
     char file[MAX_EFFECT_FILE] = {};
 };
 void setEffectFile(Effect& effect, const std::string& name); // cut to fit
@@ -64,9 +65,20 @@ bool readTone(const std::string& text, Tone& tone, std::string& error);
 
 // --- Running a tone ------------------------------------------------------------------------------------------
 
-// What an effect plays through beyond its settings, worked out off the audio thread (core/cabinets): a cabinet's
-// impulse response, at each rate a device may run at, back to front (the oldest sample meets the last tap). Kept as
-// long as the audio thread may play it.
+// A real amp or pedal as a model of it (a Neural Amp Modeler capture, audio/capture), run by the audio thread a block
+// at a time, in place, never allocating. It remembers what it played (an amp's sound depends on it), so each audio
+// thread playing tones has one of its own.
+class CaptureModel {
+public:
+    virtual ~CaptureModel() = default;
+    virtual void process(float* samples, int count, int sampleRate) = 0;
+};
+const int TONE_RUNNERS = 2; // the audio threads that play tones (the engine's, and the direct monitor's)
+
+// What an effect plays through beyond its settings, worked out off the audio thread: a cabinet's impulse response
+// (core/cabinets), at each rate a device may run at, back to front (the oldest sample meets the last tap); a
+// capture's model (audio/capture), one per audio thread, and how loud it plays. Kept as long as the audio thread may
+// play it.
 struct ToneAsset {
     struct Response {
         int sampleRate = 0;
@@ -74,6 +86,8 @@ struct ToneAsset {
     };
     std::vector<Response> responses;
     const Response* forRate(int sampleRate) const; // the nearest; nullptr for none
+    std::unique_ptr<CaptureModel> models[TONE_RUNNERS];
+    float loudnessDb = -18.0f; // a capture's output with a typical playing level: brought to -18 dB, as NAM's plugin does
 };
 
 // A tone as the audio thread takes it: fixed size, nothing to allocate or free
@@ -118,6 +132,7 @@ struct EffectState {
 };
 
 struct ToneChain {
+    int runner = 0;           // which audio thread runs it: the capture models it plays (ToneAsset::models)
     int sampleRate = 48000;
     ToneParameters parameters;
     EffectState states[MAX_EFFECTS];

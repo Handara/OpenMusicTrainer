@@ -308,6 +308,7 @@ bool initAudio(const std::string& outputDevice, std::string& error){
     audio.contextReady = true;
     initToneChain(audio.engineTone.chain, 48000); // their memory, once: the audio threads never allocate
     initToneChain(audio.directTone.chain, 48000);
+    audio.directTone.chain.runner = 1; // its own capture models (core/tonechain ToneAsset)
     return startEngine(outputDevice, error);
 }
 

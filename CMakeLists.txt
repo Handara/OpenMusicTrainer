@@ -69,6 +69,36 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(raylib miniaudio imgui rlimgui doctest pl_mpeg miniz)
 
+# Neural Amp Modeler's core (MIT): plays .nam captures, neural networks trained on real amps and pedals (the Capture
+# effect, audio/capture.cpp). Only its library is compiled here (its own CMake builds tools), and its submodules aren't
+# fetched: Eigen (MPL2), the linear algebra it runs on, comes pinned by checksum to the commit NAM uses, and
+# nlohmann/json (MIT) is in NAM's own Dependencies folder.
+FetchContent_Declare(
+    namcore
+    GIT_REPOSITORY https://github.com/sdatkinson/NeuralAmpModelerCore.git
+    GIT_TAG        v0.6.0
+    GIT_SHALLOW    TRUE
+    GIT_SUBMODULES ""
+    SOURCE_SUBDIR  none
+)
+FetchContent_Declare(
+    eigen
+    URL      https://gitlab.com/libeigen/eigen/-/archive/bc3b39870ecb690a623a3f49149a358b95c5781d/eigen-bc3b39870ecb690a623a3f49149a358b95c5781d.tar.gz
+    URL_HASH SHA256=5f6557d1aca6e959a4b955c55f2935261fd30de59c0c79e35bc6d5cbe1de22d1
+    SOURCE_SUBDIR  none
+)
+FetchContent_MakeAvailable(namcore eigen)
+# An object library, not a static one: each kind of model registers itself from its own file, and a linker would leave
+# out the files nothing calls into
+file(GLOB NAM_SOURCES ${namcore_SOURCE_DIR}/NAM/*.cpp ${namcore_SOURCE_DIR}/NAM/wavenet/*.cpp)
+add_library(nam OBJECT ${NAM_SOURCES})
+target_include_directories(nam SYSTEM PUBLIC ${namcore_SOURCE_DIR} ${namcore_SOURCE_DIR}/NAM ${namcore_SOURCE_DIR}/Dependencies/nlohmann ${eigen_SOURCE_DIR})
+target_compile_definitions(nam PUBLIC NAM_SAMPLE_FLOAT NAM_ENABLE_A2_FAST) # floats, as lahn's audio is; A2 models' fast path
+if(MSVC)
+    target_compile_options(nam PRIVATE /bigobj /EHsc)
+    target_compile_definitions(nam PRIVATE NOMINMAX _USE_MATH_DEFINES)
+endif()
+
 # Windows: Steinberg's ASIO SDK, for the audio interfaces' own low-latency drivers (audio/asiodriver.cpp). lahn takes
 # it under its GPLv3 option. Pinned by checksum to Steinberg's own package; its host helpers are compiled here.
 if(WIN32)
@@ -200,6 +230,7 @@ add_executable(lahn
     src/app/stemmodel.cpp
     src/app/videoconvert.cpp
     src/audio/audio.cpp
+    src/audio/capture.cpp
     src/audio/asiodriver.cpp
     src/input/midi.cpp
     src/input/keynotes.cpp
@@ -260,7 +291,7 @@ add_executable(lahn
 )
 # The build players get (Release): without ImGui's notes to its programmer (see ui/ui.cpp). The others keep them.
 target_compile_definitions(lahn PRIVATE $<$<CONFIG:Release>:LAHN_PLAYER_BUILD>)
-target_link_libraries(lahn PRIVATE lahn_core raylib miniaudio imgui pl_mpeg ${CMAKE_DL_LIBS}) # dl: the stems add-on's runtime, loaded when it's there
+target_link_libraries(lahn PRIVATE lahn_core raylib miniaudio imgui pl_mpeg nam ${CMAKE_DL_LIBS}) # dl: the stems add-on's runtime, loaded when it's there
 # ONNX Runtime's interface only (its headers): the library itself comes with the stems add-on (src/app/stemmodel.cpp)
 target_include_directories(lahn SYSTEM PRIVATE third_party/onnxruntime)
 if(WIN32)
