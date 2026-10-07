@@ -4,6 +4,10 @@
 #include "core/tonechain.h"
 
 #include <algorithm>
+#include <cstdint>
+#include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <cmath>
 #include <random>
 #include <string>
@@ -94,4 +98,53 @@ TEST_CASE("cabinets: every built-in one is ready for each rate a device may run 
     CHECK(parameters.assets[1]->forRate(44100)->sampleRate == 44100);
     CHECK(parameters.assets[1]->forRate(96000)->reversed.size() == 4096);
     CHECK(parameters.assets[1]->forRate(192000)->sampleRate == 96000);
+}
+
+// A 32-bit float WAV, as impulse responses often come
+static void writeFloatWav(const std::string& path, const std::vector<float>& samples, int rate){
+    std::ofstream out(path, std::ios::binary);
+    auto put32 = [&](uint32_t value){ out.write((const char*)&value, 4); };
+    auto put16 = [&](uint16_t value){ out.write((const char*)&value, 2); };
+    out.write("RIFF", 4);
+    put32(36 + (uint32_t)samples.size() * 4);
+    out.write("WAVEfmt ", 8);
+    put32(16);
+    put16(3); // floats
+    put16(1);
+    put32((uint32_t)rate);
+    put32((uint32_t)rate * 4);
+    put16(4);
+    put16(32);
+    out.write("data", 4);
+    put32((uint32_t)samples.size() * 4);
+    out.write((const char*)samples.data(), (std::streamsize)(samples.size() * 4));
+}
+
+TEST_CASE("cabinets: a player's impulse response file plays like a built-in one"){
+    const std::string path = (std::filesystem::temp_directory_path() / "lahn-test-cabinet.wav").string();
+    // 2 ms of silence first (the mic's distance), then a cabinet's response, at 44.1 kHz, too loud
+    std::vector<float> file(88, 0.0f);
+    for (float tap : cabinetResponse(3, 44100)) file.push_back(tap * 3.0f);
+    writeFloatWav(path, file, 44100);
+    std::string error;
+    const ToneAsset* asset = cabinetFromFile(path, error);
+    REQUIRE_MESSAGE(asset != nullptr, error);
+    REQUIRE(asset->responses.size() == 4);
+    const ToneAsset::Response* at48 = asset->forRate(48000);
+    std::vector<float> taps(at48->reversed.rbegin(), at48->reversed.rend());
+    CHECK(taps.size() == 2048);
+    // The silence is gone: it starts at once
+    float peak = 0.0f;
+    for (float tap : taps) peak = std::max(peak, std::fabs(tap));
+    float early = 0.0f;
+    for (int i = 0; i < 8; i++) early = std::max(early, std::fabs(taps[i]));
+    CHECK(early > 0.3f * peak);
+    // As loud as a built-in one, and sounding as it did
+    for (float f : { 300.0f, 1000.0f, 2500.0f }) CHECK(std::fabs(responseDb(taps, f, 48000) - cabinetDb(3, f)) < 1.0f);
+    // Read once: asked again, the same
+    CHECK(cabinetFromFile(path, error) == asset);
+    std::filesystem::remove(path);
+    // Not there: why, and nothing to play
+    CHECK(cabinetFromFile(path + ".missing.wav", error) == nullptr);
+    CHECK_FALSE(error.empty());
 }

@@ -105,24 +105,36 @@ bool readWav(const std::string& path, std::vector<float>& samples, int& sampleRa
     }
     auto get16 = [&](size_t at){ return (int)(uint8_t)data[at] | ((int)(uint8_t)data[at + 1] << 8); };
     auto get32 = [&](size_t at){ return (uint32_t)get16(at) | ((uint32_t)get16(at + 2) << 16); };
-    int channels = 0, bits = 0;
+    int channels = 0, bits = 0, format = 0;
     for (size_t at = 12; at + 8 <= data.size();){
         const uint32_t size = get32(at + 4);
         if (std::memcmp(&data[at], "fmt ", 4) == 0 && at + 24 <= data.size()){
+            format = get16(at + 8);
             channels = get16(at + 10);
             sampleRate = (int)get32(at + 12);
             bits = get16(at + 22);
+            if (format == 0xFFFE && at + 34 <= data.size()) format = get16(at + 32); // extensible: its sub-format says
         } else if (std::memcmp(&data[at], "data", 4) == 0){
-            if (bits != 16 || channels < 1){
-                error = "only 16-bit WAV files are read: " + path;
+            // Whole numbers of 16, 24 or 32 bits, or 32-bit floats (impulse responses often are)
+            const bool pcm = format == 1 && (bits == 16 || bits == 24 || bits == 32), floats = format == 3 && bits == 32;
+            if ((!pcm && !floats) || channels < 1){
+                error = "only 16, 24 or 32-bit WAV files are read: " + path;
                 return false;
             }
-            const size_t frames = std::min<size_t>(size, data.size() - at - 8) / (2 * channels);
+            const int bytes = bits / 8;
+            const size_t frames = std::min<size_t>(size, data.size() - at - 8) / ((size_t)bytes * channels);
             samples.assign(frames, 0.0f);
             for (size_t frame = 0; frame < frames; frame++){
                 for (int channel = 0; channel < channels; channel++){
-                    const int value = (int16_t)get16(at + 8 + (frame * channels + channel) * 2);
-                    samples[frame] += value / 32768.0f / channels;
+                    const size_t from = at + 8 + (frame * channels + channel) * bytes;
+                    float value;
+                    if (floats){
+                        const uint32_t word = get32(from);
+                        std::memcpy(&value, &word, sizeof value);
+                    } else if (bits == 16) value = (int16_t)get16(from) / 32768.0f;
+                    else if (bits == 24) value = (float)((int32_t)(((uint32_t)get16(from) << 8) | ((uint32_t)(uint8_t)data[from + 2] << 24)) >> 8) / 8388608.0f;
+                    else value = (float)((int32_t)get32(from) / 2147483648.0);
+                    samples[frame] += value / channels;
                 }
             }
             return true;

@@ -12,6 +12,7 @@
 #include "ui/ui.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <filesystem>
@@ -50,6 +51,11 @@ void initTones(const std::string& tonesFolder){
     tones.userTones = loadUserTones(tonesFolder, tones.problems);
 }
 
+// The player's impulse responses (.wav), beside their tones: what a cabinet with a file plays through
+static std::string cabinetsFolder(){
+    return (std::filesystem::path(tones.folder).parent_path() / "cabinets").string();
+}
+
 static Tone* userTone(const std::string& name){
     for (Tone& tone : tones.userTones) if (tone.name == name) return &tone;
     return nullptr;
@@ -68,7 +74,7 @@ std::vector<std::string> toneNames(){
 
 static void playTone(const Tone& tone, float volume){
     ToneParameters parameters = toneParameters(tone);
-    attachCabinets(parameters); // their impulse responses, worked out here rather than on the audio thread
+    attachCabinets(parameters, cabinetsFolder()); // their impulse responses, worked out here rather than on the audio thread
     parameters.volume *= volume;
     setMonitorTone(parameters);
 }
@@ -138,15 +144,53 @@ void closeToneWizard(Settings& settings){
     applyTone(settings);
 }
 
-// Tone files dropped on the window: added to the player's tones, the last one shown
+// An impulse response dropped on the window: kept in the cabinets folder, and played by the cabinet under the mouse,
+// else the tone's first, else a new one at the end
+static void importCabinet(Settings& settings, const std::string& path){
+    namespace fs = std::filesystem;
+    const std::string name = fs::path(path).filename().string();
+    std::error_code ec;
+    fs::create_directories(cabinetsFolder(), ec);
+    const fs::path kept = fs::path(cabinetsFolder()) / name;
+    if (!fs::equivalent(path, kept, ec)) fs::copy_file(path, kept, fs::copy_options::overwrite_existing, ec);
+    if (ec){
+        setStatus("Couldn't keep " + name + ": " + ec.message(), true);
+        return;
+    }
+    std::string error;
+    if (!cabinetFromFile(kept.string(), error)){
+        setStatus(error, true);
+        return;
+    }
+    std::vector<Effect>& effects = tones.editing.effects;
+    int target = tones.hovered >= 0 && tones.hovered < (int)effects.size() && effects[tones.hovered].type == EffectType::Cabinet ? tones.hovered : -1;
+    for (int i = 0; i < (int)effects.size() && target < 0; i++) if (effects[i].type == EffectType::Cabinet) target = i;
+    if (target < 0){
+        if ((int)effects.size() >= MAX_EFFECTS){
+            setStatus("No room for a cabinet: take an effect out first", true);
+            return;
+        }
+        effects.push_back(makeEffect(EffectType::Cabinet));
+        target = (int)effects.size() - 1;
+    }
+    setEffectFile(effects[target], name);
+    changed(settings);
+    setStatus("The cabinet plays " + name, false);
+}
+
+// Files dropped on the window: tones added to the player's (the last one shown), impulse responses to a cabinet
 static void importDropped(Settings& settings){
     if (!IsFileDropped()) return;
     FilePathList dropped = LoadDroppedFiles();
     for (unsigned i = 0; i < dropped.count; i++){
         std::string path = dropped.paths[i], error;
         Tone imported;
-        if (std::filesystem::path(path).extension() != TONE_FILE_EXTENSION){
-            setStatus(std::filesystem::path(path).filename().string() + " isn't a tone (a .tone file)", true);
+        std::string extension = std::filesystem::path(path).extension().string();
+        for (char& c : extension) c = (char)std::tolower((unsigned char)c);
+        if (extension == ".wav"){
+            importCabinet(settings, path);
+        } else if (extension != TONE_FILE_EXTENSION){
+            setStatus(std::filesystem::path(path).filename().string() + " isn't a tone (a .tone file) or an impulse response (a .wav)", true);
         } else if (importTone(path, tones.folder, tones.userTones, imported, error)){
             tones.userTones.push_back(imported);
             show(settings, imported);
@@ -173,7 +217,7 @@ static std::string valueText(const ParameterInfo& info, float value){
 
 // A knob: dragged up or down (Shift for fine), the wheel nudges it, a double click puts it back. Its arc starts at
 // the bottom left and turns clockwise to the bottom right; one that goes both ways (-12 to +12 dB) fills from the top.
-static bool knob(const char* id, const ParameterInfo& info, float* value, ImVec2 center, float s, float alpha){
+static bool knob(const char* id, const ParameterInfo& info, float* value, ImVec2 center, float s, float alpha, const char* shown = nullptr){
     ImDrawList* draw = ImGui::GetWindowDrawList();
     const UiFonts& fonts = uiFonts();
     const float radius = KNOB_RADIUS * s;
@@ -212,7 +256,8 @@ static bool knob(const char* id, const ParameterInfo& info, float* value, ImVec2
         draw->AddText(font, size, ImVec2(center.x - width / 2, y), color, text);
     };
     centered(fonts.bold, 13 * s, center.y + radius + 6 * s, uiColor(UiColor::Ink, alpha), info.name);
-    centered(fonts.mono, 11 * s, center.y + radius + 23 * s, uiColor(active ? UiColor::Accent : UiColor::Dim, alpha), valueText(info, *value).c_str());
+    centered(fonts.mono, 11 * s, center.y + radius + 23 * s, uiColor(active ? UiColor::Accent : UiColor::Dim, alpha),
+             shown ? shown : valueText(info, *value).c_str());
     return *value != before;
 }
 
@@ -458,7 +503,16 @@ void toneWizardScreen(Settings& settings){
             ImVec2 center(min.x + cardWidth * (column == 0 ? 0.28f : 0.72f), min.y + 92 * s + row * KNOB_CELL * s);
             if (info.parameterCount % 2 == 1 && p == info.parameterCount - 1) center.x = min.x + cardWidth / 2; // the odd one out, centered
             ImGui::PushID(p);
-            if (knob("knob", info.parameters[p], &effect.values[p], center, s, alpha)) edited = true;
+            // A cabinet playing a file of the player's says so on its speaker; turning it goes back to the built-in ones
+            std::string file;
+            if (effect.type == EffectType::Cabinet && p == 0 && effect.file[0]){
+                file = std::filesystem::path(effect.file).stem().string();
+                if (file.size() > 22) file = file.substr(0, 21) + "...";
+            }
+            if (knob("knob", info.parameters[p], &effect.values[p], center, s, alpha, file.empty() ? nullptr : file.c_str())){
+                edited = true;
+                if (!file.empty()) effect.file[0] = '\0';
+            }
             ImGui::PopID();
         }
         // Along its foot: move it earlier or later in the chain, or take it out
@@ -570,6 +624,6 @@ void toneWizardScreen(Settings& settings){
 
     // Saved a moment after the last change, once no knob is held
     if (tones.dirty && !ImGui::IsMouseDown(ImGuiMouseButton_Left) && GetTime() - tones.changedAt > SAVE_AFTER_S) save();
-    menuScreenHint("Drag a knob up or down, Shift for fine    Double-click resets it    Drop a .tone file to add it    Esc  back", s);
+    menuScreenHint("Drag a knob up or down, Shift for fine    Double-click resets it    Drop a .tone file to add it, a .wav for a cabinet    Esc  back", s);
     ImGui::End();
 }

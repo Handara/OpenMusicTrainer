@@ -1,9 +1,12 @@
 #include "core/cabinets.h"
 
+#include "core/backing.h"
 #include "core/fft.h"
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
+#include <map>
 #include <memory>
 
 namespace {
@@ -170,6 +173,77 @@ std::vector<float> resampleResponse(const std::vector<float>& taps, int fromRate
     return out;
 }
 
+// A response's gain where it's loudest, over what a speaker plays (smoothed a little: one sharp peak isn't how loud
+// it sounds)
+static float loudestGain(const std::vector<float>& taps, int sampleRate){
+    const size_t n = 16384;
+    const std::vector<std::complex<float>> twiddles = fftTwiddles((int)n);
+    std::vector<std::complex<float>> data(n);
+    for (size_t i = 0; i < std::min(n, taps.size()); i++) data[i] = taps[i];
+    fft(data, twiddles, false);
+    std::vector<float> power(n / 2);
+    for (size_t k = 0; k < n / 2; k++) power[k] = std::norm(data[k]);
+    float loudest = 0.0f;
+    const size_t from = (size_t)(60.0 * n / sampleRate), to = std::min(n / 2 - 1, (size_t)(8000.0 * n / sampleRate));
+    for (size_t k = std::max<size_t>(from, 1); k <= to; k++){
+        const size_t reach = std::max<size_t>(1, k / 24); // about a quarter of a semitone each side
+        double sum = 0.0;
+        for (size_t j = k - std::min(k, reach); j <= std::min(n / 2 - 1, k + reach); j++) sum += power[j];
+        loudest = std::max(loudest, (float)(sum / (double)(2 * reach + 1)));
+    }
+    return std::sqrt(loudest);
+}
+
+const ToneAsset* cabinetFromFile(const std::string& path, std::string& error){
+    struct Loaded {
+        std::unique_ptr<ToneAsset> asset;
+        std::string error;
+    };
+    static std::map<std::string, Loaded> loaded;
+    auto found = loaded.find(path);
+    if (found != loaded.end()){
+        error = found->second.error;
+        return found->second.asset.get();
+    }
+    Loaded& entry = loaded[path];
+    std::vector<float> samples;
+    int rate = 0;
+    if (!readWav(path, samples, rate, entry.error) || rate <= 0){
+        if (entry.error.empty()) entry.error = "can't read " + std::filesystem::path(path).filename().string();
+        error = entry.error;
+        return nullptr;
+    }
+    float peak = 0.0f;
+    for (float sample : samples) peak = std::max(peak, std::fabs(sample));
+    if (peak <= 0.0f){
+        error = entry.error = std::filesystem::path(path).filename().string() + " is silent";
+        return nullptr;
+    }
+    // The silence before it starts (the mic's distance) would be heard as delay: cut, up to 5 ms of it
+    size_t start = 0;
+    while (start < samples.size() && start < (size_t)(0.005 * rate) && std::fabs(samples[start]) < 0.01f * peak) start++;
+    const size_t kept = std::min(samples.size() - start, (size_t)std::ceil(RESPONSE_S * rate * 1.1) + 64);
+    const std::vector<float> response(samples.begin() + (long)start, samples.begin() + (long)(start + kept));
+    auto asset = std::make_unique<ToneAsset>();
+    for (int assetRate : ASSET_RATES){
+        std::vector<float> taps = resampleResponse(response, rate, assetRate);
+        const size_t length = std::min(taps.size(), (size_t)std::clamp((int)std::lround(RESPONSE_S * assetRate), 16, MAX_CABINET_TAPS));
+        taps.resize(length);
+        const size_t fade = length / 8;
+        for (size_t i = length - fade; i < length; i++) taps[i] *= (float)(0.5 + 0.5 * std::cos(PI_D * (double)(i - (length - fade)) / (double)fade));
+        const float gain = loudestGain(taps, assetRate);
+        if (gain > 0.0f) for (float& tap : taps) tap /= gain;
+        std::reverse(taps.begin(), taps.end());
+        ToneAsset::Response made;
+        made.sampleRate = assetRate;
+        made.reversed = std::move(taps);
+        asset->responses.push_back(std::move(made));
+    }
+    entry.asset = std::move(asset);
+    error.clear();
+    return entry.asset.get();
+}
+
 const ToneAsset& builtInCabinet(int cabinet){
     static std::unique_ptr<ToneAsset> made[DESIGN_COUNT];
     const int index = std::clamp(cabinet, 0, DESIGN_COUNT - 1);
@@ -187,9 +261,15 @@ const ToneAsset& builtInCabinet(int cabinet){
     return *made[index];
 }
 
-void attachCabinets(ToneParameters& parameters){
+void attachCabinets(ToneParameters& parameters, const std::string& folder){
     for (int i = 0; i < parameters.count; i++){
         const Effect& effect = parameters.effects[i];
-        parameters.assets[i] = effect.type == EffectType::Cabinet ? &builtInCabinet((int)std::lround(effect.values[0])) : nullptr;
+        parameters.assets[i] = nullptr;
+        if (effect.type != EffectType::Cabinet) continue;
+        if (effect.file[0] && !folder.empty()){
+            std::string error;
+            parameters.assets[i] = cabinetFromFile((std::filesystem::path(folder) / effect.file).string(), error);
+        }
+        if (!parameters.assets[i]) parameters.assets[i] = &builtInCabinet((int)std::lround(effect.values[0]));
     }
 }

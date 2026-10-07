@@ -32,11 +32,17 @@ struct EffectInfo {
 };
 const EffectInfo& effectInfo(EffectType type);
 
+const int MAX_EFFECT_FILE = 128;
+
 struct Effect {
     EffectType type = EffectType::Amp;
     bool on = true;
     float values[MAX_PARAMETERS] = {};
+    // A file of the player's it plays through, by name (a cabinet's impulse response, in their cabinets folder); ""
+    // for none. Kept in place, not as a string, so the audio thread can copy a tone as plain bytes.
+    char file[MAX_EFFECT_FILE] = {};
 };
+void setEffectFile(Effect& effect, const std::string& name); // cut to fit
 Effect makeEffect(EffectType type); // with its standard settings
 
 struct Tone {

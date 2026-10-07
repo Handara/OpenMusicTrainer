@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <cstring>
 #include <sstream>
 #if defined(__SSE__) || defined(_M_X64) || defined(_M_AMD64)
 #include <xmmintrin.h>
@@ -117,6 +118,12 @@ const EffectInfo& effectInfo(EffectType type){
     return INFOS[std::clamp((int)type, 0, (int)EffectType::Count - 1)];
 }
 
+void setEffectFile(Effect& effect, const std::string& name){
+    const size_t length = std::min(name.size(), (size_t)MAX_EFFECT_FILE - 1);
+    std::memcpy(effect.file, name.data(), length);
+    effect.file[length] = '\0';
+}
+
 Effect makeEffect(EffectType type){
     Effect effect;
     effect.type = type;
@@ -191,6 +198,7 @@ std::string writeTone(const Tone& tone){
         const EffectInfo& info = effectInfo(effect.type);
         out << info.id << " " << (effect.on ? "on" : "off");
         for (int i = 0; i < info.parameterCount; i++) out << " " << info.parameters[i].id << " " << effect.values[i];
+        if (effect.file[0]) out << " file " << effect.file; // last: the rest of the line is its name
         out << "\n";
     }
     return out.str();
@@ -235,7 +243,14 @@ bool readTone(const std::string& text, Tone& tone, std::string& error){
         const EffectInfo& info = effectInfo(effect.type);
         std::string id;
         float value;
-        while (words >> id >> value){
+        while (words >> id){
+            if (id == "file"){
+                std::string name;
+                std::getline(words >> std::ws, name);
+                setEffectFile(effect, name);
+                break;
+            }
+            if (!(words >> value)) break;
             for (int i = 0; i < info.parameterCount; i++){
                 if (id == info.parameters[i].id) effect.values[i] = std::clamp(value, info.parameters[i].min, info.parameters[i].max);
             }

@@ -9,6 +9,21 @@
 #include <random>
 #include <vector>
 
+TEST_CASE("a cabinet playing a file of the player's keeps it in the tone file"){
+    Tone tone;
+    tone.name = "With my IR";
+    tone.effects = { makeEffect(EffectType::Cabinet), makeEffect(EffectType::Reverb) };
+    setEffectFile(tone.effects[0], "Mesa 4x12 V30 SM57 cap.wav");
+    tone.effects[0].values[1] = 0.7f;
+    Tone read;
+    std::string error;
+    REQUIRE(readTone(writeTone(tone), read, error));
+    REQUIRE(read.effects.size() == 2);
+    CHECK(std::string(read.effects[0].file) == "Mesa 4x12 V30 SM57 cap.wav");
+    CHECK(read.effects[0].values[1] == doctest::Approx(0.7f));
+    CHECK(read.effects[1].file[0] == '\0');
+}
+
 TEST_CASE("a tone survives being written and read back"){
     Tone tone;
     tone.name = "My growl, v2";
