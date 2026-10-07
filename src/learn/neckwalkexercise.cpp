@@ -4,6 +4,7 @@
 #include "core/music.h"
 #include "core/routine.h"
 #include "imgui.h"
+#include "app/playerprogress.h"
 #include "input/menuinput.h"
 #include "input/noteinput.h"
 #include "raylib.h"
@@ -14,6 +15,7 @@
 #include "ui/ui.h"
 
 #include <algorithm>
+#include <filesystem>
 #include <cfloat>
 #include <cmath>
 #include <random>
@@ -114,6 +116,15 @@ void NeckWalkExercise::finish(){
     addNeckWalkGame(stats, game, todayText());
     std::string error;
     if (!saveNeckWalkStats(progressPath, stats, error)) TraceLog(LOG_WARNING, "Progress: %s", error.c_str());
+    Activity activity; // in the player's journal: XP for the rounds cleared
+    activity.kind = ActivityKind::Game;
+    activity.id = std::filesystem::path(progressPath).stem().string();
+    activity.title = title;
+    activity.instrument = onBass ? "bass" : "guitar";
+    activity.seconds = (float)std::max(0.0, audioTime() - game.startTime);
+    activity.rounds = game.cleared;
+    activity.tempo = (int)game.fastest;
+    recordActivity(activity);
 }
 
 // Every sound whose time comes within the lookahead, each on its own: the tune's hits, the computer's notes. (A whole

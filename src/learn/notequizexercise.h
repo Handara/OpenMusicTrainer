@@ -65,6 +65,7 @@ private:
     int passedNow = 0;
     int finishedPercent = -1; // a run just ended, its score: until it's taken
     double rightAt = -100.0, wrongAt = -100.0, finishedAt = -100.0;
+    double runStartedAt = 0.0;
     double playPromptAt = -1.0;  // by ear: when to play the note asked (GetTime), -1 for not to
     double soundingUntil = -1.0; //   while it sounds, what's heard is lahn's own (a microphone hears the speakers)
     double heardAt = -100.0;     //   when the note asked started sounding: a ring pulses with it

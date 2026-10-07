@@ -5,6 +5,7 @@
 #include "core/music.h"
 #include "core/synth.h"
 #include "imgui.h"
+#include "app/playerprogress.h"
 #include "input/keynotes.h"
 #include "input/keysinput.h"
 #include "input/menuinput.h"
@@ -20,6 +21,8 @@
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
+#include <filesystem>
+#include <map>
 
 const float RIGHT_FLASH_S = 0.6f;  // the ring round a note played right
 const float WRONG_SHOWN_S = 2.5f;  // what was played instead, and where the right one is
@@ -69,6 +72,7 @@ NoteQuizExercise::~NoteQuizExercise(){
 // A new run, and its notes written down for the staff: four a bar, a beat each (at 60 bpm, a beat is a second)
 void NoteQuizExercise::startRun(){
     startNoteQuiz(run, noteQuizPrompts(config, random));
+    runStartedAt = GetTime();
     finished = passed = false;
     rightAt = wrongAt = -100.0;
     lastRight = { -1, -1, -1 };
@@ -131,6 +135,25 @@ void NoteQuizExercise::finish(){
     passed = noteQuizPassed(run, config);
     finishedPercent = run.prompts.empty() ? 0 : noteQuizRight(run) * 100 / (int)run.prompts.size();
     stats.runs++;
+    // In the player's journal: XP, achievements, each note right the first time or not
+    Activity activity;
+    activity.kind = ActivityKind::Notes;
+    activity.id = std::filesystem::path(progressPath).stem().string();
+    activity.title = title;
+    activity.instrument = config.piano ? "piano" : onBass ? "bass" : "guitar";
+    activity.seconds = (float)(finishedAt - runStartedAt);
+    activity.right = noteQuizRight(run);
+    activity.total = (int)run.prompts.size();
+    activity.clean = passed;
+    std::map<int, NoteTally> tallies;
+    for (size_t i = 0; i < run.prompts.size() && i < run.firstTime.size(); i++){
+        NoteTally& tally = tallies[run.prompts[i].pitch];
+        tally.pitch = run.prompts[i].pitch;
+        tally.asked++;
+        if (run.firstTime[i]) tally.right++;
+    }
+    for (const auto& [pitch, tally] : tallies) activity.notes.push_back(tally);
+    recordActivity(activity);
     if (passed){
         stats.passed++;
         passedNow++;

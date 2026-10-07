@@ -3,6 +3,7 @@
 #include "audio/audio.h"
 #include "core/music.h"
 #include "imgui.h"
+#include "app/playerprogress.h"
 #include "input/keynotes.h"
 #include "input/menuinput.h"
 #include "input/noteinput.h"
@@ -18,6 +19,7 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <map>
 
 const double LEAD_IN_S = 0.3;      // silence before the count-in
 const double LOOKAHEAD_S = 0.2;     // metronome clicks are handed to the audio engine this far ahead
@@ -126,6 +128,31 @@ void DrillExercise::finishPass(){
     finishedPercent = challenge ? (int)accuracy : -1;
     DrillPassOutcome outcome = finishDrillPass(setup.tempo, progress, tempo, accuracy);
     if (outcome.clean && challenge) cleanPassesNow++;
+    // In the player's journal: XP, achievements, how well each note was read
+    Activity activity;
+    activity.kind = ActivityKind::Drill;
+    activity.id = std::filesystem::path(progressPath).stem().string();
+    activity.title = title;
+    const int lowest = *std::min_element(setup.tuning.begin(), setup.tuning.end());
+    activity.instrument = isPianoTuning(setup.tuning) ? "piano" : lowest < 36 ? "bass" : "guitar";
+    activity.seconds = (float)(passEndTime - countInStart);
+    activity.right = hits;
+    activity.total = total;
+    activity.tempo = tempo;
+    activity.clean = outcome.clean;
+    activity.challenge = outcome.clean && challenge;
+    activity.band = bandOn;
+    if (!setup.timingOnly){ // a rhythm's notes are all the same: only their timing counts
+        std::map<int, NoteTally> tallies;
+        for (const PlayNote& note : notes){
+            NoteTally& tally = tallies[note.pitch];
+            tally.pitch = note.pitch;
+            tally.asked++;
+            if (note.hit) tally.right++;
+        }
+        for (const auto& [pitch, tally] : tallies) activity.notes.push_back(tally);
+    }
+    recordActivity(activity);
     std::string error;
     saveDrillProgress(progressPath, progress, error);
     endTempo = tempo;

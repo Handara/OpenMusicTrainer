@@ -96,6 +96,7 @@ Settings loadSettings(const std::string& path, std::vector<std::string>& warning
             else warnings.push_back("line " + std::to_string(lineNumber) + ": heard_instrument is guitar or bass, keeping default");
         }
         else if (key == "learn_on_piano") settings.learnOnPiano = value == "1";
+        else if (key == "daily_goal_minutes"){ const int minutes = std::atoi(value.c_str()); if (minutes >= 1 && minutes <= 240) settings.dailyGoalMinutes = minutes; }
         else if (key == "monitor_drive" || key == "monitor_tone"){} // the small amp's, before tones
         else if (key == "preview_sound"){ if (!value.empty()) settings.previewSound = value; }
         else if (key == "note_view"){
@@ -161,6 +162,7 @@ bool saveSettings(const std::string& path, const Settings& settings, std::string
     out << "guitar_tone " << settings.guitarTone << "\n";
     out << "heard_instrument " << (settings.heardInstrument == InputRole::Guitar ? "guitar" : "bass") << "\n";
     out << "learn_on_piano " << (settings.learnOnPiano ? 1 : 0) << "\n";
+    out << "daily_goal_minutes " << settings.dailyGoalMinutes << "\n";
     out << "preview_sound " << settings.previewSound << "\n\n";
     out << "note_view";
     if (settings.noteViews.staff) out << " staff";

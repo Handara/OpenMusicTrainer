@@ -8,6 +8,7 @@
 #include "core/paths.h"
 #include "core/routine.h"
 #include "core/settings.h"
+#include "app/playerprogress.h"
 #include "core/songlibrary.h"
 #include "core/songpackage.h"
 #include "input/synthmonitor.h"
@@ -28,6 +29,7 @@
 #include "input/menuinput.h"
 #include "screens/tonewizard.h"
 #include "ui/menulist.h"
+#include "ui/rewards.h"
 #include "ui/transition.h"
 #include "ui/ui.h"
 #include "views/staff.h"
@@ -38,6 +40,7 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -285,6 +288,8 @@ static void writeRunLog(const GameResult& result){
     }
 }
 
+static bool partInstrument(const SongEntry& song, int part, InputRole& role);
+
 static void recordRun(GameResult& result){
     std::error_code ec;
     fs::create_directories(recordsDir(), ec);
@@ -310,6 +315,28 @@ static void recordRun(GameResult& result){
     if (!addToHistory(historyPath(path), history, run, error)) TraceLog(LOG_WARNING, "Records: %s", error.c_str());
     result.records = records;
     result.history = history;
+    // In the journal: XP, achievements (a song played to its end, a full combo, an S)
+    Activity activity;
+    activity.kind = ActivityKind::Song;
+    activity.id = songId(app.currentSong) + "-part" + std::to_string(app.currentPart);
+    activity.title = result.title;
+    InputRole role = InputRole::Guitar;
+    const bool onInstrument = result.withInstrument && partInstrument(app.currentSong, app.currentPart, role);
+    activity.instrument = !result.withInstrument ? "keys" : onInstrument ? (role == InputRole::Bass ? "bass" : "guitar") : "piano";
+    activity.seconds = result.written.empty() ? 0.0f : result.written.back().time + result.written.back().length - result.written.front().time;
+    activity.right = result.perfectCount + result.nearCount;
+    activity.total = result.perfectCount + result.nearCount + result.missCount;
+    activity.clean = run.fullCombo();
+    activity.grade = gradeName(run.grade());
+    std::map<int, NoteTally> tallies;
+    for (const WrittenNote& note : result.written){
+        NoteTally& tally = tallies[note.pitch];
+        tally.pitch = note.pitch;
+        tally.asked++;
+        if (note.hit) tally.right++;
+    }
+    for (const auto& [pitch, tally] : tallies) activity.notes.push_back(tally);
+    recordActivity(activity);
 }
 
 static GameplayOptions gameplayOptions(){
@@ -845,6 +872,7 @@ int main(void){
     setExclusiveCapture(app.settings.exclusiveInput);
     setHitSoundVolume(app.settings.hitSoundVolume);
     initTones((fs::path(app.userDataDir) / "tones").string());
+    initPlayerProgress(app.progressDir, app.settings.dailyGoalMinutes); // the journal: XP, level, streak, achievements
     std::string monitorError;
     applyMonitor(app.settings, monitorError); // the instrument heard from the start
     checkInstruments(); // which instruments are connected: they can steer the menus
@@ -888,6 +916,7 @@ int main(void){
         const bool hearingShown = hasBackButton(shown) || (shown == Screen::Playing && gameplayPaused());
         if ((app.screen == shown && hearingShown && hearingButton(menuScale())) || IsKeyPressed(KEY_F2)) toggleHearing();
         if (app.screen == shown && menuScreen) drawMenuInputLegend(menuScale());
+        drawRewards(menuScale()); // what was just earned, over everything
         endUiFrame();
 
         // Changes of screen from outside the menus come after drawing, so this frame still shows the old screen and

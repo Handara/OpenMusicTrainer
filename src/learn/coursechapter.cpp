@@ -1,5 +1,6 @@
 #include "learn/coursechapter.h"
 
+#include "app/playerprogress.h"
 #include "imgui.h"
 #include "raylib.h"
 #include "ui/menulist.h"
@@ -9,6 +10,7 @@
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
+#include <filesystem>
 
 const double NEXT_AFTER_S = 1.8;   // a drill passed: the moment to see it before the next starts
 const float BANNER_S = 3.0f;
@@ -89,7 +91,21 @@ void CourseChapter::scored(int percent){
         if (!saveCourseScores(scoresPath, scores, error)) TraceLog(LOG_WARNING, "Progress: %s", error.c_str());
     }
     if (percent >= drill.passPercent) passedAt = GetTime();
-    if (!wasPassed && chapterState(course, lesson, scores).passed) chapterPassedAt = GetTime();
+    if (!wasPassed && chapterState(course, lesson, scores).passed){
+        chapterPassedAt = GetTime();
+        // In the player's journal: the chapter, and its level or the whole course if it completes them
+        Activity activity;
+        activity.kind = ActivityKind::Chapter;
+        activity.id = std::filesystem::path(scoresPath).stem().string() + "-" + course.lessons[lesson].id;
+        activity.title = course.lessons[lesson].lesson.title;
+        const CourseUnit& unit = course.units[course.lessons[lesson].unit];
+        activity.unitDone = true;
+        for (int i = unit.firstLesson; i < unit.firstLesson + unit.lessonCount; i++)
+            activity.unitDone = activity.unitDone && chapterState(course, i, scores).passed;
+        activity.courseDone = true;
+        for (int i = 0; i < (int)course.lessons.size(); i++) activity.courseDone = activity.courseDone && chapterState(course, i, scores).passed;
+        recordActivity(activity);
+    }
     if (running && running->hasEndMenu()) running->offerNext(nextLabel());
 }
 
