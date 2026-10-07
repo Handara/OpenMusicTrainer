@@ -100,7 +100,7 @@
 //   count 8                      (notes in a run)
 //   pass 7                       (right the first time, for the run to pass)
 //   key C major                  (the staff's key signature)
-//   instrument guitar            (guitar or bass)
+//   instrument guitar            (guitar, bass or piano: on a piano, notes only, no places or strings)
 //
 // Neck walk (`type neck_walk`), a game (core/neckwalk), all optional:
 //   tune neck-walk.groove        (its tune, core/groove: beside the exercise, or in the game's games folder)
@@ -115,7 +115,7 @@
 enum class ExerciseType { Intervals, Scale, Routine, Fretboard, Rhythm, Reading, Chords, Singing, Neck, NeckWalk, Notes };
 
 // What an exercise is played on: Learn lists it only for that instrument (Any: whichever)
-enum class ExerciseInstrument { Any, Guitar, Bass };
+enum class ExerciseInstrument { Any, Guitar, Bass, Piano };
 
 struct ExerciseFile {
     ExerciseType type = ExerciseType::Intervals;

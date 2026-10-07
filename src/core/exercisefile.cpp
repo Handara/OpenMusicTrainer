@@ -127,6 +127,15 @@ bool loadExerciseFile(const std::string& path, ExerciseFile& out, std::string& e
     return parseExercise(text.str(), path, 1, "", out, error);
 }
 
+// An 'instrument' line's word: guitar or bass, or piano for what can be played on one
+static bool readInstrument(const std::string& word, bool pianoToo, ExerciseInstrument& out){
+    if (word == "guitar") out = ExerciseInstrument::Guitar;
+    else if (word == "bass") out = ExerciseInstrument::Bass;
+    else if (word == "piano" && pianoToo) out = ExerciseInstrument::Piano;
+    else return false;
+    return true;
+}
+
 bool parseExercise(const std::string& source, const std::string& path, int firstLine, const std::string& inlineTitle,
                    ExerciseFile& out, std::string& error){
     // First pass: collect the lines. The type decides which settings are allowed, and it
@@ -201,6 +210,7 @@ bool parseExercise(const std::string& source, const std::string& path, int first
     int readingStringsLine = 0;
     // Play this note: its notes as written, placed once the instrument is known
     std::vector<int> quizPitches, quizStrings;
+    ExerciseInstrument said = ExerciseInstrument::Any; // its 'instrument' line
     std::vector<std::pair<int, int>> quizPlaces; // string (1 = the lowest), fret
     int quizNotesLine = 0;
     bool quizOctaveSet = false, quizCandidatesSet = false;
@@ -241,8 +251,7 @@ bool parseExercise(const std::string& source, const std::string& path, int first
                 else if (word == "triads") neck.pattern = NeckPattern::Triads;
                 else return lineError("pattern must be every_string, straight, thirds or triads");
             } else if (key == "instrument"){
-                if (word == "guitar" || word == "bass")out.neckOnBass = word == "bass";
-                else return lineError("instrument must be guitar or bass");
+                if (!readInstrument(word, false, said)) return lineError("instrument must be guitar or bass");
             } else {
                 return lineError("unknown setting '" + key + "' for a neck exercise (known: key, scale, fingering, position, pattern, note, instrument)");
             }
@@ -319,8 +328,7 @@ bool parseExercise(const std::string& source, const std::string& path, int first
                 if (!parseKeySignature(tonic, mode, out.noteQuizKey)) return lineError("expected: key <tonic> <major or minor>, like key G major");
             } else if (key == "instrument"){
                 ss >> word;
-                if (word == "guitar" || word == "bass")out.neckOnBass = word == "bass";
-                else return lineError("instrument must be guitar or bass");
+                if (!readInstrument(word, true, said)) return lineError("instrument must be guitar, bass or piano");
             } else {
                 return lineError("unknown setting '" + key + "' for play this note (known: notes, places, strings, show, where, candidates, "
                                  "reference, octave, order, count, pass, key, instrument)");
@@ -339,8 +347,7 @@ bool parseExercise(const std::string& source, const std::string& path, int first
                 out.walkLevel = neckWalkLevelIndex(word);
                 if (out.walkLevel < 0) return lineError("level must be easy, normal or hard");
             } else if (key == "instrument"){
-                if (word == "guitar" || word == "bass")out.neckOnBass = word == "bass";
-                else return lineError("instrument must be guitar or bass");
+                if (!readInstrument(word, false, said)) return lineError("instrument must be guitar or bass");
             } else {
                 return lineError("unknown setting '" + key + "' for neck walk (known: tune, level, instrument)");
             }
@@ -497,9 +504,10 @@ bool parseExercise(const std::string& source, const std::string& path, int first
     auto byTuning = [](const std::vector<int>& tuning){
         return !tuning.empty() && *std::min_element(tuning.begin(), tuning.end()) < 36 ? ExerciseInstrument::Bass : ExerciseInstrument::Guitar;
     };
+    out.neckOnBass = said == ExerciseInstrument::Bass;
     switch (out.type){
         case ExerciseType::Notes: case ExerciseType::Neck: case ExerciseType::NeckWalk:
-            out.instrument = out.neckOnBass ? ExerciseInstrument::Bass : ExerciseInstrument::Guitar;
+            out.instrument = said == ExerciseInstrument::Any ? ExerciseInstrument::Guitar : said;
             break;
         case ExerciseType::Reading: out.instrument = byTuning(out.reading.tuning); break;
         case ExerciseType::Scale: out.instrument = byTuning(out.drill.tuning); break;
@@ -515,6 +523,18 @@ bool parseExercise(const std::string& source, const std::string& path, int first
     if (out.type == ExerciseType::Neck || out.type == ExerciseType::NeckWalk) return true;
     if (out.type == ExerciseType::Notes){
         NoteQuizConfig& quiz = out.noteQuiz;
+        if (out.instrument == ExerciseInstrument::Piano){
+            // A piano's keys: each note is its own, no strings to choose from
+            lineNumber = quizNotesLine;
+            if (!quizPlaces.empty() || !quizStrings.empty()) return lineError("a piano has no strings: give the notes (notes C4 D4)");
+            if (quizPitches.empty()) return fileError("missing 'notes': which notes to ask");
+            quiz.piano = true;
+            quiz.tuning = { 0 };
+            for (int pitch : quizPitches) quiz.notes.push_back({ pitch, 0, pitch });
+            if (!quizOctaveSet) quiz.anyOctave = quiz.prompt == NotePrompt::Name;
+            quiz.pass = std::min(quiz.pass, quiz.count);
+            return true;
+        }
         quiz.tuning = out.neckOnBass ? std::vector<int>{ 28, 33, 38, 43 } : std::vector<int>{ 40, 45, 50, 55, 59, 64 };
         const int strings = (int)quiz.tuning.size();
         lineNumber = quizNotesLine;

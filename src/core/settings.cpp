@@ -95,6 +95,7 @@ Settings loadSettings(const std::string& path, std::vector<std::string>& warning
             if (value == "guitar" || value == "bass") settings.heardInstrument = value == "bass" ? InputRole::Bass : InputRole::Guitar;
             else warnings.push_back("line " + std::to_string(lineNumber) + ": heard_instrument is guitar or bass, keeping default");
         }
+        else if (key == "learn_on_piano") settings.learnOnPiano = value == "1";
         else if (key == "monitor_drive" || key == "monitor_tone"){} // the small amp's, before tones
         else if (key == "preview_sound"){ if (!value.empty()) settings.previewSound = value; }
         else if (key == "note_view"){
@@ -159,6 +160,7 @@ bool saveSettings(const std::string& path, const Settings& settings, std::string
     out << "bass_tone " << settings.bassTone << "\n";
     out << "guitar_tone " << settings.guitarTone << "\n";
     out << "heard_instrument " << (settings.heardInstrument == InputRole::Guitar ? "guitar" : "bass") << "\n";
+    out << "learn_on_piano " << (settings.learnOnPiano ? 1 : 0) << "\n";
     out << "preview_sound " << settings.previewSound << "\n\n";
     out << "note_view";
     if (settings.noteViews.staff) out << " staff";

@@ -40,8 +40,10 @@ bool parseCourse(const std::string& source, const std::string& path, Course& out
         LessonStep& step = lesson()->steps.back();
         // The course's instrument, unless the exercise says (for the kinds that are played on one)
         const bool saysInstrument = block.find("\ninstrument ") != std::string::npos || block.rfind("instrument ", 0) == 0;
-        const bool playedOnOne = block.find("type notes") != std::string::npos || block.find("type neck") != std::string::npos;
-        if (out.bass && playedOnOne && !saysInstrument) block += "instrument bass\n";
+        const bool playedOnOne = block.find("type notes") != std::string::npos || block.find("type neck") != std::string::npos
+                                 || (out.instrument == ExerciseInstrument::Piano && block.find("type reading") != std::string::npos);
+        if (out.instrument != ExerciseInstrument::Guitar && playedOnOne && !saysInstrument)
+            block += out.instrument == ExerciseInstrument::Bass ? "instrument bass\n" : "instrument piano\n";
         std::string exerciseError;
         if (!parseExercise(block, path, blockLine, step.title.empty() ? lesson()->title : step.title, step.inlineExercise, exerciseError)){
             error = exerciseError;
@@ -87,8 +89,10 @@ bool parseCourse(const std::string& source, const std::string& path, Course& out
             if (key == "title") out.title = rest;
             else if (key == "description") out.description = rest;
             else if (key == "instrument"){
-                if (rest != "guitar" && rest != "bass") return lineError("instrument must be guitar or bass");
-                out.bass = rest == "bass";
+                if (rest == "guitar") out.instrument = ExerciseInstrument::Guitar;
+                else if (rest == "bass") out.instrument = ExerciseInstrument::Bass;
+                else if (rest == "piano") out.instrument = ExerciseInstrument::Piano;
+                else return lineError("instrument must be guitar, bass or piano");
             } else if (key == "author"){
             } else return lineError("unknown setting '" + key + "' before the first unit");
             continue;

@@ -54,6 +54,7 @@ static struct {
     // (running its destructor), so there's no manual delete to forget.
     std::unique_ptr<Exercise> exercise;
     InputRole instrument = InputRole::Guitar;         // what's played: only its courses and exercises are listed
+    bool piano = false;                               //   a piano instead (MIDI or the computer keyboard)
     bool instrumentChanged = false;                   //   switched this frame
     std::function<std::unique_ptr<Exercise>()> pending; // waiting for the tuning check
     bool tuningAsked = false;
@@ -88,17 +89,21 @@ static std::string progressPath(const ExerciseEntry& entry){
 }
 
 // Listed for the instrument played: one of its own, or one for any
+static ExerciseInstrument learnInstrument(){
+    if (learn.piano) return ExerciseInstrument::Piano;
+    return learn.instrument == InputRole::Bass ? ExerciseInstrument::Bass : ExerciseInstrument::Guitar;
+}
 static bool forInstrument(const ExerciseFile& exercise){
-    if (exercise.instrument == ExerciseInstrument::Any) return true;
-    return (exercise.instrument == ExerciseInstrument::Bass) == (learn.instrument == InputRole::Bass);
+    return exercise.instrument == ExerciseInstrument::Any || exercise.instrument == learnInstrument();
 }
 static bool forInstrument(const Course& course){
-    return course.bass == (learn.instrument == InputRole::Bass);
+    return course.instrument == learnInstrument();
 }
 
-// Something to start: played on the instrument, it waits for the tuning check (main asks, learnWantsTuning)
+// Something to start: played on the instrument, it waits for the tuning check (main asks, learnWantsTuning). A piano
+// is never out of tune.
 static void startWhenTuned(bool onInstrument, std::function<std::unique_ptr<Exercise>()> make){
-    if (!onInstrument){
+    if (!onInstrument || learn.piano){
         learn.exercise = make();
         return;
     }
@@ -123,10 +128,11 @@ bool learnInMenus(){
     return !learn.exercise || learn.exercise->isMenu();
 }
 
-bool learnChangedInstrument(InputRole& instrument){
+bool learnChangedInstrument(InputRole& instrument, bool& piano){
     if (!learn.instrumentChanged) return false;
     learn.instrumentChanged = false;
     instrument = learn.instrument;
+    piano = learn.piano;
     return true;
 }
 
@@ -393,6 +399,7 @@ static void endExercise(){
 void openLearnScreen(const LearnSetup& setup){
     learn.setup = setup;
     learn.instrument = setup.instrument;
+    learn.piano = setup.piano;
     learn.pending = nullptr;
     learn.exercise.reset();
     refreshExercises();
@@ -720,12 +727,14 @@ static void exerciseMenu(){
         int mode = 0;
         menuSwitchRow("MODE", modes, 2, mode, width * 0.55f, height * 0.09f + 14 * s, s);
         wantsEditor = mode == 1 || ImGui::IsKeyPressed(ImGuiKey_Tab);
-        // Under it, the instrument played: its courses and exercises (I switches)
-        const char* const instruments[] = { "GUITAR", "BASS" };
-        int played = learn.instrument == InputRole::Bass ? 1 : 0;
-        const bool clicked = menuSwitchRow("INSTRUMENT", instruments, 2, played, width * 0.55f, height * 0.165f, s);
+        // Under it, the instrument played: its courses and exercises (I goes round them)
+        const char* const instruments[] = { "GUITAR", "BASS", "PIANO" };
+        int played = learn.piano ? 2 : learn.instrument == InputRole::Bass ? 1 : 0;
+        const bool clicked = menuSwitchRow("INSTRUMENT", instruments, 3, played, width * 0.55f, height * 0.165f, s);
         if (clicked || ImGui::IsKeyPressed(ImGuiKey_I, false)){
-            learn.instrument = (clicked ? played == 1 : learn.instrument == InputRole::Guitar) ? InputRole::Bass : InputRole::Guitar;
+            if (!clicked) played = (played + 1) % 3;
+            learn.piano = played == 2;
+            if (!learn.piano) learn.instrument = played == 1 ? InputRole::Bass : InputRole::Guitar;
             learn.instrumentChanged = true;
             for (MenuList& sectionList : learn.sections) sectionList.selected = -1; // the lists changed
         }

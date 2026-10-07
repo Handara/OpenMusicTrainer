@@ -16,6 +16,7 @@ enum class NotePrompt { Neck, Name, Staff, Ear };
 
 struct NoteQuizConfig {
     std::vector<int> tuning = { 40, 45, 50, 55, 59, 64 };
+    bool piano = false;          // played on a piano's keys: one "string" tuned to 0, each note's fret its pitch
     std::vector<NeckStep> notes; // the notes asked, each where it's played (string 0 the lowest)
     NotePrompt prompt = NotePrompt::Neck;
     bool showWhere = false;      // the place on the neck shown too (a name or a note on the staff): to learn it

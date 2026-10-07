@@ -40,7 +40,7 @@ TEST_CASE("courses: units of small lessons, text and exercises written in place 
     std::string error;
     REQUIRE_MESSAGE(parseCourse(SAMPLE, "sample.course", course, error), error);
     CHECK(course.title == "Reading music");
-    CHECK_FALSE(course.bass);
+    CHECK(course.instrument == ExerciseInstrument::Guitar);
     REQUIRE(course.units.size() == 2);
     REQUIRE(course.lessons.size() == 3);
     CHECK(course.units[0].lessonCount == 2);
@@ -78,12 +78,31 @@ TEST_CASE("courses: a bass course's exercises are played on the bass"){
     Course course;
     std::string error;
     REQUIRE_MESSAGE(parseCourse(text, "bass.course", course, error), error);
-    CHECK(course.bass);
+    CHECK(course.instrument == ExerciseInstrument::Bass);
     const ExerciseFile& exercise = course.lessons[2].lesson.steps[0].inlineExercise;
     CHECK(exercise.neckOnBass);
     REQUIRE(exercise.noteQuiz.notes.size() == 1);
     CHECK(exercise.noteQuiz.notes[0].string == 1); // B1: the bass's A string, 2nd fret (the lowest place)
     CHECK(exercise.noteQuiz.notes[0].fret == 2);
+}
+
+TEST_CASE("courses: a piano course's notes are its keys"){
+    std::string text = SAMPLE;
+    text.replace(text.find("instrument guitar"), 17, "instrument piano");
+    text.replace(text.find("notes B3"), 8, "notes C4");
+    Course course;
+    std::string error;
+    REQUIRE_MESSAGE(parseCourse(text, "piano.course", course, error), error);
+    CHECK(course.instrument == ExerciseInstrument::Piano);
+    const ExerciseFile& exercise = course.lessons[2].lesson.steps[0].inlineExercise;
+    CHECK(exercise.instrument == ExerciseInstrument::Piano);
+    CHECK(exercise.noteQuiz.piano);
+    REQUIRE(exercise.noteQuiz.notes.size() == 1);
+    CHECK(exercise.noteQuiz.notes[0].pitch == 60);
+    CHECK(exercise.noteQuiz.notes[0].fret == 60); // one "string" tuned to 0: the fret is the key
+    // No strings to choose on a piano
+    text.replace(text.find("notes C4"), 8, "places 1:3");
+    CHECK_FALSE(parseCourse(text, "piano.course", course, error));
 }
 
 TEST_CASE("courses: mistakes are told by their line"){

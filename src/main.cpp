@@ -108,6 +108,7 @@ static void goToLearn(){
     LearnSetup setup{ app.resourcesDir + "exercises", app.userExercisesDir, app.resourcesDir + "lessons", app.userLessonsDir,
                       app.progressDir, app.settings };
     setup.instrument = instrument;
+    setup.piano = app.settings.learnOnPiano;
     openLearnScreen(setup);
     app.screen = Screen::Learn;
 }
@@ -730,8 +731,10 @@ static void runMenus(){
             learnScreen();
             // The instrument switched: kept as the one played now (and heard through its tone)
             InputRole played;
-            if (learnChangedInstrument(played)){
-                hearInstrument(app.settings, played);
+            bool piano = false;
+            if (learnChangedInstrument(played, piano)){
+                app.settings.learnOnPiano = piano;
+                if (!piano) hearInstrument(app.settings, played);
                 saveAppSettings();
             }
             // Something played on it about to start: in tune first, once a session, as before a song

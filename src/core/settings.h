@@ -54,6 +54,7 @@ struct Settings {
     std::string bassTone = "Clean";
     std::string guitarTone = "Clean";
     InputRole heardInstrument = InputRole::Bass;
+    bool learnOnPiano = false;         // Learn's instrument switch on PIANO (heardInstrument stays the guitar or bass)
     std::string& toneFor(InputRole role){ return role == InputRole::Guitar ? guitarTone : bassTone; }
     const std::string& toneFor(InputRole role) const { return role == InputRole::Guitar ? guitarTone : bassTone; }
 

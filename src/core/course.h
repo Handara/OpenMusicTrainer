@@ -15,7 +15,7 @@
 //   version 1
 //   title Reading music
 //   description From your first note on the staff to reading melodies.
-//   instrument guitar               (guitar or bass: the exercises written in place are played on it)
+//   instrument guitar               (guitar, bass or piano: the exercises written in place are played on it)
 //
 //   unit The high E string
 //
@@ -51,7 +51,7 @@ struct CourseLesson {
 struct Course {
     std::string title;
     std::string description;
-    bool bass = false;
+    ExerciseInstrument instrument = ExerciseInstrument::Guitar;
     std::vector<CourseUnit> units;
     std::vector<CourseLesson> lessons;
 };
