@@ -188,10 +188,11 @@ PlayerProfile buildProfile(const std::vector<Activity>& journal, int goalMinutes
             all.asked += note.asked;
             if (!knewIt && all.right >= KNOWN_NOTE_RIGHT) m[(int)Metric::NotesKnown]++;
             if (today - day < RECENT_DAYS){
-                NoteTally& recent = p.recentNotes[note.pitch];
-                recent.pitch = note.pitch;
-                recent.right += note.right;
-                recent.asked += note.asked;
+                for (NoteTally* recent : { &p.recentNotes[note.pitch], &p.recentByInstrument[a.instrument][note.pitch] }){
+                    recent->pitch = note.pitch;
+                    recent->right += note.right;
+                    recent->asked += note.asked;
+                }
             }
         }
         // Achievements reached with it, dated
@@ -237,9 +238,12 @@ ProfileChange profileChange(const PlayerProfile& before, const PlayerProfile& af
     return change;
 }
 
-std::vector<NoteTally> weakestNotes(const PlayerProfile& profile, int count, int minAsked){
+std::vector<NoteTally> weakestNotes(const PlayerProfile& profile, int count, int minAsked, const std::string& instrument){
     std::vector<NoteTally> notes;
-    for (const auto& [pitch, tally] : profile.recentNotes) if (tally.asked >= minAsked && tally.right < tally.asked) notes.push_back(tally);
+    static const std::map<int, NoteTally> NONE;
+    auto found = profile.recentByInstrument.find(instrument);
+    const std::map<int, NoteTally>& recent = instrument.empty() ? profile.recentNotes : found == profile.recentByInstrument.end() ? NONE : found->second;
+    for (const auto& [pitch, tally] : recent) if (tally.asked >= minAsked && tally.right < tally.asked) notes.push_back(tally);
     std::sort(notes.begin(), notes.end(), [](const NoteTally& a, const NoteTally& b){
         return (double)a.right / a.asked < (double)b.right / b.asked;
     });

@@ -131,4 +131,6 @@ TEST_CASE("the weakest notes: the ones most often wrong lately"){
     CHECK(weak[0].pitch == 65);
     CHECK(weak[1].pitch == 67);
     CHECK(weakestNotes(buildProfile({ a }, 10, DAY + 30), 2).empty()); // a month on: not recent any more
+    CHECK(weakestNotes(buildProfile({ a }, 10, DAY), 2, 4, "guitar").size() == 2); // played on the guitar
+    CHECK(weakestNotes(buildProfile({ a }, 10, DAY), 2, 4, "bass").empty());
 }

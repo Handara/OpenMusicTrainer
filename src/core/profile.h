@@ -74,6 +74,7 @@ struct PlayerProfile {
     std::set<std::string> drillsPassed; // passed at their challenge
     std::map<int, NoteTally> notes;      // by pitch: every note asked, how often right
     std::map<int, NoteTally> recentNotes; //   the same, the last 14 days only
+    std::map<std::string, std::map<int, NoteTally>> recentByInstrument; //   and by instrument ("guitar", "bass", "piano")
     std::vector<Unlock> unlocked;        // in the order earned
     bool isUnlocked(int achievement) const;
 };
@@ -94,5 +95,6 @@ struct ProfileChange {
 };
 ProfileChange profileChange(const PlayerProfile& before, const PlayerProfile& after);
 
-// The notes asked most often wrong lately (at least `minAsked` times asked), weakest first
-std::vector<NoteTally> weakestNotes(const PlayerProfile& profile, int count, int minAsked = 4);
+// The notes asked most often wrong lately (at least `minAsked` times asked), weakest first; on one instrument, or on
+// any ("")
+std::vector<NoteTally> weakestNotes(const PlayerProfile& profile, int count, int minAsked = 4, const std::string& instrument = "");

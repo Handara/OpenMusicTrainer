@@ -1,5 +1,6 @@
 #include "screens/learnscreen.h"
 
+#include "app/playerprogress.h"
 #include "core/course.h"
 #include "core/exercisefile.h"
 #include "core/lesson.h"
@@ -431,14 +432,55 @@ bool learnBack(){
 
 // What a row of the Learn menu stands for
 struct LearnRow {
-    enum Kind { Heading, Lesson, Exercise, OpenExercises, OpenLessons, Course } kind;
+    enum Kind { Heading, Lesson, Exercise, OpenExercises, OpenLessons, Course, Review } kind;
     int index; // into learn.lessons or learn.exercises
 };
+
+// The notes missed most lately on the instrument played (core/profile): reviewed when there are a few
+static const char* learnInstrumentName(){
+    return learn.piano ? "piano" : learn.instrument == InputRole::Bass ? "bass" : "guitar";
+}
+static std::vector<NoteTally> reviewNotes(){
+    return weakestNotes(playerProfile(), 6, 4, learnInstrumentName());
+}
+static std::string noteNames(const std::vector<NoteTally>& notes, const char* between){
+    std::string names;
+    for (size_t i = 0; i < notes.size(); i++) names += (i ? between : "") + std::string(pitchClassName(notes[i].pitch)) + std::to_string(pitchOctave(notes[i].pitch));
+    return names;
+}
+
+// A run of them, read on the staff: each asked three times or so, a slip showing where it is
+static void startReview(){
+    const std::vector<NoteTally> notes = reviewNotes();
+    if (notes.empty()) return;
+    const int count = std::max(8, (int)notes.size() * 3);
+    const std::string text = "type notes\nnotes " + noteNames(notes, " ") + "\nshow staff\n" + TextFormat("count %d\npass %d\n", count, count - 2)
+                           + "instrument " + learnInstrumentName() + "\n";
+    ExerciseEntry entry;
+    entry.name = "review";
+    entry.id = std::string("review-") + learnInstrumentName();
+    entry.builtIn = true;
+    std::string error;
+    if (!parseExercise(text, "review", 1, "Review: your weak notes", entry.exercise, error)){
+        TraceLog(LOG_WARNING, "Review: %s", error.c_str());
+        return;
+    }
+    countPlay(entry.id);
+    startWhenTuned(exercisePlayedOnInstrument(entry.exercise), [entry](){ return createExercise(entry); });
+}
 
 // The selected lesson or exercise, on a card on the right: its title, what it's about, who made it, how far you are
 static void drawAbout(const LearnRow& row, float s){
     std::string title, about, author, progress;
-    if (row.kind == LearnRow::Lesson){
+    if (row.kind == LearnRow::Review){
+        const std::vector<NoteTally> notes = reviewNotes();
+        title = "Review your weak notes";
+        about = std::string("The notes you've missed most these last two weeks on the ") + learnInstrumentName()
+              + ", read on the staff a few times each, until they're as easy as the rest.";
+        for (const NoteTally& note : notes)
+            progress += (progress.empty() ? "" : "   ") + std::string(pitchClassName(note.pitch)) + std::to_string(pitchOctave(note.pitch))
+                      + TextFormat(" %d%%", note.right * 100 / std::max(1, note.asked));
+    } else if (row.kind == LearnRow::Lesson){
         const LessonEntry& entry = learn.lessons[row.index];
         title = entry.lesson.title;
         about = entry.lesson.description;
@@ -746,6 +788,14 @@ static void exerciseMenu(){
         learn.section = section;
         list = &learn.sections[section];
         if (section == SectionLessons){
+            // First, the notes to review, when some have been missed often lately
+            const std::vector<NoteTally> weak = reviewNotes();
+            if (!weak.empty()){
+                MenuRow row;
+                row.label = "Review your weak notes";
+                row.detail = noteNames(weak, ", ");
+                add(row, { LearnRow::Review, -1 });
+            }
             // The courses, a path each, then the lessons on their own (the player's)
             for (int i = 0; i < (int)learn.courses.size(); i++){
                 const CourseEntry& entry = learn.courses[i];
@@ -801,7 +851,7 @@ static void exerciseMenu(){
     int confirmed = menuList(*list, rows, area);
     if (list->selected >= 0 && list->selected < (int)targets.size()) drawAbout(targets[list->selected], s);
     menuScreenHint(inKind ? "Up/Down  choose    Enter  start    Esc  back to the drills"
-                          : "Left/Right  section    Up/Down  choose    Enter  open    I  guitar or bass    Tab  edit lessons    Esc  back", s);
+                          : "Left/Right  section    Up/Down  choose    Enter  open    I  instrument    Tab  edit lessons    Esc  back", s);
     if (confirmed < 0) return;
     const LearnRow& target = targets[confirmed];
     if (!kinds[confirmed].empty()){
@@ -814,6 +864,8 @@ static void exerciseMenu(){
         countPlay(learn.exercises[target.index].id);
         const ExerciseEntry entry = learn.exercises[target.index];
         startWhenTuned(exercisePlayedOnInstrument(entry.exercise), [entry](){ return createExercise(entry); });
+    } else if (target.kind == LearnRow::Review){
+        startReview();
     } else if (target.kind == LearnRow::Course){
         learn.openCourse = target.index;
         learn.openLevel = -1;
