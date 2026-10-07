@@ -129,7 +129,7 @@ def beat_drill(instrument, name, notes, where, key=None):
     lines = [f"drill {name}", "type reading", "notes " + " ".join(notes)]
     if where:
         lines.append("where yes")
-    lines += ["cells quarter", f"bars {BEAT_BARS}", BEAT_TEMPO, f"pass {BEAT_PASS}", "goal 1"]
+    lines += ["cells quarter", f"bars {BEAT_BARS}", BEAT_TEMPO, BEAT_CHALLENGE, f"pass {BEAT_PASS}", "goal 1"]
     if key:
         tonic, mode = key.split()
         lines += [f"key {tonic}", f"scale {'major' if mode == 'major' else 'minor'}"]
@@ -162,6 +162,7 @@ def timed_chapter(instrument, title, text, strings, frets, cells, tempos, key="C
 BEAT_BARS = 10  # a run to a beat: ten bars, forty quarter notes
 BEAT_PASS = 87  # 35 of the 40 notes (87.5%) pass it
 BEAT_TEMPO = "tempo 90 120 5"  # notes at random: from 90 bpm, up to 120
+BEAT_CHALLENGE = "challenge 100"  # passed with a clean pass at 100 bpm: slower is practice
 SLOW = [("Slowly", 60, 80), ("Steady", 75, 100), ("Moving on", 90, 120)]
 
 # What each instrument's course goes through: its open strings, top to bottom, a note a chapter; then what follows

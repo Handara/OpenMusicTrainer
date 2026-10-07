@@ -62,6 +62,7 @@ void CourseChapter::startDrill(int index){
     passedAt = -1.0;
     lastPercent = -1;
     running = create(entries[index]);
+    if (running && running->hasEndMenu()) running->offerNext(nextLabel()); // there from the first run, scored or not
 }
 
 void CourseChapter::stopDrill(){

@@ -28,6 +28,7 @@ const double WAITING_SHOWN_S = 1.0;
 const float HIT_LINE_X = 180.0f;
 const int MAX_KEY_LANES = 6;
 const float HIT_RING_S = 0.6f;      // shown where: the ring round a note hit, on the neck
+const int TEMPO_CHOICE_STEP = 5;    // Up and Down, waiting to start: the tempo chosen, this much at a time
 
 // A name's number, the same on every machine (FNV-1a): a drill's id gives it its band's style
 static unsigned stableHash(const std::string& text){
@@ -120,9 +121,11 @@ void DrillExercise::placePass(double downbeat){
 void DrillExercise::finishPass(){
     int total = (int)notes.size();
     float accuracy = total > 0 ? 100.0f * hits / total : 0.0f;
-    finishedPercent = (int)accuracy;
+    // Only a pass at the challenge's tempo or faster counts for the drill (a course's score): slower is practice
+    const bool challenge = tempo >= drillChallengeTempo(setup.tempo);
+    finishedPercent = challenge ? (int)accuracy : -1;
     DrillPassOutcome outcome = finishDrillPass(setup.tempo, progress, tempo, accuracy);
-    if (outcome.clean) cleanPassesNow++;
+    if (outcome.clean && challenge) cleanPassesNow++;
     std::string error;
     saveDrillProgress(progressPath, progress, error);
     endTempo = tempo;
@@ -159,6 +162,18 @@ void DrillExercise::update(){
         // Waiting: Space, or Enter (the instrument's choose, through the menus' listening) starts. The end menu
         // handles its own keys as it's drawn.
         if (ImGui::IsKeyPressed(ImGuiKey_M, false)) toggleBand(); // (not B: on the keyboard, B is a note)
+        // Waiting, the tempo's the player's to choose (the instrument's A and D strings too): from the slowest the
+        // drill goes to its goal
+        if (stage == Stage::Waiting){
+            const int change = ImGui::IsKeyPressed(ImGuiKey_UpArrow) ? TEMPO_CHOICE_STEP : ImGui::IsKeyPressed(ImGuiKey_DownArrow) ? -TEMPO_CHOICE_STEP : 0;
+            if (change != 0){
+                progress.tempo = std::clamp(drillTempo(setup.tempo, progress) + change, slowestDrillTempo(setup.tempo),
+                                            std::max(setup.tempo.startTempo, setup.tempo.maxTempo));
+                tempo = progress.tempo;
+                std::string error;
+                saveDrillProgress(progressPath, progress, error);
+            }
+        }
         if (stage == Stage::Waiting && (ImGui::IsKeyPressed(ImGuiKey_Space, false) || ImGui::IsKeyPressed(ImGuiKey_Enter, false)
                                         || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false))){
             stage = Stage::Running;
@@ -244,7 +259,8 @@ void DrillExercise::draw(){
     drawScoreboard({
         { "TEMPO", TextFormat("%d", shownTempo), UiColor::Ink, "bpm" },
         { "BEST CLEAN", progress.bestCleanTempo > 0 ? std::string(TextFormat("%d", progress.bestCleanTempo)) : std::string("-"), UiColor::Accent, "bpm" },
-        { "GOAL", TextFormat("%d", setup.tempo.maxTempo), progress.bestCleanTempo >= setup.tempo.maxTempo ? UiColor::Good : UiColor::Ink, "bpm" },
+        { "TO PASS", TextFormat("%d", drillChallengeTempo(setup.tempo)), progress.bestCleanTempo >= drillChallengeTempo(setup.tempo) ? UiColor::Good : UiColor::Ink,
+          progress.bestCleanTempo >= drillChallengeTempo(setup.tempo) ? "bpm: passed" : "bpm, clean" },
     }, ImGui::GetWindowWidth() * 0.93f, ImGui::GetWindowHeight() * 0.03f + 36 * menuScale(), menuScale());
     if (stage == Stage::Ended){
         drawEnd(menuScale());
@@ -253,8 +269,11 @@ void DrillExercise::draw(){
     // (shown where: the title says what's read, and an input's error takes its line's place, for the neck's room)
     if (!setup.showWhere) centeredColoredText(setup.about.c_str(), uiColor(UiColor::Dim));
     if (!running){
-        centeredText(menuInputActive() ? "Press Space or play the open G string to start. One bar counts in, then play along."
-                                       : "Press Space to start. One bar counts in, then play along.");
+        centeredText(menuInputActive() ? "Space or the open G string to start. Up and Down (the A and D strings): the tempo."
+                                       : "Space to start, one bar counting in. Up and Down: the tempo.");
+        const int challenge = drillChallengeTempo(setup.tempo);
+        if (shownTempo < challenge)
+            centeredColoredText(TextFormat("Practice: a clean pass at %d bpm or faster passes the drill", challenge), uiColor(UiColor::Dim));
         centeredColoredText(bandOn ? TextFormat("With a %s band, its chords fitting your notes.  M: the metronome alone", bandStyleName(bandStyle))
                                    : "With the metronome.  M: a band instead", uiColor(UiColor::Accent));
     } else {
@@ -320,52 +339,71 @@ void DrillExercise::drawWhere(float left, float right, float top, float bottom, 
 
 // How the pass went, big, then what to do: again (at the tempo it earned), the other tempo, the course's next drill,
 // back. Chosen with the arrows and Enter, the mouse, or the instrument (its strings, or each row's own note).
+// How the pass went, big, then what to do. Clean but slower than the challenge: faster, or the challenge itself.
+// Passed at the challenge: on to the next drill, or faster still. Not clean: again a little slower, or the same. Chosen
+// with the arrows and Enter, the mouse, or the instrument (its strings, or each row's own note).
 void DrillExercise::drawEnd(float s){
     ImDrawList* draw = ImGui::GetWindowDrawList();
     const UiFonts& fonts = uiFonts();
     const float width = ImGui::GetWindowWidth(), height = ImGui::GetWindowHeight(), left = width * 0.07f;
     const bool clean = endOutcome.clean;
+    const int challenge = drillChallengeTempo(setup.tempo);
+    const bool atChallenge = endTempo >= challenge, passed = clean && atChallenge;
     const int percent = endTotal > 0 ? endHits * 100 / endTotal : 0, toPass = (endTotal * setup.tempo.passPercent + 99) / 100;
     const float grow = 1.0f + 0.25f * std::exp(-(float)(GetTime() - endedAt) * 8.0f);
     float y = height * 0.19f;
-    draw->AddText(fonts.heavy, 54 * s * grow, ImVec2(left, y), uiColor(clean ? UiColor::Good : UiColor::Ink), clean ? "Clean!" : "Not yet");
+    draw->AddText(fonts.heavy, 54 * s * grow, ImVec2(left, y), uiColor(clean ? UiColor::Good : UiColor::Ink), passed ? "Passed!" : clean ? "Clean!" : "Not yet");
     y += 70 * s;
     draw->AddText(fonts.bold, 20 * s, ImVec2(left, y), uiColor(UiColor::Ink),
                   TextFormat("%d of %d notes at %d bpm: %d%%  (%d to pass)", endHits, endTotal, endTempo, percent, toPass));
     y += 30 * s;
-    if (endOutcome.newBest) draw->AddText(fonts.bold, 18 * s, ImVec2(left, y), uiColor(UiColor::Accent), "New best clean tempo!");
+    const char* line = passed ? (endOutcome.newBest ? "New best clean tempo!" : "")
+                     : clean ? TextFormat("Now the challenge: clean at %d bpm passes the drill", challenge)
+                     : atChallenge ? "A little slower to get it clean, then back up" : "";
+    draw->AddText(fonts.bold, 18 * s, ImVec2(left, y), uiColor(UiColor::Accent), line);
 
     // The choices
-    const int next = drillTempo(setup.tempo, progress); // what the pass earned: faster, the same, or slower
-    const int faster = std::min(setup.tempo.maxTempo, endTempo + setup.tempo.tempoStep);
-    enum class Choice { Again, Tempo, Next, Back };
+    const int next = drillTempo(setup.tempo, progress); // what the pass earned: 5 faster when clean, else 5 slower
+    const int faster = std::min(setup.tempo.maxTempo, endTempo + TEMPO_CHOICE_STEP);
+    enum class Choice { Play, Next, Back };
     std::vector<MenuRow> rows;
     std::vector<std::pair<Choice, int>> choices; // with the tempo it plays at
     auto add = [&](const std::string& label, Choice choice, int at, const std::string& key = ""){
         rows.push_back(actionRow(label, key));
         choices.push_back({ choice, at });
     };
-    add(next > endTempo ? TextFormat("Again, faster: %d bpm", next) : next < endTempo ? TextFormat("Again, slower: %d bpm", next)
-                        : TextFormat("Again: %d bpm", next), Choice::Again, next, "Space");
-    if (next != endTempo) add(TextFormat("Same tempo: %d bpm", endTempo), Choice::Tempo, endTempo);
-    else if (faster > endTempo) add(TextFormat("Faster: %d bpm", faster), Choice::Tempo, faster);
-    if (!nextLabel.empty()) add(nextLabel, Choice::Next, 0, "N");
+    if (passed){
+        if (!nextLabel.empty()) add(nextLabel, Choice::Next, 0, "N");
+        if (faster > endTempo) add(TextFormat("Faster: %d bpm", faster), Choice::Play, faster, nextLabel.empty() ? "Space" : "");
+        add(TextFormat("Again: %d bpm", endTempo), Choice::Play, endTempo);
+    } else if (clean){
+        if (faster > endTempo) add(TextFormat("Faster: %d bpm", faster), Choice::Play, faster, "Space");
+        add(TextFormat("Try the passing challenge: %d bpm", challenge), Choice::Play, challenge, "C");
+        add(TextFormat("Same tempo: %d bpm", endTempo), Choice::Play, endTempo);
+        if (!nextLabel.empty()) add(nextLabel, Choice::Next, 0, "N");
+    } else {
+        add(next < endTempo ? TextFormat("Again, slower: %d bpm", next) : TextFormat("Again: %d bpm", next), Choice::Play, next, "Space");
+        if (next != endTempo) add(TextFormat("Same tempo: %d bpm", endTempo), Choice::Play, endTempo);
+        if (endTempo != challenge) add(TextFormat("Try the passing challenge: %d bpm", challenge), Choice::Play, challenge, "C");
+        if (!nextLabel.empty()) add(nextLabel, Choice::Next, 0, "N");
+    }
     add("Back", Choice::Back, 0, "Esc");
     int picked = menuList(endMenu, rows, { ImVec2(left, height * 0.42f), width * 0.5f, height * 0.45f, s });
-    if (ImGui::IsKeyPressed(ImGuiKey_N, false))
-        for (size_t i = 0; i < choices.size(); i++) if (choices[i].first == Choice::Next) picked = (int)i;
+    for (size_t i = 0; i < choices.size(); i++){ // the shortcuts: N the next drill, C the challenge
+        if (ImGui::IsKeyPressed(ImGuiKey_N, false) && choices[i].first == Choice::Next) picked = (int)i;
+        if (ImGui::IsKeyPressed(ImGuiKey_C, false) && rows[i].key == "C") picked = (int)i;
+    }
     if (picked >= 0 && picked < (int)choices.size()){
         const auto [choice, at] = choices[(size_t)picked];
         switch (choice){
-            case Choice::Again: case Choice::Tempo:
-                if (choice == Choice::Tempo){
-                    progress.tempo = at;
-                    std::string error;
-                    saveDrillProgress(progressPath, progress, error);
-                }
+            case Choice::Play: {
+                progress.tempo = at;
+                std::string error;
+                saveDrillProgress(progressPath, progress, error);
                 stage = Stage::Running;
                 startPass(false); // the notes ready behind the menu
                 break;
+            }
             case Choice::Next: nextChosen = true; break;
             case Choice::Back: leave = true; break;
         }

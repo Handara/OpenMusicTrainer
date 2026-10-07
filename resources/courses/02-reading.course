@@ -17,6 +17,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill E, on your own
@@ -25,6 +26,7 @@ notes E4
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -37,6 +39,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill E and F, shown where
@@ -46,6 +49,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill E and F, on your own
@@ -54,6 +58,7 @@ notes E4 F4
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -66,6 +71,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill E, F and G, shown where
@@ -75,6 +81,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill E, F and G, on your own
@@ -83,6 +90,7 @@ notes E4 F4 G4
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -95,6 +103,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill On your own
@@ -103,6 +112,7 @@ notes E4 F4 G4
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -118,6 +128,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill B, on your own
@@ -126,6 +137,7 @@ notes B3
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill Mixed with what you know
@@ -134,6 +146,7 @@ notes E4 F4 G4 B3
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -146,6 +159,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill B and C, shown where
@@ -155,6 +169,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill B and C, on your own
@@ -163,6 +178,7 @@ notes B3 C4
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill Mixed with what you know
@@ -171,6 +187,7 @@ notes E4 F4 G4 B3 C4
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -183,6 +200,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill B, C and D, shown where
@@ -192,6 +210,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill B, C and D, on your own
@@ -200,6 +219,7 @@ notes B3 C4 D4
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill Mixed with what you know
@@ -208,6 +228,7 @@ notes E4 F4 G4 B3 C4 D4
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -220,6 +241,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill On your own
@@ -228,6 +250,7 @@ notes E4 F4 G4 B3 C4 D4
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -243,6 +266,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill G, on your own
@@ -251,6 +275,7 @@ notes G3
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill Mixed with what you know
@@ -259,6 +284,7 @@ notes E4 F4 G4 B3 C4 D4 G3
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -271,6 +297,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill G and A, shown where
@@ -280,6 +307,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill G and A, on your own
@@ -288,6 +316,7 @@ notes G3 A3
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill Mixed with what you know
@@ -296,6 +325,7 @@ notes E4 F4 G4 B3 C4 D4 G3 A3
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -308,6 +338,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill On your own
@@ -316,6 +347,7 @@ notes E4 F4 G4 B3 C4 D4 G3 A3
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -332,6 +364,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill D, on your own
@@ -340,6 +373,7 @@ notes D3
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill Mixed with what you know
@@ -348,6 +382,7 @@ notes E4 F4 G4 B3 C4 D4 G3 A3 D3
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -360,6 +395,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill D and E, shown where
@@ -369,6 +405,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill D and E, on your own
@@ -377,6 +414,7 @@ notes D3 E3
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill Mixed with what you know
@@ -385,6 +423,7 @@ notes F4 G4 B3 C4 D4 G3 A3 D3 E3
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -397,6 +436,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill D, E and F, shown where
@@ -406,6 +446,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill D, E and F, on your own
@@ -414,6 +455,7 @@ notes D3 E3 F3
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill Mixed with what you know
@@ -422,6 +464,7 @@ notes G4 B3 C4 D4 G3 A3 D3 E3 F3
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -434,6 +477,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill On your own
@@ -442,6 +486,7 @@ notes G4 B3 C4 D4 G3 A3 D3 E3 F3
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -457,6 +502,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill A, on your own
@@ -465,6 +511,7 @@ notes A2
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill Mixed with what you know
@@ -473,6 +520,7 @@ notes B3 C4 D4 G3 A3 D3 E3 F3 A2
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -485,6 +533,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill A and B, shown where
@@ -494,6 +543,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill A and B, on your own
@@ -502,6 +552,7 @@ notes A2 B2
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill Mixed with what you know
@@ -510,6 +561,7 @@ notes C4 D4 G3 A3 D3 E3 F3 A2 B2
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -522,6 +574,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill A, B and C, shown where
@@ -531,6 +584,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill A, B and C, on your own
@@ -539,6 +593,7 @@ notes A2 B2 C3
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill Mixed with what you know
@@ -547,6 +602,7 @@ notes D4 G3 A3 D3 E3 F3 A2 B2 C3
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -559,6 +615,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill On your own
@@ -567,6 +624,7 @@ notes D4 G3 A3 D3 E3 F3 A2 B2 C3
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -582,6 +640,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill E, on your own
@@ -590,6 +649,7 @@ notes E2
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill Mixed with what you know
@@ -598,6 +658,7 @@ notes G3 A3 D3 E3 F3 A2 B2 C3 E2
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -610,6 +671,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill E and F, shown where
@@ -619,6 +681,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill E and F, on your own
@@ -627,6 +690,7 @@ notes E2 F2
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill Mixed with what you know
@@ -635,6 +699,7 @@ notes A3 D3 E3 F3 A2 B2 C3 E2 F2
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -647,6 +712,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill E, F and G, shown where
@@ -656,6 +722,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill E, F and G, on your own
@@ -664,6 +731,7 @@ notes E2 F2 G2
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill Mixed with what you know
@@ -672,6 +740,7 @@ notes D3 E3 F3 A2 B2 C3 E2 F2 G2
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -684,6 +753,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill On your own
@@ -692,6 +762,7 @@ notes D3 E3 F3 A2 B2 C3 E2 F2 G2
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -707,6 +778,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill On your own
@@ -715,6 +787,7 @@ notes G3 A3 B3 C4 D4 E4 F4 G4
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -727,6 +800,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill On your own
@@ -735,6 +809,7 @@ notes D3 E3 F3 G3 A3 B3 C4
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -747,6 +822,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill On your own
@@ -755,6 +831,7 @@ notes E2 F2 G2 A2 B2 C3 D3 E3 F3
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -767,6 +844,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill On your own
@@ -775,6 +853,7 @@ notes E2 G2 C3 F3 A3 D4 G4
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -787,6 +866,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill On your own
@@ -795,6 +875,7 @@ notes E2 F2 G2 A2 B2 C3 D3 E3 F3 G3 A3 B3 C4 D4 E4 F4 G4
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -810,6 +891,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill E, F, G and A, shown where
@@ -819,6 +901,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill E, F, G and A, on your own
@@ -827,6 +910,7 @@ notes E4 F4 G4 A4
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill Mixed with what you know
@@ -835,6 +919,7 @@ notes E3 F3 A2 B2 C3 E2 F2 G2 A4
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -847,6 +932,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill F, G, A and B, shown where
@@ -856,6 +942,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill F, G, A and B, on your own
@@ -864,6 +951,7 @@ notes F4 G4 A4 B4
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill Mixed with what you know
@@ -872,6 +960,7 @@ notes F3 A2 B2 C3 E2 F2 G2 A4 B4
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -884,6 +973,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill G, A, B and C, shown where
@@ -893,6 +983,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill G, A, B and C, on your own
@@ -901,6 +992,7 @@ notes G4 A4 B4 C5
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill Mixed with what you know
@@ -909,6 +1001,7 @@ notes A2 B2 C3 E2 F2 G2 A4 B4 C5
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -925,6 +1018,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill E, F, G and F sharp, shown where
@@ -934,6 +1028,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill E, F, G and F sharp, on your own
@@ -942,6 +1037,7 @@ notes E4 F4 G4 F#4
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill Mixed with what you know
@@ -950,6 +1046,7 @@ notes B2 C3 E2 F2 G2 A4 B4 C5 F#4
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -962,6 +1059,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill B, C, D and C sharp, shown where
@@ -971,6 +1069,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill B, C, D and C sharp, on your own
@@ -979,6 +1078,7 @@ notes B3 C4 D4 C#4
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill Mixed with what you know
@@ -987,6 +1087,7 @@ notes C3 E2 F2 G2 A4 B4 C5 F#4 C#4
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -999,6 +1100,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill G, A and G sharp, shown where
@@ -1008,6 +1110,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill G, A and G sharp, on your own
@@ -1016,6 +1119,7 @@ notes G3 A3 G#3
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill Mixed with what you know
@@ -1024,6 +1128,7 @@ notes E2 F2 G2 A4 B4 C5 F#4 C#4 G#3
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -1037,6 +1142,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill A, B and B flat, shown where
@@ -1046,6 +1152,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill A, B and B flat, on your own
@@ -1054,6 +1161,7 @@ notes A3 B3 Bb3
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill Mixed with what you know
@@ -1062,6 +1170,7 @@ notes F2 G2 A4 B4 C5 F#4 C#4 G#3 Bb3
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -1074,6 +1183,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill D, E and E flat, shown where
@@ -1083,6 +1193,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill D, E and E flat, on your own
@@ -1091,6 +1202,7 @@ notes D4 E4 Eb4
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill Mixed with what you know
@@ -1099,6 +1211,7 @@ notes G2 A4 B4 C5 F#4 C#4 G#3 Bb3 Eb4
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -1111,6 +1224,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill E, F, G and F sharp, shown where
@@ -1120,6 +1234,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill E, F, G and F sharp, on your own
@@ -1128,6 +1243,7 @@ notes E3 F3 G3 F#3
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill Mixed with what you know
@@ -1136,6 +1252,7 @@ notes A4 B4 C5 F#4 C#4 G#3 Bb3 Eb4 F#3
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -1148,6 +1265,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill B, C, D and C sharp, shown where
@@ -1157,6 +1275,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill B, C, D and C sharp, on your own
@@ -1165,6 +1284,7 @@ notes B2 C3 D3 C#3
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill Mixed with what you know
@@ -1173,6 +1293,7 @@ notes B4 C5 F#4 C#4 G#3 Bb3 Eb4 F#3 C#3
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -1185,6 +1306,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill E, F, G and F sharp, shown where
@@ -1194,6 +1316,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill E, F, G and F sharp, on your own
@@ -1202,6 +1325,7 @@ notes E2 F2 G2 F#2
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 drill Mixed with what you know
@@ -1210,6 +1334,7 @@ notes C5 F#4 C#4 G#3 Bb3 Eb4 F#3 C#3 F#2
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 
@@ -1225,6 +1350,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 key G
@@ -1235,6 +1361,7 @@ notes D3 E3 F#3 G3 A3 B3 C4 D4 E4 F#4 G4
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 key G
@@ -1249,6 +1376,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 key D
@@ -1259,6 +1387,7 @@ notes D3 E3 F#3 G3 A3 B3 C#4 D4 E4 F#4 G4
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 key D
@@ -1273,6 +1402,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 key F
@@ -1283,6 +1413,7 @@ notes C3 D3 E3 F3 G3 A3 Bb3 C4 D4 E4 F4
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 key F
@@ -1297,6 +1428,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 key A
@@ -1307,6 +1439,7 @@ notes A2 B2 C#3 E3 F#3 G#3 A3 B3 C#4 E4 F#4
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 key A
@@ -1321,6 +1454,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 key Bb
@@ -1331,6 +1465,7 @@ notes Bb2 C3 D3 Eb3 F3 G3 A3 Bb3 C4 D4 Eb4 F4
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 key Bb
@@ -1345,6 +1480,7 @@ where yes
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 key E
@@ -1355,6 +1491,7 @@ notes E2 F#2 G#2 B2 C#3 E3 F#3 G#3 B3 C#4 E4
 cells quarter
 bars 10
 tempo 90 120 5
+challenge 100
 pass 87
 goal 1
 key E

@@ -42,6 +42,7 @@
 //   direction up_down            (up, down or up_down)
 //   notes_per_beat 2             (1 to 4)
 //   tempo 60 160 4               (start, goal, step, in bpm)
+//   challenge 100                (a clean pass this fast passes the drill; slower is practice. Standard: the start)
 //   pass 90                      (percent right for a pass to count as clean and speed up)
 //   tuning 40 45 50 55 59 64     (MIDI pitch per string, lowest first)
 //

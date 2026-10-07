@@ -20,7 +20,7 @@ static bool atLineEnd(std::istringstream& ss){
     return ss.eof();
 }
 
-// Reads a drill's tempo rules (tempo, pass), shared by scale and rhythm drills. Returns false if `key` isn't one;
+// Reads a drill's tempo rules (tempo, pass, challenge), shared by scale and rhythm drills. Returns false if `key` isn't one;
 // a wrong value is reported through lineError while still returning true.
 template <typename LineError>
 static bool readTempoSetting(const std::string& key, std::istringstream& ss, DrillTempo& tempo, LineError& lineError){
@@ -33,6 +33,10 @@ static bool readTempoSetting(const std::string& key, std::istringstream& ss, Dri
     }
     if (key == "pass"){
         if (!(ss >> tempo.passPercent) || tempo.passPercent < 1 || tempo.passPercent > 100) lineError("pass must be a percentage, 1 to 100");
+        return true;
+    }
+    if (key == "challenge"){
+        if (!(ss >> tempo.challengeTempo) || tempo.challengeTempo < 20 || tempo.challengeTempo > 400) lineError("challenge must be a tempo, 20 to 400 bpm");
         return true;
     }
     return false;

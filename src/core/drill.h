@@ -18,7 +18,10 @@ struct DrillTempo {
     int maxTempo = 160;
     int tempoStep = 4;
     int passPercent = 90;               // a pass this accurate or better is clean: the tempo goes up
+    int challengeTempo = 0;             // a clean pass at this tempo or faster passes the drill (a course's); 0: the start
 };
+// The tempo a clean pass must be played at, at least, to pass the drill: below it, it's practice
+inline int drillChallengeTempo(const DrillTempo& rules){ return rules.challengeTempo > 0 ? rules.challengeTempo : rules.startTempo; }
 
 struct ScaleDrillConfig {
     int rootPitchClass = 7;             // G
