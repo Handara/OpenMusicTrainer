@@ -1,14 +1,14 @@
-# lahn course: written by tools/courses/make_ear_course.py (change it there, and run it again)
+# hardthz course: written by tools/courses/make_ear_course.py (change it there, and run it again)
 version 1
 title Ear training
-description lahn plays a note, you find it on your bass and play it back: from two notes far apart to every note of a scale, then intervals by name.
+description hardthz plays a note, you find it on your bass and play it back: from two notes far apart to every note of a scale, then intervals by name.
 instrument bass
 
 
 unit Hear it, find it
 
 lesson High or low
-text lahn plays an open string: the E string or the G string. They're far apart: listen, and play the one you hear.
+text hardthz plays an open string: the E string or the G string. They're far apart: listen, and play the one you hear.
 text The first drill shows you where it is as it plays: sound and place, together. Then by ear: every string it could be is outlined. Space plays it again.
 drill Heard and shown
 type notes

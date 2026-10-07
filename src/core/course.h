@@ -11,7 +11,7 @@
 // written in place or named), each drill scored by its best run; a chapter opens once the one before is passed. One
 // text file.
 //
-//   # lahn course
+//   # hardthz course
 //   version 1
 //   title Reading music
 //   description From your first note on the staff to reading melodies.

@@ -58,7 +58,7 @@ TEST_CASE("the streak and progress"){
     CHECK(trainer.progress.asked == 4);
     CHECK(trainer.progress.correct == 3);
 
-    fs::path path = fs::temp_directory_path() / "lahn_tests" / "fretboard_progress.txt";
+    fs::path path = fs::temp_directory_path() / "hardthz_tests" / "fretboard_progress.txt";
     fs::create_directories(path.parent_path());
     std::string error;
     REQUIRE_MESSAGE(saveQuizProgress(path.string(), trainer.progress, error), error);
@@ -69,7 +69,7 @@ TEST_CASE("the streak and progress"){
 }
 
 static std::string writeExercise(const std::string& name, const std::string& content){
-    fs::path path = fs::temp_directory_path() / "lahn_tests" / "exercises" / name;
+    fs::path path = fs::temp_directory_path() / "hardthz_tests" / "exercises" / name;
     fs::create_directories(path.parent_path());
     std::ofstream(path, std::ios::binary) << content;
     return path.string();

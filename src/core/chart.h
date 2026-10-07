@@ -43,7 +43,7 @@ struct FrettedTrack {
     std::string name;
     std::vector<int> tuning;        // MIDI pitch per string, lowest first; its size is the string count
     std::vector<FrettedNote> notes; // sorted by tick
-    // What a note hit in the game sounds like: "" for the part's own instrument (lahn's bass or clean guitar), or one
+    // What a note hit in the game sounds like: "" for the part's own instrument (hardthz's bass or clean guitar), or one
     // of HIT_SOUNDS. In the file: "hit_sound <name>" after the tuning, left out for the instrument.
     std::string hitSound;
 };

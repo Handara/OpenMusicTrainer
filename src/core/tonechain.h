@@ -55,12 +55,12 @@ struct Tone {
     float volume = 0.8f;         // after them all, 0..1
 };
 
-// Tones that come with lahn, the first the default: a clean one, and a few to start from
+// Tones that come with hardthz, the first the default: a clean one, and a few to start from
 const std::vector<Tone>& builtInTones();
 const Tone* findBuiltInTone(const std::string& name);
 
 // The text of a tone file, and reading one back. Reading is lenient, like the settings: an unknown effect or setting
-// is skipped (a tone from a newer lahn still loads), a missing setting takes its standard value, values are kept in
+// is skipped (a tone from a newer hardthz still loads), a missing setting takes its standard value, values are kept in
 // range. False, with why, only for text that isn't a tone at all.
 const char* const TONE_FILE_EXTENSION = ".tone";
 std::string writeTone(const Tone& tone);

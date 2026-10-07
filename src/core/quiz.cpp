@@ -38,7 +38,7 @@ QuizProgress loadQuizProgress(const std::string& path){
 
 bool saveQuizProgress(const std::string& path, const QuizProgress& progress, std::string& error){
     std::ostringstream out;
-    out << "# lahn progress: a quiz\n";
+    out << "# hardthz progress: a quiz\n";
     out << "version 1\n";
     out << "asked " << progress.asked << "\n";
     out << "correct " << progress.correct << "\n";

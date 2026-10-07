@@ -2,11 +2,12 @@
 
 #include <string>
 
-// Song packages: a whole song in one file to share, a .lahn file. It's a plain zip (any zip tool opens it) holding
+// Song packages: a whole song in one file to share, a .hardthz file. It's a plain zip (any zip tool opens it) holding
 // the song's files side by side: song.chart, the audio the chart names, its video if it names one, and cover.png or
 // cover.jpg if the song has one. Nothing else goes in.
 
-const char* const SONG_PACKAGE_EXTENSION = ".lahn";
+const char* const SONG_PACKAGE_EXTENSION = ".hardthz";
+const char* const OLD_SONG_PACKAGE_EXTENSION = ".lahn"; // the songs packed when the game was called lahn: still taken
 
 // Packs the song in `songFolder` into `packagePath` (replacing any file there only once the new one is complete).
 // `withVideo`: its video too, when it has one; without, the package is much smaller and the song plays the same.

@@ -18,7 +18,7 @@ std::vector<std::string> inputDeviceNames(); // Windows' own inputs, then the AS
 bool setOutputDevice(const std::string& outputDevice, std::string& error); // restarts output: stops any song
 const char* outputDeviceName(); // the device actually in use
 double outputLatencySeconds();  // the output's buffering: how late sound leaves, at the least (the global offset covers it)
-// lahn plays through the ASIO driver the input is on, both ways in one callback (see startCapture): Windows' output
+// hardthz plays through the ASIO driver the input is on, both ways in one callback (see startCapture): Windows' output
 // device is then unused until the driver closes
 bool outputIsAsio();
 void setMasterVolume(float volume); // 0..1
@@ -116,7 +116,7 @@ void playHitSound(bool perfect);
 // between startCapture and stopCapture.
 bool startCapture(const std::string& inputDevice, std::string& error);
 void stopCapture();
-// Hearing the instrument through lahn, wherever the player is in the game: its inputs, straight from the input device,
+// Hearing the instrument through hardthz, wherever the player is in the game: its inputs, straight from the input device,
 // through a small amp (core/tone: volume, drive, tone), to the speakers. `inputs`: which of the device's inputs (the
 // guitar's and bass's); empty for every one but `excluded` (the voice's: a microphone in the speakers would howl).
 // While it's on, the input device stays open between screens, and the screens that listen share it. It adds the
@@ -134,15 +134,15 @@ int monitorSampleRate();                    // its rate, 0 while it isn't listen
 void playSynthNote(float frequency, float volume);
 void releaseSynthNote(); // the string muted: the note fades out
 
-// Windows: take the input device for lahn alone (WASAPI exclusive mode), past the effects Windows puts on
+// Windows: take the input device for hardthz alone (WASAPI exclusive mode), past the effects Windows puts on
 // microphones. Its noise suppression lets an instrument through only while someone speaks: on a Scarlett Solo, a
 // bass alone came through near silent, and at full strength the moment someone sang. Other programs can't use the
-// device while lahn listens. When it can't be had alone (another program has it that way), it's shared as usual.
+// device while hardthz listens. When it can't be had alone (another program has it that way), it's shared as usual.
 // Takes effect at the next startCapture. Elsewhere it changes nothing.
 void setExclusiveCapture(bool on);
-bool captureIsExclusive(); // the device listened to now is lahn's alone
+bool captureIsExclusive(); // the device listened to now is hardthz's alone
 bool captureIsAsio();       // listening through an ASIO driver (an input device named "ASIO: ...")
-double captureLatencySeconds(); // the input's buffering: how late samples reach lahn, at the least
+double captureLatencySeconds(); // the input's buffering: how late samples reach hardthz, at the least
 void openInputDriverSettings(); // an ASIO driver's own settings window (its buffer size), while it's listening
 int captureSampleRate();
 // Counts the times a screen started reading the capture: one that remembers it can tell whether another has started

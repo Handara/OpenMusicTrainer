@@ -10,7 +10,7 @@
 #include <sstream>
 #if defined(__SSE__) || defined(_M_X64) || defined(_M_AMD64)
 #include <xmmintrin.h>
-#define LAHN_SSE 1
+#define HARDTHZ_SSE 1
 #endif
 
 const float PI_F = 3.14159265f;
@@ -224,8 +224,8 @@ const int TONE_FILE_VERSION = 2; // 2: the amp modelled on real ones (its knobs 
 
 std::string writeTone(const Tone& tone){
     std::ostringstream out;
-    out << "# a lahn tone: the effects the instrument goes through, in order\n";
-    out << "lahn_tone " << TONE_FILE_VERSION << "\n";
+    out << "# a hardthz tone: the effects the instrument goes through, in order\n";
+    out << "hardthz_tone " << TONE_FILE_VERSION << "\n";
     out << "name " << tone.name << "\n";
     out << "volume " << tone.volume << "\n";
     for (const Effect& effect : tone.effects){
@@ -280,8 +280,8 @@ bool readTone(const std::string& text, Tone& tone, std::string& error){
         std::string key;
         if (!(words >> key) || key[0] == '#') continue;
         if (!started){
-            if (key != "lahn_tone"){
-                error = "not a lahn tone";
+            if (key != "hardthz_tone" && key != "lahn_tone"){ // (lahn: the game's name before)
+                error = "not a hardthz tone";
                 return false;
             }
             if (!(words >> version)) version = 1;
@@ -333,7 +333,7 @@ bool readTone(const std::string& text, Tone& tone, std::string& error){
         read.effects.push_back(effect);
     }
     if (!started){
-        error = "not a lahn tone";
+        error = "not a hardthz tone";
         return false;
     }
     if (version < 2) upgradeAmpSpeaker(oldSpeaker, oldAmpAt, read.effects);
@@ -502,7 +502,7 @@ static float dbToGain(float db){ return std::pow(10.0f, db / 20.0f); }
 static float dotProduct(const float* a, const float* b, int count){
     int i = 0;
     float sum = 0.0f;
-#ifdef LAHN_SSE
+#ifdef HARDTHZ_SSE
     __m128 first = _mm_setzero_ps(), second = _mm_setzero_ps();
     for (; i + 8 <= count; i += 8){
         first = _mm_add_ps(first, _mm_mul_ps(_mm_loadu_ps(a + i), _mm_loadu_ps(b + i)));

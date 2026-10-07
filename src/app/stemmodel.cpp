@@ -72,16 +72,16 @@ bool openStemModel(const std::string& addonsDir, std::string& error){
         closeStemModel();
         return false;
     }
-    // The newest interface it has that lahn knows
+    // The newest interface it has that hardthz knows
     const OrtApiBase* base = getBase();
     for (int version = ORT_API_VERSION; version >= 17 && !stem.api; version--) stem.api = base->GetApi((uint32_t)version);
     if (!stem.api){
-        error = "the add-on's runtime is too old for this lahn";
+        error = "the add-on's runtime is too old for this hardthz";
         closeStemModel();
         return false;
     }
     OrtSessionOptions* options = nullptr;
-    bool good = ok(stem.api->CreateEnv(ORT_LOGGING_LEVEL_ERROR, "lahn", &stem.env), error)
+    bool good = ok(stem.api->CreateEnv(ORT_LOGGING_LEVEL_ERROR, "hardthz", &stem.env), error)
              && ok(stem.api->CreateSessionOptions(&options), error);
     if (good){
         // Half the processor's threads: the game keeps drawing while it works

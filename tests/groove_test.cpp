@@ -52,7 +52,7 @@ TEST_CASE("groove: mistakes are told by their line"){
 TEST_CASE("groove: neck walk's own tune loads"){
     Groove groove;
     std::string error;
-    REQUIRE_MESSAGE(loadGroove(std::string(LAHN_RESOURCES_DIR) + "games/neck-walk.groove", groove, error), error);
+    REQUIRE_MESSAGE(loadGroove(std::string(HARDTHZ_RESOURCES_DIR) + "games/neck-walk.groove", groove, error), error);
     CHECK(groove.phrase.size() == 4);
     CHECK(groove.key == 6);
     CHECK(groove.bars["end"].size() > 5);

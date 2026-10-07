@@ -6,7 +6,7 @@
 #include <string>
 
 static const char* const SAMPLE =
-    "# lahn course\n"
+    "# hardthz course\n"
     "version 1\n"
     "title Reading music\n"
     "description A little at a time.\n"
@@ -130,7 +130,7 @@ TEST_CASE("courses: mistakes are told by their line"){
 }
 
 TEST_CASE("courses: the ones shipped all load"){
-    for (const CourseEntry& entry : scanCourses(std::string(LAHN_RESOURCES_DIR) + "courses")){
+    for (const CourseEntry& entry : scanCourses(std::string(HARDTHZ_RESOURCES_DIR) + "courses")){
         CAPTURE(entry.path);
         CHECK(entry.error.empty());
         if (!entry.error.empty()) MESSAGE(entry.error);
@@ -189,7 +189,7 @@ TEST_CASE("courses: drills scored by their best run; a chapter passed with all o
     CHECK(chapterOpen(course, 1, later));
     CHECK(levelPercent(course, 0, scores) == 50); // 100 and 0
     // Kept in a file
-    const std::string path = (std::filesystem::temp_directory_path() / "lahn-course-scores-test.txt").string();
+    const std::string path = (std::filesystem::temp_directory_path() / "hardthz-course-scores-test.txt").string();
     REQUIRE(saveCourseScores(path, scores, error));
     CHECK(loadCourseScores(path).best == scores.best);
     std::filesystem::remove(path);

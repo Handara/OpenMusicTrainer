@@ -132,7 +132,7 @@ static void goToImport(const std::string& file){
 static bool isImportable(const std::string& path){
     std::string extension = fs::path(path).extension().string();
     for (char& c : extension) c = (char)std::tolower((unsigned char)c);
-    for (const char* kind : { ".gp", ".gpx", ".gp5", ".gp4", ".gp3", ".mp3", ".ogg", ".flac", ".wav", ".lahnaddon" }) if (extension == kind) return true;
+    for (const char* kind : { ".gp", ".gpx", ".gp5", ".gp4", ".gp3", ".mp3", ".ogg", ".flac", ".wav", ".hardthzaddon", ".lahnaddon" }) if (extension == kind) return true;
     return false;
 }
 
@@ -142,7 +142,7 @@ static bool isAudioFile(const std::string& path){
     return extension == ".mp3" || extension == ".ogg" || extension == ".flac" || extension == ".wav";
 }
 
-// Song packages (.lahn) dropped on a song list are installed into the player's songs, and the list shows them. On the
+// Song packages (.hardthz) dropped on a song list are installed into the player's songs, and the list shows them. On the
 // list to play, a Guitar Pro tab or a recording goes to the import screen; on the editor's list, an audio file makes a
 // new song of it; on either, a video does (its sound the song's audio, its pictures behind the notes).
 static void installDroppedPackages(){
@@ -165,8 +165,8 @@ static void installDroppedPackages(){
     app.songSelectError.clear();
     for (unsigned i = 0; i < dropped.count; i++){
         std::string path = dropped.paths[i], folder, error;
-        if (fs::path(path).extension() != SONG_PACKAGE_EXTENSION){
-            app.songSelectError = fs::path(path).filename().string() + " isn't a song package (a .lahn file)";
+        if (fs::path(path).extension() != SONG_PACKAGE_EXTENSION && fs::path(path).extension() != OLD_SONG_PACKAGE_EXTENSION){
+            app.songSelectError = fs::path(path).filename().string() + " isn't a song package (a .hardthz file)";
         } else if (installSongPackage(path, app.userSongsDir, folder, error)){
             added.push_back(fs::path(folder).filename().string());
         } else {
@@ -849,9 +849,12 @@ int main(void){
     // Resources are copied next to the executable at build time, so this works from any working directory
     app.resourcesDir = std::string(GetApplicationDirectory()) + "resources/";
     app.userDataDir = userDataDir();
-    // The game was called OpenMusicTrainer: its data folder moves to the new name the first time
-    std::string moveError;
-    if (!moveUserDataFolder(oldUserDataDir(), app.userDataDir, moveError)) TraceLog(LOG_WARNING, "%s", moveError.c_str());
+    // The game was called lahn, and OpenMusicTrainer before: its data folder moves to the new name the first time (the
+    // latest there is; once moved, the others are left alone)
+    for (const std::string& old : oldUserDataDirs()){
+        std::string moveError;
+        if (!moveUserDataFolder(old, app.userDataDir, moveError)) TraceLog(LOG_WARNING, "%s", moveError.c_str());
+    }
     app.userSongsDir = (fs::path(app.userDataDir) / "songs").string();
     app.soundsDir = (fs::path(app.userDataDir) / "sounds").string();
     app.settingsPath = (fs::path(app.userDataDir) / "settings.txt").string();
@@ -896,7 +899,7 @@ int main(void){
     // Multisampled: every edge the notes, rings and lines have is smoothed by the graphics card, where it would
     // otherwise step from pixel to pixel. A hint: a system without it just draws as before.
     SetConfigFlags(FLAG_MSAA_4X_HINT);
-    InitWindow(INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT, "lahn");
+    InitWindow(INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT, "hardthz");
     SetExitKey(KEY_NULL); // Esc means "back" (handleBackKey), not "quit"
     applyDisplaySettings(app.settings);
     initUi(app.resourcesDir, app.settings.darkTheme);

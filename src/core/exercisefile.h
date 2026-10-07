@@ -17,7 +17,7 @@
 // Learn-mode exercises as files anyone can write and share. The *type* of exercise is built into the game
 // (how it plays and judges, like the interval quiz); an exercise file picks a type and sets its rules:
 //
-//   # lahn exercise
+//   # hardthz exercise
 //   version 1
 //   type intervals
 //   title Major or minor 3rd?

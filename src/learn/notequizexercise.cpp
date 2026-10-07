@@ -111,7 +111,7 @@ void NoteQuizExercise::playPrompt(){
 
 void NoteQuizExercise::played(int pitch, bool heard){
     if (finished) return;
-    if (heard && config.prompt == NotePrompt::Ear && GetTime() < soundingUntil) return; // lahn's own note, heard through a microphone
+    if (heard && config.prompt == NotePrompt::Ear && GetTime() < soundingUntil) return; // hardthz's own note, heard through a microphone
     const size_t asked = run.next;
     if (playNoteQuiz(run, config, pitch)){
         rightAt = GetTime();

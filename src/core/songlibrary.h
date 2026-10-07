@@ -59,6 +59,6 @@ bool trashSong(const std::string& songFolder, const std::string& trashDir, std::
 
 // A song from a chart made elsewhere (a Guitar Pro tab): a folder of its own in songsDir, named after its title (with
 // a number when that's taken), and its audio: the song's recording copied in when there's one (`audioPath`; lined up
-// in the editor), else lahn's backing rendered at `sampleRate` (core/backing), in time from the start
+// in the editor), else hardthz's backing rendered at `sampleRate` (core/backing), in time from the start
 bool createImportedSong(const std::string& songsDir, Chart chart, const std::string& audioPath, int sampleRate,
                         std::string& chartPath, std::string& error);

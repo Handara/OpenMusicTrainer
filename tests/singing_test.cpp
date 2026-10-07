@@ -43,7 +43,7 @@ TEST_CASE("a note counts once it's held in tune long enough, without a break"){
 }
 
 TEST_CASE("singing exercise files"){
-    std::filesystem::path path = std::filesystem::temp_directory_path() / "lahn_tests" / "exercises" / "sing.exercise";
+    std::filesystem::path path = std::filesystem::temp_directory_path() / "hardthz_tests" / "exercises" / "sing.exercise";
     std::filesystem::create_directories(path.parent_path());
     std::ofstream(path, std::ios::binary) << "version 1\ntype singing\ntitle Low voice\nrange 40 55\nnotes all\noctave exact\ntolerance 20\nhold 1.5\n";
     ExerciseFile file;

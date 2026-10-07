@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-// Guitar Pro files, the biggest library of tabs there is, as lahn charts: their guitar and bass tracks become parts,
+// Guitar Pro files, the biggest library of tabs there is, as hardthz charts: their guitar and bass tracks become parts,
 // with their tunings, every note on its string and fret, timed by the file's tempos, time and key signatures.
 // Repeats are played out (alternate endings too), as a recording of the song plays them. Drum and keys tracks are
 // left out, and so are grace notes and dead notes, for now; bends and slides come in as plain notes. Guitar Pro files

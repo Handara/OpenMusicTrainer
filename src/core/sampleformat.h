@@ -1,7 +1,7 @@
 #pragma once
 
 // Audio interfaces hand over samples in their own formats: 16, 24 or 32-bit integers, floats, or 32-bit words
-// holding fewer bits. These turn them into the floats (-1 to 1) the rest of lahn works with. Little-endian, as on
+// holding fewer bits. These turn them into the floats (-1 to 1) the rest of hardthz works with. Little-endian, as on
 // every PC. Pure: the driver-facing code (audio/asiodriver) only says which format it got.
 
 enum class SampleFormat {

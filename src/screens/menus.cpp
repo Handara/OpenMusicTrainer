@@ -243,7 +243,7 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
     if (confirmed == newSong) choice.newSong = true;
     if (confirmed == openFolder) choice.openDataFolder = true;
     if (confirmed == importSong) choice.importSong = true;
-    // The player's own songs can be deleted (Delete, or the button): the ones that come with lahn can't
+    // The player's own songs can be deleted (Delete, or the button): the ones that come with hardthz can't
     if (list.selected >= 0 && list.selected < (int)songs.size() && !songs[list.selected].builtIn){
         bool pressed = menuPill("Delete", "Del", ImVec2(ImGui::GetWindowWidth() * 0.93f, ImGui::GetWindowHeight() - 48 * s), true, 0, s);
         if (pressed || ImGui::IsKeyPressed(ImGuiKey_Delete)) deleting = list.selected;
@@ -254,7 +254,7 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
         if (!error.empty()) ImGui::TextColored(uiColorVec(UiColor::Bad), "%s", error.c_str());
         else ImGui::TextColored(uiColorVec(UiColor::Good), "%s", notice.c_str());
     }
-    menuScreenHint(forEditing ? "Up/Down  choose    Enter  edit    Tab  mode    Drop audio, a video, a tab or a .lahn to add a song    Esc  back"
+    menuScreenHint(forEditing ? "Up/Down  choose    Enter  edit    Tab  mode    Drop audio, a video, a tab or a .hardthz to add a song    Esc  back"
                               : "Up/Down  choose    Enter  choose    Tab  mode    Drop a tab or a song to import it    Esc  back", s);
     ImGui::End();
     return choice;

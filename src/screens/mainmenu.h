@@ -4,7 +4,7 @@
 
 #include <string>
 
-// The main menu, lahn's front door: the wordmark, a readable list, and a string that points at the selected item and
+// The main menu, hardthz's front door: the wordmark, a readable list, and a string that points at the selected item and
 // rings when it moves. Each item is a note of a pentatonic scale, so moving through the menu always sounds musical.
 // Five faint staff lines are the grid the screen sits on. On the right, "today": the routine to keep up and the next
 // goal, read from the player's progress each time the menu appears.

@@ -158,7 +158,7 @@ static void audioSection(Settings& settings, const std::string& soundsDir, Setti
     std::vector<std::string> outputs = deviceOptions("System default", screen.outputDevices, settings.outputDevice, chosen);
     if (outputIsAsio()){
         settingInfo("Output", "Everything plays through the ASIO driver your input is on", outputDeviceName());
-    } else if (settingDropdown("Output", "Where lahn's sound comes out", &chosen, outputs, []{ screen.outputDevices = outputDeviceNames(); })){
+    } else if (settingDropdown("Output", "Where hardthz's sound comes out", &chosen, outputs, []{ screen.outputDevices = outputDeviceNames(); })){
         settings.outputDevice = deviceChosen(outputs, chosen, settings.outputDevice);
         std::string error;
         if (setOutputDevice(settings.outputDevice, error)) setStatus("", false);
@@ -195,14 +195,14 @@ static void audioSection(Settings& settings, const std::string& soundsDir, Setti
         settingInfo("Heard", midiDeviceName(), held.empty() ? "Play a few keys to check it" : held.c_str(), held.empty() ? UiColor::Dim : UiColor::Accent);
     }
 
-    // Hearing the instrument through lahn, wherever the player is
+    // Hearing the instrument through hardthz, wherever the player is
     settingsGroup("HEAR MY INSTRUMENT");
-    if (settingToggle("Hear my instrument", "Through lahn's speakers, wherever you are in the game", &settings.monitorOn)){
+    if (settingToggle("Hear my instrument", "Through hardthz's speakers, wherever you are in the game", &settings.monitorOn)){
         applyMonitor(settings, screen.monitorError);
     }
     ImGui::BeginDisabled(!settings.monitorOn);
     int sound = settings.monitorSynth ? 1 : 0;
-    if (settingSegments("Sound", settings.monitorSynth ? "The notes lahn hears, played on a synth bass: a little later than your own sound"
+    if (settingSegments("Sound", settings.monitorSynth ? "The notes hardthz hears, played on a synth bass: a little later than your own sound"
                                                        : "Your own sound through your tone: no delay, with ASIO or Windows' fast mode",
                         &sound, { "My sound", "Synth bass" })){
         settings.monitorSynth = sound == 1;
@@ -430,7 +430,7 @@ static void instrumentsSection(Settings& settings){
                         : captureIsExclusive() ? "Windows' effects are skipped; other programs can't use this input meanwhile"
                         : settings.exclusiveInput ? "Another program has this input, so it's shared: Windows' effects may cut your instrument"
                         : "Shared: Windows' effects may cut your instrument";
-        if (settingToggle("Keep the input to lahn alone", how, &settings.exclusiveInput)){
+        if (settingToggle("Keep the input to hardthz alone", how, &settings.exclusiveInput)){
             setExclusiveCapture(settings.exclusiveInput);
             stopListening(); // opened again, the new way, next frame
         }

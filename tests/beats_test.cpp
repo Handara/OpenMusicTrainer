@@ -6,7 +6,7 @@
 #include <cmath>
 #include <vector>
 
-// A song to listen to: a bass and a guitar part over `bars` bars of 4/4, played on lahn's synths with its click
+// A song to listen to: a bass and a guitar part over `bars` bars of 4/4, played on hardthz's synths with its click
 // (core/backing), after `lead` seconds of silence. The tempo is the chart's: one, or changing.
 static std::vector<float> songOf(Chart& chart, int bars, double lead, int rate){
     chart.resolution = 480;

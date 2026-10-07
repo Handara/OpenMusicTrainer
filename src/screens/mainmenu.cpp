@@ -147,7 +147,7 @@ MainMenuChoice mainMenuScreen(const MainMenuInfo& info, const std::string& error
     float footY = height - 40 * s;
     std::string input = "IN  ·  " + (info.inputDevice.empty() ? std::string("default input") : info.inputDevice);
     draw->AddText(fonts.mono, FOOT_SIZE * s, ImVec2(left, footY), uiColor(UiColor::Dim), input.c_str());
-    const char* version = "lahn 0.1";
+    const char* version = "hardthz 0.1";
     float versionWidth = fonts.mono ? fonts.mono->CalcTextSizeA(FOOT_SIZE * s, FLT_MAX, 0.0f, version).x : 60 * s;
     draw->AddText(fonts.mono, FOOT_SIZE * s, ImVec2(width - left - versionWidth, footY), uiColor(UiColor::Dim), version);
 

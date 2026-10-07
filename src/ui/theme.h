@@ -5,7 +5,7 @@
 
 #include <string>
 
-// lahn's look: a calm palette with one bright accent, the fonts, and the wordmark. Everything that draws menus takes
+// hardthz's look: a calm palette with one bright accent, the fonts, and the wordmark. Everything that draws menus takes
 // its colors from here by role, never as fixed values, so light and dark both work.
 
 enum class ThemeMode { Light, Dark };
@@ -45,6 +45,5 @@ const UiFonts& uiFonts();
 void horizontalLine(ImDrawList* draw, float x0, float x1, float y, float thickness, ImU32 color);
 void verticalLine(ImDrawList* draw, float x, float y0, float y1, float thickness, ImU32 color);
 
-// "lahn | لحن": the name in both scripts, split by a string. `height` is the Latin letters' size in pixels.
-// Returns the width drawn.
+// "hardthz": the name, its "hz" (hertz) in the accent. `height` is the letters' size in pixels. Returns its width.
 float drawWordmark(ImDrawList* draw, ImVec2 topLeft, float height);

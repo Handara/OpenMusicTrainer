@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-// The player's tones: one file each (core/tonechain) in their tones folder, beside the ones that come with lahn.
+// The player's tones: one file each (core/tonechain) in their tones folder, beside the ones that come with hardthz.
 // Tones are known by name: a file's name follows its tone's.
 
 // Every tone file in the folder, by name; files that aren't tones are left out, each with why in `problems`

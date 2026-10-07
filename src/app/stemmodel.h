@@ -3,9 +3,9 @@
 #include <string>
 #include <vector>
 
-// The stems add-on's model, run: KUIELab's MDX-Net bass model, through ONNX Runtime. lahn isn't built with either: the
+// The stems add-on's model, run: KUIELab's MDX-Net bass model, through ONNX Runtime. hardthz isn't built with either: the
 // add-on (core/addon) brings the runtime as a library, loaded here when it's there, and the model beside it. So a
-// lahn without the add-on is no bigger, and still whole.
+// hardthz without the add-on is no bigger, and still whole.
 
 const char* const STEMS_ADDON = "stems";
 

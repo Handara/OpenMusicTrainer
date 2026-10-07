@@ -1,9 +1,9 @@
-# lahn exercise
+# hardthz exercise
 version 1
 type routine
 title Ear training mix
 category Routines
-author lahn
+author hardthz
 description Ten minutes, no instrument needed: intervals up, then down, then major against minor 3rds.
 step intervals-up 4
 step intervals-down 4

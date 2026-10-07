@@ -385,7 +385,7 @@ NeckWalkStats loadNeckWalkStats(const std::string& path){
 
 bool saveNeckWalkStats(const std::string& path, const NeckWalkStats& stats, std::string& error){
     std::ostringstream out;
-    out << "# lahn neck walk: game <date> <score> <rounds cleared> <best streak> <level> <bpm> <most strings> <fastest bpm>; "
+    out << "# hardthz neck walk: game <date> <score> <rounds cleared> <best streak> <level> <bpm> <most strings> <fastest bpm>; "
            "note <pitch class> <right> <wrong>; choice <level> <bpm> <strings> <rounds a string> <rounds a tempo step>\n";
     for (const NeckWalkRecord& game : stats.games)
         out << "game " << game.date << " " << game.score << " " << game.cleared << " " << game.bestStreak << " " << game.level << " "

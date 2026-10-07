@@ -101,7 +101,7 @@ int main(int argc, char** argv){
     Chart chart{};
     chart.version = 2;
     chart.title = "First Light";
-    chart.artist = "lahn";
+    chart.artist = "hardthz";
     chart.audioFile = "audio.wav";
     chart.resolution = RESOLUTION;
     chart.offset = 0.0;

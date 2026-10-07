@@ -2,8 +2,8 @@
 
 #include <vector>
 
-// Checking an instrument is in tune: before a song, the player plays each open string and lahn says how far off it
-// is; while the song is played, lahn watches the notes for the instrument going out of tune. Pure logic; the
+// Checking an instrument is in tune: before a song, the player plays each open string and hardthz says how far off it
+// is; while the song is played, hardthz watches the notes for the instrument going out of tune. Pure logic; the
 // tuning check screen and the play screen feed it what they hear.
 
 // Which open string a heard pitch (a fractional MIDI note) is: the string whose note is nearest, an octave off

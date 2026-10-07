@@ -201,7 +201,7 @@ bool saveInputRecording(const std::string& basePath, std::string& error){
         error = "could not write " + basePath + ".txt";
         return false;
     }
-    out << "# what lahn's note detector found in " << basePath << ".wav\n";
+    out << "# what hardthz's note detector found in " << basePath << ".wav\n";
     out << "# " << input.detector.sampleRate << " Hz, input " << (input.channel < 0 ? std::string("all mixed") : std::to_string(input.channel + 1))
         << ", notes looked for down to " << input.minFrequency << " Hz\n";
     out << "#  seconds  what\n";

@@ -266,7 +266,7 @@ static const char* trackTypeName(InstrumentType type){
 
 bool saveChart(const std::string& path, const Chart& chart, std::string& error){
     std::ostringstream out;
-    out << "# lahn chart\n";
+    out << "# hardthz chart\n";
     out << "version " << SUPPORTED_CHART_VERSION << "\n";
     if (!chart.title.empty()) out << "title " << chart.title << "\n";
     if (!chart.artist.empty()) out << "artist " << chart.artist << "\n";

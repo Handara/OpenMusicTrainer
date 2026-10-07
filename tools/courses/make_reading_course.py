@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Writes lahn's Reading music courses, one for guitar (resources/courses/02-reading.course, the treble clef) and one
+"""Writes hardthz's Reading music courses, one for guitar (resources/courses/02-reading.course, the treble clef) and one
 for bass (02-reading-bass.course, the bass clef): hundreds of small drills, a note or two at a time, in the same steps
 every time. Learn shows the one for the instrument played. Change the plans below and run it again:
 
@@ -58,12 +58,12 @@ class Instrument:
     def __init__(self, name, tuning, string_names, clef_bottom, clef_text):
         self.name = name
         self.tuning = tuning              # MIDI, lowest string first
-        self.string_names = string_names  # as lahn says them (core/notequiz notePlaceText)
+        self.string_names = string_names  # as hardthz says them (core/notequiz notePlaceText)
         self.clef_bottom = clef_bottom    # the staff's bottom line, as written (an octave above how it sounds)
         self.clef_text = clef_text
 
     def place(self, name):
-        """Where lahn plays it: its lowest fret on any string (as core/notequiz placeNotes does)"""
+        """Where hardthz plays it: its lowest fret on any string (as core/notequiz placeNotes does)"""
         pitch = parse(name)[0]
         best = None
         for string, open_pitch in enumerate(self.tuning):
@@ -267,7 +267,7 @@ PLANS = {
 
 def build(instrument):
     plan = PLANS[instrument.name]
-    out = ["# lahn course: written by tools/courses/make_reading_course.py (change it there, and run it again)",
+    out = ["# hardthz course: written by tools/courses/make_reading_course.py (change it there, and run it again)",
            "version 1",
            "title Reading music",
            "description From your first note on the staff to reading melodies to a beat, in every key: a note or two at a time.",

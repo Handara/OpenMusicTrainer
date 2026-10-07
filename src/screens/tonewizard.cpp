@@ -33,7 +33,7 @@ static struct {
     std::vector<std::string> problems; // tone files that couldn't be read
     // The wizard
     Tone editing;             // the tone on the board, as it's being changed
-    bool builtIn = false;     // one of lahn's: the first change makes it the player's own copy
+    bool builtIn = false;     // one of hardthz's: the first change makes it the player's own copy
     bool dirty = false;       // changed since it was saved
     double changedAt = 0.0;
     std::string nameField;    // the name as it's typed

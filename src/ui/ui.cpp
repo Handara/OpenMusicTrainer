@@ -16,7 +16,7 @@ void initUi(const std::string& resourcesDir, bool darkTheme){
     ImGuiIO& io = ImGui::GetIO();
     io.IniFilename = nullptr; // don't write imgui.ini: menu layout is fixed in code
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // arrows + Enter work in menus
-#ifdef LAHN_PLAYER_BUILD
+#ifdef HARDTHZ_PLAYER_BUILD
     // ImGui tells its programmer about mistakes in a popup over the game (two controls with one ID, a Begin without
     // its End). That's for the builds we test with; a player's build carries on without a word.
     io.ConfigDebugHighlightIdConflicts = false;

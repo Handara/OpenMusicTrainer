@@ -35,7 +35,7 @@ bool chooseFile(const std::string& title, const std::string& kind, const std::ve
     dialog.lpstrFile = file;
     dialog.nMaxFile = sizeof file / sizeof file[0];
     dialog.lpstrTitle = caption.c_str();
-    dialog.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR | OFN_EXPLORER; // lahn's own folder stays the working one
+    dialog.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR | OFN_EXPLORER; // hardthz's own folder stays the working one
     if (!GetOpenFileNameW(&dialog)){
         DWORD code = CommDlgExtendedError();
         if (code != 0) error = "The file dialog didn't open (error " + std::to_string(code) + "): drop the file on the window instead";

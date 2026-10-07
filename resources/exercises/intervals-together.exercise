@@ -1,8 +1,8 @@
-# lahn exercise
+# hardthz exercise
 version 1
 type intervals
 title Intervals played together
 category Ear training
-author lahn
+author hardthz
 description Two notes at the same time, like a tiny chord. Name the distance between them.
 direction together

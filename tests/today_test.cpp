@@ -27,7 +27,7 @@ static ExerciseEntry drill(const std::string& id, const std::string& title){
 }
 
 TEST_CASE("today's summary: the routine to keep up and the next drill"){
-    fs::path dir = fs::temp_directory_path() / "lahn_tests" / "today";
+    fs::path dir = fs::temp_directory_path() / "hardthz_tests" / "today";
     fs::remove_all(dir);
     fs::create_directories(dir);
     int day = daysFromDate(2026, 9, 27);

@@ -1,4 +1,4 @@
-# lahn course
+# hardthz course
 version 1
 title First steps
 description Never held a bass? Start here. One string, then the next, then your first frets and the names of the notes: a little at a time, at your own pace.
@@ -9,11 +9,11 @@ unit Meet your bass
 lesson Your very first note
 title Four strings
 text Your bass has four strings. The thickest one sounds the lowest, the thinnest one the highest.
-text On lahn's neck the thinnest string is at the top, the thickest at the bottom, the way bass tab shows them.
+text On hardthz's neck the thinnest string is at the top, the thickest at the bottom, the way bass tab shows them.
 title Open strings
 text Playing a string "open" means you don't press anything on it: you just pluck it with a finger (or a pick).
-text Pluck the thinnest string now: the G string. lahn lights it on the neck, and hears you when you play it.
-text No sound reaching lahn? Check that your bass is plugged in, and the input in Settings.
+text Pluck the thinnest string now: the G string. hardthz lights it on the neck, and hears you when you play it.
+text No sound reaching hardthz? Check that your bass is plugged in, and the input in Settings.
 exercise
 type notes
 places 4:0
@@ -52,7 +52,7 @@ count 8
 pass 7
 
 lesson Strings by name
-text This time lahn says the string's name, and shows where it is. Play it open.
+text This time hardthz says the string's name, and shows where it is. Play it open.
 exercise
 type notes
 places 1:0 2:0 3:0 4:0
@@ -62,7 +62,7 @@ count 8
 pass 7
 
 lesson Strings by name, no hints
-text The same, without the neck showing you where. If you slip, lahn shows the right one.
+text The same, without the neck showing you where. If you slip, hardthz shows the right one.
 exercise
 type notes
 places 1:0 2:0 3:0 4:0
@@ -126,7 +126,7 @@ unit The names of the notes
 lesson G, A and B
 title Every note has a name
 text Notes are named with letters, A to G. The open G string is a G, its 2nd fret is A, its 4th fret is B.
-text lahn says the name and shows where it is. Play it.
+text hardthz says the name and shows where it is. Play it.
 exercise
 type notes
 notes G2 A2 B2

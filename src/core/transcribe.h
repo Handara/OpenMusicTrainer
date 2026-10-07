@@ -6,7 +6,7 @@
 #include <vector>
 
 // Writing a bass part down from a recording of it alone: a stem split from a song, or the player's own playing.
-// A bass plays one note at a time, which lahn's note detector hears well; the beat is found from the notes' attacks,
+// A bass plays one note at a time, which hardthz's note detector hears well; the beat is found from the notes' attacks,
 // following a band that speeds up or slows down; the notes are put on that beat's sixteenths, and given strings and
 // frets a hand reaches easily. What comes out is a draft: the song editor is where it's put right. Pure logic.
 

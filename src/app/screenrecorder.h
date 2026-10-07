@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-// What lahn shows, recorded as a video (a check of a song: F9 while playing). Its pictures, 30 a second, are taken as
+// What hardthz shows, recorded as a video (a check of a song: F9 while playing). Its pictures, 30 a second, are taken as
 // they're drawn and given to FFmpeg (the video add-on's: app/videoconvert), which makes them an mp4 (H.264, at most
 // 720 lines high) as the song goes. The sound is put under it afterwards (addSoundToVideo).
 

@@ -1,9 +1,9 @@
-# lahn exercise
+# hardthz exercise
 version 1
 type neck
 title Learn the neck
 category Fretboard
-author lahn
+author hardthz
 description A scale in one place on the neck, played up and down, in thirds, in triads, or one note on every string. Change the key, the scale, the shape and the position as you go: your times are kept, and the neck shows which notes you find slowly.
 key C
 scale major

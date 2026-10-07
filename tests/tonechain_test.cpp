@@ -46,23 +46,23 @@ TEST_CASE("a tone survives being written and read back"){
 TEST_CASE("tone files are read leniently, and only tone files"){
     Tone tone;
     std::string error;
-    REQUIRE(readTone("lahn_tone 2\r\n"
+    REQUIRE(readTone("hardthz_tone 2\r\n"
                      "name Odd\r\n"
-                     "flanger on rate 3\r\n"               // an effect from a newer lahn: skipped
+                     "flanger on rate 3\r\n"               // an effect from a newer hardthz: skipped
                      "drive on drive 7 sparkle 1\r\n"       // out of range, and a setting it doesn't know
                      "amp\r\n", tone, error));              // no settings at all: its standard ones
     REQUIRE(tone.effects.size() == 2);
     CHECK(tone.effects[0].values[0] == doctest::Approx(1.0f)); // kept in range
     CHECK(tone.effects[1].values[0] == doctest::Approx(makeEffect(EffectType::Amp).values[0]));
     CHECK_FALSE(readTone("version 1\nnote_view neck\n", tone, error)); // a settings file isn't a tone
-    CHECK(error == "not a lahn tone");
+    CHECK(error == "not a hardthz tone");
     CHECK_FALSE(readTone("", tone, error));
 }
 
 TEST_CASE("a tone from before the modelled amp sounds as it did: its knobs made the new ones, its speaker a cabinet"){
     Tone tone;
     std::string error;
-    REQUIRE(readTone("lahn_tone 1\n"
+    REQUIRE(readTone("lahn_tone 1\n" // written when the game was called lahn: still read
                      "name Old\n"
                      "drive on drive 0.5 character 0.9 tone 0.6 level 0.6 blend 1\n"
                      "amp on gain 0.5 bass 6 mid -12 treble 0 cabinet 0.8\n"
@@ -197,7 +197,7 @@ TEST_CASE("a knob turned while playing keeps the effect's memory: the echo alrea
 
 TEST_CASE("the player's tones: saved, found, named apart, imported, deleted"){
     namespace fs = std::filesystem;
-    fs::path folder = fs::temp_directory_path() / "lahn_tests" / "tones";
+    fs::path folder = fs::temp_directory_path() / "hardthz_tests" / "tones";
     fs::remove_all(folder);
     std::vector<std::string> problems;
     CHECK(loadUserTones(folder.string(), problems).empty()); // no folder yet: no tones, no trouble
@@ -221,7 +221,7 @@ TEST_CASE("the player's tones: saved, found, named apart, imported, deleted"){
     CHECK(findTone("gone", tones).name == "Clean");
 
     // A friend's tone of the same name comes in beside it
-    fs::path shared = fs::temp_directory_path() / "lahn_tests" / "shared.tone";
+    fs::path shared = fs::temp_directory_path() / "hardthz_tests" / "shared.tone";
     { std::ofstream(shared) << writeTone(mine); }
     Tone imported;
     REQUIRE_MESSAGE(importTone(shared.string(), folder.string(), tones, imported, error), error);

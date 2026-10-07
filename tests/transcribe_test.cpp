@@ -24,7 +24,7 @@ static std::vector<LineNote> bassLine(int bars){
     return line;
 }
 
-// The line played on lahn's synth bass, each note a little shorter than written, as a bass player leaves room;
+// The line played on hardthz's synth bass, each note a little shorter than written, as a bass player leaves room;
 // `timeOf` turns a beat into seconds
 static std::vector<float> play(const std::vector<LineNote>& line, int rate, const std::function<double(double)>& timeOf){
     double end = timeOf(line.back().beat + line.back().length) + 1.0;

@@ -1,4 +1,4 @@
-# lahn course
+# hardthz course
 version 1
 title First steps
 description Never touched a piano? Start here. Middle C, then its neighbours, the names of the white keys, the black ones, and your left hand: a little at a time, at your own pace.
@@ -11,8 +11,8 @@ title White keys and black keys
 text A piano's keys go from low on the left to high on the right. The black keys come in groups: two, then three, then two again, all the way along.
 text Those groups are how you find your way. A C is always the white key just left of a group of two black keys.
 title Middle C
-text The C nearest the middle of the keyboard is middle C. lahn marks it with a dot, and lights it now: press it with your right thumb.
-text Plugged in a MIDI keyboard? lahn plays from it. No keyboard? The computer's keys are the piano (the letter on each key plays it), or click the keys.
+text The C nearest the middle of the keyboard is middle C. hardthz marks it with a dot, and lights it now: press it with your right thumb.
+text Plugged in a MIDI keyboard? hardthz plays from it. No keyboard? The computer's keys are the piano (the letter on each key plays it), or click the keys.
 exercise
 type notes
 notes C4
@@ -89,7 +89,7 @@ unit The names of the keys
 
 lesson C, D and E by name
 title A key by its name
-text This time lahn says the note's name, and lights its key too. Play it.
+text This time hardthz says the note's name, and lights its key too. Play it.
 exercise
 type notes
 notes C4 D4 E4

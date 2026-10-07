@@ -84,7 +84,7 @@ struct GameplayOptions {
     InputRole instrument = InputRole::Guitar; // which: its input and its range are listened to. A part of another
                                               // instrument's (a guitar melody on a bass) counts its notes in any octave
     bool hitSounds = true;            // a key that hits plays its note (with an instrument, it's heard already)
-    bool hitSoundIsNote = true;       // a note hit sounds as itself, on the part's own instrument (lahn's bass or guitar)...
+    bool hitSoundIsNote = true;       // a note hit sounds as itself, on the part's own instrument (hardthz's bass or guitar)...
     float hitSoundVolume = 0.5f;      // ...that loud (with an instrument; keys hitting play it at keyVolume)
     float keyVolume = 0.6f;
     std::string inputDevice;
@@ -116,7 +116,7 @@ bool gameplayPaused();
 // `cents`: by how much (+ sharp). Resuming plays on, out of tune, and isn't stopped for it again.
 bool gameplayOutOfTune(float& cents);
 void stopGameplay();
-// A check's video being finished (F9) on a worker thread: waited for, before lahn closes
+// A check's video being finished (F9) on a worker thread: waited for, before hardthz closes
 void waitForChecks();   // stops and releases the song; safe to call more than once
 GameResult gameplayResult();
 bool gameplayPractising();

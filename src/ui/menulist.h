@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-// A list to choose from, in lahn's style: readable rows, a brass string for a cursor that glides to the selected row
+// A list to choose from, in hardthz's style: readable rows, a brass string for a cursor that glides to the selected row
 // and rings when plucked, and a note of a pentatonic scale for each move. The main menu and every screen that picks
 // one thing from a list (songs, exercises, lessons) use it, so they all look, sound and behave alike.
 //

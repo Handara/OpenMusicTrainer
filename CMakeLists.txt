@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.26)
-project(lahn VERSION 0.1.0 LANGUAGES C CXX) # C: miniaudio, pl_mpeg
+project(hardthz VERSION 0.1.0 LANGUAGES C CXX) # C: miniaudio, pl_mpeg
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -93,13 +93,13 @@ FetchContent_MakeAvailable(namcore eigen)
 file(GLOB NAM_SOURCES ${namcore_SOURCE_DIR}/NAM/*.cpp ${namcore_SOURCE_DIR}/NAM/wavenet/*.cpp)
 add_library(nam OBJECT ${NAM_SOURCES})
 target_include_directories(nam SYSTEM PUBLIC ${namcore_SOURCE_DIR} ${namcore_SOURCE_DIR}/NAM ${namcore_SOURCE_DIR}/Dependencies/nlohmann ${eigen_SOURCE_DIR})
-target_compile_definitions(nam PUBLIC NAM_SAMPLE_FLOAT NAM_ENABLE_A2_FAST) # floats, as lahn's audio is; A2 models' fast path
+target_compile_definitions(nam PUBLIC NAM_SAMPLE_FLOAT NAM_ENABLE_A2_FAST) # floats, as hardthz's audio is; A2 models' fast path
 if(MSVC)
     target_compile_options(nam PRIVATE /bigobj /EHsc)
     target_compile_definitions(nam PRIVATE NOMINMAX _USE_MATH_DEFINES)
 endif()
 
-# Windows: Steinberg's ASIO SDK, for the audio interfaces' own low-latency drivers (audio/asiodriver.cpp). lahn takes
+# Windows: Steinberg's ASIO SDK, for the audio interfaces' own low-latency drivers (audio/asiodriver.cpp). hardthz takes
 # it under its GPLv3 option. Pinned by checksum to Steinberg's own package; its host helpers are compiled here.
 if(WIN32)
     FetchContent_Declare(
@@ -158,7 +158,7 @@ endfunction()
 # Core: pure C++ (chart format, music theory, pitch detection, song library).
 # It deliberately does NOT link raylib, miniaudio or imgui: including one of them here fails to compile,
 # which keeps this layer reusable (editor, tests, a future server) and testable on its own.
-add_library(lahn_core STATIC
+add_library(hardthz_core STATIC
     src/core/addon.cpp
     src/core/backing.cpp
     src/core/beats.cpp
@@ -221,12 +221,12 @@ add_library(lahn_core STATIC
     src/core/timestretch.cpp
     src/core/today.cpp
 )
-target_include_directories(lahn_core PUBLIC src)
-target_link_libraries(lahn_core PRIVATE miniz) # zip files for song packages: plain C, no graphics or audio
-enable_warnings(lahn_core)
+target_include_directories(hardthz_core PUBLIC src)
+target_link_libraries(hardthz_core PRIVATE miniz) # zip files for song packages: plain C, no graphics or audio
+enable_warnings(hardthz_core)
 
 # The game: audio, UI and screens on top of core
-add_executable(lahn
+add_executable(hardthz
     src/main.cpp
     src/app/crashreport.cpp
     src/app/filedialog.cpp
@@ -299,38 +299,38 @@ add_executable(lahn
     src/video/video.cpp
 )
 # The build players get (Release): without ImGui's notes to its programmer (see ui/ui.cpp). The others keep them.
-target_compile_definitions(lahn PRIVATE $<$<CONFIG:Release>:LAHN_PLAYER_BUILD>)
-target_link_libraries(lahn PRIVATE lahn_core raylib miniaudio imgui pl_mpeg nam ${CMAKE_DL_LIBS}) # dl: the stems add-on's runtime, loaded when it's there
+target_compile_definitions(hardthz PRIVATE $<$<CONFIG:Release>:HARDTHZ_PLAYER_BUILD>)
+target_link_libraries(hardthz PRIVATE hardthz_core raylib miniaudio imgui pl_mpeg nam ${CMAKE_DL_LIBS}) # dl: the stems add-on's runtime, loaded when it's there
 # ONNX Runtime's interface only (its headers): the library itself comes with the stems add-on (src/app/stemmodel.cpp)
-target_include_directories(lahn SYSTEM PRIVATE third_party/onnxruntime)
+target_include_directories(hardthz SYSTEM PRIVATE third_party/onnxruntime)
 if(WIN32)
-    target_link_libraries(lahn PRIVATE winmm dbghelp comdlg32 asiosdk) # MIDI input (input/midi.cpp); crash reports (app/crashreport.cpp); the Open dialog (app/filedialog.cpp); ASIO
+    target_link_libraries(hardthz PRIVATE winmm dbghelp comdlg32 asiosdk) # MIDI input (input/midi.cpp); crash reports (app/crashreport.cpp); the Open dialog (app/filedialog.cpp); ASIO
 endif()
-enable_warnings(lahn)
+enable_warnings(hardthz)
 
 # Makes the sample song's chart and audio (tools/make_song.cpp). Not built with the game: build and run it by hand.
 add_executable(make_song EXCLUDE_FROM_ALL tools/make_song.cpp)
-target_link_libraries(make_song PRIVATE lahn_core)
+target_link_libraries(make_song PRIVATE hardthz_core)
 enable_warnings(make_song)
 
 # Plays a recording from the Instrument screen's "Record a check" through the note detectors (tools/hear_check.cpp)
 add_executable(hear_check EXCLUDE_FROM_ALL tools/hear_check.cpp)
-target_link_libraries(hear_check PRIVATE lahn_core)
+target_link_libraries(hear_check PRIVATE hardthz_core)
 enable_warnings(hear_check)
 
 # Copy game data next to the executable on every build (only files that changed are copied)
 add_custom_target(copy_resources ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
             ${CMAKE_SOURCE_DIR}/resources
-            $<TARGET_FILE_DIR:lahn>/resources
+            $<TARGET_FILE_DIR:hardthz>/resources
 )
-add_dependencies(lahn copy_resources)
+add_dependencies(hardthz copy_resources)
 
 # Tests: build, then run `ctest --test-dir build --output-on-failure`.
-# They link only lahn_core, which also proves the core works without the game around it.
+# They link only hardthz_core, which also proves the core works without the game around it.
 include(CTest)
 if(BUILD_TESTING)
-    add_executable(lahn_tests
+    add_executable(hardthz_tests
         tests/main.cpp
         tests/addon_test.cpp
         tests/beats_test.cpp
@@ -387,11 +387,11 @@ if(BUILD_TESTING)
         tests/tuningcheck_test.cpp
         tests/today_test.cpp
     )
-    target_link_libraries(lahn_tests PRIVATE lahn_core doctest::doctest miniz) # miniz: to make broken packages
-    target_compile_definitions(lahn_tests PRIVATE LAHN_RESOURCES_DIR="${CMAKE_SOURCE_DIR}/resources/")
-target_compile_definitions(lahn_tests PRIVATE LAHN_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/tests/data/")
-    enable_warnings(lahn_tests)
-    add_test(NAME core_tests COMMAND lahn_tests)
+    target_link_libraries(hardthz_tests PRIVATE hardthz_core doctest::doctest miniz) # miniz: to make broken packages
+    target_compile_definitions(hardthz_tests PRIVATE HARDTHZ_RESOURCES_DIR="${CMAKE_SOURCE_DIR}/resources/")
+target_compile_definitions(hardthz_tests PRIVATE HARDTHZ_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/tests/data/")
+    enable_warnings(hardthz_tests)
+    add_test(NAME core_tests COMMAND hardthz_tests)
 endif()
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})

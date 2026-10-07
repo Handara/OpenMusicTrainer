@@ -1,4 +1,4 @@
-# lahn for macOS (13.3 and later: decimals are written with std::to_chars), built on one of GitHub's Macs: one program
+# hardthz for macOS (13.3 and later: decimals are written with std::to_chars), built on one of GitHub's Macs: one program
 # for Apple Silicon and Intel together, packed with its resources, a file to start it with and how to, as a zip to
 # download from the run's page (Artifacts). Then the tests, built and run on the Mac too, so anything that behaves
 # differently there shows.
@@ -18,28 +18,28 @@ jobs:
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=13.3
 
-      - name: Build lahn
-        run: cmake --build build --target lahn -j 4 -- -k # -k: every error at once, not just the first
+      - name: Build hardthz
+        run: cmake --build build --target hardthz -j 4 -- -k # -k: every error at once, not just the first
 
       - name: Pack it
         run: |
-          mkdir -p package/lahn
-          cp build/lahn package/lahn/
-          cp -R build/resources package/lahn/
-          cp packaging/macos/"Start lahn.command" packaging/macos/README.txt package/lahn/
-          chmod +x package/lahn/lahn package/lahn/"Start lahn.command"
-          lipo -info package/lahn/lahn
+          mkdir -p package/hardthz
+          cp build/hardthz package/hardthz/
+          cp -R build/resources package/hardthz/
+          cp packaging/macos/"Start hardthz.command" packaging/macos/README.txt package/hardthz/
+          chmod +x package/hardthz/hardthz package/hardthz/"Start hardthz.command"
+          lipo -info package/hardthz/hardthz
           # ditto keeps what makes the program and the start file runnable, which plain zip may lose
-          ditto -c -k --keepParent package/lahn lahn-macos.zip
+          ditto -c -k --keepParent package/hardthz hardthz-macos.zip
 
       - uses: actions/upload-artifact@v4
         with:
-          name: lahn-macos
-          path: lahn-macos.zip
+          name: hardthz-macos
+          path: hardthz-macos.zip
           retention-days: 30
 
       - name: Build the tests
-        run: cmake --build build --target lahn_tests -j 4
+        run: cmake --build build --target hardthz_tests -j 4
 
       - name: Run the tests
-        run: ./build/lahn_tests
+        run: ./build/hardthz_tests

@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-// Notes plucked together on lahn's own string voices, each `gains[i]` loud and `cents[i]` out of tune, half a second
+// Notes plucked together on hardthz's own string voices, each `gains[i]` loud and `cents[i]` out of tune, half a second
 static std::vector<float> pluck(const std::vector<int>& pitches, int rate, StringVoice voice, const std::vector<float>& gains = {},
                                 const std::vector<float>& cents = {}){
     const int count = rate / 2;

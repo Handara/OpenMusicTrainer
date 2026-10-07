@@ -19,7 +19,7 @@ static bool readManifest(const fs::path& file, AddonInfo& info){
         std::istringstream words(line);
         std::string key;
         if (!(words >> key)) continue;
-        if (key == "lahn_addon") isAddon = true;
+        if (key == "hardthz_addon" || key == "lahn_addon") isAddon = true; // (lahn: the game's name before)
         else if (key == "name") words >> info.name;
         else if (key == "version") words >> info.version;
     }
@@ -68,7 +68,7 @@ bool installAddon(const std::string& zipPath, const std::string& addonsDir, Addo
     }
     mz_zip_reader_end(&zip);
     AddonInfo info;
-    if (!readManifest(staging / MANIFEST, info)) return fail("It has no addon.txt saying what it is: not a lahn add-on");
+    if (!readManifest(staging / MANIFEST, info)) return fail("It has no addon.txt saying what it is: not a hardthz add-on");
     fs::path destination = fs::path(addonsDir) / info.name;
     fs::remove_all(destination, ec); // a newer one takes the older one's place
     fs::rename(staging, destination, ec);

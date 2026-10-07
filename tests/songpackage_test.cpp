@@ -14,7 +14,7 @@ static const char* CHART = "version 2\ntitle Night Drive\nartist Me\naudio track
                            "tempo 0 120\ntrack guitar Lead\ntuning 40 45 50 55 59 64\nn 0 0 3\n";
 
 static fs::path freshDir(const std::string& name){
-    fs::path dir = fs::temp_directory_path() / "lahn_tests" / "packages" / name;
+    fs::path dir = fs::temp_directory_path() / "hardthz_tests" / "packages" / name;
     fs::remove_all(dir);
     fs::create_directories(dir);
     return dir;
@@ -40,7 +40,7 @@ static fs::path songFolder(){
 
 TEST_CASE("a song goes into a package and comes out the same"){
     fs::path song = songFolder();
-    fs::path package = freshDir("out") / "Night Drive.lahn";
+    fs::path package = freshDir("out") / "Night Drive.hardthz";
     std::string error;
     REQUIRE_MESSAGE(exportSongPackage(song.string(), package.string(), error), error);
     CHECK(fs::exists(package));
@@ -64,7 +64,7 @@ TEST_CASE("a song goes into a package and comes out the same"){
 
 // A zip made by hand, with whatever names and contents a test needs
 static fs::path handMadePackage(const std::vector<std::pair<std::string, std::string>>& files){
-    fs::path path = freshDir("handmade") / "odd.lahn";
+    fs::path path = freshDir("handmade") / "odd.hardthz";
     mz_zip_archive zip{};
     REQUIRE(mz_zip_writer_init_file(&zip, path.string().c_str(), 0));
     for (const auto& [name, content] : files){
@@ -95,7 +95,7 @@ TEST_CASE("a package is refused, leaving nothing behind, when"){
         package = handMadePackage({{"song.chart", "version 2\ntitle Broken\n"}, {"track.ogg", "x"}});
     }
     SUBCASE("it isn't a zip at all"){
-        package = freshDir("notzip") / "fake.lahn";
+        package = freshDir("notzip") / "fake.hardthz";
         std::ofstream(package, std::ios::binary) << "just text";
     }
     CHECK_FALSE(installSongPackage(package.string(), songs.string(), installed, error));
@@ -113,7 +113,7 @@ TEST_CASE("a song's video goes in its package, or stays out of it"){
     std::ofstream(song / "video.mpg", std::ios::binary) << std::string(3000, 'v');
     std::string error, installed;
 
-    fs::path with = freshDir("video-out") / "with.lahn";
+    fs::path with = freshDir("video-out") / "with.hardthz";
     REQUIRE_MESSAGE(exportSongPackage(song.string(), with.string(), error), error);
     fs::path songs = freshDir("video-songs");
     REQUIRE_MESSAGE(installSongPackage(with.string(), songs.string(), installed, error), error);
@@ -124,7 +124,7 @@ TEST_CASE("a song's video goes in its package, or stays out of it"){
     CHECK(chart.videoOffset == doctest::Approx(0.25));
 
     // Without it: the chart still names it, the file isn't there, and the song installs all the same
-    fs::path without = freshDir("video-out2") / "without.lahn";
+    fs::path without = freshDir("video-out2") / "without.hardthz";
     REQUIRE_MESSAGE(exportSongPackage(song.string(), without.string(), error, false), error);
     CHECK(fs::file_size(without) < fs::file_size(with)); // smaller: its video isn't in it
     REQUIRE_MESSAGE(installSongPackage(without.string(), songs.string(), installed, error), error);

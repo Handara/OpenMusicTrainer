@@ -8,7 +8,7 @@
 #include <vector>
 
 // The settings' look: each setting a row, its name and a line of explanation on the left and its control on the
-// right, hairlines between rows, rows gathered under small headers. The controls are lahn's own (toggle switches,
+// right, hairlines between rows, rows gathered under small headers. The controls are hardthz's own (toggle switches,
 // segmented choices, slim sliders, dropdowns, buttons) in the theme's colors, and all reachable with the keyboard: Up
 // and Down move between them, Left and Right move a slider, Enter or Space presses. Drawn inside a scrolling panel.
 // A control inside ImGui::BeginDisabled is drawn faded and can't be used. Each returns true when it changed a value.

@@ -25,7 +25,7 @@ bool recordPlay(const std::string& path, const std::string& id, const std::strin
     count.times++;
     count.last = date;
     std::ostringstream out;
-    out << "# lahn: how many times each exercise and lesson was taken up, and when last: <id> <times> <date>\n";
+    out << "# hardthz: how many times each exercise and lesson was taken up, and when last: <id> <times> <date>\n";
     for (const auto& [name, played] : plays) out << name << " " << played.times << " " << played.last << "\n";
     return writeFileAtomically(path, out.str(), error);
 }

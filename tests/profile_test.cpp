@@ -57,7 +57,7 @@ TEST_CASE("journal: an activity survives being written and read back, its title 
     CHECK(read.notes[1].right == 18);
     CHECK(read.notes[1].asked == 19);
     CHECK_FALSE(readActivity("version 1", read));
-    CHECK_FALSE(readActivity("2026-10-07 18:00 teleport id=x", read)); // a kind from a newer lahn: skipped
+    CHECK_FALSE(readActivity("2026-10-07 18:00 teleport id=x", read)); // a kind from a newer hardthz: skipped
 }
 
 TEST_CASE("levels: each takes 50 XP more than the last, from 100"){
