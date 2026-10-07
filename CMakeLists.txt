@@ -200,6 +200,7 @@ add_library(lahn_core STATIC
     src/core/routine.cpp
     src/core/sampleformat.cpp
     src/core/ampmodel.cpp
+    src/core/backingband.cpp
     src/core/cabinets.cpp
     src/core/tonechain.cpp
     src/core/transcribe.cpp
@@ -232,6 +233,7 @@ add_executable(lahn
     src/app/stemmodel.cpp
     src/app/videoconvert.cpp
     src/audio/audio.cpp
+    src/audio/band.cpp
     src/audio/capture.cpp
     src/audio/asiodriver.cpp
     src/input/midi.cpp
@@ -328,6 +330,7 @@ if(BUILD_TESTING)
         tests/addon_test.cpp
         tests/beats_test.cpp
         tests/ampmodel_test.cpp
+        tests/backingband_test.cpp
         tests/cabinets_test.cpp
         tests/calibration_test.cpp
         tests/chart_test.cpp

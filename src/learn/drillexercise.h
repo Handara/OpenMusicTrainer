@@ -1,5 +1,6 @@
 #pragma once
 
+#include "audio/band.h"
 #include "core/drill.h"
 #include "core/judge.h"
 #include "core/score.h"
@@ -29,7 +30,8 @@ struct DrillSetup {
 // Judged from the number keys or the player's instrument; the best clean tempo is saved. It waits on the first pass's
 // notes until Space (or the instrument's choose, its open G string: input/menuinput), and after each pass shows how
 // it went with a menu: again (at the tempo it earned), faster or the same, the course's next drill, back. Waiting and
-// on that menu, the instrument steers as in the menus.
+// on that menu, the instrument steers as in the menus. It's played with a backing band (audio/band): drums, bass and
+// keys in the drill's own style, chords fitting the notes read; or (B) to the metronome alone.
 class DrillExercise : public Exercise {
 public:
     DrillExercise(const std::string& title, const DrillSetup& setup, const std::string& progressPath, const Settings& settings);
@@ -56,6 +58,7 @@ private:
     double drillTime() const; // the audio clock, minus the output offset: what the notes are timed against
     void drawWhere(float left, float right, float top, float bottom, float s); // the neck, the next note lit
     void drawEnd(float s);      // how the pass went, and the menu after it
+    void toggleBand();          // the band, or the metronome alone (kept for every drill)
 
     std::string title;
     DrillSetup setup;
@@ -91,4 +94,12 @@ private:
     double endedAt = -100.0;
     std::string nextLabel;         // the course's next drill, offered there ("" for none)
     bool nextChosen = false;
+    // The backing band: its style (the drill's own, from its id), each pass's song
+    BandPlayer band;
+    bool bandOn = true;
+    std::string bandPath;          // where the choice of band or metronome is kept
+    unsigned bandSeed = 0;
+    int bandStyle = 0;
+    int passNumber = 0;            // each pass's song its own
+    BandSong song;
 };

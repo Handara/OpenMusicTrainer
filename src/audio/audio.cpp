@@ -1583,6 +1583,18 @@ void playBuiltInNote(const char* name, float frequency, float volume){
     startVoice(voice, voice.samples.data(), voice.samples.size(), 1.0f, volume, ma_engine_get_time_in_pcm_frames(&audio.engine));
 }
 
+void playBuiltInNoteAt(const char* name, float frequency, double time, float seconds, float volume){
+    if (!audio.engineReady || volume <= 0.0f) return;
+    Voice& voice = takeVoice();
+    const ma_uint32 sampleRate = ma_engine_get_sample_rate(&audio.engine);
+    voice.samples.resize((size_t)(std::clamp(seconds, 0.05f, 3.0f) * sampleRate));
+    renderBuiltInSound(name, voice.samples.data(), (int)voice.samples.size(), frequency, (int)sampleRate, (unsigned)audio.previewCount++);
+    const size_t fade = std::min(voice.samples.size(), (size_t)(0.02f * sampleRate)); // let go, not cut off
+    for (size_t i = 0; i < fade; i++) voice.samples[voice.samples.size() - 1 - i] *= (float)i / (float)fade;
+    startVoice(voice, voice.samples.data(), voice.samples.size(), 1.0f, std::clamp(volume, 0.0f, 1.0f),
+               (ma_uint64)std::llround(std::max(0.0, time) * sampleRate));
+}
+
 void playKeysNote(float frequency){
     if (!audio.engineReady) return;
     startPreview(frequency, ma_engine_get_time_in_pcm_frames(&audio.engine), "keys");

@@ -16,6 +16,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
+#include <fstream>
 
 const double LEAD_IN_S = 0.3;      // silence before the count-in
 const double LOOKAHEAD_S = 0.2;     // metronome clicks are handed to the audio engine this far ahead
@@ -27,6 +29,13 @@ const float HIT_LINE_X = 180.0f;
 const int MAX_KEY_LANES = 6;
 const float HIT_RING_S = 0.6f;      // shown where: the ring round a note hit, on the neck
 
+// A name's number, the same on every machine (FNV-1a): a drill's id gives it its band's style
+static unsigned stableHash(const std::string& text){
+    unsigned hash = 2166136261u;
+    for (unsigned char c : text) hash = (hash ^ c) * 16777619u;
+    return hash;
+}
+
 DrillExercise::DrillExercise(const std::string& title, const DrillSetup& setup, const std::string& progressPath,
                              const Settings& settings)
     : title(title), setup(setup), progressPath(progressPath), settings(settings){
@@ -36,6 +45,13 @@ DrillExercise::DrillExercise(const std::string& title, const DrillSetup& setup, 
     chart = drillChart(drillNotes, setup.tuning, setup.key, setup.beatsPerBar);
     tempo = drillTempo(setup.tempo, progress);
     placePass(WAITING_DOWNBEAT);
+    // Its band: a style that suits its tempos, its own (from its id); the band or the metronome, as chosen last
+    bandSeed = stableHash(std::filesystem::path(progressPath).filename().string());
+    bandStyle = bandStyleFor(bandSeed, (setup.tempo.startTempo + std::max(setup.tempo.startTempo, setup.tempo.maxTempo)) / 2, setup.beatsPerBar);
+    bandPath = (std::filesystem::path(progressPath).parent_path() / "drill-sound.txt").string();
+    std::ifstream chosen(bandPath);
+    std::string sound;
+    bandOn = !(chosen >> sound) || sound != "metronome";
     if (settings.playWithInstrument){
         float lowest = midiToFrequency((float)*std::min_element(setup.tuning.begin(), setup.tuning.end())) * 0.9f;
         int lowestPitch = *std::min_element(setup.tuning.begin(), setup.tuning.end());
@@ -72,6 +88,18 @@ void DrillExercise::startPass(bool fresh){
     nextClick = 0;
     totalClicks = countIn + (int)std::ceil(lastBeat) + 1;
     hits = 0;
+    // The band's song for these notes (its count-in the bar before), or the metronome's clicks
+    if (bandOn){
+        const int bars = std::max(1, (int)std::floor(lastBeat / setup.beatsPerBar) + 1);
+        song = makeBandSong(drillNotes, setup.key, setup.beatsPerBar, bars, bandStyle, bandSeed + (unsigned)passNumber++);
+        band.start(song, firstNoteTime, beat);
+    } else band.stop();
+}
+
+void DrillExercise::toggleBand(){
+    bandOn = !bandOn;
+    std::ofstream out(bandPath);
+    out << (bandOn ? "band" : "metronome") << "\n";
 }
 
 // The pass's notes and its written score, on the audio clock from `downbeat` (the first bar's first beat) at the
@@ -103,6 +131,7 @@ void DrillExercise::finishPass(){
     endOutcome = outcome;
     endedAt = GetTime();
     endMenu = MenuList{}; // its first row chosen: again
+    band.schedule(band.endTime() + 1.0); // its ending, all of it: it rings out under the result
     stage = Stage::Ended;
     passText.clear();
     drillNotes = setup.nextPass();
@@ -113,6 +142,7 @@ void DrillExercise::finishPass(){
 
 void DrillExercise::stopPass(){
     stopPreviews();
+    band.stop();
     stage = Stage::Waiting;
     tempo = drillTempo(setup.tempo, progress);
     placePass(WAITING_DOWNBEAT); // the same notes, from their start
@@ -128,6 +158,7 @@ void DrillExercise::update(){
     if (stage != Stage::Running){
         // Waiting: Space, or Enter (the instrument's choose, through the menus' listening) starts. The end menu
         // handles its own keys as it's drawn.
+        if (ImGui::IsKeyPressed(ImGuiKey_M, false)) toggleBand(); // (not B: on the keyboard, B is a note)
         if (stage == Stage::Waiting && (ImGui::IsKeyPressed(ImGuiKey_Space, false) || ImGui::IsKeyPressed(ImGuiKey_Enter, false)
                                         || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false))){
             stage = Stage::Running;
@@ -143,7 +174,8 @@ void DrillExercise::update(){
     }
     double now = audioTime();
     double beat = 60.0 / tempo;
-    while (nextClick < totalClicks && countInStart + nextClick * beat < now + LOOKAHEAD_S){
+    if (bandOn) band.schedule(now + LOOKAHEAD_S);
+    else while (nextClick < totalClicks && countInStart + nextClick * beat < now + LOOKAHEAD_S){
         playClickAt(countInStart + nextClick * beat, nextClick % setup.beatsPerBar == 0);
         nextClick++;
     }
@@ -221,14 +253,19 @@ void DrillExercise::draw(){
     // (shown where: the title says what's read, and an input's error takes its line's place, for the neck's room)
     if (!setup.showWhere) centeredColoredText(setup.about.c_str(), uiColor(UiColor::Dim));
     if (!running){
-        centeredText(menuInputActive() ? "Press Space or play the open G string to start. The metronome counts one bar in, then play along."
-                                       : "Press Space to start. The metronome counts one bar in, then play along.");
+        centeredText(menuInputActive() ? "Press Space or play the open G string to start. One bar counts in, then play along."
+                                       : "Press Space to start. One bar counts in, then play along.");
+        centeredColoredText(bandOn ? TextFormat("With a %s band, its chords fitting your notes.  M: the metronome alone", bandStyleName(bandStyle))
+                                   : "With the metronome.  M: a band instead", uiColor(UiColor::Accent));
     } else {
         double t = drillTime();
         // How it's going: hit of the notes so far, out of the pass's
         const int sofar = (int)std::count_if(notes.begin(), notes.end(), [](const PlayNote& note){ return note.judged; });
+        // ...and the band's chord now
+        const int bar = (int)std::floor((t - firstNoteTime) / (60.0 / tempo) / setup.beatsPerBar);
+        const std::string chord = bandOn && bar >= 0 && bar < (int)song.chords.size() ? "    " + song.chords[(size_t)bar] : "";
         if (t < firstNoteTime) centeredText("Get ready...");
-        else centeredText(TextFormat("%d of %d hit (out of %d)    Space to stop", hits, sofar, (int)notes.size()));
+        else centeredText(TextFormat("%d of %d hit (out of %d)%s    Space to stop", hits, sofar, (int)notes.size(), chord.c_str()));
     }
     if (!passText.empty()) centeredColoredText(passText.c_str(), uiColor(UiColor::Good));
     if (!inputError.empty()) centeredErrorText(inputError);
