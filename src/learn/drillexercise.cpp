@@ -3,6 +3,7 @@
 #include "audio/audio.h"
 #include "core/music.h"
 #include "imgui.h"
+#include "input/keynotes.h"
 #include "input/noteinput.h"
 #include "raylib.h"
 #include "ui/ui.h"
@@ -138,6 +139,27 @@ void DrillExercise::update(){
         press.stringIndex = setup.timingOnly ? timingString() : lane;
         judge(press);
     }
+    // The keyboard's notes by name (input/keynotes), taken in the octave of the note due nearest now, and heard
+    if (!setup.timingOnly){
+        const int keyClass = keyboardNoteClass();
+        if (keyClass >= 0){
+            int expected = -1;
+            double nearest = 1e9;
+            for (const PlayNote& note : notes){
+                if (note.judged || std::abs(note.time - t) >= nearest) continue;
+                nearest = std::abs(note.time - t);
+                expected = note.pitch;
+            }
+            const int pitch = nearestPitchOfClass(keyClass, expected >= 0 ? expected : 60);
+            const bool bass = *std::min_element(setup.tuning.begin(), setup.tuning.end()) < 36;
+            playStringNote(midiToFrequency((float)pitch), bass, 0.6f, 0.7f);
+            PlayerInput press;
+            press.time = t;
+            press.pitch = pitch;
+            judge(press);
+            lastPlayedPitch = pitch;
+        }
+    }
     if (noteInputActive()){
         for (const PlayedNote& played : updateNoteInput()){
             PlayerInput input;
@@ -177,8 +199,7 @@ void DrillExercise::draw(){
         centeredColoredText(lastPlayedPitch >= 0 ? TextFormat("Listening: you played %s%d", pitchClassName(lastPlayedPitch), pitchOctave(lastPlayedPitch))
                                                  : "Listening to your instrument", uiColor(UiColor::Dim));
     } else if (inputError.empty() || !setup.showWhere){
-        centeredColoredText(setup.timingOnly ? "Any number key plays the note: it's the timing that counts"
-                                             : "Keys 1 to 6 play the strings, lowest first", uiColor(UiColor::Dim));
+        centeredColoredText(setup.timingOnly ? "Any number key plays the note: it's the timing that counts" : KEYBOARD_NOTES_HINT, uiColor(UiColor::Dim));
     }
 
     // The notes, in whichever views the settings choose, below the text. Shown where: the neck above them, one panel

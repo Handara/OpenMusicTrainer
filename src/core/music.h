@@ -11,3 +11,5 @@ float frequencyToMidi(float frequency);
 float midiToFrequency(float midiPitch);
 // "F#3", "Bb1", "C4" -> MIDI (C4 = 60); false if it isn't one
 bool parseNoteName(const std::string& text, int& pitch);
+// The pitch of a pitch class (0 = C) nearest to `near`: a note named without its octave, taken in the octave meant
+int nearestPitchOfClass(int pitchClass, int near);

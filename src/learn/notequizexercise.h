@@ -33,7 +33,7 @@ public:
 private:
     void startRun();
     void playPrompt();      // by ear: the reference, then the note asked
-    void played(int pitch);
+    void played(int pitch, bool heard); // `heard`: from the instrument (not the keyboard or a click)
     void finish();
     std::string promptText() const;
     void drawProgress(float left, float right, float top, float s);

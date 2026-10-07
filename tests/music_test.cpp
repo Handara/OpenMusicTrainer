@@ -22,3 +22,12 @@ TEST_CASE("frequency and MIDI pitch convert both ways"){
     CHECK(midiToFrequency(frequencyToMidi(123.4f)) == doctest::Approx(123.4f));
     CHECK(frequencyToMidi(440.0f * 1.0145453f) == doctest::Approx(69.25f).epsilon(0.001)); // +25 cents
 }
+
+TEST_CASE("a note named without its octave, taken in the octave meant"){
+    CHECK(nearestPitchOfClass(4, 64) == 64);  // E, an E asked: that E
+    CHECK(nearestPitchOfClass(5, 64) == 65);  // F, near E4: F4, not F3
+    CHECK(nearestPitchOfClass(2, 64) == 62);  // D: the D below
+    CHECK(nearestPitchOfClass(10, 64) == 70); // A# six up...
+    CHECK(nearestPitchOfClass(11, 64) == 59); // ...B five down
+    CHECK(nearestPitchOfClass(0, 40) == 36);
+}

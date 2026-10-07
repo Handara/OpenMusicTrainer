@@ -47,3 +47,8 @@ bool parseNoteName(const std::string& text, int& pitch){
     pitch = ((negative ? -octave : octave) + 1) * 12 + semitone;
     return pitch >= 0 && pitch <= 127;
 }
+
+int nearestPitchOfClass(int pitchClass, int near){
+    const int up = ((pitchClass - near) % 12 + 12) % 12; // semitones up to the next one of that class
+    return up <= 6 ? near + up : near + up - 12;
+}

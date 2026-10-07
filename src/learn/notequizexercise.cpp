@@ -5,6 +5,7 @@
 #include "core/music.h"
 #include "core/synth.h"
 #include "imgui.h"
+#include "input/keynotes.h"
 #include "input/noteinput.h"
 #include "raylib.h"
 #include "ui/menulist.h"
@@ -88,9 +89,9 @@ void NoteQuizExercise::playPrompt(){
     soundingUntil = GetTime() + (at - start) + PROMPT_S * 0.6;
 }
 
-void NoteQuizExercise::played(int pitch){
+void NoteQuizExercise::played(int pitch, bool heard){
     if (finished) return;
-    if (config.prompt == NotePrompt::Ear && GetTime() < soundingUntil) return; // lahn's own note, heard through a microphone
+    if (heard && config.prompt == NotePrompt::Ear && GetTime() < soundingUntil) return; // lahn's own note, heard through a microphone
     const size_t asked = run.next;
     if (playNoteQuiz(run, config, pitch)){
         rightAt = GetTime();
@@ -123,7 +124,14 @@ void NoteQuizExercise::finish(){
 }
 
 void NoteQuizExercise::update(){
-    if (listening) for (const PlayedNote& note : updateNoteInput()) played(note.pitch);
+    if (listening) for (const PlayedNote& note : updateNoteInput()) played(note.pitch, true);
+    // The keyboard's notes by name (input/keynotes), in the octave of the note asked, and heard
+    const int keyClass = keyboardNoteClass();
+    if (keyClass >= 0 && !finished && run.next < run.prompts.size()){
+        const int pitch = nearestPitchOfClass(keyClass, run.prompts[run.next].pitch);
+        playStringNote(midiToFrequency((float)pitch), onBass, 0.8f, 0.8f);
+        played(pitch, false);
+    }
     if (finished && ImGui::IsKeyPressed(ImGuiKey_Space, false)) startRun();
     else if (config.prompt == NotePrompt::Ear && !finished && (ImGui::IsKeyPressed(ImGuiKey_Space, false) || ImGui::IsKeyPressed(ImGuiKey_R, false)))
         playPrompt(); // hear it again
@@ -275,7 +283,7 @@ void NoteQuizExercise::draw(){
         const int fret = board.fretAt(mouse.x), string = board.stringAt(mouse.y);
         if (fret >= 0 && string >= 0 && string < (int)config.tuning.size()){
             playStringNote(midiToFrequency((float)(config.tuning[string] + fret)), onBass, 1.0f, 0.8f);
-            played(config.tuning[string] + fret);
+            played(config.tuning[string] + fret, false);
         }
     }
 
@@ -290,7 +298,7 @@ void NoteQuizExercise::draw(){
     }
     float textY = neckBottom + 36 * s;
     if (!inputError.empty()) draw->AddText(fonts.text, 16 * s, ImVec2(left, textY), uiColor(UiColor::Bad), inputError.c_str());
-    else if (!listening) draw->AddText(fonts.text, 16 * s, ImVec2(left, textY), uiColor(UiColor::Dim), "No instrument: click the frets to play");
+    else if (!listening) draw->AddText(fonts.text, 16 * s, ImVec2(left, textY), uiColor(UiColor::Dim), "No instrument: click the frets, or name the notes on the keyboard (A to G, Shift sharp, Ctrl flat)");
     menuScreenHint(finished ? "Space  again    Esc  back" : config.prompt == NotePrompt::Ear ? "Space  hear it again    Esc  back" : "Esc  back", s);
     ImGui::Dummy(ImVec2(1, 1)); // the board moved ImGui's cursor (ui/fretboardview): an item after it
 }

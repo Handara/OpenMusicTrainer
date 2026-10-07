@@ -201,6 +201,7 @@ add_executable(lahn
     src/audio/audio.cpp
     src/audio/asiodriver.cpp
     src/input/midi.cpp
+    src/input/keynotes.cpp
     src/input/menuinput.cpp
     src/input/noteinput.cpp
     src/input/pianokeys.cpp
