@@ -282,6 +282,7 @@ add_executable(lahn
     src/screens/menus.cpp
     src/screens/newsong.cpp
     src/screens/practicescreen.cpp
+    src/screens/profilescreen.cpp
     src/screens/settingsscreen.cpp
     src/screens/tuner.cpp
     src/screens/tuningscreen.cpp

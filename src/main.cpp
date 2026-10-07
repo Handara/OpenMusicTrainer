@@ -23,6 +23,7 @@
 #include "screens/menus.h"
 #include "screens/newsong.h"
 #include "screens/practicescreen.h"
+#include "screens/profilescreen.h"
 #include "screens/settingsscreen.h"
 #include "screens/tuner.h"
 #include "screens/tuningscreen.h"
@@ -47,7 +48,7 @@
 namespace fs = std::filesystem;
 
 enum class Screen { MainMenu, SongSelect, Playing, Results, Tuner, Instrument, EditorSelect, NewSong, Editor, LessonEditor, Settings, Learn, Calibration,
-                    TuningCheck, ToneWizard, ImportSong, Practice };
+                    TuningCheck, ToneWizard, ImportSong, Practice, Profile };
 
 // App-wide state shared between screens
 static struct App {
@@ -591,6 +592,7 @@ static void handleBackKey(bool backClicked){
             break;
         case Screen::Results: if (!resultsBack()) goToSongSelect(); break;
         case Screen::Tuner: leaveTuner(); break;
+        case Screen::Profile: app.screen = Screen::MainMenu; break;
         case Screen::Instrument: leaveInstrument(); break;
         case Screen::Settings: if (!settingsUsedEscape()) leaveSettings(); break;
         case Screen::Calibration: leaveCalibration(); break;
@@ -629,6 +631,10 @@ static void runMenus(){
                 case MainMenuChoice::Play: goToSongSelect(); break;
                 case MainMenuChoice::Learn: goToLearn(); break;
                 case MainMenuChoice::Tuner: goToTuner(); break;
+                case MainMenuChoice::Profile:
+                    openProfileScreen();
+                    app.screen = Screen::Profile;
+                    break;
                 case MainMenuChoice::Instrument:
                     openInstrumentScreen(app.settings);
                     app.screen = Screen::Instrument;
@@ -707,6 +713,9 @@ static void runMenus(){
             break;
         case Screen::Tuner:
             tunerScreen();
+            break;
+        case Screen::Profile:
+            if (profileScreen(app.settings)) saveAppSettings(); // the daily goal changed
             break;
         case Screen::Instrument: instrumentScreen(); break;
         case Screen::Settings:
@@ -901,7 +910,8 @@ int main(void){
         if (app.screen == Screen::Tuner) updateTuner();
 
         // The instrument steers the menus (its open strings as arrows), on the screens that are menus
-        const bool menuScreen = app.screen == Screen::MainMenu || app.screen == Screen::SongSelect || (app.screen == Screen::Learn && learnInMenus());
+        const bool menuScreen = app.screen == Screen::MainMenu || app.screen == Screen::SongSelect || app.screen == Screen::Profile
+                                || (app.screen == Screen::Learn && learnInMenus());
         const InstrumentStatus& played = statusOf(app.settings.heardInstrument);
         updateMenuInput(menuScreen, played.ready ? "" : played.problem.empty() ? "no instrument connected" : played.problem, app.settings,
                         app.settings.heardInstrument);
