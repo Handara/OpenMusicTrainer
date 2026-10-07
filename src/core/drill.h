@@ -66,10 +66,15 @@ struct DrillPassOutcome {
     bool newBest;
 };
 
+// The tempo to play next: where it got to, kept within the drill's tempos (they may have changed since), from the
+// slowest it slows down to up to its max
 int drillTempo(const DrillTempo& rules, const DrillProgress& progress);
+const int DRILL_SLOW_DOWN = 5; // bpm, after a pass that isn't clean
+// The slowest a drill goes, slowing down: 30 bpm under its start (never under 40)
+int slowestDrillTempo(const DrillTempo& rules);
 
 // After a pass played at `tempo`: clean (accuracy at least the pass mark) records the best tempo and speeds up
-// one step; below 50% slows down one step; in between, the tempo stays.
+// one step; not clean, it slows down 5 bpm (to slowestDrillTempo at the least).
 DrillPassOutcome finishDrillPass(const DrillTempo& rules, DrillProgress& progress, int tempo, float accuracyPercent);
 
 DrillProgress loadDrillProgress(const std::string& path); // lenient, like all progress files

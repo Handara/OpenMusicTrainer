@@ -53,17 +53,19 @@ TEST_CASE("the tempo ramp"){
     CHECK(clean.nextTempo == 64);
     CHECK(progress.bestCleanTempo == 60);
 
-    DrillPassOutcome close = finishDrillPass(config.tempo, progress, 64, 80.0f); // not clean, not bad: stay
+    DrillPassOutcome close = finishDrillPass(config.tempo, progress, 64, 80.0f); // not clean: 5 slower
     CHECK_FALSE(close.clean);
-    CHECK(close.nextTempo == 64);
+    CHECK(close.nextTempo == 59);
 
-    DrillPassOutcome bad = finishDrillPass(config.tempo, progress, 64, 30.0f);   // struggling: slow down
-    CHECK(bad.nextTempo == 60);
+    DrillPassOutcome bad = finishDrillPass(config.tempo, progress, 59, 30.0f);
+    CHECK(bad.nextTempo == 54);           // under its start too: slower still, if that's what it takes
     CHECK(progress.bestCleanTempo == 60); // the best is kept
+    progress.tempo = 41;
+    CHECK(finishDrillPass(config.tempo, progress, 41, 10.0f).nextTempo == 40); // never under the slowest
 
     progress.tempo = 158;
     CHECK(finishDrillPass(config.tempo, progress, 158, 100.0f).nextTempo == 160); // never past the max
-    CHECK(progress.passes == 4);
+    CHECK(progress.passes == 5);
     CHECK(progress.cleanPasses == 2);
 }
 
@@ -104,7 +106,9 @@ TEST_CASE("a drill's tempo so far stays within its tempos, should they change"){
     DrillProgress progress;
     CHECK(drillTempo(rules, progress) == 100);
     progress.tempo = 55;  // played when it started at 50
-    CHECK(drillTempo(rules, progress) == 100);
+    CHECK(drillTempo(rules, progress) == 70); // the slowest it goes now: 30 under its start
+    progress.tempo = 85;  // slowed down after passes that weren't clean
+    CHECK(drillTempo(rules, progress) == 85);
     progress.tempo = 110;
     CHECK(drillTempo(rules, progress) == 110);
     progress.tempo = 150;

@@ -73,9 +73,12 @@ Chart drillChart(const std::vector<DrillNote>& notes, const std::vector<int>& tu
     return chart;
 }
 
+int slowestDrillTempo(const DrillTempo& rules){
+    return std::min(rules.startTempo, std::max(40, rules.startTempo - 30));
+}
+
 int drillTempo(const DrillTempo& rules, const DrillProgress& progress){
-    // Where it got to, kept within the drill's tempos (they may have changed since)
-    return progress.tempo > 0 ? std::clamp(progress.tempo, rules.startTempo, std::max(rules.startTempo, rules.maxTempo)) : rules.startTempo;
+    return progress.tempo > 0 ? std::clamp(progress.tempo, slowestDrillTempo(rules), std::max(rules.startTempo, rules.maxTempo)) : rules.startTempo;
 }
 
 DrillPassOutcome finishDrillPass(const DrillTempo& rules, DrillProgress& progress, int tempo, float accuracyPercent){
@@ -87,10 +90,8 @@ DrillPassOutcome finishDrillPass(const DrillTempo& rules, DrillProgress& progres
         progress.cleanPasses++;
         progress.bestCleanTempo = std::max(progress.bestCleanTempo, tempo);
         progress.tempo = std::min(rules.maxTempo, tempo + rules.tempoStep);
-    } else if (accuracyPercent < 50.0f){
-        progress.tempo = std::max(rules.startTempo, tempo - rules.tempoStep);
     } else {
-        progress.tempo = tempo;
+        progress.tempo = std::max(slowestDrillTempo(rules), tempo - DRILL_SLOW_DOWN);
     }
     outcome.nextTempo = progress.tempo;
     return outcome;

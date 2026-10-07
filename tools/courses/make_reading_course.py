@@ -161,7 +161,7 @@ def timed_chapter(instrument, title, text, strings, frets, cells, tempos, key="C
 
 BEAT_BARS = 10  # a run to a beat: ten bars, forty quarter notes
 BEAT_PASS = 87  # 35 of the 40 notes (87.5%) pass it
-BEAT_TEMPO = "tempo 100 120 5"  # notes at random: from 100 bpm, up to 120
+BEAT_TEMPO = "tempo 90 120 5"  # notes at random: from 90 bpm, up to 120
 SLOW = [("Slowly", 60, 80), ("Steady", 75, 100), ("Moving on", 90, 120)]
 
 # What each instrument's course goes through: its open strings, top to bottom, a note a chapter; then what follows
