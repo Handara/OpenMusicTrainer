@@ -8,10 +8,11 @@
 // instrument is heard the moment it's played, whatever the tone. Tones are kept as small text files, to save, share
 // and load. Pure; the audio thread runs a chain without allocating.
 
-enum class EffectType { Gate, Compressor, Drive, Amp, Equalizer, Octaver, Chorus, Delay, Reverb, Count };
+enum class EffectType { Gate, Compressor, Drive, Amp, Equalizer, Octaver, Chorus, Delay, Reverb, Cabinet, Count };
 
 const int MAX_PARAMETERS = 6;
 const int MAX_EFFECTS = 12;
+const int MAX_CABINET_TAPS = 4096; // a cabinet's impulse response, at most (85 ms at 48 kHz)
 
 struct ParameterInfo {
     const char* id;      // in tone files: "drive"
@@ -19,6 +20,7 @@ struct ParameterInfo {
     float min, max, standard;
     const char* unit;    // "dB", "ms", "Hz", "%" (0..1 shown as a percentage), "" for none
     const char* description; // what turning it does, for the player
+    const char* const* choices = nullptr; // a choice rather than an amount: the names of 0, 1, 2... up to max
 };
 
 struct EffectInfo {
@@ -56,9 +58,22 @@ bool readTone(const std::string& text, Tone& tone, std::string& error);
 
 // --- Running a tone ------------------------------------------------------------------------------------------
 
+// What an effect plays through beyond its settings, worked out off the audio thread (core/cabinets): a cabinet's
+// impulse response, at each rate a device may run at, back to front (the oldest sample meets the last tap). Kept as
+// long as the audio thread may play it.
+struct ToneAsset {
+    struct Response {
+        int sampleRate = 0;
+        std::vector<float> reversed;
+    };
+    std::vector<Response> responses;
+    const Response* forRate(int sampleRate) const; // the nearest; nullptr for none
+};
+
 // A tone as the audio thread takes it: fixed size, nothing to allocate or free
 struct ToneParameters {
     Effect effects[MAX_EFFECTS];
+    const ToneAsset* assets[MAX_EFFECTS] = {}; // what each plays through (a cabinet's response), nullptr for nothing
     int count = 0;
     float volume = 0.8f;
 };
@@ -90,6 +105,10 @@ struct EffectState {
     int combLength[8] = {}, allpassLength[4] = {}; // the part of each used at the rate now
     int combAt[8] = {}, allpassAt[4] = {};
     float combStore[8] = {};
+    std::vector<float> history;          // a cabinet's: the input's latest samples, twice over (read in one piece)
+    int historyAt = 0;
+    const float* taps = nullptr;         //   its response at the rate now, back to front
+    int tapCount = 0;
 };
 
 struct ToneChain {

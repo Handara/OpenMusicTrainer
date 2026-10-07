@@ -1,8 +1,15 @@
 #include "core/tonechain.h"
 
+#include "core/cabinets.h"
+
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <sstream>
+#if defined(__SSE__) || defined(_M_X64) || defined(_M_AMD64)
+#include <xmmintrin.h>
+#define LAHN_SSE 1
+#endif
 
 const float PI_F = 3.14159265f;
 const float DC_POLE = 0.9995f;          // the DC blocker: a high-pass around 4 Hz at 48 kHz, far under a bass's low E
@@ -95,6 +102,17 @@ const EffectInfo& effectInfo(EffectType type){
               "How much the walls soak up the highs: more is warmer and darker" },
             { "mix", "Mix", 0.0f, 1.0f, 0.2f, "%",
               "How much of the room you hear against your dry sound" } } },
+        { "cabinet", "Cabinet", "A speaker cabinet and the mic on it: what makes an amp sound recorded, not fizzy", 5, {
+            { "speaker", "Speaker", 0.0f, (float)(cabinetCount() - 1), 2.0f, "",
+              "Which cabinet: open-backed and airy, closed and tight, big bass cabinets", cabinetNames() },
+            { "mic", "Mic", 0.0f, 1.0f, 0.3f, "%",
+              "Where the mic points: at the speaker's middle for bite (left), toward its edge for a rounder, darker sound (right)" },
+            { "lowcut", "Low cut", 20.0f, 300.0f, 30.0f, "Hz",
+              "Everything below this is cut: tightens a boomy low end" },
+            { "highcut", "High cut", 2000.0f, 20000.0f, 12000.0f, "Hz",
+              "Everything above this is cut: tames the last of the fizz" },
+            { "level", "Level", -12.0f, 12.0f, 0.0f, "dB",
+              "How loud it comes out" } } },
     };
     return INFOS[std::clamp((int)type, 0, (int)EffectType::Count - 1)];
 }
@@ -119,27 +137,34 @@ static Effect effectWith(EffectType type, std::initializer_list<std::pair<const 
 
 const std::vector<Tone>& builtInTones(){
     static const std::vector<Tone> TONES = {
+        // The speaker is a cabinet of its own (core/cabinets), the amp's own speaker filter left out
         { "Clean", {
             effectWith(EffectType::Compressor, {{"threshold", -22.0f}, {"ratio", 3.0f}, {"attack", 8.0f}, {"makeup", 5.0f}}),
-            effectWith(EffectType::Amp, {{"gain", 0.15f}, {"bass", 2.0f}, {"treble", 1.0f}, {"cabinet", 0.5f}}),
+            effectWith(EffectType::Amp, {{"gain", 0.15f}, {"bass", 2.0f}, {"treble", 1.0f}, {"cabinet", 0.0f}}),
+            effectWith(EffectType::Cabinet, {{"speaker", 5.0f}, {"mic", 0.2f}}), // full range, for a bass or a guitar
             effectWith(EffectType::Reverb, {{"size", 0.35f}, {"mix", 0.12f}}) }, 0.8f },
         { "Warm", {
             effectWith(EffectType::Compressor, {{"threshold", -20.0f}, {"ratio", 4.0f}, {"makeup", 6.0f}}),
-            effectWith(EffectType::Amp, {{"gain", 0.45f}, {"bass", 3.0f}, {"mid", 2.0f}, {"treble", -2.0f}, {"cabinet", 0.8f}}) }, 0.8f },
+            effectWith(EffectType::Amp, {{"gain", 0.45f}, {"bass", 3.0f}, {"mid", 2.0f}, {"treble", -2.0f}, {"cabinet", 0.0f}}),
+            effectWith(EffectType::Cabinet, {{"speaker", 3.0f}, {"mic", 0.5f}}) }, 0.8f },
         { "Growl", {
             effectWith(EffectType::Compressor, {{"threshold", -20.0f}, {"makeup", 5.0f}}),
             effectWith(EffectType::Drive, {{"drive", 0.55f}, {"character", 0.4f}, {"tone", 0.55f}, {"level", 0.6f}, {"blend", 0.55f}}),
-            effectWith(EffectType::Amp, {{"gain", 0.3f}, {"bass", 2.0f}, {"mid", 3.0f}, {"cabinet", 0.7f}}) }, 0.75f },
+            effectWith(EffectType::Amp, {{"gain", 0.3f}, {"bass", 2.0f}, {"mid", 3.0f}, {"cabinet", 0.0f}}),
+            effectWith(EffectType::Cabinet, {{"speaker", 4.0f}, {"mic", 0.3f}}) }, 0.75f },
         { "Fuzz", {
             effectWith(EffectType::Drive, {{"drive", 0.9f}, {"character", 1.0f}, {"tone", 0.45f}, {"level", 0.5f}, {"blend", 0.8f}}),
-            effectWith(EffectType::Amp, {{"gain", 0.2f}, {"cabinet", 0.8f}}) }, 0.7f },
+            effectWith(EffectType::Amp, {{"gain", 0.2f}, {"cabinet", 0.0f}}),
+            effectWith(EffectType::Cabinet, {{"speaker", 2.0f}, {"mic", 0.3f}, {"highcut", 9000.0f}}) }, 0.7f },
         { "Dub", {
             effectWith(EffectType::Octaver, {{"sub", 0.7f}, {"dry", 0.7f}, {"tone", 0.3f}}),
             effectWith(EffectType::Compressor, {{"threshold", -24.0f}, {"makeup", 6.0f}}),
             effectWith(EffectType::Equalizer, {{"low", 4.0f}, {"highmid", -3.0f}, {"high", -6.0f}}),
+            effectWith(EffectType::Cabinet, {{"speaker", 6.0f}, {"mic", 0.4f}}),
             effectWith(EffectType::Reverb, {{"size", 0.5f}, {"damping", 0.6f}, {"mix", 0.18f}}) }, 0.75f },
         { "Space", {
             effectWith(EffectType::Compressor, {{"makeup", 4.0f}}),
+            effectWith(EffectType::Cabinet, {{"speaker", 1.0f}, {"mic", 0.3f}}),
             effectWith(EffectType::Chorus, {{"rate", 0.6f}, {"depth", 0.5f}, {"mix", 0.45f}}),
             effectWith(EffectType::Delay, {{"time", 380.0f}, {"feedback", 0.35f}, {"mix", 0.25f}}),
             effectWith(EffectType::Reverb, {{"size", 0.75f}, {"damping", 0.4f}, {"mix", 0.3f}}) }, 0.75f },
@@ -227,6 +252,13 @@ bool readTone(const std::string& text, Tone& tone, std::string& error){
 
 // --- Running a tone -----------------------------------------------------------------------------------------
 
+const ToneAsset::Response* ToneAsset::forRate(int sampleRate) const {
+    const Response* nearest = nullptr;
+    for (const Response& response : responses)
+        if (!nearest || std::abs(response.sampleRate - sampleRate) < std::abs(nearest->sampleRate - sampleRate)) nearest = &response;
+    return nearest;
+}
+
 ToneParameters toneParameters(const Tone& tone){
     ToneParameters parameters;
     parameters.count = std::min((int)tone.effects.size(), MAX_EFFECTS);
@@ -260,6 +292,7 @@ void initToneChain(ToneChain& chain, int sampleRate){
         for (int c = 0; c < 8; c++) state.combs[c].assign((size_t)(REVERB_COMBS[c] * scale) + 1, 0.0f);
         for (int a = 0; a < 4; a++) state.allpasses[a].assign((size_t)(REVERB_ALLPASSES[a] * scale) + 1, 0.0f);
         setReverbLengths(state, chain.sampleRate);
+        state.history.assign(2 * (size_t)MAX_CABINET_TAPS, 0.0f);
     }
     chain.parameters = ToneParameters{};
     chain.dcIn = chain.dcOut = 0.0f;
@@ -331,9 +364,28 @@ static void setUp(EffectState& state, const Effect& effect, float rate){
         case EffectType::Delay:
             lowPass(state.filters[0], 1000.0f * std::pow(12.0f, v[3]), 0.7f, rate); // each echo a little darker
             break;
+        case EffectType::Cabinet:
+            shelf(state.filters[0], 2500.0f, 3.0f - 11.0f * v[1], true, rate); // the mic: at the middle bright, toward the edge dark...
+            peak(state.filters[1], 350.0f, 0.8f, 2.5f * v[1], rate);           // ...and fuller
+            highPass(state.filters[2], v[2], 0.7f, rate);
+            lowPass(state.filters[3], v[3], 0.7f, rate);
+            break;
         default: break;
     }
     for (int i = 0; i < MAX_PARAMETERS; i++) state.values[i] = v[i];
+}
+
+// A cabinet's response at the chain's rate, from what it was given to play through. Another length starts its
+// history afresh (allocation-free: the history is sized for the longest).
+static void takeResponse(EffectState& state, const ToneAsset* asset, int sampleRate){
+    const ToneAsset::Response* response = asset ? asset->forRate(sampleRate) : nullptr;
+    const int count = response ? std::min((int)response->reversed.size(), MAX_CABINET_TAPS) : 0;
+    if (count != state.tapCount){
+        std::fill(state.history.begin(), state.history.end(), 0.0f);
+        state.historyAt = 0;
+    }
+    state.taps = count > 0 ? response->reversed.data() : nullptr;
+    state.tapCount = count;
 }
 
 void setToneChain(ToneChain& chain, const ToneParameters& parameters){
@@ -354,8 +406,11 @@ void setToneChain(ToneChain& chain, const ToneParameters& parameters){
             for (auto& comb : state.combs) std::fill(comb.begin(), comb.end(), 0.0f);
             for (auto& allpass : state.allpasses) std::fill(allpass.begin(), allpass.end(), 0.0f);
             for (float& store : state.combStore) store = 0.0f;
+            std::fill(state.history.begin(), state.history.end(), 0.0f);
+            state.historyAt = 0;
             state.type = effect.type;
         }
+        takeResponse(state, effect.type == EffectType::Cabinet ? parameters.assets[i] : nullptr, chain.sampleRate);
         bool same = !changed;
         for (int p = 0; p < MAX_PARAMETERS && same; p++) same = state.values[p] == effect.values[p];
         if (!same) setUp(state, effect, (float)chain.sampleRate);
@@ -374,6 +429,8 @@ void clearToneChain(ToneChain& chain){
         for (auto& comb : state.combs) std::fill(comb.begin(), comb.end(), 0.0f);
         for (auto& allpass : state.allpasses) std::fill(allpass.begin(), allpass.end(), 0.0f);
         for (float& store : state.combStore) store = 0.0f;
+        std::fill(state.history.begin(), state.history.end(), 0.0f);
+        state.historyAt = 0;
     }
     chain.dcIn = chain.dcOut = 0.0f;
 }
@@ -382,10 +439,31 @@ void setToneChainRate(ToneChain& chain, int sampleRate){
     if (sampleRate <= 0 || sampleRate == chain.sampleRate) return;
     chain.sampleRate = sampleRate;
     for (EffectState& state : chain.states) setReverbLengths(state, sampleRate);
-    for (int i = 0; i < chain.parameters.count; i++) setUp(chain.states[i], chain.parameters.effects[i], (float)sampleRate);
+    for (int i = 0; i < chain.parameters.count; i++){
+        setUp(chain.states[i], chain.parameters.effects[i], (float)sampleRate);
+        if (chain.parameters.effects[i].type == EffectType::Cabinet) takeResponse(chain.states[i], chain.parameters.assets[i], sampleRate);
+    }
 }
 
 static float dbToGain(float db){ return std::pow(10.0f, db / 20.0f); }
+
+// The sum of the products of two runs of floats: a cabinet's every sample, so four at a time where the processor can
+static float dotProduct(const float* a, const float* b, int count){
+    int i = 0;
+    float sum = 0.0f;
+#ifdef LAHN_SSE
+    __m128 first = _mm_setzero_ps(), second = _mm_setzero_ps();
+    for (; i + 8 <= count; i += 8){
+        first = _mm_add_ps(first, _mm_mul_ps(_mm_loadu_ps(a + i), _mm_loadu_ps(b + i)));
+        second = _mm_add_ps(second, _mm_mul_ps(_mm_loadu_ps(a + i + 4), _mm_loadu_ps(b + i + 4)));
+    }
+    float lanes[4];
+    _mm_storeu_ps(lanes, _mm_add_ps(first, second));
+    sum = lanes[0] + lanes[1] + lanes[2] + lanes[3];
+#endif
+    for (; i < count; i++) sum += a[i] * b[i];
+    return sum;
+}
 static float quiet(float x){ return std::fabs(x) < 1e-15f ? 0.0f : x; } // no denormals in feedback: they're slow
 
 // One sample through one effect
@@ -468,6 +546,19 @@ static float process(EffectState& state, const Effect& effect, float x, float ra
             state.line[state.write] = quiet(x + state.filters[0].process(echo) * v[1]);
             state.write = (state.write + 1) % size;
             return x + echo * v[2];
+        }
+        case EffectType::Cabinet: {
+            // Convolution with its response, sample by sample: nothing waits for a block, so it adds no delay
+            float y = x;
+            if (state.taps){
+                const int n = state.tapCount;
+                float* history = state.history.data();
+                history[state.historyAt] = history[state.historyAt + n] = x;
+                y = dotProduct(history + state.historyAt + 1, state.taps, n); // the latest n, oldest first
+                state.historyAt = (state.historyAt + 1) % n;
+            }
+            for (int f = 0; f < 4; f++) y = state.filters[f].process(y);
+            return y * dbToGain(v[4]);
         }
         case EffectType::Reverb: {
             // Freeverb: eight damped combs side by side, then four all-passes in a row

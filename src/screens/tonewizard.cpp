@@ -1,6 +1,7 @@
 #include "screens/tonewizard.h"
 
 #include "audio/audio.h"
+#include "core/cabinets.h"
 #include "core/tonelibrary.h"
 #include "imgui.h"
 #include "raylib.h"
@@ -67,6 +68,7 @@ std::vector<std::string> toneNames(){
 
 static void playTone(const Tone& tone, float volume){
     ToneParameters parameters = toneParameters(tone);
+    attachCabinets(parameters); // their impulse responses, worked out here rather than on the audio thread
     parameters.volume *= volume;
     setMonitorTone(parameters);
 }
@@ -159,6 +161,7 @@ static void importDropped(Settings& settings){
 // --- Drawing ------------------------------------------------------------------------------------------------
 
 static std::string valueText(const ParameterInfo& info, float value){
+    if (info.choices) return info.choices[std::clamp((int)std::lround(value), (int)info.min, (int)info.max)];
     std::string unit = info.unit;
     if (unit == "%") return TextFormat("%.0f%%", value * 100.0f);
     if (unit == "dB") return TextFormat("%+.1f dB", value);
@@ -182,7 +185,8 @@ static bool knob(const char* id, const ParameterInfo& info, float* value, ImVec2
     const float range = info.max - info.min;
     float before = *value;
     if (active && io.MouseDelta.y != 0.0f) *value -= io.MouseDelta.y / (DRAG_RANGE * s) * range * (io.KeyShift ? 0.2f : 1.0f);
-    if (hovered && io.MouseWheel != 0.0f) *value += io.MouseWheel * range * 0.02f;
+    if (hovered && io.MouseWheel != 0.0f) *value = info.choices ? std::round(*value) + (io.MouseWheel > 0.0f ? 1.0f : -1.0f) // the next choice
+                                                                : *value + io.MouseWheel * range * 0.02f;
     if (hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) *value = info.standard;
     *value = std::clamp(*value, info.min, info.max);
     if (hovered || active) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);

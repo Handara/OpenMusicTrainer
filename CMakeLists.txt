@@ -168,6 +168,7 @@ add_library(lahn_core STATIC
     src/core/rhythmmode.cpp
     src/core/routine.cpp
     src/core/sampleformat.cpp
+    src/core/cabinets.cpp
     src/core/tonechain.cpp
     src/core/transcribe.cpp
     src/core/tonelibrary.cpp
@@ -293,6 +294,7 @@ if(BUILD_TESTING)
         tests/main.cpp
         tests/addon_test.cpp
         tests/beats_test.cpp
+        tests/cabinets_test.cpp
         tests/calibration_test.cpp
         tests/chart_test.cpp
         tests/chords_test.cpp
