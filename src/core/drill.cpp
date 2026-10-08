@@ -65,7 +65,8 @@ Chart drillChart(const std::vector<DrillNote>& notes, const std::vector<int>& tu
     track.name = "Drill";
     track.tuning = tuning;
     for (const DrillNote& note : notes){
-        track.notes.push_back({(int)std::lround(note.beat * chart.resolution), note.stringIndex, note.fret, 0});
+        // Its length, when it has one: what follows it to the next note is written as a rest
+        track.notes.push_back({(int)std::lround(note.beat * chart.resolution), note.stringIndex, note.fret, (int)std::lround(note.length * chart.resolution)});
     }
     chart.frettedTracks = {track};
     int lastTick = track.notes.empty() ? 0 : track.notes.back().tick;

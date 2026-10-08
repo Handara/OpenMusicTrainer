@@ -1,7 +1,9 @@
 #include "doctest/doctest.h"
 
+#include "core/drill.h"
 #include "core/exercisefile.h"
 #include "core/rhythm.h"
+#include "core/score.h"
 
 #include <filesystem>
 #include <fstream>
@@ -34,6 +36,37 @@ TEST_CASE("rhythms are built from the cells asked for, a bar at a time"){
     }
 }
 
+TEST_CASE("each note lasts until its cell's next, or its end: rests written as rests, longer cells where they read"){
+    RhythmConfig config;
+    config.cells = { "quarter", "rest", "half", "whole", "dotted_quarter" };
+    config.bars = 40;
+    std::mt19937 rng(5);
+    const std::vector<DrillNote> notes = buildRhythm(config, rng);
+    bool half = false, whole = false;
+    for (size_t i = 0; i < notes.size(); i++){
+        const DrillNote& note = notes[i];
+        CHECK(note.length > 0.0);
+        if (i + 1 < notes.size()) CHECK(note.beat + note.length <= notes[i + 1].beat + 1e-9); // never over the next
+        const double inBar = std::fmod(note.beat, 4.0);
+        if (note.length == 2.0){ half = true; CHECK((inBar == 0.0 || inBar == 2.0)); }   // a half: on beat 1 or 3
+        if (note.length == 4.0){ whole = true; CHECK(inBar == 0.0); }                    // a whole: the downbeat
+        CHECK(std::floor(note.beat / 4.0) == std::floor((note.beat + note.length - 1e-9) / 4.0)); // inside its bar
+    }
+    CHECK(half);
+    CHECK(whole);
+
+    // A quarter then a beat's rest: written a quarter and a quarter rest, not a half note
+    std::vector<DrillNote> written = { { 0.0, 0, 0, 64 }, { 2.0, 0, 0, 64 }, { 3.0, 0, 0, 64 } };
+    written[0].length = written[1].length = written[2].length = 1.0;
+    Chart chart = drillChart(written, { 0 }, KeySignature{}, 4);
+    const Score score = buildScore(chart, chart.frettedTracks[0]);
+    REQUIRE(score.events.size() == 4);
+    CHECK_FALSE(score.events[0].rest);
+    CHECK(score.events[0].value == NoteValue::Quarter);
+    CHECK(score.events[1].rest);
+    CHECK(score.events[1].value == NoteValue::Quarter);
+}
+
 TEST_CASE("a rhythm is played on the string written nearest the middle line"){
     CHECK(rhythmString({ 40, 45, 50, 55, 59, 64 }) == 4); // a guitar's B string
     CHECK(rhythmString({ 38, 45, 50, 55, 59, 64 }) == 4); // drop D changes nothing
@@ -42,7 +75,8 @@ TEST_CASE("a rhythm is played on the string written nearest the middle line"){
 
 TEST_CASE("every cell fits in its beat, and names are found"){
     for (const RhythmCell& cell : rhythmCells()){
-        for (double onset : cell.onsets) CHECK((onset >= 0.0 && onset < 1.0));
+        CHECK((cell.beats >= 1 && cell.beats <= 4));
+        for (double onset : cell.onsets) CHECK((onset >= 0.0 && onset < cell.beats));
         CHECK(findRhythmCell(cell.name) == &cell);
     }
     CHECK(findRhythmCell("waltz") == nullptr);

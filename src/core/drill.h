@@ -40,6 +40,7 @@ struct DrillNote {
     int stringIndex;
     int fret;
     int pitch;
+    double length = 0.0; // how long it's written, in beats; 0: until the next note (legato, a scale's)
 };
 
 // The notes of one pass; false (with a reason) if the scale doesn't fit this fingering or tuning

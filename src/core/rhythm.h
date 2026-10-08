@@ -6,13 +6,16 @@
 #include <string>
 #include <vector>
 
-// Rhythm drills: a new rhythm every pass, read from the staff and played in time on one note. Rhythms are built a
-// beat at a time from "cells", the beat-long figures rhythm is read in: a quarter, two eighths, an eighth rest and
-// an eighth... An exercise picks which cells appear, so it can start with quarters and eighths and grow from there.
+// Rhythm drills: a new rhythm every pass, read from the staff and played in time on one note. Rhythms are built from
+// "cells", the figures rhythm is read in: a quarter, two eighths, an eighth rest and an eighth, a half note... most a
+// beat long, some longer (a half, a whole: they start where they read most easily, a half on a bar's first or third
+// beat in 4/4). Each note lasts until the cell's next one, or its end: a rest is written as a rest. An exercise picks
+// which cells appear, so it can start with quarters and grow from there.
 
 struct RhythmCell {
     const char* name;           // as exercise files write it: "eighths"
-    std::vector<double> onsets; // where the notes start in the beat, 0 to under 1; empty = a quarter rest
+    std::vector<double> onsets; // where the notes start in it, from 0; empty = a rest as long as it
+    int beats = 1;              // how long it is
 };
 
 // Every cell there is, in order of difficulty

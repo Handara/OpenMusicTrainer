@@ -68,8 +68,10 @@ static bool buildPoolReading(const ReadingConfig& config, std::mt19937& rng, std
     }
     for (size_t i = 0; i < out.size(); i++){
         const double beat = out[i].beat;
+        const double length = out[i].length;
         out[i] = places[picks[i]];
         out[i].beat = beat;
+        out[i].length = length; // the rhythm's
     }
     return true;
 }
@@ -96,8 +98,10 @@ bool buildReading(const ReadingConfig& config, std::mt19937& rng, std::vector<Dr
     int at = start(rng);
     for (DrillNote& note : out){
         double beat = note.beat;
+        const double length = note.length;
         note = notes[at];
         note.beat = beat;
+        note.length = length; // the rhythm's
         int step = move(rng) * (direction(rng) ? 1 : -1);
         if (at + step < 0 || at + step >= count) step = -step; // off an edge: the other way
         at = std::clamp(at + step, 0, count - 1);
