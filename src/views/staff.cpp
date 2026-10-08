@@ -487,6 +487,9 @@ static void endBarClip(){
     else EndScissorMode();
 }
 
+static bool allBars = false;
+void setStaffAllBars(bool all){ allBars = all; }
+
 static void drawStaffIn(Rectangle area, const std::vector<PlayNote>& notes, const Score& score, const TimeAxis& axis);
 
 void drawStaff(Rectangle area, const std::vector<PlayNote>& notes, const Score& score, const TimeAxis& axis){
@@ -539,6 +542,11 @@ static void drawStaffIn(Rectangle area, const std::vector<PlayNote>& notes, cons
     const float pageLeft = leadRight + 0.6f * space, pageRight = right - 0.8f * space, pageWidth = pageRight - pageLeft;
     const float mainWidth = pageWidth * MAIN_SHARE, previewWidth = pageWidth - mainWidth;
     auto placeAt = [&](float d, float& x, float& width, float& alpha){
+        if (allBars){ // an example: each bar its share of the page
+            const float share = pageWidth / std::max(1, barCount);
+            x = pageLeft + (d + page) * share; width = share; alpha = 1.0f;
+            return;
+        }
         if (d <= 0.0f){ // front, sliding out to the left
             x = pageLeft + d * mainWidth; width = mainWidth; alpha = 1.0f + d;
         } else if (d <= 1.0f){ // from beside it to the front
@@ -548,9 +556,9 @@ static void drawStaffIn(Rectangle area, const std::vector<PlayNote>& notes, cons
         }
     };
 
-    for (int k = std::max(0, barNow - 1); k <= std::min(barCount - 1, barNow + 2); k++){
+    for (int k = allBars ? 0 : std::max(0, barNow - 1); k <= (allBars ? barCount - 1 : std::min(barCount - 1, barNow + 2)); k++){
         float d = k - page, x, width, alpha;
-        if (d <= -1.0f || d >= 2.0f) continue;
+        if (!allBars && (d <= -1.0f || d >= 2.0f)) continue;
         placeAt(d, x, width, alpha);
         if (alpha <= 0.01f) continue;
         float barStart = score.bars[k].time, barEnd = score.bars[k + 1].time;

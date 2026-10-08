@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/chart.h"
 #include "core/exercisefile.h"
 #include "core/lesson.h"
 
@@ -60,6 +61,7 @@ enum class FieldKind {
     Key,        // a key: its note and major or minor (G major, E minor)
     Song,       // a song of the game's, by its folder's name
     Page,       // a page of the lesson, by its title
+    Music,      // notes with their lengths, and rests: E4/8 F4/8 G4/2. r/4 C4+E4/4 (staffMusic below)
 };
 
 // A place on the neck, as a Places setting writes it
@@ -69,6 +71,21 @@ struct NeckPlace {
     std::string label;
 };
 std::vector<NeckPlace> readNeckPlaces(const std::string& value); // the ones that read right
+
+// A staff's music as a staff block writes it: notes (one, or several at once joined by +) and rests (r), each its
+// length after a slash: 1 a whole, 2 a half, 4 a quarter (left out: a quarter), 8 an eighth, 16 a sixteenth; a dot
+// after it adds half again, a t makes it a triplet's (three in the time of two). "E4/8 F4/8 G4/2. r/4 C4+E4+G4/2".
+// Beams, ties over bar lines and rests are the engraver's (core/score), as for any music.
+struct StaffEvent {
+    std::vector<int> pitches; // empty: a rest
+    int ticks = 480;          // its length: 480 a beat (a quarter)
+};
+const int STAFF_TICKS_A_BEAT = 480;
+bool readStaffMusic(const std::string& text, std::vector<StaffEvent>& out, std::string& error);
+std::string writeStaffEvent(const StaffEvent& event); // one: "E4/8.", "r/2", "C4+E4" (a quarter)
+std::string writeStaffMusic(const std::vector<StaffEvent>& events);
+// The music as a chart, to be engraved: on this instrument's tuning (a piano's {0}), in this key and meter (x/4)
+Chart staffChart(const std::vector<StaffEvent>& events, const std::vector<int>& tuning, const KeySignature& key, int beatsPerBar);
 std::vector<int> readNotes(const std::string& value);            //   (MIDI)
 
 struct BlockField {

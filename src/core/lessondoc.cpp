@@ -75,7 +75,8 @@ const std::vector<BlockInfo>& blockInfos(){
             { "caption", "Caption", FieldKind::Text, "Under it" },
         } },
         { BlockType::Staff, "staff", "Staff", "Notes written on a staff, to read (and hear)", BlockGroup::Show, false, {
-            { "notes", "Notes", FieldKind::Notes, "The notes, in order, a beat each (up to 8 shown): E4 F4 G4", "", {}, 0, 0, true },
+            { "notes", "Music", FieldKind::Music, "Its notes in order, each its length: E4 (a quarter), E4/8 (an eighth), G4/2. (a dotted half), r/4 (a rest), C4+E4 (together); up to four bars shown", "", {}, 0, 0, true },
+            { "time", "Beats a bar", FieldKind::Number, "Its time signature: 4 for 4/4, 3 for 3/4", "4", {}, 2, 7 },
             { "key", "Key", FieldKind::Key, "Its key signature: C major, G major, E minor...", "C major" },
             { "listen", "Listen button", FieldKind::Toggle, "A button that plays the notes", "yes" },
             { "caption", "Caption", FieldKind::Text, "Under it" },
@@ -188,6 +189,109 @@ std::vector<NeckPlace> readNeckPlaces(const std::string& value){
         places.push_back(place);
     }
     return places;
+}
+
+// A length's number after the slash, its ticks: 1 a whole (four beats) to 16 a sixteenth
+static int baseTicks(int value){
+    switch (value){
+        case 1: return 4 * STAFF_TICKS_A_BEAT;
+        case 2: return 2 * STAFF_TICKS_A_BEAT;
+        case 4: return STAFF_TICKS_A_BEAT;
+        case 8: return STAFF_TICKS_A_BEAT / 2;
+        case 16: return STAFF_TICKS_A_BEAT / 4;
+        default: return 0;
+    }
+}
+
+bool readStaffMusic(const std::string& text, std::vector<StaffEvent>& out, std::string& error){
+    out.clear();
+    std::istringstream words(text);
+    std::string word;
+    while (words >> word){
+        const size_t slash = word.find('/');
+        const std::string what = word.substr(0, slash);
+        StaffEvent event;
+        if (what != "r"){
+            std::istringstream notes(what);
+            std::string name;
+            while (std::getline(notes, name, '+')){
+                int pitch;
+                if (!parseNoteName(name, pitch)){
+                    error = "'" + word + "' isn't a note: write it like E4, E4/8 (an eighth), G4/2. (a dotted half), r/4 (a rest)";
+                    return false;
+                }
+                event.pitches.push_back(pitch);
+            }
+            if (event.pitches.empty()){
+                error = "'" + word + "' has no note";
+                return false;
+            }
+        }
+        if (slash != std::string::npos){
+            std::string length = word.substr(slash + 1);
+            const bool triplet = !length.empty() && length.back() == 't';
+            if (triplet) length.pop_back();
+            const bool dotted = !length.empty() && length.back() == '.';
+            if (dotted) length.pop_back();
+            const int ticks = length.empty() || length.find_first_not_of("0123456789") != std::string::npos ? 0 : baseTicks(std::atoi(length.c_str()));
+            if (ticks == 0){
+                error = "'" + word + "': its length is 1, 2, 4, 8 or 16 after the slash (a dot after it, or a t for a triplet)";
+                return false;
+            }
+            event.ticks = ticks * (dotted ? 3 : 2) / 2 * (triplet ? 2 : 3) / 3;
+        }
+        out.push_back(event);
+    }
+    if (out.empty()){
+        error = "no notes";
+        return false;
+    }
+    return true;
+}
+
+std::string writeStaffEvent(const StaffEvent& event){
+    std::string text;
+    if (event.pitches.empty()) text = "r";
+    for (size_t i = 0; i < event.pitches.size(); i++)
+        text += (i ? "+" : "") + std::string(pitchClassName(event.pitches[i])) + std::to_string(pitchOctave(event.pitches[i]));
+    if (event.ticks == STAFF_TICKS_A_BEAT) return text; // a quarter: said by nothing
+    for (int value : { 1, 2, 4, 8, 16 }){
+        const int base = baseTicks(value);
+        for (const auto& [ticks, suffix] : std::vector<std::pair<int, const char*>>{ { base, "" }, { base * 3 / 2, "." }, { base * 2 / 3, "t" } })
+            if (event.ticks == ticks) return text + "/" + std::to_string(value) + suffix;
+    }
+    return text; // (a length there's no writing for: a quarter)
+}
+
+std::string writeStaffMusic(const std::vector<StaffEvent>& events){
+    std::string text;
+    for (const StaffEvent& event : events) text += (text.empty() ? "" : " ") + writeStaffEvent(event);
+    return text;
+}
+
+Chart staffChart(const std::vector<StaffEvent>& events, const std::vector<int>& tuning, const KeySignature& key, int beatsPerBar){
+    Chart chart{};
+    chart.version = 2;
+    chart.title = "Staff";
+    chart.resolution = STAFF_TICKS_A_BEAT;
+    chart.tempoMap = { { 0, 60.0 } };
+    chart.timeSignatures = { { 0, beatsPerBar, 4 } };
+    chart.keys = { { 0, key } };
+    FrettedTrack track;
+    // As drills write it: a piano's where it sounds, a bass's in the bass clef, a guitar's an octave up
+    track.type = isPianoTuning(tuning) ? InstrumentType::Keys
+               : !tuning.empty() && *std::min_element(tuning.begin(), tuning.end()) < 36 ? InstrumentType::Bass : InstrumentType::Guitar;
+    track.name = "Staff";
+    track.tuning = tuning;
+    int tick = 0;
+    for (const StaffEvent& event : events){
+        for (int pitch : event.pitches) track.notes.push_back({ tick, 0, pitch - (tuning.empty() ? 0 : tuning[0]), event.ticks });
+        tick += event.ticks;
+    }
+    chart.frettedTracks = { track };
+    const int barTicks = beatsPerBar * STAFF_TICKS_A_BEAT;
+    chart.endTick = std::max(1, (tick + barTicks - 1) / barTicks) * barTicks;
+    return chart;
 }
 
 std::vector<int> readNotes(const std::string& value){
@@ -349,6 +453,11 @@ static std::string checkValue(const BlockField& field, const std::string& value)
         }
         case FieldKind::Page:
             return "";
+        case FieldKind::Music: {
+            std::vector<StaffEvent> events;
+            std::string error;
+            return readStaffMusic(value, events, error) ? "" : error;
+        }
         case FieldKind::Song:
             if (value.find_first_of("/\\") != std::string::npos || value == "." || value == "..") return "'" + value + "' isn't a song's folder name";
             return "";
@@ -1175,7 +1284,12 @@ std::vector<int> lessonNotes(const LessonDoc& doc){
     for (const BlockPlace& place : lessonBlocks(doc)){
         const LessonBlock& block = blockAt(doc, place);
         std::vector<int> pitches;
-        if (block.type == BlockType::Staff) pitches = readNotes(blockValue(block, "notes"));
+        if (block.type == BlockType::Staff){
+            std::vector<StaffEvent> events;
+            std::string error;
+            readStaffMusic(blockValue(block, "notes"), events, error);
+            for (const StaffEvent& event : events) pitches.insert(pitches.end(), event.pitches.begin(), event.pitches.end());
+        }
         else if (block.type == BlockType::Keyboard) pitches = readNotes(blockValue(block, "lit"));
         else if (block.type == BlockType::Exercise){
             const std::string type = exerciseSetting(block, "type");

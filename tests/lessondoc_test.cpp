@@ -1,6 +1,7 @@
 #include "doctest/doctest.h"
 
 #include "core/lessondoc.h"
+#include "core/score.h"
 
 #include <filesystem>
 #include <fstream>
@@ -445,6 +446,46 @@ TEST_CASE("templates: every page and lesson, on every instrument, is one that pl
     }
     CHECK(makePage("help", ExerciseInstrument::Guitar).aside);
     CHECK(makeLesson("new-note", "N", ExerciseInstrument::Piano).pages[0].sections[0].columns[1][0].type == BlockType::Keyboard);
+}
+
+TEST_CASE("staff music: notes with their lengths, rests, chords; written back the same"){
+    std::vector<StaffEvent> events;
+    std::string error;
+    REQUIRE_MESSAGE(readStaffMusic("E4 F4/8 G4/16 A4/2. r/4 C4+E4+G4/1 B3/8t D4/4.", events, error), error);
+    REQUIRE(events.size() == 8);
+    CHECK(events[0].ticks == 480);            // a quarter, said by nothing
+    CHECK(events[1].ticks == 240);
+    CHECK(events[2].ticks == 120);
+    CHECK(events[3].ticks == 1440);           // a dotted half: three beats
+    CHECK(events[4].pitches.empty());         // a rest
+    CHECK(events[5].pitches == std::vector<int>{ 60, 64, 67 });
+    CHECK(events[5].ticks == 1920);
+    CHECK(events[6].ticks == 160);            // a triplet eighth: a third of a beat
+    CHECK(events[7].ticks == 720);
+    CHECK(writeStaffMusic(events) == "E4 F4/8 G4/16 A4/2. r C4+E4+G4/1 B3/8t D4/4.");
+    for (const char* bad : { "H4", "E4/3", "E4/", "r/8x", "+" }) CHECK_FALSE(readStaffMusic(bad, events, error));
+}
+
+TEST_CASE("staff music engraved: beams join a beat's eighths, rests stay rests, a note over a bar line is tied"){
+    std::vector<StaffEvent> events;
+    std::string error;
+    // Bar 1: two eighths, a quarter, a rest, a quarter; bar 2: a dotted half, then a half that goes into bar 3
+    REQUIRE(readStaffMusic("E4/8 E4/8 E4 r E4 E4/2. E4/2", events, error));
+    Chart chart = staffChart(events, { 0 }, KeySignature{}, 4);
+    const Score score = buildScore(chart, chart.frettedTracks[0]);
+    CHECK(score.bars.size() == 4); // three bars, and the closing line
+    REQUIRE(score.events.size() >= 7);
+    CHECK(score.events[0].value == NoteValue::Eighth);
+    CHECK(score.events[0].beamGroup >= 0);
+    CHECK(score.events[0].beamGroup == score.events[1].beamGroup); // the beat's two eighths, joined
+    CHECK(score.events[2].value == NoteValue::Quarter);
+    CHECK(score.events[3].rest);                                    // the rest, a rest
+    CHECK(score.events[3].value == NoteValue::Quarter);
+    CHECK(score.events[5].value == NoteValue::Half);                // the dotted half
+    CHECK(score.events[5].dots == 1);
+    CHECK(score.events[6].tiedToNext);                              // the half over the bar line: tied
+    CHECK(score.events[6].bar == 1);
+    CHECK(score.events[7].bar == 2);
 }
 
 TEST_CASE("a draft: blocks still missing what they need are kept, and read back"){

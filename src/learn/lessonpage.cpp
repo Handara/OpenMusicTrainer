@@ -74,15 +74,15 @@ float drawPlaceholder(ImDrawList* draw, ImVec2 at, float width, float height, co
 const std::vector<int> GUITAR_TUNING = { 40, 45, 50, 55, 59, 64 };
 const std::vector<int> BASS_TUNING = { 28, 33, 38, 43 };
 
-// A note heard on the lesson's instrument: now, or at a time on the engine's clock
-void soundNote(ExerciseInstrument instrument, int pitch, double at = -1.0){
+// A note heard on the lesson's instrument: now, or at a time on the engine's clock (for so many seconds, a string's)
+void soundNote(ExerciseInstrument instrument, int pitch, double at = -1.0, float seconds = 1.0f){
     const float frequency = midiToFrequency((float)pitch);
     const bool bass = instrument == ExerciseInstrument::Bass;
     if (instrument == ExerciseInstrument::Piano){
         if (at < 0.0) playKeysNote(frequency);
         else playKeysNoteAt(frequency, at);
     } else if (at < 0.0) playStringNote(frequency, bass, 1.2f, 0.8f);
-    else playStringNoteAt(frequency, bass, 1.0f, at, 0.8f);
+    else playStringNoteAt(frequency, bass, seconds, at, 0.8f);
 }
 
 // Text with a little markup: **bold**, and [E4] a note as a chip, heard when it's clicked
@@ -295,27 +295,39 @@ float drawKeyboardBlock(const BlockContext& c, const LessonBlock& block, ImVec2 
     return keys.height + drawCaption(c, block, ImVec2(at.x, at.y + keys.height), width);
 }
 
-// Notes on a staff, a beat each (two bars of them), in the lesson's instrument's clef; and a button to hear them
+// Music on a staff, as written (its notes' lengths, rests, beams and ties: the engraver's), every bar side by side (up
+// to four), in the lesson's instrument's clef; and a button to hear it, in time
+const int STAFF_BARS_SHOWN = 4;
+const double LISTEN_BEAT_S = 0.75; // Listen plays it at 80 bpm
+
 float drawStaffBlock(const BlockContext& c, const LessonBlock& block, ImVec2 at, float width){
     const float s = c.s, height = 120 * s;
     const bool piano = c.instrument == ExerciseInstrument::Piano, bass = c.instrument == ExerciseInstrument::Bass;
     const std::vector<int> tuning = piano ? std::vector<int>{ 0 } : bass ? BASS_TUNING : GUITAR_TUNING;
-    std::vector<int> pitches = readNotes(blockValue(block, "notes"));
-    if (pitches.size() > 8) pitches.resize(8);
+    std::vector<StaffEvent> events;
+    std::string error;
+    readStaffMusic(blockValue(block, "notes"), events, error);
+    const int beatsPerBar = std::clamp(std::atoi(blockValue(block, "time").c_str()), 2, 7);
+    // Only as many bars as fit
+    int ticks = 0;
+    std::vector<StaffEvent> shown;
+    for (const StaffEvent& event : events){
+        if (ticks + event.ticks > STAFF_BARS_SHOWN * beatsPerBar * STAFF_TICKS_A_BEAT) break;
+        shown.push_back(event);
+        ticks += event.ticks;
+    }
     std::istringstream keyWords(blockValue(block, "key"));
     std::string tonic, mode;
     KeySignature key;
     keyWords >> tonic >> mode;
     parseKeySignature(tonic, mode, key);
-    std::vector<DrillNote> notes;
-    for (size_t i = 0; i < pitches.size(); i++) notes.push_back({ (double)i, 0, pitches[i] - tuning[0], pitches[i] });
-    Chart chart = drillChart(notes, tuning, key, 4);
+    Chart chart = staffChart(shown, tuning, key, beatsPerBar);
     const Score score = buildScore(chart, chart.frettedTracks[0]);
-    std::vector<PlayNote> shown;
-    for (const DrillNote& note : notes){
-        PlayNote play{ (float)note.beat, note.stringIndex, note.fret, note.pitch };
-        play.beats = 1.0f;
-        shown.push_back(play);
+    std::vector<PlayNote> notes;
+    for (const FrettedNote& note : chart.frettedTracks[0].notes){
+        PlayNote play{ (float)note.tick / STAFF_TICKS_A_BEAT, note.stringIndex, note.fret, tuning[0] + note.fret };
+        play.beats = (float)note.duration / STAFF_TICKS_A_BEAT;
+        notes.push_back(play);
     }
     TimeAxis axis;
     axis.songTime = -0.2f; // before its first note (lit a moment ahead of it): nothing lit
@@ -328,14 +340,20 @@ float drawStaffBlock(const BlockContext& c, const LessonBlock& block, ImVec2 at,
     DrawRectangleRounded({ at.x, at.y, width, height }, 0.08f, 8, themeColor(UiColor::Card));
     EndScissorMode();
     setStaffClip(&clip);
-    drawStaff({ at.x, at.y, width, height }, shown, score, axis);
+    setStaffAllBars(true);
+    drawStaff({ at.x, at.y, width, height }, notes, score, axis);
+    setStaffAllBars(false);
     setStaffClip(nullptr);
     float y = height;
     if (blockValue(block, "listen") == "yes"){
         y += 8 * s;
         if (pageButton(c.draw, ImVec2(at.x, at.y + y), "Listen", false, s)){
-            const double start = audioTime() + 0.1;
-            for (size_t i = 0; i < pitches.size(); i++) soundNote(c.instrument, pitches[i], start + i * 0.5);
+            // A bar counting in, then the music in time
+            const double start = audioTime() + 0.1, beat = LISTEN_BEAT_S;
+            for (int k = 0; k < beatsPerBar; k++) playClickAt(start + k * beat, k == 0);
+            const double first = start + beatsPerBar * beat;
+            for (const PlayNote& note : notes)
+                soundNote(c.instrument, note.pitch, first + note.time * beat, (float)std::max(0.15, note.beats * beat));
         }
         y += 32 * s;
     }
