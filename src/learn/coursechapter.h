@@ -2,6 +2,7 @@
 
 #include "core/course.h"
 #include "learn/exercise.h"
+#include "learn/lessonpage.h"
 
 #include <functional>
 #include <memory>
@@ -48,6 +49,8 @@ private:
     CourseScores scores;
     int chosen = 0;
     float scroll = 0.0f;
+    float wordsScroll = 0.0f, wordsHeight = 0.0f; // its words (its pages, its drills left out), scrolled when they're long
+    PageMedia media;
     int runningIndex = -1;
     std::unique_ptr<Exercise> running;
     double passedAt = -1.0;     // the running drill just passed: on to the next a moment later

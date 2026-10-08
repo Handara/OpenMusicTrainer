@@ -31,6 +31,7 @@ struct PageState {
     int chosen = -1;
     std::vector<const ExerciseEntry*> exercises;
     bool editing = false; // in the lesson maker: hidden things shown, empty columns and unfinished blocks shown as such
+    bool leaveOutScored = false; // its drills and songs not drawn (a course's chapter shows them beside, with their stars)
 };
 
 // Where something was drawn on the page: a section (its column and block -1), a column (as tall as its section; its

@@ -37,6 +37,8 @@ void CourseChapter::load(int index){
     const int next = firstNotPassed();
     chosen = next >= 0 ? next : hasNext() ? (int)drills.size() : 0; // all passed: the next chapter, chosen
     scroll = 0.0f;
+    wordsScroll = 0.0f;
+    releasePageMedia(media); // the last chapter's sounds and pictures
     chapterPassedAt = -100.0;
 }
 
@@ -46,6 +48,7 @@ bool CourseChapter::hasNext() const {
 
 CourseChapter::~CourseChapter(){
     running.reset();
+    releasePageMedia(media);
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 }
 
@@ -60,6 +63,7 @@ int CourseChapter::firstNotPassed() const {
 void CourseChapter::startDrill(int index){
     if (index < 0 || index >= (int)drills.size()) return;
     running.reset();
+    releasePageMedia(media); // what runs may need the audio a sound in the words holds
     runningIndex = index;
     chosen = index;
     passedAt = -1.0;
@@ -211,21 +215,23 @@ void CourseChapter::draw(){
         draw->AddText(fonts.mono, 13 * s, ImVec2(after + 12 * s, height * 0.165f), uiColor(UiColor::Accent), TextFormat("%d / %d", state.stars, state.starsPossible));
     }
 
-    // Its words, on the left
-    const float textWidth = width * 0.4f;
-    float y = height * 0.21f;
-    for (const LessonStep& step : chapter.lesson.steps){
-        if (step.type != LessonStepType::Text) continue;
-        if (!step.title.empty()){
-            draw->AddText(fonts.bold, 22 * s, ImVec2(left, y), uiColor(UiColor::Ink), step.title.c_str(), nullptr, textWidth);
-            y += fonts.bold->CalcTextSizeA(22 * s, FLT_MAX, textWidth, step.title.c_str()).y + 8 * s;
-        }
-        for (const std::string& paragraph : step.paragraphs){
-            draw->AddText(fonts.text, 17 * s, ImVec2(left, y), uiColor(UiColor::Ink, 0.85f), paragraph.c_str(), nullptr, textWidth);
-            y += fonts.text->CalcTextSizeA(17 * s, FLT_MAX, textWidth, paragraph.c_str()).y + 10 * s;
-        }
-        y += 8 * s;
+    // Its words, on the left: its pages as a lesson's are drawn (text, a neck, a staff...), its drills left out (they're
+    // on the right, with their stars); scrolled with the wheel when they're long
+    const float textWidth = width * 0.4f, wordsTop = height * 0.21f, wordsBottom = height * 0.9f;
+    const ImVec2 mouseNow = ImGui::GetMousePos();
+    if (mouseNow.x < left + textWidth && mouseNow.y > wordsTop && mouseNow.y < wordsBottom)
+        wordsScroll -= ImGui::GetIO().MouseWheel * 50.0f * s;
+    wordsScroll = std::clamp(wordsScroll, 0.0f, std::max(0.0f, wordsHeight - (wordsBottom - wordsTop)));
+    draw->PushClipRect(ImVec2(left - 10 * s, wordsTop - 4 * s), ImVec2(left + textWidth + 10 * s, wordsBottom), true);
+    PageState words;
+    words.leaveOutScored = true;
+    float y = wordsTop - wordsScroll;
+    for (int page = 0; page < (int)chapter.doc.pages.size(); page++){
+        PageEvents events;
+        y += drawLessonPage(chapter.doc, page, "", media, words, events, ImVec2(left, y), textWidth, s) + 20 * s;
     }
+    wordsHeight = y + wordsScroll - wordsTop;
+    draw->PopClipRect();
 
     // Its drills, on the right: each a card with its best, what passes it, and a bar
     const float listX = width * 0.52f, rowHeight = 74 * s, top = height * 0.21f, bottom = height * 0.9f;

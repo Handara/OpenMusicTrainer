@@ -519,9 +519,12 @@ float drawLessonPage(const LessonDoc& doc, int pageNumber, const std::string& fo
             float columnY = y;
             if (section.columns[c].empty() && state.editing) // somewhere to put the first block
                 columnY += drawPlaceholder(draw, ImVec2(x, y), columnWidth, 64 * s, "An empty column: add or drop a block here", s);
+            bool first = true;
             for (size_t b = 0; b < section.columns[c].size(); b++){
                 const LessonBlock& block = section.columns[c][b];
-                if (b > 0) columnY += BLOCK_GAP * s;
+                if (state.leaveOutScored && blockScored(block)) continue;
+                if (!first) columnY += BLOCK_GAP * s;
+                first = false;
                 const ImVec2 blockAt(x, columnY);
                 context.section = (int)sectionIndex;
                 context.column = (int)c;
