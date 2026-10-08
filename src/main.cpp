@@ -27,6 +27,7 @@
 #include "screens/settingsscreen.h"
 #include "screens/tuner.h"
 #include "screens/tuningscreen.h"
+#include "screens/welcomescreen.h"
 #include "input/menuinput.h"
 #include "screens/tonewizard.h"
 #include "ui/helpoverlay.h"
@@ -49,7 +50,7 @@
 namespace fs = std::filesystem;
 
 enum class Screen { MainMenu, SongSelect, Playing, Results, Tuner, Instrument, EditorSelect, NewSong, Editor, LessonEditor, Settings, Learn, Calibration,
-                    TuningCheck, ToneWizard, ImportSong, Practice, Profile };
+                    TuningCheck, ToneWizard, ImportSong, Practice, Profile, Welcome };
 
 // App-wide state shared between screens
 static struct App {
@@ -574,7 +575,7 @@ static void leaveInstrument(){
 // pauses it, and the pause menu has Resume) and the editors (they warn about unsaved changes first)
 static bool hasBackButton(Screen screen){
     switch (screen){
-        case Screen::MainMenu: case Screen::Playing: case Screen::Editor: case Screen::LessonEditor: return false;
+        case Screen::MainMenu: case Screen::Playing: case Screen::Editor: case Screen::LessonEditor: case Screen::Welcome: return false;
         default: return true;
     }
 }
@@ -599,6 +600,7 @@ static void handleBackKey(bool backClicked){
         case Screen::Results: if (!resultsBack()) goToSongSelect(); break;
         case Screen::Tuner: leaveTuner(); break;
         case Screen::Profile: app.screen = Screen::MainMenu; break;
+        case Screen::Welcome: if (welcomeBack()){ closeWelcomeScreen(); saveAppSettings(); app.screen = Screen::MainMenu; } break;
         case Screen::Instrument: leaveInstrument(); break;
         case Screen::Settings: if (!settingsUsedEscape()) leaveSettings(); break;
         case Screen::Calibration: leaveCalibration(); break;
@@ -723,6 +725,19 @@ static void runMenus(){
         case Screen::Profile:
             if (profileScreen(app.settings)) saveAppSettings(); // the daily goal changed
             break;
+        case Screen::Welcome: {
+            const WelcomeChoice choice = welcomeScreen(app.settings);
+            if (choice == WelcomeChoice::None) break;
+            closeWelcomeScreen();
+            setDailyGoal(app.settings.dailyGoalMinutes);
+            saveAppSettings(); // from now on, lahn's been set up: no welcome again
+            if (choice == WelcomeChoice::FirstSteps){
+                goToLearn();
+                learnOpenFirstCourse();
+            } else if (choice == WelcomeChoice::InputSettings) goToSettings();
+            else app.screen = Screen::MainMenu;
+            break;
+        }
         case Screen::Instrument: instrumentScreen(); break;
         case Screen::Settings:
             switch (settingsScreen(app.settings, app.soundsDir, app.settingsError)){
@@ -878,6 +893,7 @@ int main(void){
     installCrashReport((fs::path(app.userDataDir) / "crash.txt").string());
 
     std::vector<std::string> warnings;
+    const bool firstStart = !fs::exists(app.settingsPath); // never set up: welcomed first
     app.settings = loadSettings(app.settingsPath, warnings);
     for (const std::string& warning : warnings) TraceLog(LOG_WARNING, "Settings: %s", warning.c_str());
 
@@ -915,6 +931,10 @@ int main(void){
     if (!loadStaffFont(app.resourcesDir + "fonts/Bravura.otf")) TraceLog(LOG_WARNING, "Music font not found: sheet music uses plain shapes");
     if (!loadViewFont(app.resourcesDir + "fonts/Figtree-Bold.ttf")) TraceLog(LOG_WARNING, "Text font not found: the note views use the pixel font");
 
+    if (firstStart){ // someone new: welcomed, before anything else
+        openWelcomeScreen();
+        app.screen = Screen::Welcome;
+    }
     while (!WindowShouldClose() && !app.quit){
         const Screen shown = app.screen; // the screen this frame draws
         updateSynthMonitor(app.settings.monitorOn && app.settings.monitorSynth, app.settings.monitorVolume); // heard wherever the player is

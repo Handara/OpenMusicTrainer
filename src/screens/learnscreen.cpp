@@ -407,6 +407,17 @@ void openLearnScreen(const LearnSetup& setup){
     refreshExercises();
 }
 
+void learnOpenFirstCourse(){
+    for (int i = 0; i < (int)learn.courses.size(); i++){
+        if (!learn.courses[i].error.empty() || !forInstrument(learn.courses[i].course)) continue;
+        learn.openCourse = i;
+        learn.openLevel = -1;
+        learn.courseRow = 0; // Continue
+        learn.courseScroll = -1.0f;
+        return;
+    }
+}
+
 void closeLearnScreen(){
     learn.exercise.reset();
 }

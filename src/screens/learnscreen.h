@@ -31,3 +31,5 @@ bool learnWantsTuning(InputRole& instrument);
 bool learnInMenus();
 void learnTuningDone(bool go);
 void closeLearnScreen();
+// The first course for the instrument played, opened (its levels): the welcome's way in for someone new
+void learnOpenFirstCourse();
