@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -8,8 +9,11 @@
 // they're never mixed together. Pure logic; opening devices is the audio layer's job.
 
 // Picks one channel out of interleaved samples (frame by frame: channel 0, 1..., 0, 1...). A channel of -1 mixes
-// them all down to one instead (their average), for a device used as a single input.
-void takeChannel(const float* interleaved, int frames, int channels, int channel, float* out);
+// them all down to one instead (their average), for a device used as a single input. The inputs switched off (bit c
+// of `off` for channel c) are left out: of the mix, and a channel asked for that's off gives silence.
+void takeChannel(const float* interleaved, int frames, int channels, int channel, float* out, uint64_t off = 0);
+// The inputs switched off as bits, for takeChannel (channels past 63 can't be)
+uint64_t inputsOffMask(const std::vector<int>& inputsOff);
 
 // The instruments a player plugs in: each is given one channel of the input device
 enum class InputRole { Guitar, Bass, Voice };

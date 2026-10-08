@@ -5,21 +5,33 @@
 const float BASS_BELOW_HZ = 65.0f;     // between a bass's low E (41 Hz) and a guitar's (82 Hz), below a drop D (73 Hz)
 const float GUITAR_BELOW_HZ = 100.0f;  // a guitar's lowest string, even tuned up a little
 
-void takeChannel(const float* interleaved, int frames, int channels, int channel, float* out){
+static bool isOff(uint64_t off, int channel){
+    return channel < 64 && ((off >> channel) & 1u);
+}
+
+void takeChannel(const float* interleaved, int frames, int channels, int channel, float* out, uint64_t off){
     if (channels <= 1){
-        for (int i = 0; i < frames; i++) out[i] = interleaved[i];
+        for (int i = 0; i < frames; i++) out[i] = isOff(off, 0) ? 0.0f : interleaved[i];
         return;
     }
+    int on = 0;
+    for (int c = 0; c < channels; c++) if (!isOff(off, c)) on++;
     for (int i = 0; i < frames; i++){
         const float* frame = interleaved + (size_t)i * channels;
         if (channel >= 0 && channel < channels){
-            out[i] = frame[channel];
+            out[i] = isOff(off, channel) ? 0.0f : frame[channel];
         } else {
             float sum = 0.0f;
-            for (int c = 0; c < channels; c++) sum += frame[c];
-            out[i] = sum / channels;
+            for (int c = 0; c < channels; c++) if (!isOff(off, c)) sum += frame[c];
+            out[i] = on > 0 ? sum / on : 0.0f;
         }
     }
+}
+
+uint64_t inputsOffMask(const std::vector<int>& inputsOff){
+    uint64_t mask = 0;
+    for (int channel : inputsOff) if (channel >= 0 && channel < 64) mask |= (uint64_t)1 << channel;
+    return mask;
 }
 
 const char* inputRoleName(InputRole role){

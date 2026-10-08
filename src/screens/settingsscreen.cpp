@@ -79,6 +79,9 @@ void applyDisplaySettings(const Settings& settings){
 }
 
 void applyMonitor(const Settings& settings, std::string& error){
+    // The inputs switched off first: what's heard and what's listened to leave them out
+    setInputsOff(inputsOffMask(settings.inputsOff));
+    setMidiOn(settings.midiOn);
     std::vector<int> inputs;
     for (int channel : { settings.guitarChannel, settings.bassChannel }){
         if (channel >= 0 && std::count(inputs.begin(), inputs.end(), channel) == 0) inputs.push_back(channel);
@@ -169,6 +172,7 @@ static void audioSection(Settings& settings, const std::string& soundsDir, Setti
     if (settingDropdown("Input", "Your audio interface or microphone. An ASIO driver (\"ASIO: ...\") is the fastest.", &chosen, inputs,
                         []{ screen.inputDevices = inputDeviceNames(); })){
         settings.inputDevice = deviceChosen(inputs, chosen, settings.inputDevice);
+        settings.inputsOff.clear(); // another device's inputs: each on, until switched off
         applyMonitor(settings, screen.monitorError);
     }
     settingInfo("Audio system", nullptr, audioBackendName());
@@ -427,12 +431,22 @@ static int& roleChannel(Settings& settings, InputRole role){
 
 // The inputs, and which instrument is on which: a meter and what each one hears, then each instrument's input,
 // found by playing it (Detect) or chosen by hand
+// The MIDI keyboard's switch (the keyboard's chosen in Audio): off, the piano is the computer's keys
+static bool midiSwitch(Settings& settings){
+    const std::string name = settings.midiDevice.empty() ? "The first one plugged in" : settings.midiDevice;
+    const std::string hint = name + (settings.midiOn ? ", for the piano" : ": off, the computer's keys play the piano");
+    if (!settingToggle("MIDI keyboard", hint.c_str(), &settings.midiOn)) return false;
+    screen.midiListening = "\x01"; // listened to again (or not) when Audio shows it
+    return true;
+}
+
 static void instrumentsSection(Settings& settings){
     const float s = menuScale();
     screen.shownFrame = (int)ImGui::GetFrameCount();
     // Whatever changes here which inputs are the instruments', the monitor hears the new ones (checked at the end)
     const int guitarBefore = settings.guitarChannel, bassBefore = settings.bassChannel, voiceBefore = settings.voiceChannel;
-    const bool exclusiveBefore = settings.exclusiveInput;
+    const bool exclusiveBefore = settings.exclusiveInput, midiBefore = settings.midiOn;
+    const std::vector<int> offBefore = settings.inputsOff;
     listenToInputs(settings);
 
     settingsGroup("INPUT");
@@ -456,6 +470,8 @@ static void instrumentsSection(Settings& settings){
 #endif
     if (!screen.listening){
         settingNote(("Can't listen: " + screen.listenError).c_str(), UiColor::Bad);
+        settingsGroup("INPUTS");
+        if (midiSwitch(settings)) applyMonitor(settings, screen.monitorError); // (a MIDI keyboard needs no audio device)
         return;
     }
     // From a pluck to the screen: the input's buffering, the attack found (one 2.7 ms step), one frame
@@ -463,31 +479,47 @@ static void instrumentsSection(Settings& settings){
     settingInfo("From pluck to screen", "Timing is judged from the pluck itself. Naming the note takes 10 to 60 ms more.",
                 TextFormat("about %.0f ms", inputMs + 3.0 + frameMs));
 
-    settingsGroup("WHAT EACH INPUT HEARS");
+    // Every input lahn can hear, each with its switch: one switched off is heard nowhere (its instrument is kept, for
+    // when it's on again). What each hears is shown either way, so the player can tell which is which by playing.
+    settingsGroup("INPUTS");
     ImDrawList* draw = ImGui::GetWindowDrawList();
     const UiFonts& fonts = uiFonts();
     for (int c = 0; c < (int)screen.inputs.size(); c++){
         const auto& input = screen.inputs[c];
-        std::string lowest = input.lowestHz > 0.0f
+        bool on = inputOn(settings, c);
+        // What it's for: the instruments set to it
+        std::string label = TextFormat("Input %d", c + 1);
+        for (InputRole role : { InputRole::Guitar, InputRole::Bass, InputRole::Voice }){
+            if (roleChannel(settings, role) == c) label += std::string("  ·  ") + inputRoleName(role);
+        }
+        std::string lowest = !on ? "Switched off: heard nowhere"
+            : input.lowestHz > 0.0f
             ? TextFormat("Lowest note %s%d: %s", pitchClassName((int)std::lround(frequencyToMidi(input.lowestHz))),
                          pitchOctave((int)std::lround(frequencyToMidi(input.lowestHz))), guessInstrument(input.lowestHz).c_str())
             : "Play its lowest string";
-        SettingControl row = settingRow(TextFormat("Input %d", c + 1), lowest.c_str(), 26 * s);
-        // Its level (green while it's played) and the note it hears now
-        float meterRight = row.max.x - 60 * s, middle = (row.min.y + row.max.y) / 2;
+        SettingControl row = settingRow(label.c_str(), lowest.c_str(), 26 * s);
+        // Its switch at the end; before it, its level (green while it's played) and the note it hears now
+        const float switchLeft = row.max.x - settingsToggleWidth();
+        if (settingsToggleAt(TextFormat("input on %d", c), ImVec2(switchLeft, row.min.y), &on)){
+            if (on) settings.inputsOff.erase(std::remove(settings.inputsOff.begin(), settings.inputsOff.end(), c), settings.inputsOff.end());
+            else settings.inputsOff.push_back(c);
+        }
+        const float right = switchLeft - 16 * s;
+        float meterRight = right - 60 * s, middle = (row.min.y + row.max.y) / 2;
         float fill = std::clamp((input.levelDb + 60.0f) / 60.0f, 0.0f, 1.0f);
         draw->AddRectFilled(ImVec2(row.min.x, middle - 3 * s), ImVec2(meterRight, middle + 3 * s), uiColor(UiColor::StaffLine), 3 * s);
         if (fill > 0.02f){
-            UiColor color = isSounding(input.floor, input.levelDb) ? UiColor::Good : UiColor::Dim;
-            draw->AddRectFilled(ImVec2(row.min.x, middle - 3 * s), ImVec2(row.min.x + (meterRight - row.min.x) * fill, middle + 3 * s), uiColor(color), 3 * s);
+            UiColor color = on && isSounding(input.floor, input.levelDb) ? UiColor::Good : UiColor::Dim;
+            draw->AddRectFilled(ImVec2(row.min.x, middle - 3 * s), ImVec2(row.min.x + (meterRight - row.min.x) * fill, middle + 3 * s), uiColor(color, on ? 1.0f : 0.5f), 3 * s);
         }
         std::string now = input.heardMidi >= 0.0f ? TextFormat("%s%d", pitchClassName((int)std::lround(input.heardMidi)), pitchOctave((int)std::lround(input.heardMidi))) : "-";
         float noteWidth = fonts.bold ? fonts.bold->CalcTextSizeA(17 * s, FLT_MAX, 0.0f, now.c_str()).x : 20 * s;
-        draw->AddText(fonts.bold, 17 * s, ImVec2(row.max.x - noteWidth, middle - 9 * s), uiColor(input.heardMidi >= 0.0f ? UiColor::Accent : UiColor::Dim), now.c_str());
+        draw->AddText(fonts.bold, 17 * s, ImVec2(right - noteWidth, middle - 9 * s), uiColor(on && input.heardMidi >= 0.0f ? UiColor::Accent : UiColor::Dim), now.c_str());
     }
     if (settingButton("Listen again", "Forget the lowest notes heard, to check an instrument again", "Listen again")){
         for (auto& input : screen.inputs) input.lowestHz = 0.0f;
     }
+    midiSwitch(settings);
 
     // Detecting: the input that's clearly sounding, for half a second, while the player plays the instrument. Each
     // against its own floor, and the one risen most wins (core/inputs: playedInput), the inputs other instruments are
@@ -547,7 +579,7 @@ static void instrumentsSection(Settings& settings){
         ImGui::PopID();
     }
     if (settings.guitarChannel != guitarBefore || settings.bassChannel != bassBefore || settings.voiceChannel != voiceBefore ||
-        settings.exclusiveInput != exclusiveBefore){
+        settings.exclusiveInput != exclusiveBefore || settings.inputsOff != offBefore || settings.midiOn != midiBefore){
         applyMonitor(settings, screen.monitorError);
     }
 }

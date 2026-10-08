@@ -158,6 +158,7 @@ static struct {
     std::vector<int> monitorInputs;  // empty: every input but monitorExcluded
     int monitorExcluded = -1;
     std::atomic<float> monitorWeights[MAX_MONITOR_INPUTS] = {}; // per input, read by the capture thread
+    std::atomic<uint64_t> inputsOff{0}; // the inputs switched off (setInputsOff)
     std::atomic<bool> monitorGate{false};
     std::atomic<ma_uint32> captureBurst{0}; // the most frames the input has handed over at once lately
     ma_pcm_rb monitorBuffer;
@@ -1116,8 +1117,14 @@ static void updateMonitorWeights(){
     for (int c = 0; c < MAX_MONITOR_INPUTS; c++){
         bool heard = audio.monitorInputs.empty() ? c != audio.monitorExcluded
                                                  : std::count(audio.monitorInputs.begin(), audio.monitorInputs.end(), c) > 0;
-        audio.monitorWeights[c].store(heard && c < (int)audio.captureChannels ? 1.0f : 0.0f, std::memory_order_relaxed);
+        const bool off = (audio.inputsOff.load(std::memory_order_relaxed) >> c) & 1u;
+        audio.monitorWeights[c].store(heard && !off && c < (int)audio.captureChannels ? 1.0f : 0.0f, std::memory_order_relaxed);
     }
+}
+
+void setInputsOff(uint64_t mask){
+    audio.inputsOff.store(mask, std::memory_order_relaxed);
+    updateMonitorWeights(); // not heard either
 }
 
 static void startMonitorSound(){
@@ -1446,7 +1453,8 @@ int readCapture(float* out, int maxFrames, int channel){
         ma_uint32 chunk = (ma_uint32)(maxFrames - total);
         void* source;
         if (ma_pcm_rb_acquire_read(&audio.captureBuffer, &chunk, &source) != MA_SUCCESS || chunk == 0) break;
-        takeChannel((const float*)source, (int)chunk, channels, channel, out + total); // the one input asked for
+        // The one input asked for (or all mixed), past the ones switched off
+        takeChannel((const float*)source, (int)chunk, channels, channel, out + total, audio.inputsOff.load(std::memory_order_relaxed));
         ma_pcm_rb_commit_read(&audio.captureBuffer, chunk);
         total += (int)chunk;
     }

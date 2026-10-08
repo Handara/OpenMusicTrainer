@@ -82,9 +82,18 @@ float settingsControlHeight(){ return CONTROL_HEIGHT * scale(); }
 bool settingToggle(const char* label, const char* hint, bool* value){
     const float s = scale();
     SettingControl row = settingRow(label, hint, TOGGLE_HEIGHT * s);
-    const ImGuiID id = ImGui::GetID(label);
+    return settingsToggleAt(label, ImVec2(row.max.x - settingsToggleWidth(), row.min.y), value);
+}
+
+float settingsToggleWidth(){
+    return TOGGLE_WIDTH * scale();
+}
+
+bool settingsToggleAt(const char* idText, ImVec2 min, bool* value){
+    const float s = scale();
+    const ImGuiID id = ImGui::GetID(idText);
     const ImVec2 size(TOGGLE_WIDTH * s, TOGGLE_HEIGHT * s);
-    const ImRect box(ImVec2(row.max.x - size.x, row.min.y), ImVec2(row.max.x, row.min.y + size.y));
+    const ImRect box(min, ImVec2(min.x + size.x, min.y + size.y));
     if (!ImGui::ItemAdd(box, id)) return false;
     bool hovered = false, held = false;
     bool pressed = ImGui::ButtonBehavior(box, id, &hovered, &held);

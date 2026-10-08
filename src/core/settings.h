@@ -34,7 +34,11 @@ struct Settings {
     int bassChannel = -1;
     int voiceChannel = -1;
     bool exclusiveInput = true;        // Windows: the input device for lahn alone, past Windows' effects (audio.h)
+    // The input device's inputs switched off (from 0): heard nowhere, judged nowhere, an instrument on one can't be
+    // played. Its instrument is kept, for when it's switched on again.
+    std::vector<int> inputsOff;
     std::string midiDevice;            // a MIDI keyboard or controller, by name; empty = the first one connected
+    bool midiOn = true;                // the MIDI keyboard is listened to (off: the piano is the computer's keys)
     float masterVolume = 1.0f;         // 0..1
     float previewVolume = 0.6f;        // sounds the game makes itself (the keyboard's notes, ear training)
     // The song editor's own mix, set on its screen: the notes it plays (each part on its own instrument, a bass or a
@@ -94,6 +98,11 @@ struct Settings {
 // A missing file isn't a problem at all: it just means default settings.
 // The channel an instrument listens to
 int channelFor(const Settings& settings, InputRole role);
+// Whether an input of the input device is switched on
+bool inputOn(const Settings& settings, int channel);
+// Whether an instrument can be heard on a device with `channels` inputs: its input is there and on (all of them
+// mixed: one of them on)
+bool instrumentInputOn(const Settings& settings, InputRole role, int channels);
 
 Settings loadSettings(const std::string& path, std::vector<std::string>& warnings);
 bool saveSettings(const std::string& path, const Settings& settings, std::string& error);

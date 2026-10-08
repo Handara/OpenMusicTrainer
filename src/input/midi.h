@@ -12,6 +12,9 @@
 std::vector<std::string> midiDeviceNames(); // asks the system: not every frame
 // Opens a device by name (empty: the first there is). False, with the reason, if there's none or it can't be opened.
 bool startMidiInput(const std::string& device, std::string& error);
+// The MIDI keyboard switched on or off (the settings'): off, none is opened (and one open is closed), so the piano is
+// the computer's keys
+void setMidiOn(bool on);
 void stopMidiInput(); // safe to call more than once
 bool midiInputActive();
 const char* midiDeviceName(); // the device open, "" for none

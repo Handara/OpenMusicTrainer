@@ -41,4 +41,7 @@ SettingControl settingRow(const char* label, const char* hint, float controlHeig
 bool settingsDropdownAt(const char* id, ImVec2 min, ImVec2 max, int* chosen, const std::vector<std::string>& options,
                         const std::function<void()>& onOpen = {});
 bool settingsButtonAt(const char* id, ImVec2 min, ImVec2 max, const char* text);
+// A toggle's switch alone, its top left at `min` (settingsToggleWidth() wide), for a row with more in it
+bool settingsToggleAt(const char* id, ImVec2 min, bool* value);
+float settingsToggleWidth();
 float settingsControlHeight(); // a dropdown's or a button's height at this window size

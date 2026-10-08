@@ -4,6 +4,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 
 namespace fs = std::filesystem;
 
@@ -157,6 +158,35 @@ TEST_CASE("each instrument's input, as the interface numbers them"){
     CHECK(loaded.bassChannel == 1);
     CHECK(loaded.voiceChannel == -1);
     CHECK(channelFor(loaded, InputRole::Bass) == 1);
+}
+
+TEST_CASE("inputs switched off and the MIDI keyboard's switch: kept, and whether an instrument can be heard"){
+    Settings settings;
+    CHECK(settings.inputsOff.empty()); // every input on, and the MIDI keyboard, until switched off
+    CHECK(settings.midiOn);
+    settings.bassChannel = 1;          // the bass on input 2
+    settings.inputsOff = { 0, 2 };     // inputs 1 (a mic) and 3 off
+    settings.midiOn = false;
+    std::filesystem::path path = std::filesystem::temp_directory_path() / "lahn_tests" / "inputs_off_settings.txt";
+    std::filesystem::create_directories(path.parent_path());
+    std::string error;
+    REQUIRE_MESSAGE(saveSettings(path.string(), settings, error), error);
+    std::ifstream file(path);
+    std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    CHECK(text.find("inputs_off 1 3\n") != std::string::npos); // numbered as the interface prints them
+    std::vector<std::string> warnings;
+    Settings loaded = loadSettings(path.string(), warnings);
+    CHECK(warnings.empty());
+    CHECK(loaded.inputsOff == std::vector<int>{ 0, 2 });
+    CHECK_FALSE(loaded.midiOn);
+    CHECK(inputOn(loaded, 1));
+    CHECK_FALSE(inputOn(loaded, 0));
+    CHECK(instrumentInputOn(loaded, InputRole::Bass, 3));        // its own input, on
+    CHECK_FALSE(instrumentInputOn(loaded, InputRole::Bass, 1));  // a device without its input
+    loaded.bassChannel = 2;
+    CHECK_FALSE(instrumentInputOn(loaded, InputRole::Bass, 3));  // on input 3, switched off
+    CHECK(instrumentInputOn(loaded, InputRole::Guitar, 3));      // all mixed: input 2 is still on
+    CHECK_FALSE(instrumentInputOn(loaded, InputRole::Guitar, 1)); // all mixed, the one input off
 }
 
 TEST_CASE("the input is kept to lahn alone unless the player shares it"){

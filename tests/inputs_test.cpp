@@ -21,6 +21,26 @@ TEST_CASE("one channel out of an interface's interleaved inputs, or all of them 
     CHECK(out == std::vector<float>{4, 5, 6});
 }
 
+TEST_CASE("an input switched off is left out: of the mix, and silent when it's the one asked for"){
+    // Three inputs: a mic on 1 (100s), a bass on 2 (1 2), a guitar on 3 (10 20); the mic switched off
+    const float interleaved[] = { 100, 1, 10, 200, 2, 20 };
+    const uint64_t off = inputsOffMask({ 0 });
+    CHECK(off == 1u);
+    std::vector<float> out(2);
+    takeChannel(interleaved, 2, 3, -1, out.data(), off); // mixed: the two left, their average
+    CHECK(out == std::vector<float>{5.5f, 11});
+    takeChannel(interleaved, 2, 3, 1, out.data(), off);  // the bass: as it was
+    CHECK(out == std::vector<float>{1, 2});
+    takeChannel(interleaved, 2, 3, 0, out.data(), off);  // the mic itself: nothing
+    CHECK(out == std::vector<float>{0, 0});
+    takeChannel(interleaved, 2, 3, -1, out.data(), inputsOffMask({ 0, 1, 2 })); // every one off: silence, not a division by 0
+    CHECK(out == std::vector<float>{0, 0});
+    const float mono[] = { 4, 5 };
+    takeChannel(mono, 2, 1, -1, out.data(), off);        // a device with one input, switched off
+    CHECK(out == std::vector<float>{0, 0});
+    CHECK(inputsOffMask({ 70, -1 }) == 0u);              // inputs no mask can hold: ignored
+}
+
 TEST_CASE("an instrument told by its lowest open string"){
     CHECK(guessInstrument(41.2f) == "a bass");        // E1
     CHECK(guessInstrument(82.4f) == "a guitar, or a low voice"); // E2

@@ -56,6 +56,14 @@ Settings loadSettings(const std::string& path, std::vector<std::string>& warning
         else if (key == "output_device") settings.outputDevice = value;
         else if (key == "input_device") settings.inputDevice = value;
         else if (key == "midi_device") settings.midiDevice = value;
+        else if (key == "midi_on") settings.midiOn = value != "0";
+        else if (key == "inputs_off"){
+            // Their numbers from 1, as the interface prints them
+            settings.inputsOff.clear();
+            std::istringstream numbers(value);
+            int input;
+            while (numbers >> input) if (input >= 1 && input <= 64) settings.inputsOff.push_back(input - 1);
+        }
         else if (key == "exclusive_input") settings.exclusiveInput = value == "1";
         else if (key == "guitar_input" || key == "bass_input" || key == "voice_input"){
             // "all", or an input's number from 1, as the interface prints it
@@ -151,6 +159,10 @@ bool saveSettings(const std::string& path, const Settings& settings, std::string
     out << "output_device " << settings.outputDevice << "\n";
     out << "input_device " << settings.inputDevice << "\n";
     out << "midi_device " << settings.midiDevice << "\n";
+    out << "midi_on " << (settings.midiOn ? 1 : 0) << "\n";
+    out << "inputs_off";
+    for (int channel : settings.inputsOff) out << " " << channel + 1;
+    out << "\n";
     auto input = [](int channel){ return channel < 0 ? std::string("all") : std::to_string(channel + 1); };
     out << "guitar_input " << input(settings.guitarChannel) << "\n";
     out << "bass_input " << input(settings.bassChannel) << "\n";
@@ -201,6 +213,17 @@ bool saveSettings(const std::string& path, const Settings& settings, std::string
     out << "\n";
     out << "input_offset_ms " << settings.inputOffsetMs << "\n";
     return writeFileAtomically(path, out.str(), error);
+}
+
+bool inputOn(const Settings& settings, int channel){
+    return std::find(settings.inputsOff.begin(), settings.inputsOff.end(), channel) == settings.inputsOff.end();
+}
+
+bool instrumentInputOn(const Settings& settings, InputRole role, int channels){
+    const int channel = channelFor(settings, role);
+    if (channel >= 0) return channel < channels && inputOn(settings, channel);
+    for (int c = 0; c < channels; c++) if (inputOn(settings, c)) return true;
+    return false;
 }
 
 int channelFor(const Settings& settings, InputRole role){

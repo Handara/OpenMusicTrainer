@@ -398,9 +398,11 @@ static void checkInstruments(){
         InstrumentStatus& status = statusOf(role);
         int channel = role == InputRole::Bass ? app.settings.bassChannel : app.settings.guitarChannel;
         const char* name = role == InputRole::Bass ? "bass" : "guitar";
-        status.ready = open && channel < channels;
+        const bool there = open && channel < channels;
+        status.ready = there && instrumentInputOn(app.settings, role, channels);
         if (!open) status.problem = TextFormat("Connect %s to play this on your %s", device.c_str(), name);
-        else if (!status.ready) status.problem = TextFormat("Your %s is set to input %d, which isn't there: see Settings, Instruments", name, channel + 1);
+        else if (!there) status.problem = TextFormat("Your %s is set to input %d, which isn't there: see Settings, Instruments", name, channel + 1);
+        else if (!status.ready) status.problem = TextFormat("Your %s's input is switched off: see Settings, Instruments", name);
         else status.problem.clear();
     }
 }

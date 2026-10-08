@@ -192,8 +192,19 @@ static void closeDevice(){}
 
 #endif
 
+static bool midiOn = true;
+
+void setMidiOn(bool on){
+    midiOn = on;
+    if (!on) stopMidiInput();
+}
+
 bool startMidiInput(const std::string& device, std::string& error){
     stopMidiInput();
+    if (!midiOn){
+        error = "the MIDI keyboard is switched off (Settings, Instruments)";
+        return false;
+    }
     midi.parser = MidiParser{};
     std::memset(midi.keysDown, 0, sizeof(midi.keysDown));
     {

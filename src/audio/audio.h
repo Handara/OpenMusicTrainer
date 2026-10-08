@@ -3,6 +3,7 @@
 #include "core/tonechain.h"
 
 #include <atomic>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -132,6 +133,10 @@ void stopCapture();
 // While it's on, the input device stays open between screens, and the screens that listen share it. It adds the
 // input's and the output's buffering: an interface's own direct monitoring has none, but no amp.
 bool setMonitor(bool on, const std::string& inputDevice, const std::vector<int>& inputs, int excluded, std::string& error);
+// The input device's inputs switched off (bit c for input c: core/inputs, inputsOffMask): left out of everything read
+// from one input or all of them mixed (readCapture), and never heard (the monitor). readCaptureAll still has them,
+// for the settings to show what each input hears.
+void setInputsOff(uint64_t mask);
 // The tone the real sound goes through (core/tonechain): taken up at once, while it plays, without a click
 void setMonitorTone(const ToneParameters& tone);
 bool monitorActive();
