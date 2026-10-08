@@ -13,6 +13,18 @@ const float END_FADE_S = 0.01f;   // short fade at the very end so a sound never
 const float PEAK_LEVEL = 0.5f;    // every sound peaks around half of full scale, so they can overlap safely
 const double TWO_PI = 6.283185307179586;
 
+namespace {
+// A number from low to high drawn from a minstd_rand, the same on every system: the standard fixes the generator's
+// numbers but not what std::uniform_real_distribution makes of them (on Windows the plucks were other plucks)
+struct Uniform {
+    float low, high;
+    float operator()(std::minstd_rand& rng) const {
+        const float unit = (float)(rng() - std::minstd_rand::min()) / (float)(std::minstd_rand::max() - std::minstd_rand::min());
+        return low + (high - low) * unit;
+    }
+};
+}
+
 // Multiplier per sample that makes a sound fade by 60 dB (to 1/1000) over `seconds`
 static float decayPerSample(float seconds, int sampleRate){
     return std::pow(0.001f, 1.0f / (seconds * sampleRate));
@@ -39,7 +51,7 @@ void renderPluck(float* out, int count, float frequency, int sampleRate, unsigne
     // The pluck itself: noise, slightly low-passed so it sounds like a finger rather than a pick scratch
     std::vector<float> line(lineLength);
     std::minstd_rand rng(seed);
-    std::uniform_real_distribution<float> noise(-1.0f, 1.0f);
+    const Uniform noise{ -1.0f, 1.0f };
     float smoothed = 0.0f;
     for (float& sample : line){
         smoothed += 0.5f * (noise(rng) - smoothed);
@@ -199,7 +211,7 @@ void renderStringNote(float* out, int count, float frequency, int sampleRate, St
     const int attack = std::max(1, (int)(shape.attackS * sampleRate));
     for (int i = 0; i < attack && i < count; i++) out[i] *= (float)i / attack;
     std::minstd_rand rng(seed);
-    std::uniform_real_distribution<float> noise(-1.0f, 1.0f);
+    const Uniform noise{ -1.0f, 1.0f };
     const float color = 1.0f - std::exp(-(float)TWO_PI * shape.noiseHz / sampleRate);
     const float noiseDecay = std::exp(-1.0f / (shape.noiseS * sampleRate));
     float smoothed = 0.0f, burst = shape.noise * total;
@@ -265,7 +277,7 @@ void renderClick(float* out, int count, int sampleRate, bool accent){
     const float toneDecay = decayPerSample(0.03f, sampleRate);
     const float noiseDecay = decayPerSample(0.004f, sampleRate);
     std::minstd_rand rng(7);
-    std::uniform_real_distribution<float> noise(-1.0f, 1.0f);
+    const Uniform noise{ -1.0f, 1.0f };
     float toneEnvelope = 1.0f, noiseEnvelope = 1.0f;
     for (int i = 0; i < count; i++){
         float tone = (float)std::sin(TWO_PI * frequency * i / sampleRate);
@@ -278,7 +290,7 @@ void renderClick(float* out, int count, int sampleRate, bool accent){
 
 void renderDrum(float* out, int count, int sampleRate, bool high){
     std::minstd_rand rng(high ? 11 : 13);
-    std::uniform_real_distribution<float> noise(-1.0f, 1.0f);
+    const Uniform noise{ -1.0f, 1.0f };
     if (high){
         const float toneDecay = decayPerSample(0.025f, sampleRate), noiseDecay = decayPerSample(0.008f, sampleRate);
         float toneEnvelope = 1.0f, noiseEnvelope = 1.0f;
@@ -365,7 +377,7 @@ static float metal(double t){
 
 void renderKitDrum(float* out, int count, int sampleRate, KitDrum drum, unsigned seed){
     std::minstd_rand rng(seed * 7919u + (unsigned)drum + 1u);
-    std::uniform_real_distribution<float> noise(-1.0f, 1.0f);
+    const Uniform noise{ -1.0f, 1.0f };
     switch (drum){
         case KitDrum::Kick: {
             double phase = 0.0;
@@ -429,8 +441,8 @@ void renderCrowd(float* out, int count, int sampleRate, CrowdReaction reaction, 
     std::fill(out, out + count, 0.0f);
     const bool cheer = reaction == CrowdReaction::Cheer, claps = reaction == CrowdReaction::Claps;
     std::minstd_rand rng(seed * 104729u + (unsigned)reaction + 1u);
-    auto uniform = [&](float low, float high){ return std::uniform_real_distribution<float>(low, high)(rng); };
-    std::uniform_real_distribution<float> noise(-1.0f, 1.0f);
+    auto uniform = [&](float low, float high){ return Uniform{ low, high }(rng); };
+    const Uniform noise{ -1.0f, 1.0f };
     // "yay": from the y's vowel to an open "eh"; "aw": an open "a" darkening to "aw"
     const CrowdVowel Y = { 300, 2200, 2900 }, EH = { 700, 1750, 2600 }, A = { 750, 1150, 2500 }, AW = { 580, 880, 2450 };
     const int voices = cheer ? 20 : claps ? 0 : 15;
