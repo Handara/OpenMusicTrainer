@@ -1,5 +1,6 @@
 #include "screens/lessoneditor.h"
 
+#include "core/chart.h"
 #include "core/files.h"
 #include "core/lessondoc.h"
 #include "imgui.h"
@@ -29,6 +30,8 @@ const float INSPECTOR_WIDTH = 320.0f;
 const float PANEL_GAP = 16.0f;
 const float CANVAS_PAD = 26.0f;
 const float SCROLL_STEP = 60.0f;
+const float DRAG_START = 6.0f;      // the mouse moved this far with the button down: it's dragging, not clicking
+const float EDGE_SCROLL = 600.0f;   // dragging near the page's top or bottom scrolls it, this fast (pixels a second)
 const int MOST_UNDOS = 100;
 const char* const UNSAVED_POPUP = "Unsaved changes";
 
@@ -36,6 +39,14 @@ namespace {
 
 // What's chosen to change: the lesson's details, a page, a section of it, or a block in it
 enum class Picked { Lesson, Page, Section, Block };
+
+// Something being dragged onto the page: a block already on it (to move), or a new one (from the blocks to add)
+struct Drag {
+    enum Kind { None, Pending, Moving, Adding } kind = None; // Pending: the button's down on a block, not moved far yet
+    BlockPlace from;
+    BlockType type = BlockType::Text;
+    ImVec2 start;
+};
 
 // The blocks offered to add, in the order they're offered
 struct PaletteGroup {
@@ -81,6 +92,7 @@ static struct {
     std::string fieldErrors;               // what's wrong with what's typed, if anything
     float scroll = 0.0f, pageHeight = 0.0f;
     PageMedia media;
+    Drag drag;
 
     std::unique_ptr<Exercise> tryout;      // the lesson played from a page, while it's tried out
     bool active = false;
@@ -482,7 +494,11 @@ static void outlinePanel(float s){
         for (size_t i = 0; i < group.types.size(); i++){
             if (i % 2 == 1) ImGui::SameLine();
             const BlockInfo& info = blockInfo(group.types[i]);
-            if (ImGui::Button(info.name, ImVec2(half, 0))) addBlock(info.type, placeForNew());
+            if (ImGui::Button(info.name, ImVec2(half, 0)) && ed.drag.kind != Drag::Adding) addBlock(info.type, placeForNew());
+            if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left, DRAG_START * s) && ed.drag.kind == Drag::None){
+                ed.drag.kind = Drag::Adding; // dragged out: dropped where it's let go
+                ed.drag.type = info.type;
+            }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", info.description);
         }
     }
@@ -813,12 +829,119 @@ static void canvas(ImVec2 min, ImVec2 max, float s){
         if (chosen) outline(rect, uiColor(UiColor::Accent), 2 * s);
         else if (hoveredBlock == &rect) outline(rect, uiColor(UiColor::Ink, 0.3f), 1.0f);
     }
+    // Dragging: where it would go, a line between the blocks of the column under the mouse
+    const bool dragging = ed.drag.kind == Drag::Moving || ed.drag.kind == Drag::Adding;
+    bool dropping = false;
+    BlockPlace target;
+    if (dragging && hovering){
+        for (const PageRect& column : events.columns){
+            if (mouse.x < column.min.x - grow || mouse.x > column.max.x + grow || mouse.y < column.min.y - 2 * grow || mouse.y > column.max.y + 2 * grow) continue;
+            target = { ed.page, column.section, column.column, 0 };
+            float lineY = column.min.y - 8 * s;
+            for (const PageRect& rect : events.blocks){
+                if (rect.section != column.section || rect.column != column.column) continue;
+                if (mouse.y > (rect.min.y + rect.max.y) / 2){ // below its middle: after it
+                    target.block = rect.block + 1;
+                    lineY = rect.max.y + 8 * s;
+                } else if (target.block == rect.block) lineY = rect.min.y - 8 * s;
+            }
+            dropping = true;
+            draw->AddLine(ImVec2(column.min.x, lineY), ImVec2(column.max.x, lineY), uiColor(UiColor::Accent), 3 * s);
+            draw->AddCircleFilled(ImVec2(column.min.x, lineY), 5 * s, uiColor(UiColor::Accent));
+            draw->AddCircleFilled(ImVec2(column.max.x, lineY), 5 * s, uiColor(UiColor::Accent));
+            break;
+        }
+        // Near the top or bottom of the page, it scrolls on
+        if (mouse.y < top + 40 * s) ed.scroll -= EDGE_SCROLL * s * ImGui::GetIO().DeltaTime;
+        if (mouse.y > bottom - 40 * s) ed.scroll += EDGE_SCROLL * s * ImGui::GetIO().DeltaTime;
+    }
     draw->PopClipRect();
-    // A click chooses: a block, else its section, else the page
+    if (dragging){ // what's being dragged, by the mouse
+        const char* label = ed.drag.kind == Drag::Adding ? blockInfo(ed.drag.type).name : "Move here";
+        const ImVec2 extent = uiFonts().bold->CalcTextSizeA(14 * s, FLT_MAX, 0.0f, label);
+        ImDrawList* front = ImGui::GetForegroundDrawList();
+        const ImVec2 a(mouse.x + 14 * s, mouse.y + 10 * s);
+        front->AddRectFilled(a, ImVec2(a.x + extent.x + 20 * s, a.y + extent.y + 10 * s), uiColor(UiColor::Accent, dropping ? 0.95f : 0.5f), 6 * s);
+        front->AddText(uiFonts().bold, 14 * s, ImVec2(a.x + 10 * s, a.y + 5 * s), uiColor(UiColor::Background), label);
+    }
+    // Let go: dropped there (a page with no section gets one), or nowhere
+    if (dragging && ImGui::IsMouseReleased(ImGuiMouseButton_Left)){
+        if (dropping && target.section < 0) target = { ed.page, 0, 0, 0 }; // the empty page's own room: addBlock gives it a section
+        if (dropping && ed.drag.kind == Drag::Adding) addBlock(ed.drag.type, target);
+        else if (dropping && target.section >= 0){
+            beforeChange();
+            const BlockPlace landed = moveBlock(ed.doc, ed.drag.from, target);
+            choose(Picked::Block, landed.section, landed);
+            changed();
+        }
+        ed.drag = Drag{};
+        return;
+    }
+    // A click chooses: a block (and may start moving it), else its section, else the page
     if (hovering && ImGui::IsMouseClicked(ImGuiMouseButton_Left)){
-        if (hoveredBlock) choose(Picked::Block, hoveredBlock->section, { ed.page, hoveredBlock->section, hoveredBlock->column, hoveredBlock->block });
-        else if (hoveredSection) choose(Picked::Section, hoveredSection->section);
+        if (hoveredBlock){
+            choose(Picked::Block, hoveredBlock->section, { ed.page, hoveredBlock->section, hoveredBlock->column, hoveredBlock->block });
+            ed.drag.kind = Drag::Pending;
+            ed.drag.from = ed.block;
+            ed.drag.start = mouse;
+        } else if (hoveredSection) choose(Picked::Section, hoveredSection->section);
         else choose(Picked::Page);
+    }
+    if (ed.drag.kind == Drag::Pending){
+        if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) ed.drag = Drag{};
+        else if (std::hypot(mouse.x - ed.drag.start.x, mouse.y - ed.drag.start.y) > DRAG_START * s) ed.drag.kind = Drag::Moving;
+    }
+}
+
+// Files dropped on the maker (pictures, sounds, videos, songs): copied into the lesson's folder, each a block of its
+// own after what's chosen
+static void takeDroppedFiles(){
+    if (!IsFileDropped()) return;
+    FilePathList dropped = LoadDroppedFiles();
+    std::vector<std::string> paths(dropped.paths, dropped.paths + dropped.count);
+    UnloadDroppedFiles(dropped);
+    if (ed.builtIn){
+        ed.status = "Built in: save first, to have your own copy to add files to";
+        return;
+    }
+    for (const std::string& path : paths){
+        std::string extension = fs::path(path).extension().string();
+        for (char& c : extension) c = (char)std::tolower((unsigned char)c);
+        BlockType type = BlockType::Count;
+        for (BlockType candidate : { BlockType::Image, BlockType::Audio, BlockType::Video, BlockType::Play }){
+            const BlockField* file = findBlockField(candidate, "file");
+            if (file && std::find(file->choices.begin(), file->choices.end(), extension) != file->choices.end()) type = candidate;
+        }
+        if (type == BlockType::Count){
+            ed.status = fs::path(path).filename().string() + ": not a picture (.png, .jpg), a sound (.wav, .flac, .mp3), a video (.mpg) or a song (.chart)";
+            continue;
+        }
+        // Into the folder, under a name of its own there
+        fs::path destination = fs::path(ed.folder) / fs::path(path).filename();
+        for (int n = 2; fs::exists(destination) && !fs::equivalent(destination, path); n++)
+            destination = fs::path(ed.folder) / (fs::path(path).stem().string() + " (" + std::to_string(n) + ")" + fs::path(path).extension().string());
+        std::error_code ec;
+        if (!fs::exists(destination)) fs::copy_file(path, destination, ec);
+        // A song's audio goes along with it
+        if (!ec && type == BlockType::Play){
+            Chart chart;
+            std::string error;
+            if (loadChart(path, chart, error) && !chart.audioFile.empty()){
+                const fs::path audio = fs::path(path).parent_path() / chart.audioFile;
+                if (fs::exists(audio) && !fs::exists(fs::path(ed.folder) / chart.audioFile)) fs::copy_file(audio, fs::path(ed.folder) / chart.audioFile, ec);
+            }
+        }
+        if (ec){
+            ed.status = "Couldn't copy " + fs::path(path).filename().string() + ": " + ec.message();
+            continue;
+        }
+        refreshFolderFiles();
+        if (ed.doc.pages.empty()) continue;
+        addBlock(type, placeForNew());
+        if (LessonBlock* block = blockPointer(ed.doc, ed.block)){
+            setBlockValue(*block, "file", destination.filename().string());
+            changed();
+        }
     }
 }
 
@@ -1001,6 +1124,9 @@ static void lessonEditing(){
     ImGui::PopStyleColor();
     ImGui::PopStyleVar(3);
     canvas(ImVec2(outlineRight + PANEL_GAP * s, top), ImVec2(inspectorLeft - PANEL_GAP * s, bottom), s);
+    takeDroppedFiles();
+    // Let go anywhere but the page: nothing's dropped
+    if ((ed.drag.kind == Drag::Moving || ed.drag.kind == Drag::Adding) && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) ed.drag = Drag{};
 
     // The keys (not while typing): Ctrl+S save, Ctrl+Z undo, Ctrl+Y redo, Delete, Ctrl+D copy, Alt+Up/Down move,
     // Page Up/Down the pages, T try it, Esc back
