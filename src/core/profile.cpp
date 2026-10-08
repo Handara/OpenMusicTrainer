@@ -77,6 +77,9 @@ const std::vector<Achievement>& achievements(){
         { "combo-100", "Locked in", "100 notes in a row, right", Metric::BestCombo, 100, Tier::Silver },
         { "combo-500", "Machine", "500 notes in a row, right", Metric::BestCombo, 500, Tier::Gold },
         { "perfect-10", "Perfectionist", "10 flawless runs", Metric::PerfectRuns, 10, Tier::Gold },
+        { "daily-1", "Today's challenge", "Pass a daily challenge", Metric::DailyChallenges, 1, Tier::Bronze },
+        { "daily-7", "Seven days, seven challenges", "Pass 7 daily challenges", Metric::DailyChallenges, 7, Tier::Silver },
+        { "daily-30", "Challenger", "Pass 30 daily challenges", Metric::DailyChallenges, 30, Tier::Gold },
         { "chapter-1", "Chapter one", "Pass a course's chapter", Metric::ChaptersPassed, 1, Tier::Bronze },
         { "chapter-20", "Bookworm", "Pass 20 chapters", Metric::ChaptersPassed, 20, Tier::Silver },
         { "level-1", "Level complete", "Complete a level of a course", Metric::LevelsDone, 1, Tier::Silver },
@@ -181,6 +184,7 @@ PlayerProfile buildProfile(const std::vector<Activity>& journal, int goalMinutes
             if (first){
                 p.drillsPassed.insert(a.id);
                 m[(int)Metric::DrillsPassed]++;
+                if (a.id.rfind("daily-", 0) == 0) m[(int)Metric::DailyChallenges]++; // a day's challenge (Learn): its id has its date
             }
         }
         if ((a.kind == ActivityKind::Drill || a.kind == ActivityKind::Notes) && a.perfect() && a.total >= 4) m[(int)Metric::PerfectRuns]++;

@@ -433,7 +433,7 @@ bool learnBack(){
 
 // What a row of the Learn menu stands for
 struct LearnRow {
-    enum Kind { Heading, Lesson, Exercise, OpenExercises, OpenLessons, Course, Review } kind;
+    enum Kind { Heading, Lesson, Exercise, OpenExercises, OpenLessons, Course, Review, Daily } kind;
     int index; // into learn.lessons or learn.exercises
 };
 
@@ -448,6 +448,63 @@ static std::string noteNames(const std::vector<NoteTally>& notes, const char* be
     std::string names;
     for (size_t i = 0; i < notes.size(); i++) names += (i ? between : "") + std::string(pitchClassName(notes[i].pitch)) + std::to_string(pitchOctave(notes[i].pitch));
     return names;
+}
+
+// Today's challenge: a timed reading drill of its own each day, from the notes the player knows on the instrument (two
+// of the weakest among them), at random from the date; passed clean at 100 bpm. Its id carries the date, so it's
+// new (and its first pass worth the most) every day. Guitar and bass: the piano's reading drill is still to come.
+static std::string todayText(){
+    int year, month, day;
+    dateFromDays(today(), year, month, day);
+    return TextFormat("%04d-%02d-%02d", year, month, day);
+}
+static bool dailyPossible(){
+    return !learn.piano;
+}
+static std::vector<int> dailyNotes(){
+    const bool bass = learn.instrument == InputRole::Bass;
+    const int low = bass ? 28 : 40, high = bass ? 60 : 76;
+    std::vector<int> known;
+    for (const auto& [pitch, tally] : playerProfile().notes) if (pitch >= low && pitch <= high && tally.right >= 5) known.push_back(pitch);
+    if (known.size() < 3) known = bass ? std::vector<int>{ 28, 29, 31, 33 } : std::vector<int>{ 64, 65, 67, 69 }; // the first notes there are
+    unsigned seed = 2166136261u;
+    for (char c : todayText() + learnInstrumentName()) seed = (seed ^ (unsigned char)c) * 16777619u;
+    std::mt19937 random(seed);
+    std::shuffle(known.begin(), known.end(), random);
+    std::vector<int> picked;
+    for (const NoteTally& weak : weakestNotes(playerProfile(), 2, 4, learnInstrumentName()))
+        if (weak.pitch >= low && weak.pitch <= high) picked.push_back(weak.pitch);
+    for (int pitch : known){
+        if ((int)picked.size() >= 6) break;
+        if (std::find(picked.begin(), picked.end(), pitch) == picked.end()) picked.push_back(pitch);
+    }
+    std::sort(picked.begin(), picked.end());
+    return picked;
+}
+static std::string dailyId(){
+    return "daily-" + todayText() + (learn.instrument == InputRole::Bass ? "-bass" : "");
+}
+static bool dailyDone(){
+    for (const Activity& run : recentRuns(dailyId(), 50)) if (run.challenge) return true;
+    return false;
+}
+static void startDaily(){
+    const std::vector<int> pitches = dailyNotes();
+    std::string names;
+    for (int pitch : pitches) names += " " + std::string(pitchClassName(pitch)) + std::to_string(pitchOctave(pitch));
+    std::string text = "type reading\nnotes" + names + "\ncells quarter\nbars 10\ntempo 90 120 5\nchallenge 100\npass 87\n";
+    if (learn.instrument == InputRole::Bass) text += "tuning 28 33 38 43\n";
+    ExerciseEntry entry;
+    entry.name = "daily";
+    entry.id = dailyId();
+    entry.builtIn = true;
+    std::string error;
+    if (!parseExercise(text, "daily", 1, "Today's challenge", entry.exercise, error)){
+        TraceLog(LOG_WARNING, "Daily challenge: %s", error.c_str());
+        return;
+    }
+    countPlay("daily");
+    startWhenTuned(true, [entry](){ return createExercise(entry); });
 }
 
 // A run of them, read on the staff: each asked three times or so, a slip showing where it is
@@ -473,7 +530,15 @@ static void startReview(){
 // The selected lesson or exercise, on a card on the right: its title, what it's about, who made it, how far you are
 static void drawAbout(const LearnRow& row, float s){
     std::string title, about, author, progress;
-    if (row.kind == LearnRow::Review){
+    if (row.kind == LearnRow::Daily){
+        title = "Today's challenge";
+        about = "A new drill every day, from the notes you know on the " + std::string(learnInstrumentName())
+              + " and a couple you've been missing: forty notes to a beat, with the band. Pass it clean at 100 bpm. "
+                "The first pass of the day is worth the most XP.";
+        std::string names;
+        for (int pitch : dailyNotes()) names += (names.empty() ? "" : ", ") + std::string(pitchClassName(pitch)) + std::to_string(pitchOctave(pitch));
+        progress = (dailyDone() ? "Passed today  ·  " : "") + names;
+    } else if (row.kind == LearnRow::Review){
         const std::vector<NoteTally> notes = reviewNotes();
         title = "Review your weak notes";
         about = std::string("The notes you've missed most these last two weeks on the ") + learnInstrumentName()
@@ -803,7 +868,13 @@ static void exerciseMenu(){
         learn.section = section;
         list = &learn.sections[section];
         if (section == SectionLessons){
-            // First, the notes to review, when some have been missed often lately
+            // First, today's challenge, then the notes to review (when some have been missed often lately)
+            if (dailyPossible()){
+                MenuRow row;
+                row.label = "Today's challenge";
+                row.detail = dailyDone() ? "passed today" : "a new one every day";
+                add(row, { LearnRow::Daily, -1 });
+            }
             const std::vector<NoteTally> weak = reviewNotes();
             if (!weak.empty()){
                 MenuRow row;
@@ -881,6 +952,8 @@ static void exerciseMenu(){
         startWhenTuned(exercisePlayedOnInstrument(entry.exercise), [entry](){ return createExercise(entry); });
     } else if (target.kind == LearnRow::Review){
         startReview();
+    } else if (target.kind == LearnRow::Daily){
+        startDaily();
     } else if (target.kind == LearnRow::Course){
         learn.openCourse = target.index;
         learn.openLevel = -1;
