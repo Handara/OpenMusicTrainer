@@ -4,59 +4,95 @@
 #include "core/lessondoc.h"
 #include "imgui.h"
 #include "imgui_stdlib.h"
-#include "learn/lessonview.h"
+#include "learn/exercise.h"
+#include "learn/lessonpage.h"
 #include "raylib.h"
+#include "screens/learnscreen.h"
 #include "ui/menulist.h"
-#include "ui/ui.h"
 #include "ui/theme.h"
+#include "ui/ui.h"
 
 #include <algorithm>
-#include <cctype>
+#include <cfloat>
+#include <cmath>
 #include <filesystem>
+#include <map>
+#include <memory>
 #include <sstream>
 
 namespace fs = std::filesystem;
 
-const float STEPS_PANEL_WIDTH = 330.0f;
-const float FIELDS_PANEL_WIDTH = 400.0f;
+// At a 720-pixel-tall window; everything scales with it
+const float TOP_BAR = 64.0f;
+const float OUTLINE_WIDTH = 250.0f;
+const float INSPECTOR_WIDTH = 320.0f;
+const float PANEL_GAP = 16.0f;
+const float CANVAS_PAD = 26.0f;
+const float SCROLL_STEP = 60.0f;
+const int MOST_UNDOS = 100;
 const char* const UNSAVED_POPUP = "Unsaved changes";
-const char* const STEP_TYPE_LABELS[] = { "Text", "Image", "Audio", "Video", "Exercise", "Play" }; // LessonStepType order
-// Lessons play video in MPEG-1 (see the video player): the command that converts any video to it
-const char* const VIDEO_CONVERT_HINT = "Videos must be MPEG-1 (.mpg). To convert one with FFmpeg:\n"
-                                       "ffmpeg -i video.mp4 -c:v mpeg1video -q:v 4 -c:a mp2 -b:a 192k video.mpg";
+
+namespace {
+
+// What's chosen to change: the lesson's details, a page, a section of it, or a block in it
+enum class Picked { Lesson, Page, Section, Block };
+
+// The blocks offered to add, in the order they're offered
+struct PaletteGroup {
+    const char* title;
+    std::vector<BlockType> types;
+};
+const std::vector<PaletteGroup>& palette(){
+    static const std::vector<PaletteGroup> groups = {
+        { "WORDS", { BlockType::Text, BlockType::Heading, BlockType::Callout, BlockType::Reveal } },
+        { "DIAGRAMS", { BlockType::Fretboard, BlockType::Keyboard, BlockType::Staff } },
+        { "MEDIA", { BlockType::Image, BlockType::Audio, BlockType::Video } },
+        { "TO PLAY", { BlockType::Exercise, BlockType::Play } },
+    };
+    return groups;
+}
+
+} // namespace
 
 static struct {
     LessonEditorSetup setup;
     std::vector<LessonEntry> lessons;      // the list to pick from
-    std::vector<ExerciseEntry> exercises;  // for exercise steps
+    std::vector<ExerciseEntry> exercises;  // for exercise blocks to name
     std::string newLessonName;
-    bool focusName = false;                // put the keyboard in the new lesson's name field next frame
+    bool focusName = false;                // the keyboard in the new lesson's name field, next frame
     std::string listError;
 
-    // The lesson being edited (editing = true)
+    // The lesson being made (editing = true)
     bool editing = false;
-    Lesson lesson;
+    LessonDoc doc;
     std::string folder;
     bool builtIn = false;
     bool dirty = false;
-    std::string status;                    // the last save's result, or a hint
-    int selected = 0;                      // the step being edited
-    std::string paragraphs;                // the selected text step's paragraphs, one per line, as typed
-    std::vector<std::string> folderFiles;  // the lesson folder's files, listed when a lesson opens or on Refresh
-    int addType = 0;                       // the step type the Add button adds
-    LessonMedia media;
+    std::string status;                    // the last save's result
+    std::string problem;                   // what stops it being played yet ("" for nothing)
+    std::vector<LessonDoc> undos, redos;
+    std::vector<std::string> folderFiles;  // the lesson folder's files, for blocks to pick from
 
+    int page = 0;                          // the page shown
+    Picked picked = Picked::Page;
+    int section = 0;                       // the section chosen (Picked::Section), or the chosen block's
+    BlockPlace block;                      // the block chosen (Picked::Block)
+    std::map<std::string, std::string> fields; // the inspector's fields as typed: kept until something else is chosen
+    std::string fieldErrors;               // what's wrong with what's typed, if anything
+    float scroll = 0.0f, pageHeight = 0.0f;
+    PageMedia media;
+
+    std::unique_ptr<Exercise> tryout;      // the lesson played from a page, while it's tried out
     bool active = false;
 } ed;
 
-// --- Lists ----------------------------------------------------------------------------------------------------
+// --- Lists ----------------------------------------------------------------------------------------------------------
 
 static void refreshLists(){
     ed.exercises = scanExercises(ed.setup.builtInExercises, true);
     std::vector<ExerciseEntry> user = scanExercises(ed.setup.userExercises, false);
     ed.exercises.insert(ed.exercises.end(), user.begin(), user.end());
     checkRoutines(ed.exercises);
-
     ed.lessons = scanLessons(ed.setup.builtInLessons, true);
     std::vector<LessonEntry> userLessons = scanLessons(ed.setup.userLessons, false);
     ed.lessons.insert(ed.lessons.end(), userLessons.begin(), userLessons.end());
@@ -66,63 +102,281 @@ static void refreshLists(){
 static void refreshFolderFiles(){
     ed.folderFiles.clear();
     std::error_code ec;
-    for (const fs::directory_entry& file : fs::directory_iterator(ed.folder, ec)){
+    for (const fs::directory_entry& file : fs::directory_iterator(ed.folder, ec))
         if (file.is_regular_file() && file.path().filename() != LESSON_FILE_NAME) ed.folderFiles.push_back(file.path().filename().string());
-    }
     std::sort(ed.folderFiles.begin(), ed.folderFiles.end());
 }
 
-// --- Editing --------------------------------------------------------------------------------------------------
+// --- Changes ----------------------------------------------------------------------------------------------------------
 
-static LessonStep& selectedStep(){
-    return ed.lesson.steps[ed.selected];
+// What still stops the lesson being played, said for its maker: the first thing found
+static std::string findProblem(){
+    for (const BlockPlace& place : lessonBlocks(ed.doc)){
+        const LessonBlock& block = blockAt(ed.doc, place);
+        const BlockInfo& info = blockInfo(block.type);
+        const std::string where = "Page " + std::to_string(place.page + 1) + ": ";
+        for (const BlockField& field : info.fields)
+            if (field.required && blockValues(block, field.key).empty())
+                return where + "a " + std::string(info.name) + " block still needs its " + std::string(field.name);
+        if (block.type == BlockType::Exercise){
+            const std::string name = blockValue(block, "exercise");
+            if (name.empty() && block.exerciseLines.empty()) return where + "an exercise block still needs its exercise";
+            if (!name.empty() && !findExercise(ed.exercises, ed.builtIn, name)) return where + "there's no exercise called " + name;
+        }
+    }
+    std::string error;
+    if (!checkLessonFiles(ed.doc, ed.folder, error)) return error;
+    if (ed.doc.title.empty()) return "The lesson needs a title";
+    return "";
 }
 
-static void selectStep(int index){
-    releaseLessonMedia(ed.media); // the old step's picture and sound
-    ed.selected = std::clamp(index, 0, std::max(0, (int)ed.lesson.steps.size() - 1)); // a lesson with no steps: 0
-    std::string joined;
-    for (const std::string& paragraph : selectedStep().paragraphs) joined += (joined.empty() ? "" : "\n") + paragraph;
-    ed.paragraphs = joined;
+// The page, section and block chosen kept to what the lesson has (after an undo, a page or block taken out)
+static void keepChoiceInside(){
+    ed.page = std::clamp(ed.page, 0, std::max(0, (int)ed.doc.pages.size() - 1));
+    if (ed.doc.pages.empty()){
+        ed.picked = Picked::Lesson;
+        return;
+    }
+    const LessonPage& page = ed.doc.pages[(size_t)ed.page];
+    if (ed.picked == Picked::Section && ed.section >= (int)page.sections.size()) ed.picked = Picked::Page;
+    if (ed.picked == Picked::Block){
+        ed.block.page = ed.page;
+        if (!blockPointer(ed.doc, ed.block)) ed.picked = page.sections.empty() ? Picked::Page : Picked::Section;
+        ed.section = std::clamp(ed.section, 0, std::max(0, (int)page.sections.size() - 1));
+    }
 }
+
+static void choose(Picked picked, int section = 0, BlockPlace block = {}){
+    ed.picked = picked;
+    ed.section = section;
+    ed.block = block;
+    ed.block.page = ed.page;
+    ed.fields.clear(); // the inspector's typing starts from what's chosen now
+    ed.fieldErrors.clear();
+}
+
+// Before each change: the lesson as it was, to go back to
+static void beforeChange(){
+    ed.undos.push_back(ed.doc);
+    if ((int)ed.undos.size() > MOST_UNDOS) ed.undos.erase(ed.undos.begin());
+    ed.redos.clear();
+}
+
+// After each change: unsaved, and what stops it being played looked at again
+static void changed(){
+    ed.dirty = true;
+    ed.status.clear();
+    ed.problem = findProblem();
+}
+
+static void undo(){
+    if (ed.undos.empty()) return;
+    ed.redos.push_back(ed.doc);
+    ed.doc = ed.undos.back();
+    ed.undos.pop_back();
+    keepChoiceInside();
+    ed.fields.clear();
+    changed();
+}
+
+static void redo(){
+    if (ed.redos.empty()) return;
+    ed.undos.push_back(ed.doc);
+    ed.doc = ed.redos.back();
+    ed.redos.pop_back();
+    keepChoiceInside();
+    ed.fields.clear();
+    changed();
+}
+
+static void showPage(int page){
+    if (page == ed.page && !ed.doc.pages.empty()) return;
+    releasePageMedia(ed.media);
+    ed.page = std::clamp(page, 0, std::max(0, (int)ed.doc.pages.size() - 1));
+    ed.scroll = 0.0f;
+    choose(Picked::Page);
+}
+
+// Where a new block goes: after the one chosen, else at the end of the chosen section's first column, else of the
+// page's last section (a page with none gets one)
+static BlockPlace placeForNew(){
+    LessonPage& page = ed.doc.pages[(size_t)ed.page];
+    if (ed.picked == Picked::Block && blockPointer(ed.doc, ed.block)) return { ed.page, ed.block.section, ed.block.column, ed.block.block + 1 };
+    if (page.sections.empty()) page.sections.push_back(makeSection(SectionLayout::Single));
+    const int section = ed.picked == Picked::Section ? std::min(ed.section, (int)page.sections.size() - 1) : (int)page.sections.size() - 1;
+    return { ed.page, section, 0, (int)page.sections[(size_t)section].columns[0].size() };
+}
+
+static void addBlock(BlockType type, BlockPlace at){
+    beforeChange();
+    LessonBlock block = makeBlock(type);
+    if (type == BlockType::Exercise){ // something to start from: a few notes to play
+        std::string error;
+        setBlockExercise(block, "type notes\nnotes E4 F4 G4\nshow staff", error);
+    }
+    if (ed.doc.pages[(size_t)ed.page].sections.empty()) ed.doc.pages[(size_t)ed.page].sections.push_back(makeSection(SectionLayout::Single));
+    if (!insertBlock(ed.doc, at, block)){
+        ed.undos.pop_back();
+        return;
+    }
+    choose(Picked::Block, at.section, at);
+    changed();
+}
+
+static void addSection(SectionLayout layout){
+    beforeChange();
+    LessonPage& page = ed.doc.pages[(size_t)ed.page];
+    // After the chosen section (or the chosen block's), else at the end
+    const int after = ed.picked == Picked::Section ? ed.section : ed.picked == Picked::Block ? ed.block.section : (int)page.sections.size() - 1;
+    const int at = std::clamp(after + 1, 0, (int)page.sections.size());
+    page.sections.insert(page.sections.begin() + at, makeSection(layout));
+    choose(Picked::Section, at);
+    changed();
+}
+
+static void addPage(){
+    beforeChange();
+    const int at = ed.doc.pages.empty() ? 0 : ed.page + 1;
+    LessonPage page;
+    page.title = "A new page";
+    page.sections.push_back(makeSection(SectionLayout::Single));
+    page.sections[0].columns[0].push_back(makeBlock(BlockType::Text));
+    ed.doc.pages.insert(ed.doc.pages.begin() + at, page);
+    releasePageMedia(ed.media);
+    ed.page = at;
+    ed.scroll = 0.0f;
+    choose(Picked::Page);
+    changed();
+}
+
+static void removeChosen(){
+    if (ed.doc.pages.empty()) return;
+    LessonPage& page = ed.doc.pages[(size_t)ed.page];
+    if (ed.picked == Picked::Block){
+        beforeChange();
+        removeBlock(ed.doc, ed.block);
+        choose(Picked::Section, ed.block.section);
+    } else if (ed.picked == Picked::Section && ed.section < (int)page.sections.size()){
+        beforeChange();
+        page.sections.erase(page.sections.begin() + ed.section);
+        choose(Picked::Page);
+    } else if (ed.picked == Picked::Page && ed.doc.pages.size() > 1){ // a lesson keeps one page at least
+        beforeChange();
+        ed.doc.pages.erase(ed.doc.pages.begin() + ed.page);
+        releasePageMedia(ed.media);
+        ed.page = std::min(ed.page, (int)ed.doc.pages.size() - 1);
+        choose(Picked::Page);
+    } else return;
+    changed();
+}
+
+static void duplicateChosen(){
+    if (ed.picked == Picked::Block){
+        const LessonBlock* block = blockPointer(ed.doc, ed.block);
+        if (!block) return;
+        const LessonBlock copy = *block;
+        beforeChange();
+        BlockPlace at = ed.block;
+        at.block++;
+        insertBlock(ed.doc, at, copy);
+        choose(Picked::Block, at.section, at);
+    } else if (ed.picked == Picked::Page){
+        beforeChange();
+        LessonPage copy = ed.doc.pages[(size_t)ed.page];
+        ed.doc.pages.insert(ed.doc.pages.begin() + ed.page + 1, copy);
+        releasePageMedia(ed.media);
+        ed.page++;
+        choose(Picked::Page);
+    } else return;
+    changed();
+}
+
+// The chosen block one place up or down its column (out of its column: into the section before or after it); the
+// chosen section or page one place earlier or later
+static void moveChosen(int by){
+    if (ed.doc.pages.empty()) return;
+    LessonPage& page = ed.doc.pages[(size_t)ed.page];
+    if (ed.picked == Picked::Block){
+        const std::vector<LessonBlock>& column = page.sections[(size_t)ed.block.section].columns[(size_t)ed.block.column];
+        BlockPlace to = ed.block;
+        if (by < 0 && ed.block.block > 0) to.block = ed.block.block - 1;
+        else if (by > 0 && ed.block.block + 1 < (int)column.size()) to.block = ed.block.block + 2;
+        else if (by < 0 && ed.block.section > 0){ // to the end of the section above, its first column
+            to.section = ed.block.section - 1;
+            to.column = 0;
+            to.block = (int)page.sections[(size_t)to.section].columns[0].size();
+        } else if (by > 0 && ed.block.section + 1 < (int)page.sections.size()){ // to the start of the one below
+            to.section = ed.block.section + 1;
+            to.column = 0;
+            to.block = 0;
+        } else return;
+        beforeChange();
+        const BlockPlace landed = moveBlock(ed.doc, ed.block, to);
+        choose(Picked::Block, landed.section, landed);
+    } else if (ed.picked == Picked::Section){
+        const int to = ed.section + by;
+        if (to < 0 || to >= (int)page.sections.size()) return;
+        beforeChange();
+        std::swap(page.sections[(size_t)ed.section], page.sections[(size_t)to]);
+        choose(Picked::Section, to);
+    } else if (ed.picked == Picked::Page){
+        const int to = ed.page + by;
+        if (to < 0 || to >= (int)ed.doc.pages.size()) return;
+        beforeChange();
+        std::swap(ed.doc.pages[(size_t)ed.page], ed.doc.pages[(size_t)to]);
+        ed.page = to;
+        choose(Picked::Page);
+    } else return;
+    changed();
+}
+
+// --- Opening and saving -----------------------------------------------------------------------------------------------
 
 static void openLesson(const std::string& folder, bool builtIn){
     std::string error;
-    Lesson lesson;
-    if (!loadLesson(folder, lesson, error)){
-        // A lesson of pages (version 2) isn't for this editor of steps: it would lose them saving
-        ed.listError = error.find("lesson format v2") != std::string::npos ? "This lesson is made of pages: the new lesson maker edits it" : error;
+    LessonDoc doc;
+    if (!loadLessonDraft(folder, doc, error)){
+        ed.listError = error;
         return;
     }
-    ed.lesson = lesson;
+    ed.doc = doc;
     ed.folder = folder;
     ed.builtIn = builtIn;
     ed.dirty = false;
-    ed.status = builtIn ? "Built-in lesson: saving creates your own copy" : "";
+    ed.undos.clear();
+    ed.redos.clear();
+    ed.status = builtIn ? "Built in: saving makes your own copy" : "";
     ed.editing = true;
+    ed.page = 0;
+    ed.scroll = 0.0f;
     refreshFolderFiles();
-    selectStep(0);
+    choose(Picked::Page);
+    ed.problem = findProblem();
 }
 
 static void createLesson(){
-    std::string folderName = safeFolderName(ed.newLessonName);
+    const std::string folderName = safeFolderName(ed.newLessonName);
     if (folderName.empty()){
         ed.listError = "Give the lesson a name (letters, digits, spaces, - and _)";
         return;
     }
-    fs::path folder = fs::path(ed.setup.userLessons) / folderName;
+    const fs::path folder = fs::path(ed.setup.userLessons) / folderName;
     if (fs::exists(folder)){
         ed.listError = "There's already a lesson folder called '" + folderName + "'";
         return;
     }
-    Lesson lesson;
-    lesson.title = ed.newLessonName;
-    LessonStep first;
-    first.title = "Welcome";
-    first.paragraphs = {"What this lesson is about."};
-    lesson.steps = {first};
+    // Something to start from: a page with a heading and a few words
+    LessonDoc doc;
+    doc.title = ed.newLessonName;
+    LessonPage page;
+    page.title = "Welcome";
+    page.sections.push_back(makeSection(SectionLayout::Single));
+    LessonBlock text = makeBlock(BlockType::Text);
+    setBlockValues(text, "text", { "What this lesson is about, in a few words." });
+    page.sections[0].columns[0].push_back(text);
+    doc.pages.push_back(page);
     std::string error;
-    if (!saveLesson(folder.string(), lesson, error)){
+    if (!saveLessonDoc(folder.string(), doc, error)){
         ed.listError = error;
         return;
     }
@@ -135,229 +389,456 @@ static void createLesson(){
 static bool saveEditedLesson(){
     if (ed.builtIn){
         // Built-in lessons ship with the game and are read-only, so the first save copies the folder, media and all
-        fs::path source = ed.folder;
+        const fs::path source = ed.folder;
         fs::path destination = fs::path(ed.setup.userLessons) / source.filename();
-        for (int n = 2; fs::exists(destination); n++){
-            destination = fs::path(ed.setup.userLessons) / (source.filename().string() + " (" + std::to_string(n) + ")");
-        }
+        for (int n = 2; fs::exists(destination); n++) destination = fs::path(ed.setup.userLessons) / (source.filename().string() + " (" + std::to_string(n) + ")");
         std::error_code ec;
         fs::create_directories(destination.parent_path(), ec);
         if (!ec) fs::copy(source, destination, fs::copy_options::recursive, ec);
         if (ec){
-            ed.status = "Could not copy the lesson: " + ec.message();
+            ed.status = "Couldn't copy the lesson: " + ec.message();
             return false;
         }
         ed.folder = destination.string();
         ed.builtIn = false;
     }
     std::string error;
-    if (!saveLesson(ed.folder, ed.lesson, error)){
+    if (!saveLessonDoc(ed.folder, ed.doc, error)){
         ed.status = error;
         return false;
     }
     ed.dirty = false;
-
-    // Read it back the way players will: the author sees any problem (a missing file, an unknown exercise) at once
-    std::vector<LessonEntry> check(1);
-    check[0].folder = ed.folder;
-    check[0].builtIn = false;
-    if (!loadLesson(ed.folder, check[0].lesson, check[0].error)) ed.status = "Saved, but it can't be played yet: " + check[0].error;
-    else {
-        checkLessonExercises(check, ed.exercises);
-        ed.status = check[0].error.empty() ? "Saved to your lessons: " + fs::path(ed.folder).filename().string()
-                                           : "Saved, but it can't be played yet: " + check[0].error;
-    }
+    ed.status = "Saved";
+    ed.problem = findProblem();
     return true;
 }
 
-static const ExerciseEntry* stepExercise(const LessonStep& step){
-    if (step.type != LessonStepType::Exercise) return nullptr;
-    return findExercise(ed.exercises, ed.builtIn, step.exercise);
+// --- Drawing helpers ----------------------------------------------------------------------------------------------------
+
+// A pill-shaped button drawn on the window; true when clicked
+static bool pill(ImVec2 at, const char* label, bool lit, bool live, float s, float* width = nullptr){
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    const UiFonts& fonts = uiFonts();
+    const ImVec2 extent = fonts.bold->CalcTextSizeA(15 * s, FLT_MAX, 0.0f, label);
+    const ImVec2 b(at.x + extent.x + 28 * s, at.y + 32 * s);
+    if (width) *width = b.x - at.x;
+    const bool hovered = live && ImGui::IsMouseHoveringRect(at, b);
+    draw->AddRectFilled(at, b, lit && live ? uiColor(UiColor::Accent) : hovered ? uiColor(UiColor::Accent, 0.15f) : uiColor(UiColor::Card), 16 * s);
+    draw->AddRect(at, b, uiColor(hovered || (lit && live) ? UiColor::Accent : UiColor::StaffLine, live ? 1.0f : 0.5f), 16 * s, 0, 1.0f);
+    draw->AddText(fonts.bold, 15 * s, ImVec2(at.x + 14 * s, at.y + (32 * s - extent.y) / 2),
+                  uiColor(lit && live ? UiColor::Background : live ? UiColor::Ink : UiColor::Dim), label);
+    return hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left);
 }
 
-// A one-line summary for the step list: "3. Image: em.png"
-static std::string stepLabel(int index, const LessonStep& step){
-    std::string what = step.title;
-    if (what.empty()) what = step.type == LessonStepType::Exercise ? step.exercise : step.file;
-    if (what.empty() && !step.paragraphs.empty()) what = step.paragraphs[0];
-    if (what.size() > 28) what = what.substr(0, 26) + "...";
-    return std::to_string(index + 1) + ". " + STEP_TYPE_LABELS[(int)step.type] + (what.empty() ? "" : ": " + what);
-}
-
-// --- Panels ---------------------------------------------------------------------------------------------------
-
-static void stepsPanel(){
-    ImGui::SeparatorText("Lesson");
-    ImGui::PushItemWidth(-90);
-    if (ImGui::InputText("Title", &ed.lesson.title)) ed.dirty = true;
-    if (ImGui::InputText("Category", &ed.lesson.category)) ed.dirty = true;
-    if (ImGui::InputText("Author", &ed.lesson.author)) ed.dirty = true;
-    if (ImGui::InputText("About", &ed.lesson.description)) ed.dirty = true;
-    ImGui::PopItemWidth();
-
-    ImGui::SeparatorText("Steps");
-    std::vector<LessonStep>& steps = ed.lesson.steps;
-    for (int i = 0; i < (int)steps.size(); i++){
-        ImGui::PushID(i);
-        if (ImGui::Selectable(stepLabel(i, steps[i]).c_str(), i == ed.selected)) selectStep(i);
-        ImGui::PopID();
-    }
-    ImGui::Dummy(ImVec2(0, 6));
-
-    // Add a step after the selected one, of the chosen type
-    ImGui::SetNextItemWidth(130);
-    ImGui::Combo("##type", &ed.addType, STEP_TYPE_LABELS, IM_ARRAYSIZE(STEP_TYPE_LABELS));
-    ImGui::SameLine();
-    if (ImGui::Button("Add step")){
-        LessonStep step;
-        step.type = (LessonStepType)ed.addType;
-        if (step.type == LessonStepType::Text) step.title = "New step";
-        steps.insert(steps.begin() + ed.selected + 1, step);
-        selectStep(ed.selected + 1);
-        ed.dirty = true;
-    }
-    ImGui::BeginDisabled(ed.selected == 0);
-    if (ImGui::Button("Move up")){
-        std::swap(steps[ed.selected], steps[ed.selected - 1]);
-        selectStep(ed.selected - 1);
-        ed.dirty = true;
-    }
-    ImGui::EndDisabled();
-    ImGui::SameLine();
-    ImGui::BeginDisabled(ed.selected + 1 >= (int)steps.size());
-    if (ImGui::Button("Move down")){
-        std::swap(steps[ed.selected], steps[ed.selected + 1]);
-        selectStep(ed.selected + 1);
-        ed.dirty = true;
-    }
-    ImGui::EndDisabled();
-    ImGui::SameLine();
-    ImGui::BeginDisabled(steps.size() <= 1); // a lesson keeps at least one step
-    if (ImGui::Button("Delete")){
-        steps.erase(steps.begin() + ed.selected);
-        selectStep(std::min(ed.selected, (int)steps.size() - 1));
-        ed.dirty = true;
-    }
-    ImGui::EndDisabled();
-}
-
-// The file picker: files in the lesson's folder that this step type accepts
-static void fileField(LessonStep& step){
-    const std::vector<std::string>& extensions = lessonFileExtensions(step.type);
-    if (ImGui::BeginCombo("File", step.file.empty() ? "(choose)" : step.file.c_str())){
-        for (const std::string& file : ed.folderFiles){
-            std::string extension = fs::path(file).extension().string();
-            for (char& c : extension) c = (char)std::tolower((unsigned char)c);
-            if (std::find(extensions.begin(), extensions.end(), extension) == extensions.end()) continue;
-            if (ImGui::Selectable(file.c_str(), file == step.file)){
-                step.file = file;
-                releaseLessonMedia(ed.media);
-                ed.dirty = true;
-            }
-        }
-        ImGui::EndCombo();
-    }
-    if (ImGui::Button("Open lesson folder")) openFolder(ed.folder);
-    ImGui::SameLine();
-    if (ImGui::Button("Refresh")) refreshFolderFiles();
-    std::string list;
-    for (const std::string& extension : extensions) list += (list.empty() ? "" : ", ") + extension;
-    ImGui::PushStyleColor(ImGuiCol_Text, ImColor(uiColor(UiColor::Dim)).Value);
-    ImGui::TextWrapped("Put %s files in the lesson's folder, then Refresh", list.c_str());
-    if (step.type == LessonStepType::Video) ImGui::TextWrapped("%s", VIDEO_CONVERT_HINT);
+// A small label in capitals over a group of things in a panel
+static void panelHeading(const char* text){
+    ImGui::Dummy(ImVec2(0, 6 * menuScale()));
+    ImGui::PushStyleColor(ImGuiCol_Text, uiColorVec(UiColor::Accent));
+    ImGui::PushFont(uiFonts().mono, 12 * menuScale());
+    ImGui::TextUnformatted(text);
+    ImGui::PopFont();
     ImGui::PopStyleColor();
 }
 
-static void fieldsPanel(){
-    LessonStep& step = selectedStep();
-    ImGui::SeparatorText(TextFormat("Step %d", ed.selected + 1));
-    ImGui::PushItemWidth(-80);
-    int type = (int)step.type;
-    if (ImGui::Combo("Type", &type, STEP_TYPE_LABELS, IM_ARRAYSIZE(STEP_TYPE_LABELS))){
-        step.type = (LessonStepType)type; // fields the new type doesn't use are kept, and not saved
-        releaseLessonMedia(ed.media);
-        ed.dirty = true;
-    }
-    if (ImGui::InputText("Title", &step.title)) ed.dirty = true;
+static void dimText(const char* text){
+    ImGui::PushStyleColor(ImGuiCol_Text, uiColorVec(UiColor::Dim));
+    ImGui::PushFont(uiFonts().text, 13 * menuScale());
+    ImGui::TextWrapped("%s", text);
+    ImGui::PopFont();
+    ImGui::PopStyleColor();
+}
 
-    switch (step.type){
-        case LessonStepType::Text:
-            ImGui::TextUnformatted("Text (each line is a paragraph)");
-            if (ImGui::InputTextMultiline("##text", &ed.paragraphs, ImVec2(-1, 220), ImGuiInputTextFlags_WordWrap)){
-                step.paragraphs.clear();
-                std::istringstream lines(ed.paragraphs);
-                std::string line;
-                while (std::getline(lines, line)) if (!line.empty()) step.paragraphs.push_back(line);
-                ed.dirty = true;
+// A text field whose typing is one step to undo (taken when the typing starts)
+static bool undoableInput(const char* id, std::string* value, bool multiline = false, float height = 0.0f){
+    ImGui::SetNextItemWidth(-1);
+    const bool edited = multiline ? ImGui::InputTextMultiline(id, value, ImVec2(-1, height)) : ImGui::InputText(id, value);
+    if (ImGui::IsItemActivated()) beforeChange();
+    return edited;
+}
+
+// --- The outline: pages, and what to add --------------------------------------------------------------------------------
+
+static void outlinePanel(float s){
+    panelHeading("PAGES");
+    for (int i = 0; i < (int)ed.doc.pages.size(); i++){
+        const std::string& title = ed.doc.pages[(size_t)i].title;
+        const std::string label = std::to_string(i + 1) + "   " + (title.empty() ? "(no title)" : title) + "##page" + std::to_string(i);
+        if (ImGui::Selectable(label.c_str(), i == ed.page)){
+            showPage(i);
+            choose(Picked::Page);
+        }
+    }
+    if (ImGui::Button("+ Page", ImVec2(-1, 0))) addPage();
+
+    panelHeading("ADD A BLOCK");
+    dimText("Added after the block chosen. Or drag it onto the page.");
+    const float half = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) / 2;
+    for (const PaletteGroup& group : palette()){
+        ImGui::PushStyleColor(ImGuiCol_Text, uiColorVec(UiColor::Dim));
+        ImGui::PushFont(uiFonts().mono, 11 * s);
+        ImGui::TextUnformatted(group.title);
+        ImGui::PopFont();
+        ImGui::PopStyleColor();
+        for (size_t i = 0; i < group.types.size(); i++){
+            if (i % 2 == 1) ImGui::SameLine();
+            const BlockInfo& info = blockInfo(group.types[i]);
+            if (ImGui::Button(info.name, ImVec2(half, 0))) addBlock(info.type, placeForNew());
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", info.description);
+        }
+    }
+    panelHeading("ADD A SECTION");
+    dimText("Blocks side by side, in columns.");
+    for (int layout = 0; layout < (int)SectionLayout::Count; layout++){
+        if (layout % 2 == 1) ImGui::SameLine();
+        if (ImGui::Button(sectionLayoutName((SectionLayout)layout), ImVec2(half, 0))) addSection((SectionLayout)layout);
+    }
+}
+
+// --- The inspector: what's chosen, and its settings ------------------------------------------------------------------
+
+// One setting of the chosen block, as its kind wants it
+static void blockField(LessonBlock& block, const BlockField& field){
+    const float s = menuScale();
+    ImGui::PushFont(uiFonts().bold, 15 * s);
+    ImGui::TextUnformatted(field.name);
+    ImGui::PopFont();
+    const std::string id = std::string("##") + field.key;
+    switch (field.kind){
+        case FieldKind::Paragraphs: {
+            if (!ed.fields.count(field.key)){
+                std::string joined;
+                for (const std::string& paragraph : blockValues(block, field.key)) joined += (joined.empty() ? "" : "\n") + paragraph;
+                ed.fields[field.key] = joined;
             }
-            break;
-        case LessonStepType::Image:
-        case LessonStepType::Audio:
-        case LessonStepType::Video:
-            fileField(step);
-            if (ImGui::InputText("Caption", &step.caption)) ed.dirty = true;
-            break;
-        case LessonStepType::Exercise: {
-            const ExerciseEntry* current = stepExercise(step);
-            if (ImGui::BeginCombo("Exercise", current ? current->exercise.title.c_str() : "(choose)")){
-                for (const ExerciseEntry& entry : ed.exercises){
-                    // A built-in lesson may only use built-in exercises; routines have no goal to check
-                    if (!entry.error.empty() || entry.exercise.type == ExerciseType::Routine || (ed.builtIn && !entry.builtIn)) continue;
-                    std::string label = entry.exercise.title + (entry.builtIn ? "" : "  (yours)") + "##" + entry.id;
-                    if (ImGui::Selectable(label.c_str(), current == &entry)){
-                        step.exercise = entry.name;
-                        ed.dirty = true;
+            if (undoableInput(id.c_str(), &ed.fields[field.key], true, 110 * s)){
+                std::vector<std::string> paragraphs;
+                std::istringstream lines(ed.fields[field.key]);
+                std::string line;
+                while (std::getline(lines, line)) if (!line.empty()) paragraphs.push_back(line);
+                setBlockValues(block, field.key, paragraphs);
+                changed();
+            }
+            dimText("A line each paragraph. **Bold** words; [E4] a note to click and hear.");
+            return; // (that says it all)
+        }
+        case FieldKind::Toggle: {
+            bool on = blockValue(block, field.key) == "yes";
+            if (ImGui::Checkbox((std::string(field.description) + id).c_str(), &on)){
+                beforeChange();
+                setBlockValue(block, field.key, on ? "yes" : "no");
+                changed();
+            }
+            return; // its description is its label
+        }
+        case FieldKind::Choice: {
+            const std::string current = blockValue(block, field.key);
+            ImGui::SetNextItemWidth(-1);
+            if (ImGui::BeginCombo(id.c_str(), current.c_str())){
+                for (const std::string& choice : field.choices){
+                    if (ImGui::Selectable(choice.c_str(), choice == current)){
+                        beforeChange();
+                        setBlockValue(block, field.key, choice);
+                        changed();
                     }
                 }
                 ImGui::EndCombo();
             }
             break;
         }
-        case LessonStepType::Play:
-            fileField(step);
+        case FieldKind::File: {
+            const std::string current = blockValue(block, field.key);
+            ImGui::SetNextItemWidth(-1);
+            if (ImGui::BeginCombo(id.c_str(), current.empty() ? "Choose a file" : current.c_str())){
+                for (const std::string& file : ed.folderFiles){
+                    std::string extension = fs::path(file).extension().string();
+                    for (char& c : extension) c = (char)std::tolower((unsigned char)c);
+                    if (std::find(field.choices.begin(), field.choices.end(), extension) == field.choices.end()) continue;
+                    if (ImGui::Selectable(file.c_str(), file == current)){
+                        beforeChange();
+                        setBlockValue(block, field.key, file);
+                        releasePageMedia(ed.media);
+                        changed();
+                    }
+                }
+                ImGui::EndCombo();
+            }
+            if (ImGui::IsItemClicked()) refreshFolderFiles(); // files put there meanwhile
+            if (ImGui::Button("Open the lesson's folder")){
+                if (ed.builtIn) ed.status = "Built in: save first, to have your own copy and its folder";
+                else openFolder(ed.folder);
+            }
             break;
-    }
-
-    if (step.type == LessonStepType::Exercise || step.type == LessonStepType::Play){
-        // Always required to go on: 0 keeps the usual goal
-        int goal = step.goal;
-        if (ImGui::InputInt("Goal", &goal)){
-            step.goal = std::clamp(goal, 0, step.type == LessonStepType::Play ? 100 : 1000);
-            ed.dirty = true;
         }
-        LessonStep usual = step;
-        usual.goal = 0;
-        ImGui::TextColored(ImColor(uiColor(UiColor::Dim)), "0 = the usual (%s)", lessonGoalText(usual, stepExercise(step)).c_str());
+        case FieldKind::Exercise: {
+            // One of the game's, by its title; or one written here
+            const std::string current = blockValue(block, field.key);
+            const ExerciseEntry* named = current.empty() ? nullptr : findExercise(ed.exercises, ed.builtIn, current);
+            const std::string shown = !current.empty() ? (named ? named->exercise.title : current + " (not found)")
+                                    : block.exerciseLines.empty() ? "Choose an exercise" : "Written here, below";
+            ImGui::SetNextItemWidth(-1);
+            if (ImGui::BeginCombo(id.c_str(), shown.c_str(), ImGuiComboFlags_HeightLarge)){
+                if (ImGui::Selectable("Written here, below", current.empty() && !block.exerciseLines.empty())){
+                    beforeChange();
+                    std::string error;
+                    if (block.exerciseLines.empty()) setBlockExercise(block, "type notes\nnotes E4 F4 G4\nshow staff", error);
+                    else setBlockValue(block, "exercise", "");
+                    ed.fields.erase("lines");
+                    changed();
+                }
+                for (const ExerciseEntry& entry : ed.exercises){
+                    if (!entry.error.empty() || entry.exercise.type == ExerciseType::Routine || (ed.builtIn && !entry.builtIn)) continue;
+                    if (ImGui::Selectable((entry.exercise.title + "##" + entry.id).c_str(), entry.name == current)){
+                        beforeChange();
+                        setBlockValue(block, field.key, entry.name);
+                        block.exerciseLines.clear();
+                        block.exercise = ExerciseFile{};
+                        changed();
+                    }
+                }
+                ImGui::EndCombo();
+            }
+            if (current.empty() && !block.exerciseLines.empty()){
+                // Its settings, as in an .exercise file: read as they're typed, kept once they read right
+                if (!ed.fields.count("lines")){
+                    std::string joined;
+                    for (const std::string& line : block.exerciseLines) joined += line + "\n";
+                    ed.fields["lines"] = joined;
+                }
+                if (undoableInput("##lines", &ed.fields["lines"], true, 130 * s)){
+                    std::string error;
+                    if (setBlockExercise(block, ed.fields["lines"], error)){
+                        ed.fieldErrors.clear();
+                        changed();
+                    } else ed.fieldErrors = error;
+                }
+                dimText("As in an .exercise file: type notes, notes E4 F4, show staff, count 8...");
+            }
+            break;
+        }
+        default: { // a line of text, a number, notes, places on the neck...: kept once it reads right
+            if (!ed.fields.count(field.key)) ed.fields[field.key] = blockValues(block, field.key).empty() ? "" : blockValue(block, field.key);
+            if (undoableInput(id.c_str(), &ed.fields[field.key])){
+                const std::string& typed = ed.fields[field.key];
+                const std::string problem = typed.empty() ? (field.required ? std::string("'") + field.key + "' can't be left empty" : "")
+                                                          : checkBlockValue(field, typed);
+                if (problem.empty()){
+                    setBlockValue(block, field.key, typed);
+                    if (field.key == std::string("frets") || field.kind == FieldKind::Text) releasePageMedia(ed.media);
+                    ed.fieldErrors.clear();
+                    changed();
+                } else ed.fieldErrors = problem;
+            }
+            break;
+        }
     }
-    ImGui::PopItemWidth();
+    dimText(field.description);
 }
 
-static void previewPanel(){
-    ImGui::SeparatorText("Preview");
-    ImGui::Dummy(ImVec2(0, 6));
-    float width = ImGui::GetContentRegionAvail().x - 20;
-    ImGui::Indent(10);
-    drawLessonStep(selectedStep(), ed.folder, stepExercise(selectedStep()), ed.media, width);
-    ImGui::Unindent(10);
+static void inspectorPanel(float s){
+    LessonPage* page = ed.doc.pages.empty() ? nullptr : &ed.doc.pages[(size_t)ed.page];
+    if (ed.picked == Picked::Lesson || !page){
+        panelHeading("THE LESSON");
+        ImGui::PushFont(uiFonts().bold, 15 * s);
+        ImGui::TextUnformatted("Title");
+        ImGui::PopFont();
+        if (undoableInput("##title", &ed.doc.title)) changed();
+        ImGui::PushFont(uiFonts().bold, 15 * s);
+        ImGui::TextUnformatted("Category");
+        ImGui::PopFont();
+        if (undoableInput("##category", &ed.doc.category)) changed();
+        ImGui::PushFont(uiFonts().bold, 15 * s);
+        ImGui::TextUnformatted("Author");
+        ImGui::PopFont();
+        if (undoableInput("##author", &ed.doc.author)) changed();
+        ImGui::PushFont(uiFonts().bold, 15 * s);
+        ImGui::TextUnformatted("What it's about");
+        ImGui::PopFont();
+        if (undoableInput("##description", &ed.doc.description, true, 80 * s)){
+            std::replace(ed.doc.description.begin(), ed.doc.description.end(), '\n', ' ');
+            changed();
+        }
+        ImGui::PushFont(uiFonts().bold, 15 * s);
+        ImGui::TextUnformatted("Instrument");
+        ImGui::PopFont();
+        const char* instruments[] = { "Any", "Guitar", "Bass", "Piano" };
+        int instrument = (int)ed.doc.instrument;
+        ImGui::SetNextItemWidth(-1);
+        if (ImGui::Combo("##instrument", &instrument, instruments, 4)){
+            beforeChange();
+            ed.doc.instrument = (ExerciseInstrument)instrument;
+            changed();
+        }
+        dimText("Whose neck and sound its diagrams use; Learn lists it for that instrument.");
+        return;
+    }
+    if (ed.picked == Picked::Page){
+        panelHeading(TextFormat("PAGE %d OF %d", ed.page + 1, (int)ed.doc.pages.size()));
+        ImGui::PushFont(uiFonts().bold, 15 * s);
+        ImGui::TextUnformatted("Title");
+        ImGui::PopFont();
+        if (undoableInput("##pagetitle", &page->title)) changed();
+        dimText("Over the page, big. Left empty, none.");
+        ImGui::Dummy(ImVec2(0, 6 * s));
+        if (ImGui::Button("Earlier")) moveChosen(-1);
+        ImGui::SameLine();
+        if (ImGui::Button("Later")) moveChosen(1);
+        ImGui::SameLine();
+        if (ImGui::Button("Copy")) duplicateChosen();
+        ImGui::SameLine();
+        ImGui::BeginDisabled(ed.doc.pages.size() <= 1);
+        if (ImGui::Button("Delete")) removeChosen();
+        ImGui::EndDisabled();
+        ImGui::Dummy(ImVec2(0, 10 * s));
+        if (ImGui::Button("The lesson's details", ImVec2(-1, 0))) choose(Picked::Lesson);
+        return;
+    }
+    if (ed.picked == Picked::Section){
+        LessonSection& section = page->sections[(size_t)ed.section];
+        panelHeading(TextFormat("SECTION %d", ed.section + 1));
+        ImGui::PushFont(uiFonts().bold, 15 * s);
+        ImGui::TextUnformatted("Columns");
+        ImGui::PopFont();
+        for (int layout = 0; layout < (int)SectionLayout::Count; layout++){
+            if (ImGui::RadioButton(sectionLayoutName((SectionLayout)layout), section.layout == (SectionLayout)layout) && section.layout != (SectionLayout)layout){
+                beforeChange();
+                setSectionLayout(section, (SectionLayout)layout);
+                changed();
+            }
+        }
+        dimText("Fewer columns: the blocks of those gone join the last one's.");
+        ImGui::Dummy(ImVec2(0, 6 * s));
+        if (ImGui::Button("Up")) moveChosen(-1);
+        ImGui::SameLine();
+        if (ImGui::Button("Down")) moveChosen(1);
+        ImGui::SameLine();
+        if (ImGui::Button("Delete")) removeChosen();
+        return;
+    }
+    // A block: what it is, then its settings
+    LessonBlock* block = blockPointer(ed.doc, ed.block);
+    if (!block){
+        choose(Picked::Page);
+        return;
+    }
+    const BlockInfo& info = blockInfo(block->type);
+    std::string kind = info.name;
+    for (char& c : kind) c = (char)std::toupper((unsigned char)c);
+    panelHeading((kind + " BLOCK").c_str());
+    ImGui::PushFont(uiFonts().heavy, 22 * s);
+    ImGui::TextUnformatted(info.name);
+    ImGui::PopFont();
+    dimText(info.description);
+    if (info.scored){
+        ImGui::PushFont(uiFonts().bold, 15 * s);
+        ImGui::TextUnformatted("Name");
+        ImGui::PopFont();
+        if (undoableInput("##blockname", &block->name)){
+            if (!block->exerciseLines.empty()) block->exercise.title = block->name.empty() ? "Exercise" : block->name;
+            changed();
+        }
+        dimText("On its card (left empty: the exercise's or song's own)");
+    }
+    for (const BlockField& field : info.fields){
+        ImGui::Dummy(ImVec2(0, 4 * s));
+        blockField(*block, field);
+        block = blockPointer(ed.doc, ed.block); // (a field may have changed the lesson: found again)
+        if (!block) return;
+    }
+    if (!ed.fieldErrors.empty()){
+        ImGui::PushStyleColor(ImGuiCol_Text, uiColorVec(UiColor::Bad));
+        ImGui::TextWrapped("%s", ed.fieldErrors.c_str());
+        ImGui::PopStyleColor();
+    }
+    ImGui::Dummy(ImVec2(0, 8 * s));
+    if (ImGui::Button("Up")) moveChosen(-1);
+    ImGui::SameLine();
+    if (ImGui::Button("Down")) moveChosen(1);
+    ImGui::SameLine();
+    if (ImGui::Button("Copy")) duplicateChosen();
+    ImGui::SameLine();
+    if (ImGui::Button("Delete")) removeChosen();
 }
 
-// --- Screens --------------------------------------------------------------------------------------------------
+// --- The page, as it's made ----------------------------------------------------------------------------------------
+
+// The page drawn as the student sees it, what's chosen outlined; a click chooses what's under it
+static void canvas(ImVec2 min, ImVec2 max, float s){
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    // Its paper: drawn with raylib, under everything (a staff is drawn with raylib too, and must sit on it)
+    DrawRectangleRounded({ min.x, min.y, max.x - min.x, max.y - min.y }, 0.02f, 8, themeColor(UiColor::Card));
+    if (ed.doc.pages.empty()) return;
+    const float width = max.x - min.x - 2 * CANVAS_PAD * s, top = min.y + CANVAS_PAD * s, bottom = max.y - 10 * s;
+    const bool hovering = ImGui::IsMouseHoveringRect(min, max);
+    if (hovering) ed.scroll -= ImGui::GetIO().MouseWheel * SCROLL_STEP * s;
+    ed.scroll = std::clamp(ed.scroll, 0.0f, std::max(0.0f, ed.pageHeight - (bottom - top)));
+    draw->PushClipRect(ImVec2(min.x, min.y + 4 * s), ImVec2(max.x, bottom), true);
+    PageState state;
+    state.editing = true;
+    // What each drill runs, for its card: the game's exercise it names, or the one written in it
+    const std::vector<BlockPlace> scored = scoredBlocks(ed.doc, ed.page);
+    std::vector<ExerciseEntry> written(scored.size()); // (sized first: the cards point into it)
+    for (size_t i = 0; i < scored.size(); i++){
+        const LessonBlock& block = blockAt(ed.doc, scored[i]);
+        const std::string name = blockValue(block, "exercise");
+        written[i].exercise = block.exercise;
+        state.exercises.push_back(!name.empty() ? findExercise(ed.exercises, ed.builtIn, name)
+                                  : block.exerciseLines.empty() ? nullptr : &written[i]);
+        state.passed.push_back(false);
+    }
+    PageEvents events;
+    const ImVec2 at(min.x + CANVAS_PAD * s, top - ed.scroll);
+    ed.pageHeight = drawLessonPage(ed.doc, ed.page, ed.folder, ed.media, state, events, at, width, s);
+    // What's chosen, outlined in the accent colour; what's under the mouse, faintly
+    const ImVec2 mouse = ImGui::GetIO().MousePos;
+    auto inside = [&](const PageRect& rect){ return mouse.x >= rect.min.x && mouse.x <= rect.max.x && mouse.y >= rect.min.y && mouse.y <= rect.max.y; };
+    const PageRect* hoveredBlock = nullptr;
+    const PageRect* hoveredSection = nullptr;
+    for (const PageRect& rect : events.blocks) if (hovering && inside(rect)) hoveredBlock = &rect;
+    for (const PageRect& rect : events.sections) if (hovering && inside(rect)) hoveredSection = &rect;
+    const float grow = 6 * s;
+    auto outline = [&](const PageRect& rect, ImU32 color, float thickness){
+        draw->AddRect(ImVec2(rect.min.x - grow, rect.min.y - grow), ImVec2(rect.max.x + grow, rect.max.y + grow), color, 6 * s, 0, thickness);
+    };
+    for (const PageRect& rect : events.sections){
+        const bool chosen = ed.picked == Picked::Section && rect.section == ed.section;
+        if (chosen || (hoveredSection == &rect && !hoveredBlock)){
+            outline(rect, uiColor(UiColor::Accent, chosen ? 0.9f : 0.35f), chosen ? 2 * s : 1.0f);
+            const LessonSection& section = ed.doc.pages[(size_t)ed.page].sections[(size_t)rect.section];
+            draw->AddText(uiFonts().mono, 11 * s, ImVec2(rect.min.x - grow, rect.min.y - grow - 15 * s), uiColor(UiColor::Accent, chosen ? 1.0f : 0.6f),
+                          TextFormat("SECTION  ·  %s", sectionLayoutName(section.layout)));
+        }
+    }
+    for (const PageRect& rect : events.blocks){
+        const bool chosen = ed.picked == Picked::Block && rect.section == ed.block.section && rect.column == ed.block.column && rect.block == ed.block.block;
+        if (chosen) outline(rect, uiColor(UiColor::Accent), 2 * s);
+        else if (hoveredBlock == &rect) outline(rect, uiColor(UiColor::Ink, 0.3f), 1.0f);
+    }
+    draw->PopClipRect();
+    // A click chooses: a block, else its section, else the page
+    if (hovering && ImGui::IsMouseClicked(ImGuiMouseButton_Left)){
+        if (hoveredBlock) choose(Picked::Block, hoveredBlock->section, { ed.page, hoveredBlock->section, hoveredBlock->column, hoveredBlock->block });
+        else if (hoveredSection) choose(Picked::Section, hoveredSection->section);
+        else choose(Picked::Page);
+    }
+}
+
+// --- Screens ----------------------------------------------------------------------------------------------------------
 
 // The card on the right of the list: the selected lesson, or the new lesson's name field
 static void lessonCard(bool naming, const LessonEntry* entry, float s){
     ImDrawList* draw = ImGui::GetWindowDrawList();
     const UiFonts& fonts = uiFonts();
-    float width = ImGui::GetWindowWidth(), height = ImGui::GetWindowHeight();
-    ImVec2 card(width * 0.58f, height * 0.25f);
-    float cardWidth = width * 0.35f, pad = 26 * s, inner = cardWidth - 2 * pad;
-    std::string title = naming ? "New lesson" : entry->lesson.title;
-    std::string detail = naming ? "" : TextFormat("%d %s", (int)entry->lesson.steps.size(), entry->lesson.steps.size() == 1 ? "step" : "steps");
-    std::string hint = naming ? "" : (entry->builtIn ? "Built-in: saving makes your own copy" : "Yours");
+    const float width = ImGui::GetWindowWidth(), height = ImGui::GetWindowHeight();
+    const ImVec2 card(width * 0.58f, height * 0.25f);
+    const float cardWidth = width * 0.35f, pad = 26 * s, inner = cardWidth - 2 * pad;
+    const std::string title = naming ? "New lesson" : entry->lesson.title;
+    const std::string detail = naming ? "" : TextFormat("%d %s", (int)entry->doc.pages.size(), entry->doc.pages.size() == 1 ? "page" : "pages");
+    const std::string hint = naming ? "A page to start from; add blocks and pages as you go" : (entry->builtIn ? "Built in: saving makes your own copy" : "Yours");
     const std::string& error = naming ? ed.listError : entry->error;
-    float titleHeight = fonts.bold ? fonts.bold->CalcTextSizeA(24 * s, FLT_MAX, inner, title.c_str()).y : 24 * s;
-    float errorHeight = error.empty() || !fonts.text ? 0.0f : fonts.text->CalcTextSizeA(15 * s, FLT_MAX, inner, error.c_str()).y + 12 * s;
-    float fieldHeight = naming ? ImGui::GetFrameHeight() + 14 * s : 0.0f;
-    float cardHeight = pad * 2 + titleHeight + 12 * s + fieldHeight + (detail.empty() ? 0 : 18 * s) + (hint.empty() ? 0 : 10 * s + 16 * s) + errorHeight;
+    const float titleHeight = fonts.bold->CalcTextSizeA(24 * s, FLT_MAX, inner, title.c_str()).y;
+    const float errorHeight = error.empty() ? 0.0f : fonts.text->CalcTextSizeA(15 * s, FLT_MAX, inner, error.c_str()).y + 12 * s;
+    const float fieldHeight = naming ? ImGui::GetFrameHeight() + 14 * s : 0.0f;
+    const float cardHeight = pad * 2 + titleHeight + 12 * s + fieldHeight + (detail.empty() ? 0 : 18 * s) + 10 * s + 16 * s + errorHeight;
     draw->AddRectFilled(ImVec2(card.x, card.y + 3 * s), ImVec2(card.x + cardWidth, card.y + cardHeight + 3 * s), uiColor(UiColor::Ink, 0.04f), 10 * s);
     draw->AddRectFilled(card, ImVec2(card.x + cardWidth, card.y + cardHeight), uiColor(UiColor::Card), 10 * s);
     float x = card.x + pad, y = card.y + pad;
@@ -377,28 +858,24 @@ static void lessonCard(bool naming, const LessonEntry* entry, float s){
         draw->AddText(fonts.bold, 18 * s, ImVec2(x, y), uiColor(UiColor::Accent), detail.c_str());
         y += 18 * s;
     }
-    if (!hint.empty()){
-        y += 10 * s;
-        draw->AddText(fonts.text, 16 * s, ImVec2(x, y), uiColor(UiColor::Dim), hint.c_str());
-        y += 16 * s;
-    }
+    y += 10 * s;
+    draw->AddText(fonts.text, 16 * s, ImVec2(x, y), uiColor(UiColor::Dim), hint.c_str(), nullptr, inner);
+    y += 16 * s;
     if (!error.empty()) draw->AddText(fonts.text, 15 * s, ImVec2(x, y + 12 * s), uiColor(UiColor::Bad), error.c_str(), nullptr, inner);
 }
 
 static LessonEditorChoice lessonList(){
     static MenuList list;
     LessonEditorChoice choice = LessonEditorChoice::None;
-    beginMenu("Lesson editor");
-    float s = menuScale();
-    menuScreenTitle("Lesson editor", s);
-
-    // The lessons, then a new one, the folder and Back. A lesson naming a missing exercise opens (it's fixed here);
-    // one whose file can't be read stays put, and its error says what to fix.
+    beginMenu("Lesson maker");
+    const float s = menuScale();
+    menuScreenTitle("Lesson maker", s);
+    // The lessons, then a new one, the folder and Back. One with something to fix still opens, to fix it here.
     std::vector<MenuRow> rows;
     for (const LessonEntry& entry : ed.lessons){
         MenuRow row;
         row.label = entry.lesson.title;
-        row.detail = entry.builtIn ? "built-in" : "yours";
+        row.detail = entry.builtIn ? "built in" : "yours";
         row.note = entry.error;
         rows.push_back(row);
     }
@@ -406,82 +883,147 @@ static LessonEditorChoice lessonList(){
     rows.push_back(actionRow("New lesson"));
     rows.push_back(actionRow("Open lessons folder"));
     rows.push_back(actionRow("Back", "Esc"));
-
-    float width = ImGui::GetWindowWidth(), height = ImGui::GetWindowHeight();
-    bool typing = ImGui::GetIO().WantTextInput; // before the field is drawn: this frame's keys belong to it
-    int confirmed = menuList(list, rows, {ImVec2(width * 0.07f, height * 0.25f), width * 0.45f, height * 0.66f - 20 * s, s});
+    const float width = ImGui::GetWindowWidth(), height = ImGui::GetWindowHeight();
+    const bool typing = ImGui::GetIO().WantTextInput; // before the field is drawn: this frame's keys belong to it
+    const int confirmed = menuList(list, rows, { ImVec2(width * 0.07f, height * 0.25f), width * 0.45f, height * 0.66f - 20 * s, s });
     if (confirmed == newLesson) ed.focusName = true;
-    if (confirmed >= 0 && confirmed < newLesson) openLesson(ed.lessons[confirmed].folder, ed.lessons[confirmed].builtIn);
+    if (confirmed >= 0 && confirmed < newLesson) openLesson(ed.lessons[(size_t)confirmed].folder, ed.lessons[(size_t)confirmed].builtIn);
     if (confirmed == openLessons){
         std::error_code ec;
         fs::create_directories(ed.setup.userLessons, ec);
         openFolder(ed.setup.userLessons);
     }
     if (confirmed == back || (ImGui::IsKeyPressed(ImGuiKey_Escape) && !typing)) choice = LessonEditorChoice::Back;
-    if (ed.editing){ // a lesson just opened: the editor draws from the next frame
+    if (ed.editing){ // a lesson just opened: the maker draws from the next frame
         ImGui::End();
         return choice;
     }
-
     if (list.selected == newLesson) lessonCard(true, nullptr, s);
-    else if (list.selected >= 0 && list.selected < newLesson) lessonCard(false, &ed.lessons[list.selected], s);
+    else if (list.selected >= 0 && list.selected < newLesson) lessonCard(false, &ed.lessons[(size_t)list.selected], s);
     else if (!ed.listError.empty()){
         ImGui::SetCursorPos(ImVec2(width * 0.07f, height * 0.17f + 20 * s));
         ImGui::TextColored(uiColorVec(UiColor::Bad), "%s", ed.listError.c_str());
     }
     menuScreenHint(typing ? "Enter  create    Esc  cancel"
                           : list.selected == newLesson ? "Up/Down  choose    Enter  name it    Esc  back"
-                                                       : "Up/Down  choose    Enter  edit    Esc  back", s);
+                                                       : "Up/Down  choose    Enter  make    Esc  back", s);
     ImGui::End();
     return choice;
 }
 
 static void leaveLesson(){
-    releaseLessonMedia(ed.media);
+    releasePageMedia(ed.media);
     ed.editing = false;
-    refreshLists(); // a new copy, a new title or a fixed error shows in the list
+    refreshLists(); // a new copy, a new title or a fixed problem shows in the list
+}
+
+// The lesson played from the page shown, as a student would (its progress apart): Esc comes back to making it
+static void startTryout(){
+    if (ed.doc.pages.empty()) return;
+    releasePageMedia(ed.media);
+    LessonEntry entry;
+    entry.folder = ed.folder;
+    entry.id = "tryout-" + fs::path(ed.folder).filename().string();
+    entry.builtIn = ed.builtIn;
+    entry.version = LESSON_DOC_VERSION;
+    entry.doc = ed.doc;
+    const std::string progress = (fs::temp_directory_path() / "lahn-lesson-tryout.txt").string();
+    std::error_code ec;
+    fs::remove(progress, ec); // nothing passed yet
+    ed.tryout = learnTryLesson(entry, ed.page, progress);
+}
+
+static void tryingOut(){
+    beginMenu("Lesson tryout");
+    ed.tryout->update();
+    if (ed.tryout) ed.tryout->draw();
+    // Above it all: what this is, and the way back
+    const float s = menuScale();
+    ImDrawList* draw = ImGui::GetForegroundDrawList();
+    const char* note = "TRYING IT OUT  ·  Esc: back to making it";
+    const ImVec2 extent = uiFonts().mono->CalcTextSizeA(12 * s, FLT_MAX, 0.0f, note);
+    const float x = ImGui::GetIO().DisplaySize.x - extent.x - 30 * s, y = ImGui::GetIO().DisplaySize.y - 30 * s;
+    draw->AddRectFilled(ImVec2(x - 10 * s, y - 6 * s), ImVec2(x + extent.x + 10 * s, y + extent.y + 6 * s), uiColor(UiColor::Accent, 0.9f), 6 * s);
+    draw->AddText(uiFonts().mono, 12 * s, ImVec2(x, y), uiColor(UiColor::Background), note);
+    ImGui::End();
+    if (ed.tryout->wantsToLeave() || (ImGui::IsKeyPressed(ImGuiKey_Escape, false) && !ed.tryout->back())) ed.tryout.reset();
 }
 
 static void lessonEditing(){
     ImGuiIO& io = ImGui::GetIO();
-    ImGui::SetNextWindowPos(ImVec2(0, 0));
-    ImGui::SetNextWindowSize(io.DisplaySize);
-    ImGui::Begin("Lesson", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings
-                                   | ImGuiWindowFlags_NoBackground);
-
+    beginMenu("Lesson maker editing");
+    const float s = menuScale(), width = ImGui::GetWindowWidth(), height = ImGui::GetWindowHeight();
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    const UiFonts& fonts = uiFonts();
     bool requestBack = false;
-    if (ImGui::Button("Save")) saveEditedLesson();
-    ImGui::SameLine();
-    if (ImGui::Button("Back")) requestBack = true;
-    ImGui::SameLine();
-    ImGui::Text("%s%s", ed.lesson.title.c_str(), ed.dirty ? "  *" : "");
-    ImGui::SameLine();
-    ImGui::TextDisabled("%s", ed.status.c_str());
-    ImGui::Separator();
 
-    ImGui::BeginChild("Steps", ImVec2(STEPS_PANEL_WIDTH, 0));
-    stepsPanel();
-    ImGui::EndChild();
-    ImGui::SameLine();
-    ImGui::BeginChild("Fields", ImVec2(FIELDS_PANEL_WIDTH, 0));
-    fieldsPanel();
-    ImGui::EndChild();
-    ImGui::SameLine();
-    ImGui::BeginChild("Preview", ImVec2(0, 0), ImGuiChildFlags_Borders);
-    previewPanel();
-    ImGui::EndChild();
+    // The top bar: Back, the lesson's title (and whether it's saved, and playable), Undo, Redo, Try, Save
+    const float barY = 16 * s, left = PANEL_GAP * s;
+    float pillWidth = 0.0f;
+    if (pill(ImVec2(left, barY), "Back", false, true, s, &pillWidth)) requestBack = true;
+    const float titleX = left + pillWidth + 18 * s;
+    const std::string title = (ed.doc.title.empty() ? std::string("(no title)") : ed.doc.title) + (ed.dirty ? "  *" : "");
+    draw->AddText(fonts.heavy, 22 * s, ImVec2(titleX, barY - 2 * s), uiColor(UiColor::Ink), title.c_str());
+    const std::string state = !ed.status.empty() ? ed.status : ed.problem.empty() ? "Ready to be played" : "Not ready yet: " + ed.problem;
+    draw->AddText(fonts.text, 13 * s, ImVec2(titleX, barY + 24 * s),
+                  uiColor(!ed.status.empty() ? UiColor::Dim : ed.problem.empty() ? UiColor::Good : UiColor::Bad), state.c_str());
+    float right = width - left;
+    auto barButton = [&](const char* label, bool lit, bool live){
+        const ImVec2 extent = fonts.bold->CalcTextSizeA(15 * s, FLT_MAX, 0.0f, label);
+        right -= extent.x + 28 * s;
+        const bool clicked = pill(ImVec2(right, barY), label, lit, live, s);
+        right -= 8 * s;
+        return clicked;
+    };
+    if (barButton("Save", ed.dirty, true)) saveEditedLesson();
+    if (barButton("Try this page", false, !ed.doc.pages.empty())) startTryout();
+    if (barButton("Redo", false, !ed.redos.empty())) redo();
+    if (barButton("Undo", false, !ed.undos.empty())) undo();
 
-    if (!ImGui::IsPopupOpen(UNSAVED_POPUP)){
+    // The three panels: the outline, the page, the inspector
+    const float top = TOP_BAR * s, bottom = height - PANEL_GAP * s;
+    const float outlineRight = left + OUTLINE_WIDTH * s, inspectorLeft = width - left - INSPECTOR_WIDTH * s;
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6 * s);
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 8 * s);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12 * s, 10 * s));
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, uiColorVec(UiColor::Card));
+    ImGui::SetCursorScreenPos(ImVec2(left, top));
+    // (the panels' fields and buttons in the text font, at the size of the rest of the screen's small print)
+    ImGui::PushFont(fonts.text, 15 * s);
+    ImGui::BeginChild("Outline", ImVec2(outlineRight - left, bottom - top), ImGuiChildFlags_AlwaysUseWindowPadding);
+    outlinePanel(s);
+    ImGui::EndChild();
+    ImGui::SetCursorScreenPos(ImVec2(inspectorLeft, top));
+    ImGui::BeginChild("Inspector", ImVec2(width - left - inspectorLeft, bottom - top), ImGuiChildFlags_AlwaysUseWindowPadding);
+    inspectorPanel(s);
+    ImGui::EndChild();
+    ImGui::PopFont();
+    ImGui::PopStyleColor();
+    ImGui::PopStyleVar(3);
+    canvas(ImVec2(outlineRight + PANEL_GAP * s, top), ImVec2(inspectorLeft - PANEL_GAP * s, bottom), s);
+
+    // The keys (not while typing): Ctrl+S save, Ctrl+Z undo, Ctrl+Y redo, Delete, Ctrl+D copy, Alt+Up/Down move,
+    // Page Up/Down the pages, T try it, Esc back
+    if (!ImGui::IsPopupOpen(UNSAVED_POPUP) && !io.WantTextInput){
         if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S)) saveEditedLesson();
-        if (ImGui::IsKeyPressed(ImGuiKey_Escape) && !io.WantTextInput) requestBack = true;
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z)) io.KeyShift ? redo() : undo();
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Y)) redo();
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_D)) duplicateChosen();
+        if (ImGui::IsKeyPressed(ImGuiKey_Delete)) removeChosen();
+        if (io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_UpArrow)) moveChosen(-1);
+        if (io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_DownArrow)) moveChosen(1);
+        if (ImGui::IsKeyPressed(ImGuiKey_PageUp)) showPage(ed.page - 1);
+        if (ImGui::IsKeyPressed(ImGuiKey_PageDown)) showPage(ed.page + 1);
+        if (!io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_T, false)) startTryout();
+        if (ImGui::IsKeyPressed(ImGuiKey_Escape)) requestBack = true;
     }
     if (requestBack){
         if (ed.dirty) ImGui::OpenPopup(UNSAVED_POPUP);
         else leaveLesson();
     }
-
-    // Leaving with unsaved changes asks first, as in the chart editor
+    // Leaving with unsaved changes asks first
     ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+    ImGui::PushFont(fonts.text, 16 * s);
     if (ImGui::BeginPopupModal(UNSAVED_POPUP, nullptr, ImGuiWindowFlags_AlwaysAutoResize)){
         ImGui::Text("Save your changes before leaving?");
         if (ImGui::Button("Save")){
@@ -497,6 +1039,8 @@ static void lessonEditing(){
         if (ImGui::Button("Cancel")) ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
     }
+    ImGui::PopFont();
+    ImGui::Dummy(ImVec2(1, 1)); // the cursor was moved about: an item after it
     ImGui::End();
 }
 
@@ -510,6 +1054,10 @@ void openLessonEditor(const LessonEditorSetup& setup){
 }
 
 LessonEditorChoice lessonEditorScreen(){
+    if (ed.tryout){
+        tryingOut();
+        return LessonEditorChoice::None;
+    }
     if (ed.editing){
         lessonEditing();
         return LessonEditorChoice::None;
@@ -519,6 +1067,8 @@ LessonEditorChoice lessonEditorScreen(){
 
 void closeLessonEditor(){
     if (!ed.active) return;
-    releaseLessonMedia(ed.media);
+    ed.tryout.reset();
+    releasePageMedia(ed.media);
     ed.active = false;
+    ed.editing = false;
 }

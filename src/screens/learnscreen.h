@@ -2,7 +2,11 @@
 
 #include "core/settings.h"
 
+#include <memory>
 #include <string>
+
+class Exercise;
+struct LessonEntry;
 
 // Learn mode: lessons, and the exercises (built-in and the player's own .exercise files), and the one being practiced.
 
@@ -33,3 +37,6 @@ void learnTuningDone(bool go);
 void closeLearnScreen();
 // The first course for the instrument played, opened (its levels): the welcome's way in for someone new
 void learnOpenFirstCourse();
+// The lesson maker's tryout: a lesson being made, played from one of its pages, with Learn's exercises (as last
+// scanned); its progress kept in `progressPath`, apart from the student's
+std::unique_ptr<Exercise> learnTryLesson(const LessonEntry& entry, int page, const std::string& progressPath);

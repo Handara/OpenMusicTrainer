@@ -19,8 +19,9 @@ class LessonPlayer : public Exercise {
 public:
     // `exercises`: what each exercise block runs, by its key (core/lessondoc scoredBlockKey): a copy
     // `playOptions`: how song blocks play (the player's gameplay settings)
+    // `startPage`: where it opens (-1: where the student was)
     LessonPlayer(const LessonEntry& entry, std::map<int, ExerciseEntry> exercises, ExerciseFactory create,
-                 const GameplayOptions& playOptions, const std::string& progressPath);
+                 const GameplayOptions& playOptions, const std::string& progressPath, int startPage = -1);
     ~LessonPlayer() override;
 
     void update() override;

@@ -352,9 +352,9 @@ static GameplayOptions lessonPlayOptions(){
     return play;
 }
 
-static std::unique_ptr<Exercise> openLesson(const LessonEntry& entry){
-    // Each exercise block's exercise, found now (a copy: the lists are rebuilt when the lesson ends). One written in
-    // the lesson keeps its progress by the lesson and its place.
+// Each exercise block's exercise, found now (a copy: the lists are rebuilt when the lesson ends). One written in the
+// lesson keeps its progress by the lesson and its place.
+static std::map<int, ExerciseEntry> lessonExercises(const LessonEntry& entry){
     std::map<int, ExerciseEntry> exercises;
     for (const BlockPlace& place : lessonBlocks(entry.doc)){
         const LessonBlock& block = blockAt(entry.doc, place);
@@ -373,7 +373,15 @@ static std::unique_ptr<Exercise> openLesson(const LessonEntry& entry){
         inPlace.exercise = block.exercise;
         exercises[key] = inPlace;
     }
-    return std::make_unique<LessonPlayer>(entry, exercises, createExercise, lessonPlayOptions(), progressPath(entry.id));
+    return exercises;
+}
+
+static std::unique_ptr<Exercise> openLesson(const LessonEntry& entry){
+    return std::make_unique<LessonPlayer>(entry, lessonExercises(entry), createExercise, lessonPlayOptions(), progressPath(entry.id));
+}
+
+std::unique_ptr<Exercise> learnTryLesson(const LessonEntry& entry, int page, const std::string& progressPath){
+    return std::make_unique<LessonPlayer>(entry, lessonExercises(entry), createExercise, lessonPlayOptions(), progressPath, page);
 }
 
 // A course's chapter's drills, each the exercise its step runs (written in place: kept by the course and drill)

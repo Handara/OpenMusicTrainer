@@ -16,13 +16,14 @@ const float SCROLL_STEP = 60.0f;
 const double BACK_AFTER_S = 1.6;      // a goal met: the moment to see it (and hear the crowd) before the lesson comes back
 
 LessonPlayer::LessonPlayer(const LessonEntry& entry, std::map<int, ExerciseEntry> exercises, ExerciseFactory create,
-                           const GameplayOptions& playOptions, const std::string& progressPath)
+                           const GameplayOptions& playOptions, const std::string& progressPath, int startPage)
     : doc(entry.doc), folder(entry.folder), exercises(std::move(exercises)), create(create), playOptions(playOptions),
       progressPath(progressPath){
     progress = loadLessonProgress(progressPath);
     upgradeLessonProgress(progress, entry.version); // a version 1 lesson's steps are its pages now
     // Reopens where the student was; a finished lesson starts over from the top
     page = progress.completed ? 0 : std::clamp(progress.reached, 0, std::max(0, (int)doc.pages.size() - 1));
+    if (startPage >= 0) page = std::clamp(startPage, 0, std::max(0, (int)doc.pages.size() - 1));
 }
 
 LessonPlayer::~LessonPlayer(){

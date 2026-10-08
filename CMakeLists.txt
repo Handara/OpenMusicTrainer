@@ -278,7 +278,6 @@ add_executable(lahn
     src/learn/intervalexercise.cpp
     src/learn/lessonpage.cpp
     src/learn/lessonplayer.cpp
-    src/learn/lessonview.cpp
     src/learn/playexercise.cpp
     src/learn/routineexercise.cpp
     src/learn/singingexercise.cpp
