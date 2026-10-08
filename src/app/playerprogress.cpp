@@ -83,6 +83,11 @@ void recordActivity(Activity activity){
         goal.streak = change.streak;
         progress.rewards.push_back(goal);
     }
+    if (change.freezeEarned){
+        Reward freeze = reward(Reward::Kind::Freeze);
+        freeze.streak = progress.profile.freezes;
+        progress.rewards.push_back(freeze);
+    }
     if (change.newLevel > 0){
         Reward level = reward(Reward::Kind::Level);
         level.level = change.newLevel;

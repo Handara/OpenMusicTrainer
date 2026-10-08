@@ -17,6 +17,8 @@
 // What a run earns: a point a note right (two for an untimed run's), more for a clean pass, a drill's challenge (the
 // first time most), every note right, a song's grade; a game's rounds; a chapter, a level and a course passed
 const int CHAPTER_XP = 100, UNIT_XP = 250, COURSE_XP = 1000, DAILY_GOAL_XP = 20;
+// A streak freeze is earned every this many days the goal is met, and covers a day missed; at most so many are held
+const int FREEZE_EVERY_GOAL_DAYS = 7, MOST_FREEZES = 2;
 
 struct LevelInfo {
     int level = 1;
@@ -67,6 +69,9 @@ struct PlayerProfile {
     std::map<std::string, DayPractice> days; // by date
     int streak = 0;            // days in a row the goal was met, up to today (or yesterday: today isn't lost yet)
     int bestStreak = 0;
+    int freezes = 0;           // streak freezes held now: a day missed is covered by one, so the streak goes on
+    int freezesEarned = 0;     //   earned so far
+    std::set<std::string> frozenDays; // the days missed that a freeze covered (one may be covering yesterday now)
     bool goalMetToday = false;
     float secondsToday = 0.0f;
     float totalSeconds = 0.0f;
@@ -92,6 +97,7 @@ struct ProfileChange {
     std::vector<int> achievements;
     bool goalMet = false;  // just now
     int streak = 0;
+    bool freezeEarned = false; // just now
 };
 ProfileChange profileChange(const PlayerProfile& before, const PlayerProfile& after);
 

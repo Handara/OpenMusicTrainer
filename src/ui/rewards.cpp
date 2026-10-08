@@ -79,6 +79,11 @@ static void chime(Reward::Kind kind){
             for (int i = 0; i < 3; i++) note(72 + (i == 0 ? 0 : i == 1 ? 4 : 7), i * 0.08, 0.4f, 0.4f);
             for (int pitch : { 76, 79, 84 }) note(pitch, 0.32, 1.1f, 0.3f);
             break;
+        case Reward::Kind::Freeze: // bright and high, like ice
+            note(88, 0.0, 0.5f, 0.3f);
+            note(91, 0.08, 0.5f, 0.3f);
+            note(96, 0.16, 1.0f, 0.25f);
+            break;
         case Reward::Kind::Goal:
             note(76, 0.0, 0.4f, 0.4f);
             note(79, 0.1, 0.4f, 0.4f);
@@ -202,6 +207,19 @@ void drawRewards(float s){
             }
             draw->AddText(fonts.mono, 12 * s, ImVec2(textX + 8 * s + shownStars * 18 * s, a.y + 67 * s), uiColor(UiColor::Dim, alpha),
                           TextFormat("%d / %d", card.stars, card.starsPossible));
+            break;
+        }
+        case Reward::Kind::Freeze: {
+            // A snowflake: three crossed strokes with little tips
+            draw->AddCircleFilled(badge, 30 * s, uiColor(UiColor::Card, alpha), 40);
+            draw->AddCircle(badge, 30 * s, uiColor(UiColor::Accent, alpha), 40, 2 * s);
+            for (int k = 0; k < 3; k++){
+                const float angle = 3.14159265f * k / 3.0f, c = std::cos(angle) * 18 * s, sn = std::sin(angle) * 18 * s;
+                draw->AddLine(ImVec2(badge.x - c, badge.y - sn), ImVec2(badge.x + c, badge.y + sn), uiColor(UiColor::Accent, alpha), 3 * s);
+            }
+            label("STREAK FREEZE EARNED", 16 * s);
+            big(card.streak > 1 ? std::to_string(card.streak) + " freezes held" : std::string("A freeze held"), 32 * s, UiColor::Ink);
+            small("A day you miss is covered: your streak goes on", 66 * s);
             break;
         }
         case Reward::Kind::Goal: {

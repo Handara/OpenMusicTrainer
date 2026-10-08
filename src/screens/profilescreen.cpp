@@ -99,7 +99,9 @@ bool profileScreen(Settings& settings){
         { "PRACTICED", durationText(p.totalSeconds), std::to_string(p.days.size()) + (p.days.size() == 1 ? " day" : " days"), UiColor::Ink },
         { "NOTES RIGHT", thousands(right_), TextFormat("%d notes known", (int)p.metrics[(int)Metric::NotesKnown]), UiColor::Ink },
         { "ACCURACY", asked > 0 ? std::to_string(accuracy) + "%" : "-", "of every note read", accuracy >= 90 ? UiColor::Good : UiColor::Ink },
-        { "STREAK", std::to_string(p.streak), TextFormat("best %d %s", p.bestStreak, p.bestStreak == 1 ? "day" : "days"), p.streak > 0 ? UiColor::Accent : UiColor::Ink },
+        { "STREAK", std::to_string(p.streak), p.freezes > 0 ? TextFormat("best %d  ·  %d %s", p.bestStreak, p.freezes, p.freezes == 1 ? "freeze" : "freezes")
+                                                            : TextFormat("best %d %s", p.bestStreak, p.bestStreak == 1 ? "day" : "days"),
+          p.streak > 0 ? UiColor::Accent : UiColor::Ink },
     };
     for (int i = 0; i < 4; i++){
         const float x = left + i * (tileWidth + tileGap);
@@ -160,17 +162,47 @@ bool profileScreen(Settings& settings){
                 color = found->second.goalMet ? uiColor(UiColor::Accent) : uiColor(UiColor::Accent, 0.2f + 0.5f * share);
             }
             draw->AddRectFilled(a, b, color, 3 * s);
+            const bool frozen = p.frozenDays.count(dateText(day)) > 0; // missed, but a freeze kept the streak: ringed
+            if (frozen) draw->AddRect(ImVec2(a.x + 1 * s, a.y + 1 * s), ImVec2(b.x - 1 * s, b.y - 1 * s), uiColor(UiColor::Accent), 3 * s, 0, 2 * s);
             if (day == todayNumber) draw->AddRect(ImVec2(a.x - 2 * s, a.y - 2 * s), ImVec2(b.x + 2 * s, b.y + 2 * s), uiColor(UiColor::Ink), 4 * s, 0, 1.5f * s);
             if (mouse.x >= a.x && mouse.x < b.x && mouse.y >= a.y && mouse.y < b.y){
                 hoveredDay = dateText(day) + (found == p.days.end() ? std::string(": no practice")
                                                                     : ": " + durationText(found->second.seconds) + ", " + thousands(found->second.xp) + " XP"
-                                                                      + (found->second.goalMet ? ", goal met" : ""));
+                                                                      + (found->second.goalMet ? ", goal met" : ""))
+                             + (frozen ? "  ·  a streak freeze covered it" : "");
             }
         }
     }
     const float calBottom = calTop + 7 * step;
     draw->AddText(fonts.text, 13 * s, ImVec2(left, calBottom + 8 * s), uiColor(UiColor::Dim),
-                  hoveredDay.empty() ? "Each day as full as its practice; lit whole when the goal was met" : hoveredDay.c_str());
+                  hoveredDay.empty() ? "Each day as full as its practice; lit whole when the goal was met, ringed when a freeze kept the streak"
+                                     : hoveredDay.c_str());
+
+    // This week so far against last week's same days (weeks from Monday): practice, XP, the days played
+    float weekSeconds[2] = {}, weekDays[2] = {};
+    long long weekXp[2] = {};
+    const int thisMonday = todayNumber - weekday;
+    for (int w = 0; w < 2; w++){
+        for (int d = 0; d <= weekday; d++){
+            auto found = p.days.find(dateText(thisMonday - w * 7 + d));
+            if (found == p.days.end()) continue;
+            weekSeconds[w] += found->second.seconds;
+            weekXp[w] += found->second.xp;
+            if (found->second.seconds > 0.0f) weekDays[w]++;
+        }
+    }
+    const float weekTop = calBottom + 36 * s;
+    draw->AddText(fonts.mono, 12 * s, ImVec2(left, weekTop), uiColor(UiColor::Dim), "THIS WEEK");
+    auto trend = [&](float now, float before, const std::string& text, float x){
+        const UiColor color = now > before ? UiColor::Good : now < before ? UiColor::Bad : UiColor::Dim;
+        const char* arrow = now > before ? "up" : now < before ? "down" : "same";
+        draw->AddText(fonts.bold, 16 * s, ImVec2(x, weekTop + 18 * s), uiColor(UiColor::Ink), text.c_str());
+        draw->AddText(fonts.mono, 11 * s, ImVec2(x, weekTop + 40 * s), uiColor(color), TextFormat("%s on last week so far", arrow));
+    };
+    const float column = (middle - 30 * s - left) / 3;
+    trend(weekSeconds[0], weekSeconds[1], durationText(weekSeconds[0]), left);
+    trend((float)weekXp[0], (float)weekXp[1], thousands(weekXp[0]) + " XP", left + column);
+    trend(weekDays[0], weekDays[1], TextFormat("%d of %d days", (int)weekDays[0], weekday + 1), left + 2 * column);
 
     // --- Right: the notes to review ---
     const float rightX = middle + 20 * s;

@@ -13,6 +13,14 @@ const int RECENT_DAYS = 14;
 const int COMEBACK_DAYS = 7;
 const int KNOWN_NOTE_RIGHT = 5;     // a note played right this often is one the player knows
 
+std::string dateOf(int day){
+    int y, m, d;
+    dateFromDays(day, y, m, d);
+    char text[16];
+    std::snprintf(text, sizeof text, "%04d-%02d-%02d", y, m, d);
+    return text;
+}
+
 int dayOf(const std::string& date){
     if (date.size() != 10) return 0;
     return daysFromDate(std::atoi(date.substr(0, 4).c_str()), std::atoi(date.substr(5, 2).c_str()), std::atoi(date.substr(8, 2).c_str()));
@@ -126,7 +134,7 @@ PlayerProfile buildProfile(const std::vector<Activity>& journal, int goalMinutes
     p.goalMinutes = std::max(1, goalMinutes);
     long long* m = p.metrics;
     std::set<std::string> instruments;
-    int lastDay = -1, runDay = -100, run = 0;
+    int lastDay = -1, runDay = -100, run = 0, freezes = 0;
     for (const Activity& a : journal){
         const int day = dayOf(a.date);
         if (lastDay >= 0 && day - lastDay > COMEBACK_DAYS) m[(int)Metric::Comebacks]++;
@@ -147,9 +155,20 @@ PlayerProfile buildProfile(const std::vector<Activity>& journal, int goalMinutes
             practice.xp += DAILY_GOAL_XP;
             p.xp += DAILY_GOAL_XP;
             m[(int)Metric::GoalDays]++;
-            run = runDay == day - 1 ? run + 1 : 1;
+            // The streak: the day after the last one met, or the days missed between covered by freezes held
+            const int missed = day - runDay - 1;
+            if (missed == 0) run++;
+            else if (runDay >= 0 && missed > 0 && missed <= freezes){
+                freezes -= missed;
+                for (int frozen = runDay + 1; frozen < day; frozen++) p.frozenDays.insert(dateOf(frozen));
+                run++;
+            } else run = 1;
             runDay = day;
             m[(int)Metric::BestStreak] = std::max(m[(int)Metric::BestStreak], (long long)run);
+            if (m[(int)Metric::GoalDays] % FREEZE_EVERY_GOAL_DAYS == 0){
+                p.freezesEarned++;
+                freezes = std::min(MOST_FREEZES, freezes + 1);
+            }
         }
         // What it counts toward
         if (a.kind != ActivityKind::Chapter && a.kind != ActivityKind::Game) m[(int)Metric::NotesRight] += a.right;
@@ -223,11 +242,21 @@ PlayerProfile buildProfile(const std::vector<Activity>& journal, int goalMinutes
         p.secondsToday = found == p.days.end() ? 0.0f : found->second.seconds;
     }
     p.goalMetToday = met(today);
-    int day = p.goalMetToday ? today : today - 1;
-    while (met(day)){
-        p.streak++;
-        day--;
+    // Today, or yesterday, or the days missed since covered by the freezes held (they're used): the streak goes on
+    (void)met;
+    if (runDay >= 0){
+        const int missedSince = today - runDay - (p.goalMetToday ? 0 : 1); // the days gone by without the goal
+        if (missedSince <= 0) p.streak = run;
+        else if (missedSince <= freezes){
+            p.streak = run;
+            freezes -= missedSince;
+            for (int frozen = runDay + 1; frozen <= runDay + missedSince; frozen++) p.frozenDays.insert(dateOf(frozen));
+        } else {
+            p.streak = 0;
+            freezes = 0; // tried, and not enough
+        }
     }
+    p.freezes = freezes;
     p.bestStreak = (int)m[(int)Metric::BestStreak];
     return p;
 }
@@ -238,6 +267,7 @@ ProfileChange profileChange(const PlayerProfile& before, const PlayerProfile& af
     if (after.level.level > before.level.level) change.newLevel = after.level.level;
     for (const Unlock& unlock : after.unlocked) if (!before.isUnlocked(unlock.achievement)) change.achievements.push_back(unlock.achievement);
     change.goalMet = after.goalMetToday && !before.goalMetToday;
+    change.freezeEarned = after.freezesEarned > before.freezesEarned;
     change.streak = after.streak;
     return change;
 }

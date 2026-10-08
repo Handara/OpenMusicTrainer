@@ -100,6 +100,27 @@ TEST_CASE("the daily goal and the streak: days in a row it's met, alive until a 
     CHECK(today.days.at(dateOf(DAY)).goalMet);
 }
 
+TEST_CASE("streak freezes: one earned every 7 days the goal is met, covering a day missed"){
+    std::vector<Activity> journal;
+    for (int day = DAY; day < DAY + 7; day++) journal.push_back(drillPass(day, 30, 40, false, false, 700.0f));
+    PlayerProfile week = buildProfile(journal, 10, DAY + 6);
+    CHECK(week.streak == 7);
+    CHECK(week.freezes == 1);
+    CHECK(week.freezesEarned == 1);
+    // A day missed (DAY + 7), then the goal met again: the streak goes on, the freeze used
+    journal.push_back(drillPass(DAY + 8, 30, 40, false, false, 700.0f));
+    PlayerProfile after = buildProfile(journal, 10, DAY + 8);
+    CHECK(after.streak == 8);
+    CHECK(after.freezes == 0);
+    CHECK(after.frozenDays.count(dateOf(DAY + 7)) == 1);
+    // Yesterday missed and today not played yet: the freeze held covers it, the streak's alive
+    PlayerProfile pending = buildProfile(std::vector<Activity>(journal.begin(), journal.begin() + 7), 10, DAY + 8);
+    CHECK(pending.streak == 7);
+    CHECK(pending.freezes == 0);
+    // Two days missed with one freeze: gone
+    CHECK(buildProfile(std::vector<Activity>(journal.begin(), journal.begin() + 7), 10, DAY + 9).streak == 0);
+}
+
 TEST_CASE("achievements unlock the day they're earned, in order"){
     std::vector<Activity> journal = { drillPass(DAY, 3, 40, false, false) };
     journal.push_back(drillPass(DAY + 1, 40, 40, true, true));

@@ -85,7 +85,9 @@ static void drawPlayerCard(ImDrawList* draw, ImVec2 topLeft, float width, float 
     draw->AddText(fonts.bold, 18 * s, ImVec2(textX, y + 14 * s), uiColor(p.goalMetToday ? UiColor::Good : UiColor::Ink),
                   p.goalMetToday ? "Daily goal met" : TextFormat("%d of %d min", (int)(p.secondsToday / 60.0f), p.goalMinutes));
     draw->AddText(fonts.text, 15 * s, ImVec2(textX, y + 36 * s), uiColor(p.streak > 0 ? UiColor::Accent : UiColor::Dim),
-                  p.streak > 0 ? TextFormat("%d-day streak%s", p.streak, p.goalMetToday ? "" : ": keep it today") : "Meet the goal to start a streak");
+                  p.streak > 0 ? TextFormat("%d-day streak%s%s", p.streak, p.goalMetToday ? "" : ": keep it today",
+                                            p.freezes > 0 ? TextFormat("  ·  %d %s", p.freezes, p.freezes == 1 ? "freeze" : "freezes") : "")
+                               : "Meet the goal to start a streak");
     y += 2 * radius + 26 * s;
 
     // Next: the drill to go on with (or a routine), and the profile's way in

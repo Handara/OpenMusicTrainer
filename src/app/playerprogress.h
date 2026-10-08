@@ -20,7 +20,7 @@ const PlayerProfile& playerProfile();
 std::vector<Activity> recentRuns(const std::string& id, int count);
 
 struct Reward {
-    enum class Kind { Xp, Goal, Level, Achievement, Chapter } kind = Kind::Xp;
+    enum class Kind { Xp, Goal, Level, Achievement, Chapter, Freeze } kind = Kind::Xp;
     long long xp = 0;    // Xp: how much
     int level = 0;       // Level: the new one
     int achievement = 0; // Achievement: into achievements()
