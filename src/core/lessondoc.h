@@ -41,7 +41,7 @@
 
 // --- Blocks -------------------------------------------------------------------------------------------------------
 
-enum class BlockType { Text, Heading, Callout, Reveal, Fretboard, Keyboard, Staff, Image, Audio, Video, Exercise, Play, Count };
+enum class BlockType { Text, Heading, Callout, Reveal, Fretboard, Keyboard, Staff, Image, Audio, Video, Exercise, Play, Practice, Count };
 enum class BlockGroup { Show, Play, Hear, Games, Smart }; // where the editor offers it
 
 // A setting a block takes
@@ -59,6 +59,7 @@ enum class FieldKind {
     Span,       // two whole numbers, the lower first, from min to max
     Key,        // a key: its note and major or minor (G major, E minor)
     Song,       // a song of the game's, by its folder's name
+    Page,       // a page of the lesson, by its title
 };
 
 // A place on the neck, as a Places setting writes it
@@ -130,6 +131,7 @@ LessonSection makeSection(SectionLayout layout);
 
 struct LessonPage {
     std::string title;
+    bool aside = false; // a page of help: skipped on the way through, shown only when a block sends the student there
     std::vector<LessonSection> sections;
 };
 
@@ -141,6 +143,8 @@ struct LessonDoc {
     ExerciseInstrument instrument = ExerciseInstrument::Any;
     std::vector<LessonPage> pages;
 };
+
+int findPage(const LessonDoc& doc, const std::string& title); // by its title: -1 for none
 
 // Every block, page by page, in reading order (section by section, column by column)
 struct BlockPlace {
@@ -220,6 +224,12 @@ std::vector<LessonEntry> scanLessons(const std::string& dir, bool builtIn);
 // Exercise blocks may name exercises: marks lessons whose exercise is missing, broken, or a routine (a routine has no
 // goal a lesson could check)
 void checkLessonExercises(std::vector<LessonEntry>& lessons, const std::vector<ExerciseEntry>& exercises);
+
+// A practice block's exercise, made as it's played: from these notes (the student's weakest, or the lesson's own), as
+// notes to play or read to a beat, on the lesson's instrument; its settings, a line each
+std::string practiceExercise(const LessonBlock& block, const std::vector<int>& pitches, ExerciseInstrument instrument);
+// Every note the lesson asks for or shows (its exercises' notes, its staffs' and keyboards'), low to high
+std::vector<int> lessonNotes(const LessonDoc& doc);
 
 // A song block's song: a song of the game's (its folder's name, found in these folders of songs), else a chart in the
 // lesson's folder. "" when it's neither, or the song isn't there.

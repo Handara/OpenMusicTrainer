@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <set>
 #include <sstream>
 
 namespace fs = std::filesystem;
@@ -23,8 +24,15 @@ static const std::vector<std::string> VIDEO_FILES = { ".mpg", ".mpeg" }; // MPEG
 static const std::vector<std::string> CHART_FILES = { ".chart" };
 
 // What every scored block takes
-static BlockField gateField(){
-    return { "gate", "Must pass", FieldKind::Toggle, "Passed before going on; or not, and it's there to practise", "yes" };
+static BlockField gateField(const char* standard = "yes"){
+    return { "gate", "Must pass", FieldKind::Toggle, "Passed before going on; or not, and it's there to practise", standard };
+}
+// Where a scored block may send the student: to help, after missing it; ahead, after acing it
+static BlockField helpField(){
+    return { "help", "When it's missed twice", FieldKind::Page, "A page of help to show (one set aside for it is skipped otherwise)" };
+}
+static BlockField aceField(){
+    return { "ace", "When it's aced", FieldKind::Page, "Every note right the first try: straight on to this page" };
 }
 static BlockField goalField(const char* description, int max){
     return { "goal", "Goal", FieldKind::Number, description, "", {}, 1, max };
@@ -84,7 +92,7 @@ const std::vector<BlockInfo>& blockInfos(){
           BlockGroup::Play, true, {
             { "exercise", "Exercise", FieldKind::Exercise, "One of the game's exercises (named by its file name), or one made here" },
             goalField("Clean passes for a drill, right answers in a row for intervals (left out: the usual)", 999),
-            gateField(),
+            gateField(), helpField(), aceField(),
         } },
         { BlockType::Play, "play", "Song", "A song (or a few bars of one) to play along to", BlockGroup::Play, true, {
             { "song", "Song", FieldKind::Song, "One of the game's songs" },
@@ -93,7 +101,16 @@ const std::vector<BlockInfo>& blockInfos(){
             { "bars", "Bars", FieldKind::Span, "Only these bars, as in practice mode (5 8); left out: all of it", "", {}, 1, 9999 },
             { "tempo", "Tempo", FieldKind::Number, "Its speed, in percent of the song's own (time-stretched, its pitch kept)", "100", {}, 30, 100 },
             goalField("The share of notes to hit, in percent (left out: 80)", 100),
-            gateField(),
+            gateField(), helpField(), aceField(),
+        } },
+        { BlockType::Practice, "practice", "Practice", "A drill made as it's played: from the notes the student misses most, or from this lesson's",
+          BlockGroup::Smart, true, {
+            { "from", "Its notes", FieldKind::Choice, "The student's weakest lately (on the lesson's instrument), or the ones this lesson uses",
+              "weak", { "weak", "lesson" } },
+            { "as", "Played as", FieldKind::Choice, "Notes to play (no clock), or read to a beat", "notes", { "notes", "reading" } },
+            { "count", "How many notes", FieldKind::Number, "Taken into it, at most", "6", {}, 2, 12 },
+            goalField("Runs passed, or clean passes (left out: the usual)", 99),
+            gateField("no"),
         } },
     };
     return infos;
@@ -213,6 +230,11 @@ LessonSection makeSection(SectionLayout layout){
     return section;
 }
 
+int findPage(const LessonDoc& doc, const std::string& title){
+    for (int p = 0; p < (int)doc.pages.size(); p++) if (doc.pages[(size_t)p].title == title) return p;
+    return -1;
+}
+
 std::vector<BlockPlace> lessonBlocks(const LessonDoc& doc){
     std::vector<BlockPlace> places;
     for (int p = 0; p < (int)doc.pages.size(); p++){
@@ -321,6 +343,8 @@ static std::string checkValue(const BlockField& field, const std::string& value)
             if (!(words >> tonic >> mode) || !parseKeySignature(tonic, mode, key)) return "'" + value + "' isn't a key: write it like G major, E minor";
             return "";
         }
+        case FieldKind::Page:
+            return "";
         case FieldKind::Song:
             if (value.find_first_of("/\\") != std::string::npos || value == "." || value == "..") return "'" + value + "' isn't a song's folder name";
             return "";
@@ -420,7 +444,7 @@ bool parseLessonDoc(const std::string& text, const std::string& path, LessonDoc&
         if (key == "version") continue;
         if (key == "page"){
             if (!finishBlock()) return false;
-            out.pages.push_back({ rest, {} });
+            out.pages.push_back({ rest, false, {} });
             page = &out.pages.back();
             section = nullptr;
             continue;
@@ -487,6 +511,11 @@ bool parseLessonDoc(const std::string& text, const std::string& path, LessonDoc&
             else return lineError("unknown setting '" + key + "' before the first page");
             continue;
         }
+        if (!block && !section && key == "aside"){ // the page's own setting, before its sections
+            if (rest != "yes" && rest != "no") return lineError("'aside' is yes or no");
+            page->aside = rest == "yes";
+            continue;
+        }
         if (!block) return lineError("'" + key + "' outside a block (a page holds sections, columns and blocks)");
         const BlockField* field = findBlockField(block->type, key);
         if (!field){
@@ -509,6 +538,18 @@ bool parseLessonDoc(const std::string& text, const std::string& path, LessonDoc&
     if (!finishBlock()) return false;
     if (out.title.empty()){ error = path + ": missing 'title'"; return false; }
     if (out.pages.empty()){ error = path + ": a lesson needs at least one page"; return false; }
+    // The pages blocks send the student to are there
+    if (!draft){
+        for (const BlockPlace& place : lessonBlocks(out)){
+            for (const char* key : { "help", "ace" }){
+                const std::string title = blockValue(blockAt(out, place), key);
+                if (!title.empty() && findPage(out, title) < 0){
+                    error = path + ": page " + std::to_string(place.page + 1) + ": there's no page called '" + title + "' to send the student to";
+                    return false;
+                }
+            }
+        }
+    }
     return true;
 }
 
@@ -533,6 +574,7 @@ std::string writeLessonDoc(const LessonDoc& doc){
     if (doc.instrument != ExerciseInstrument::Any) out << "instrument " << instrumentId(doc.instrument) << "\n";
     for (const LessonPage& page : doc.pages){
         out << "\npage" << (page.title.empty() ? "" : " " + oneLine(page.title)) << "\n";
+        if (page.aside) out << "  aside yes\n";
         for (const LessonSection& section : page.sections){
             out << "  section " << sectionLayoutId(section.layout) << "\n";
             for (size_t c = 0; c < section.columns.size(); c++){
@@ -881,6 +923,39 @@ void setSectionLayout(LessonSection& section, SectionLayout layout){
 }
 
 // --- Lessons in folders --------------------------------------------------------------------------------------------
+
+std::string practiceExercise(const LessonBlock& block, const std::vector<int>& pitches, ExerciseInstrument instrument){
+    std::string names;
+    for (int pitch : pitches) names += std::string(names.empty() ? "" : " ") + pitchClassName(pitch) + std::to_string(pitchOctave(pitch));
+    const bool piano = instrument == ExerciseInstrument::Piano, bass = instrument == ExerciseInstrument::Bass;
+    std::string lines;
+    if (blockValue(block, "as") == "reading"){
+        lines = "type reading\nnotes " + names + "\ncells quarter\nbars 8\ntempo 80 120 5\npass 87\n";
+        if (piano) lines += "instrument piano\n";
+        else if (bass) lines += "tuning 28 33 38 43\n";
+    } else {
+        lines = "type notes\nnotes " + names + "\nshow staff\ncount " + std::to_string(std::max(6, (int)pitches.size() * 2)) + "\n";
+        if (piano) lines += "instrument piano\n";
+        else if (bass) lines += "instrument bass\n";
+    }
+    return lines;
+}
+
+std::vector<int> lessonNotes(const LessonDoc& doc){
+    std::set<int> found;
+    for (const BlockPlace& place : lessonBlocks(doc)){
+        const LessonBlock& block = blockAt(doc, place);
+        std::vector<int> pitches;
+        if (block.type == BlockType::Staff) pitches = readNotes(blockValue(block, "notes"));
+        else if (block.type == BlockType::Keyboard) pitches = readNotes(blockValue(block, "lit"));
+        else if (block.type == BlockType::Exercise){
+            const std::string type = exerciseSetting(block, "type");
+            if (type == "notes" || type == "reading") pitches = readNotes(exerciseSetting(block, "notes"));
+        }
+        found.insert(pitches.begin(), pitches.end());
+    }
+    return std::vector<int>(found.begin(), found.end());
+}
 
 std::string songBlockChart(const LessonBlock& block, const std::string& lessonFolder, const std::vector<std::string>& songFolders){
     const std::string song = blockValue(block, "song"), file = blockValue(block, "file");

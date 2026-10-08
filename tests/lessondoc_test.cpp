@@ -253,7 +253,7 @@ TEST_CASE("every block's settings are described, for the editor"){
 TEST_CASE("making lessons: blocks added, moved and taken out, layouts changed"){
     LessonDoc doc;
     doc.title = "T";
-    doc.pages.push_back({ "P", { makeSection(SectionLayout::Halves) } });
+    doc.pages.push_back({ "P", false, { makeSection(SectionLayout::Halves) } });
     auto text = [](const char* words){ LessonBlock block = makeBlock(BlockType::Text); setBlockValues(block, "text", { words }); return block; };
     REQUIRE(insertBlock(doc, { 0, 0, 0, 0 }, text("a")));
     REQUIRE(insertBlock(doc, { 0, 0, 0, 1 }, text("b")));
@@ -359,10 +359,55 @@ TEST_CASE("song blocks: a song of the game's, or a file, not both; a part, some 
     CHECK(fs::path(songBlockChart(song, "/lesson", { songs })) == fs::path("/lesson") / "riff.chart");
 }
 
+TEST_CASE("pages of help, blocks that send the student there or ahead"){
+    const std::string text = HEAD + "page Learn it\nblock exercise\nexercise e-minor-open\nhelp Some help\nace The end\n"
+                                    "page Some help\n  aside yes\nblock text\ntext Slowly now.\n"
+                                    "page The end\nblock text\ntext Done.\n";
+    LessonDoc doc;
+    std::string error;
+    REQUIRE_MESSAGE(parseLessonDoc(text, "flow", doc, error), error);
+    CHECK_FALSE(doc.pages[0].aside);
+    CHECK(doc.pages[1].aside);
+    CHECK(findPage(doc, "Some help") == 1);
+    CHECK(findPage(doc, "Nowhere") == -1);
+    CHECK(blockValue(doc.pages[0].sections[0].columns[0][0], "help") == "Some help");
+    LessonDoc again;
+    REQUIRE(parseLessonDoc(writeLessonDoc(doc), "again", again, error));
+    CHECK(again.pages[1].aside);
+    CHECK(writeLessonDoc(again) == writeLessonDoc(doc));
+    // A page sent to must be there (a draft may still be missing it)
+    const std::string missing = HEAD + "page P\nblock exercise\nexercise x\nhelp Nowhere\n";
+    CHECK_FALSE(parseLessonDoc(missing, "missing", doc, error));
+    CHECK(error.find("no page called 'Nowhere'") != std::string::npos);
+    CHECK(parseLessonDoc(missing, "draft", doc, error, true));
+    CHECK_FALSE(parseLessonDoc(HEAD + "page P\naside maybe\n", "aside", doc, error));
+}
+
+TEST_CASE("practice blocks: a drill made from notes given, on the lesson's instrument"){
+    LessonBlock block = makeBlock(BlockType::Practice);
+    CHECK(blockScored(block));
+    CHECK_FALSE(blockGates(block)); // there to practise, unless it says so
+    for (const char* as : { "notes", "reading" }){
+        setBlockValue(block, "as", as);
+        for (ExerciseInstrument instrument : { ExerciseInstrument::Guitar, ExerciseInstrument::Bass, ExerciseInstrument::Piano }){
+            const int low = instrument == ExerciseInstrument::Bass ? 28 : 60;
+            ExerciseFile exercise;
+            std::string error;
+            const std::string lines = practiceExercise(block, { low, low + 2, low + 4 }, instrument);
+            CHECK_MESSAGE(parseExercise(lines, "practice", 1, "Practice", exercise, error), as << ": " << error);
+        }
+    }
+    // The lesson's own notes: its exercises', staffs' and keyboards'
+    LessonDoc doc;
+    std::string error;
+    REQUIRE(parseLessonDoc(HEAD + "page P\nblock staff\nnotes E4 F4\nblock keyboard\nlit C4\nblock exercise\ntype notes\nnotes G4 E4\n", "notes", doc, error));
+    CHECK(lessonNotes(doc) == std::vector<int>{ 60, 64, 65, 67 });
+}
+
 TEST_CASE("a draft: blocks still missing what they need are kept, and read back"){
     LessonDoc doc;
     doc.title = "Draft";
-    doc.pages.push_back({ "P", { makeSection(SectionLayout::Single) } });
+    doc.pages.push_back({ "P", false, { makeSection(SectionLayout::Single) } });
     insertBlock(doc, { 0, 0, 0, 0 }, makeBlock(BlockType::Image));    // no picture chosen yet
     insertBlock(doc, { 0, 0, 0, 1 }, makeBlock(BlockType::Exercise)); // no exercise yet
     const std::string written = writeLessonDoc(doc);

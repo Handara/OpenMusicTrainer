@@ -455,6 +455,9 @@ float drawScoredBlock(const BlockContext& c, const LessonBlock& block, ImVec2 at
         const std::string tempo = blockValue(block, "tempo");
         if (std::atoi(tempo.c_str()) < 100) kind += "  ·  " + tempo + "%";
         if (name.empty()) name = blockValue(block, "song").empty() ? fs::path(blockValue(block, "file")).stem().string() : blockValue(block, "song");
+    } else if (block.type == BlockType::Practice){
+        kind = blockValue(block, "from") == "lesson" ? "Practice  ·  this lesson's notes" : "Practice  ·  the notes you miss most";
+        if (name.empty()) name = blockValue(block, "as") == "reading" ? "Read them to a beat" : "Play them";
     } else if (exercise){
         kind = exerciseKind(exercise->exercise);
         if (name.empty()) name = exercise->exercise.title;
@@ -526,7 +529,8 @@ float drawLessonPage(const LessonDoc& doc, int pageNumber, const std::string& fo
                     case BlockType::Audio: columnY += drawAudioBlock(context, block, blockAt, columnWidth); break;
                     case BlockType::Video: columnY += drawVideoBlock(context, block, blockAt, columnWidth); break;
                     case BlockType::Exercise:
-                    case BlockType::Play: {
+                    case BlockType::Play:
+                    case BlockType::Practice: {
                         const float tall = drawScoredBlock(context, block, blockAt, columnWidth, scored++, state, events);
                         events.scoredSpans.push_back(ImVec2(columnY, columnY + tall));
                         columnY += tall;
