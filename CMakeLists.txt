@@ -180,6 +180,7 @@ add_library(lahn_core STATIC
     src/core/journal.cpp
     src/core/judge.cpp
     src/core/lesson.cpp
+    src/core/lessondoc.cpp
     src/core/menunotes.cpp
     src/core/midi.cpp
     src/core/music.cpp
@@ -357,6 +358,7 @@ if(BUILD_TESTING)
         tests/intervals_test.cpp
         tests/judge_test.cpp
         tests/lesson_test.cpp
+        tests/lessondoc_test.cpp
         tests/menunotes_test.cpp
         tests/midi_test.cpp
         tests/music_test.cpp

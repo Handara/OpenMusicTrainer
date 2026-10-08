@@ -78,13 +78,8 @@ static bool stepAccepts(LessonStepType type, const std::string& key){
     return false;
 }
 
-bool loadLesson(const std::string& folder, Lesson& out, std::string& error){
-    std::string path = (fs::path(folder) / LESSON_FILE_NAME).string();
-    std::ifstream file(path);
-    if (!file){
-        error = path + ": could not open file";
-        return false;
-    }
+// A lesson read from `file` (`path` names it in errors); with a `folder`, its media checked there too
+static bool readLesson(std::istream& file, const std::string& path, const std::string& folder, Lesson& out, std::string& error){
     out = Lesson{};
     int lineNumber = 0;
     auto lineError = [&](const std::string& message){
@@ -176,6 +171,7 @@ bool loadLesson(const std::string& folder, Lesson& out, std::string& error){
             for (const std::string& extension : extensions) list += (list.empty() ? "" : ", ") + extension;
             return lineError("'" + step.file + "' isn't " + withArticle(step.type) + " file (" + list + ")");
         }
+        if (folder.empty()) continue; // (read from text alone: no folder to look in)
         fs::path media = fs::path(folder) / step.file;
         if (!fs::is_regular_file(media)) return lineError("'" + step.file + "' isn't in the lesson's folder");
         if (step.type == LessonStepType::Play){
@@ -185,6 +181,21 @@ bool loadLesson(const std::string& folder, Lesson& out, std::string& error){
         }
     }
     return true;
+}
+
+bool loadLesson(const std::string& folder, Lesson& out, std::string& error){
+    std::string path = (fs::path(folder) / LESSON_FILE_NAME).string();
+    std::ifstream file(path);
+    if (!file){
+        error = path + ": could not open file";
+        return false;
+    }
+    return readLesson(file, path, folder, out, error);
+}
+
+bool parseLesson(const std::string& text, const std::string& path, Lesson& out, std::string& error){
+    std::istringstream file(text);
+    return readLesson(file, path, "", out, error);
 }
 
 // One value per line: a line break inside one would start a new, unintended line in the file

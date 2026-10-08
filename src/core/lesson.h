@@ -66,6 +66,8 @@ const std::vector<std::string>& lessonFileExtensions(LessonStepType type);
 // Strict, like charts and exercises: lessons are shared. Media files must exist in the lesson's folder, and a
 // play step's chart must load.
 bool loadLesson(const std::string& folder, Lesson& out, std::string& error);
+// The same from text, without its media checked (no folder): `path` names it in errors
+bool parseLesson(const std::string& text, const std::string& path, Lesson& out, std::string& error);
 bool saveLesson(const std::string& folder, const Lesson& lesson, std::string& error);
 
 // The goal a step really has: its own, or the usual one for what it runs
