@@ -162,6 +162,8 @@ const int LESSON_DOC_VERSION = 2;
 // not chosen yet, an exercise not picked): everything else is as strict.
 bool parseLessonDoc(const std::string& text, const std::string& path, LessonDoc& out, std::string& error, bool draft = false);
 std::string writeLessonDoc(const LessonDoc& doc);
+// Its pages only (what a course writes for each chapter, under the chapter's own line)
+std::string writeLessonPages(const LessonDoc& doc);
 // A version 1 lesson's steps, a page each
 LessonDoc lessonDocFromSteps(const Lesson& lesson);
 

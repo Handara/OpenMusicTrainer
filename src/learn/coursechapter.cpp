@@ -129,8 +129,8 @@ void CourseChapter::update(){
         if (running->takeFinishedRun(percent)) scored(percent);
         else if (!running->scoresRuns() && passedAt < 0.0){
             // An exercise that doesn't score runs: its lesson goal reached counts as all right
-            const LessonStep& step = course.lessons[lesson].lesson.steps[drills[runningIndex].step];
-            if (running->lessonScore() >= lessonGoal(step, entries[runningIndex].exercise.type)) scored(100);
+            const LessonBlock& block = blockAt(course.lessons[lesson].doc, drills[runningIndex].place);
+            if (running->lessonScore() >= scoredBlockGoal(block, entries[runningIndex].exercise.type)) scored(100);
         }
         // Its end menu's "next": the next drill, or after the last, the next chapter's page
         if (running && running->takeNextChosen()){

@@ -34,6 +34,10 @@ static BlockField helpField(){
 static BlockField aceField(){
     return { "ace", "When it's aced", FieldKind::Page, "Every note right the first try: straight on to this page" };
 }
+// In a course: its number in its chapter, which its progress is kept by (so words added before it don't move it)
+static BlockField idField(){
+    return { "id", "Number", FieldKind::Number, "Its number in its course chapter: the course keeps its progress by it", "", {}, 1, 9999 };
+}
 static BlockField goalField(const char* description, int max){
     return { "goal", "Goal", FieldKind::Number, description, "", {}, 1, max };
 }
@@ -92,7 +96,7 @@ const std::vector<BlockInfo>& blockInfos(){
           BlockGroup::Play, true, {
             { "exercise", "Exercise", FieldKind::Exercise, "One of the game's exercises (named by its file name), or one made here" },
             goalField("Clean passes for a drill, right answers in a row for intervals (left out: the usual)", 999),
-            gateField(), helpField(), aceField(),
+            gateField(), helpField(), aceField(), idField(),
         } },
         { BlockType::Play, "play", "Song", "A song (or a few bars of one) to play along to", BlockGroup::Play, true, {
             { "song", "Song", FieldKind::Song, "One of the game's songs" },
@@ -101,7 +105,7 @@ const std::vector<BlockInfo>& blockInfos(){
             { "bars", "Bars", FieldKind::Span, "Only these bars, as in practice mode (5 8); left out: all of it", "", {}, 1, 9999 },
             { "tempo", "Tempo", FieldKind::Number, "Its speed, in percent of the song's own (time-stretched, its pitch kept)", "100", {}, 30, 100 },
             goalField("The share of notes to hit, in percent (left out: 80)", 100),
-            gateField(), helpField(), aceField(),
+            gateField(), helpField(), aceField(), idField(),
         } },
         { BlockType::Practice, "practice", "Practice", "A drill made as it's played: from the notes the student misses most, or from this lesson's",
           BlockGroup::Smart, true, {
@@ -110,7 +114,7 @@ const std::vector<BlockInfo>& blockInfos(){
             { "as", "Played as", FieldKind::Choice, "Notes to play (no clock), or read to a beat", "notes", { "notes", "reading" } },
             { "count", "How many notes", FieldKind::Number, "Taken into it, at most", "6", {}, 2, 12 },
             goalField("Runs passed, or clean passes (left out: the usual)", 99),
-            gateField("no"),
+            gateField("no"), idField(),
         } },
     };
     return infos;
@@ -572,6 +576,12 @@ std::string writeLessonDoc(const LessonDoc& doc){
     if (!doc.author.empty()) out << "author " << oneLine(doc.author) << "\n";
     if (!doc.description.empty()) out << "description " << oneLine(doc.description) << "\n";
     if (doc.instrument != ExerciseInstrument::Any) out << "instrument " << instrumentId(doc.instrument) << "\n";
+    out << writeLessonPages(doc);
+    return out.str();
+}
+
+std::string writeLessonPages(const LessonDoc& doc){
+    std::ostringstream out;
     for (const LessonPage& page : doc.pages){
         out << "\npage" << (page.title.empty() ? "" : " " + oneLine(page.title)) << "\n";
         if (page.aside) out << "  aside yes\n";

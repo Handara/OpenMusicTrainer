@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/lesson.h"
+#include "core/lessondoc.h"
 
 #include <map>
 #include <string>
@@ -35,6 +35,34 @@
 //   notes E4 F4
 //
 // Lesson titles are unique within a course: a lesson's progress is kept by its title.
+//
+// Version 2 (what the course tools write now, and the lesson maker): levels of chapters, each chapter a lesson's pages
+// (core/lessondoc), written under its own line; its drills are its exercise blocks, each kept by its number ('id').
+//
+//   # lahn course
+//   version 2
+//   title Reading music
+//   instrument guitar
+//
+//   level The high E string
+//
+//   chapter Your first note
+//   page
+//     section wide-narrow
+//       block text
+//         text Music is written on five lines, the staff.
+//     column
+//       block staff
+//         notes E4
+//     section
+//       block exercise E alone
+//         id 2
+//         type notes
+//         notes E4
+//         show staff
+//
+// A version 1 course reads as version 2: each chapter a page, its words then its drills, each drill numbered by its
+// step (as its progress was kept).
 
 struct CourseUnit {
     std::string title;
@@ -43,10 +71,12 @@ struct CourseUnit {
 };
 
 struct CourseLesson {
-    Lesson lesson;
+    Lesson lesson;  // its title (and, read from a version 1 course, its steps)
+    LessonDoc doc;  // the chapter: its pages
     int unit = 0;
     std::string id; // from its title: "your-first-note"
 };
+
 
 struct Course {
     std::string title;
@@ -57,6 +87,10 @@ struct Course {
 };
 
 bool parseCourse(const std::string& text, const std::string& path, Course& out, std::string& error);
+// A version 1 chapter as a page: its words, then its drills, each numbered by its step
+LessonDoc chapterFromSteps(const Lesson& lesson, ExerciseInstrument instrument);
+// The course as version 2 text
+std::string writeCourse(const Course& course);
 bool loadCourse(const std::string& path, Course& out, std::string& error);
 
 struct CourseEntry {
@@ -71,10 +105,10 @@ std::vector<CourseEntry> scanCourses(const std::string& dir);
 // "Your first note" -> "your-first-note"
 std::string courseSlug(const std::string& title);
 
-// A course's drills: every exercise step, chapter by chapter, with what passes it
+// A chapter's drills: its exercise blocks, with what passes each (the course keeps each by its number)
 struct CourseDrill {
     int lesson = 0;          // its chapter
-    int step = 0;            // its step in the chapter
+    BlockPlace place;        // its block in the chapter
     std::string id;          // "<chapter id>-<step from 1>": its score and its own progress are kept by it
     std::string name;        // for the list: its own, or the chapter's with its number
     int passPercent = 100;   // the score a run needs

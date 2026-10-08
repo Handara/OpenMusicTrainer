@@ -137,6 +137,53 @@ TEST_CASE("courses: the ones shipped all load"){
     }
 }
 
+TEST_CASE("courses, version 2: chapters as pages; the shipped courses written so keep every drill's progress"){
+    // Each shipped course, written as version 2 and read back: the same chapters, the same drills by the same ids
+    // (the progress files key them), names and pass marks; written again, the same text
+    for (const CourseEntry& entry : scanCourses(std::string(LAHN_RESOURCES_DIR) + "courses")){
+        CAPTURE(entry.path);
+        REQUIRE(entry.error.empty());
+        const std::string written = writeCourse(entry.course);
+        Course again;
+        std::string error;
+        REQUIRE_MESSAGE(parseCourse(written, "again.course", again, error), error);
+        REQUIRE(again.lessons.size() == entry.course.lessons.size());
+        REQUIRE(again.units.size() == entry.course.units.size());
+        CHECK(again.instrument == entry.course.instrument);
+        for (int i = 0; i < (int)again.lessons.size(); i++){
+            CHECK(again.lessons[(size_t)i].id == entry.course.lessons[(size_t)i].id);
+            const std::vector<CourseDrill> before = courseDrills(entry.course, i), after = courseDrills(again, i);
+            REQUIRE(before.size() == after.size());
+            for (size_t d = 0; d < before.size(); d++){
+                CHECK(after[d].id == before[d].id);
+                CHECK(after[d].name == before[d].name);
+                CHECK(after[d].passPercent == before[d].passPercent);
+                const LessonBlock& block = blockAt(again.lessons[(size_t)i].doc, after[d].place);
+                CHECK(block.exercise.type == blockAt(entry.course.lessons[(size_t)i].doc, before[d].place).exercise.type);
+            }
+        }
+        CHECK(writeCourse(again) == written);
+    }
+}
+
+TEST_CASE("courses, version 2: what's wrong is told by its line"){
+    Course course;
+    std::string error;
+    const std::string head = "version 2\ntitle T\n";
+    REQUIRE_MESSAGE(parseCourse(head + "level L\nchapter C\npage\nblock exercise\nid 4\ntype notes\nnotes E4\n", "ok", course, error), error);
+    CHECK(courseDrills(course, 0).at(0).id == "c-4");
+    CHECK_FALSE(parseCourse(head + "chapter C\n", "c", course, error));
+    CHECK(error.find("before the first level") != std::string::npos);
+    CHECK_FALSE(parseCourse(head + "level L\nblock text\n", "c", course, error));
+    CHECK(error.find("before the level's first chapter") != std::string::npos);
+    CHECK_FALSE(parseCourse(head + "level L\nchapter C\npage\nblock exercise\nid 1\ntype notes\nnotes E4\nblock exercise\nid 1\ntype notes\nnotes F4\n",
+                            "c", course, error));
+    CHECK(error.find("two drills numbered 1") != std::string::npos);
+    CHECK_FALSE(parseCourse(head + "level L\nchapter C\npage\nblock nonsense\n", "c", course, error));
+    CHECK(error.find(":6:") != std::string::npos); // the file's own line
+    CHECK_FALSE(parseCourse("version 3\n", "c", course, error));
+}
+
 TEST_CASE("courses: drills scored by their best run; a chapter passed with all of them, then the next opens"){
     Course course;
     std::string error;

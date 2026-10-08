@@ -317,9 +317,11 @@ static void refreshExercises(){
         learn.courseScores.push_back(loadCourseScores(progressPath(entry.id)));
         // A named exercise must be there
         for (const CourseLesson& lesson : entry.course.lessons)
-            for (const LessonStep& step : lesson.lesson.steps)
-                if (entry.error.empty() && step.type == LessonStepType::Exercise && !step.inlined && !findExercise(learn.exercises, true, step.exercise))
-                    entry.error = "the chapter '" + lesson.lesson.title + "' uses the exercise '" + step.exercise + "', which isn't there";
+            for (const BlockPlace& place : lessonBlocks(lesson.doc)){
+                const std::string named = blockValue(blockAt(lesson.doc, place), "exercise");
+                if (entry.error.empty() && !named.empty() && !findExercise(learn.exercises, true, named))
+                    entry.error = "the chapter '" + lesson.lesson.title + "' uses the exercise '" + named + "', which isn't there";
+            }
     }
 
     // Lessons, built-in first; their exercise steps are checked against the exercises just loaded
@@ -393,14 +395,15 @@ static std::vector<ExerciseEntry> courseChapterDrills(int courseIndex, int lesso
     const CourseLesson& chapter = entry.course.lessons[lessonIndex];
     std::vector<ExerciseEntry> drills;
     for (const CourseDrill& drill : courseDrills(entry.course, lessonIndex)){
-        const LessonStep& step = chapter.lesson.steps[drill.step];
+        const LessonBlock& block = blockAt(chapter.doc, drill.place);
+        const std::string named = blockValue(block, "exercise");
         ExerciseEntry exercise;
-        if (step.inlined){
+        if (named.empty()){ // written in the chapter: kept by the course and the drill
             exercise.name = drill.id;
             exercise.id = entry.id + "-" + drill.id;
             exercise.builtIn = true;
-            exercise.exercise = step.inlineExercise;
-        } else if (const ExerciseEntry* found = findExercise(learn.exercises, true, step.exercise)){
+            exercise.exercise = block.exercise;
+        } else if (const ExerciseEntry* found = findExercise(learn.exercises, true, named)){
             exercise = *found;
         }
         drills.push_back(exercise);

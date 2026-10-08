@@ -47,6 +47,7 @@ struct LessonStep {
     int goal = 0;                        // exercise and play steps: 0 = the usual goal (lessonGoal)
     bool inlined = false;                // exercise steps written in place (a course's lessons): `inlineExercise`
     ExerciseFile inlineExercise;
+    std::vector<std::string> inlineLines; //   and its settings as written, a line each
 };
 
 struct Lesson {

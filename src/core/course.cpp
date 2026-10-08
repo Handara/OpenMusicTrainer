@@ -10,7 +10,7 @@
 
 namespace fs = std::filesystem;
 
-const int SUPPORTED_COURSE_VERSION = 1;
+const int SUPPORTED_COURSE_VERSION = 2;
 
 std::string courseSlug(const std::string& title){
     std::string slug;
@@ -22,7 +22,8 @@ std::string courseSlug(const std::string& title){
     return slug;
 }
 
-bool parseCourse(const std::string& source, const std::string& path, Course& out, std::string& error){
+// Version 1: units of lessons, each its words and its drills
+static bool parseCourseSteps(const std::string& source, const std::string& path, Course& out, std::string& error){
     out = Course{};
     int lineNumber = 0, version = 0;
     auto lineError = [&](const std::string& message){
@@ -44,6 +45,11 @@ bool parseCourse(const std::string& source, const std::string& path, Course& out
                                  || (out.instrument == ExerciseInstrument::Piano && block.find("type reading") != std::string::npos);
         if (out.instrument != ExerciseInstrument::Guitar && playedOnOne && !saysInstrument)
             block += out.instrument == ExerciseInstrument::Bass ? "instrument bass\n" : "instrument piano\n";
+        std::istringstream written(block);
+        for (std::string line; std::getline(written, line);){
+            const size_t start = line.find_first_not_of(" \t");
+            if (start != std::string::npos && line[start] != '#') step.inlineLines.push_back(line.substr(start));
+        }
         std::string exerciseError;
         if (!parseExercise(block, path, blockLine, step.title.empty() ? lesson()->title : step.title, step.inlineExercise, exerciseError)){
             error = exerciseError;
@@ -162,18 +168,174 @@ bool parseCourse(const std::string& source, const std::string& path, Course& out
     if (!flushBlock()) return false;
 
     if (version == 0){ error = path + ": missing 'version'"; return false; }
-    if (version > SUPPORTED_COURSE_VERSION){
-        error = path + ": course format v" + std::to_string(version) + " is newer than this build supports (v"
-              + std::to_string(SUPPORTED_COURSE_VERSION) + ")";
-        return false;
-    }
     if (out.title.empty()){ error = path + ": missing 'title'"; return false; }
     if (out.lessons.empty()){ error = path + ": a course needs at least one lesson"; return false; }
     for (const CourseLesson& entry : out.lessons)
         if (entry.lesson.steps.empty()){ error = path + ": the lesson '" + entry.lesson.title + "' has no steps"; return false; }
     for (const CourseUnit& unit : out.units)
         if (unit.lessonCount == 0){ error = path + ": the unit '" + unit.title + "' has no lessons"; return false; }
+    for (CourseLesson& chapter : out.lessons) chapter.doc = chapterFromSteps(chapter.lesson, out.instrument);
     return true;
+}
+
+LessonDoc chapterFromSteps(const Lesson& lesson, ExerciseInstrument instrument){
+    LessonDoc doc;
+    doc.title = lesson.title;
+    doc.instrument = instrument;
+    LessonPage page;
+    page.sections.push_back(makeSection(SectionLayout::Single));
+    std::vector<LessonBlock>& column = page.sections[0].columns[0];
+    for (int i = 0; i < (int)lesson.steps.size(); i++){
+        const LessonStep& step = lesson.steps[(size_t)i];
+        if (step.type == LessonStepType::Text){
+            if (!step.title.empty()){
+                LessonBlock heading = makeBlock(BlockType::Heading);
+                setBlockValue(heading, "text", step.title);
+                column.push_back(heading);
+            }
+            if (!step.paragraphs.empty()){
+                LessonBlock text = makeBlock(BlockType::Text);
+                setBlockValues(text, "text", step.paragraphs);
+                column.push_back(text);
+            }
+        } else if (step.type == LessonStepType::Exercise){
+            LessonBlock drill;
+            drill.type = BlockType::Exercise;
+            drill.name = step.title;
+            setBlockValue(drill, "id", std::to_string(i + 1)); // as its progress was kept: by its step
+            if (step.goal > 0) setBlockValue(drill, "goal", std::to_string(step.goal));
+            if (step.inlined){
+                drill.exerciseLines = step.inlineLines;
+                drill.exercise = step.inlineExercise;
+            } else setBlockValue(drill, "exercise", step.exercise);
+            column.push_back(drill);
+        }
+    }
+    doc.pages = { page };
+    return doc;
+}
+
+// Version 2: levels of chapters, each chapter a lesson's pages
+static bool parseCourseChapters(const std::string& source, const std::string& path, Course& out, std::string& error){
+    out = Course{};
+    int lineNumber = 0;
+    auto lineError = [&](const std::string& message){
+        error = path + ":" + std::to_string(lineNumber) + ": " + message;
+        return false;
+    };
+    std::string chapterText;  // the chapter being read: its lines, its first line's number
+    int chapterLine = 0;
+    auto finishChapter = [&]() -> bool {
+        if (out.lessons.empty() || chapterLine == 0) return true;
+        CourseLesson& chapter = out.lessons.back();
+        // Read as a lesson: a header for it, then its lines where they are in the file (its errors' lines right)
+        const std::string text = "version 2\ntitle " + chapter.lesson.title + "\n" + std::string((size_t)std::max(0, chapterLine - 3), '\n') + chapterText;
+        if (!parseLessonDoc(text, path, chapter.doc, error)) return false;
+        if (chapter.doc.instrument == ExerciseInstrument::Any) chapter.doc.instrument = out.instrument;
+        // Its drills' numbers its own: each one once
+        std::vector<std::string> numbers;
+        for (const BlockPlace& place : lessonBlocks(chapter.doc)){
+            const std::string number = blockValue(blockAt(chapter.doc, place), "id");
+            if (number.empty()) continue;
+            if (std::find(numbers.begin(), numbers.end(), number) != numbers.end()){
+                error = path + ": the chapter '" + chapter.lesson.title + "' has two drills numbered " + number;
+                return false;
+            }
+            numbers.push_back(number);
+        }
+        chapterText.clear();
+        chapterLine = 0;
+        return true;
+    };
+    std::istringstream lines(source);
+    std::string text;
+    while (std::getline(lines, text)){
+        lineNumber++;
+        if (!text.empty() && text.back() == '\r') text.pop_back();
+        std::istringstream ss(text);
+        std::string key;
+        if (!(ss >> key) || key[0] == '#'){
+            if (chapterLine > 0) chapterText += "\n";
+            continue;
+        }
+        std::string rest;
+        std::getline(ss >> std::ws, rest);
+        while (!rest.empty() && std::isspace((unsigned char)rest.back())) rest.pop_back();
+        if (key == "level" || key == "chapter"){
+            if (!finishChapter()) return false;
+            if (key == "level"){
+                if (rest.empty()) return lineError("a level needs a title");
+                out.units.push_back({ rest, (int)out.lessons.size(), 0 });
+                continue;
+            }
+            if (out.units.empty()) return lineError("a chapter before the first level");
+            if (rest.empty()) return lineError("a chapter needs a title");
+            CourseLesson chapter;
+            chapter.lesson.title = rest;
+            chapter.unit = (int)out.units.size() - 1;
+            chapter.id = courseSlug(rest);
+            for (const CourseLesson& other : out.lessons)
+                if (other.id == chapter.id) return lineError("another chapter is called '" + rest + "' already: chapters need their own titles");
+            out.lessons.push_back(chapter);
+            out.units.back().lessonCount++;
+            chapterLine = lineNumber + 1;
+            continue;
+        }
+        if (out.units.empty()){ // the header
+            if (key == "version" || key == "author") continue;
+            if (key == "title") out.title = rest;
+            else if (key == "description") out.description = rest;
+            else if (key == "instrument"){
+                if (rest == "guitar") out.instrument = ExerciseInstrument::Guitar;
+                else if (rest == "bass") out.instrument = ExerciseInstrument::Bass;
+                else if (rest == "piano") out.instrument = ExerciseInstrument::Piano;
+                else return lineError("instrument must be guitar, bass or piano");
+            } else return lineError("unknown setting '" + key + "' before the first level");
+            continue;
+        }
+        if (chapterLine == 0) return lineError("'" + key + "' before the level's first chapter");
+        chapterText += text + "\n";
+    }
+    if (!finishChapter()) return false;
+    if (out.title.empty()){ error = path + ": missing 'title'"; return false; }
+    if (out.lessons.empty()){ error = path + ": a course needs at least one chapter"; return false; }
+    for (const CourseUnit& unit : out.units)
+        if (unit.lessonCount == 0){ error = path + ": the level '" + unit.title + "' has no chapters"; return false; }
+    return true;
+}
+
+bool parseCourse(const std::string& source, const std::string& path, Course& out, std::string& error){
+    // Which version: the first 'version' line says
+    std::istringstream lines(source);
+    for (std::string line; std::getline(lines, line);){
+        std::istringstream ss(line);
+        std::string key;
+        int version = 0;
+        if (!(ss >> key) || key != "version") continue;
+        if (!(ss >> version) || version < 1){ error = path + ": expected: version <number>"; return false; }
+        if (version > SUPPORTED_COURSE_VERSION){
+            error = path + ": course format v" + std::to_string(version) + " is newer than this build supports (v" + std::to_string(SUPPORTED_COURSE_VERSION) + ")";
+            return false;
+        }
+        return version == 1 ? parseCourseSteps(source, path, out, error) : parseCourseChapters(source, path, out, error);
+    }
+    error = path + ": missing 'version'";
+    return false;
+}
+
+std::string writeCourse(const Course& course){
+    std::ostringstream out;
+    out << "# lahn course\nversion 2\ntitle " << course.title << "\n";
+    if (!course.description.empty()) out << "description " << course.description << "\n";
+    out << "instrument " << (course.instrument == ExerciseInstrument::Bass ? "bass" : course.instrument == ExerciseInstrument::Piano ? "piano" : "guitar") << "\n";
+    for (const CourseUnit& unit : course.units){
+        out << "\n\nlevel " << unit.title << "\n";
+        for (int i = unit.firstLesson; i < unit.firstLesson + unit.lessonCount && i < (int)course.lessons.size(); i++){
+            out << "\nchapter " << course.lessons[(size_t)i].lesson.title << "\n";
+            out << writeLessonPages(course.lessons[(size_t)i].doc);
+        }
+    }
+    return out.str();
 }
 
 bool loadCourse(const std::string& path, Course& out, std::string& error){
@@ -219,16 +381,20 @@ int exercisePassPercent(const ExerciseFile& exercise){
 std::vector<CourseDrill> courseDrills(const Course& course, int lesson){
     std::vector<CourseDrill> drills;
     if (lesson < 0 || lesson >= (int)course.lessons.size()) return drills;
-    const CourseLesson& chapter = course.lessons[lesson];
-    for (int i = 0; i < (int)chapter.lesson.steps.size(); i++){
-        const LessonStep& step = chapter.lesson.steps[i];
-        if (step.type != LessonStepType::Exercise) continue;
+    const CourseLesson& chapter = course.lessons[(size_t)lesson];
+    int count = 0;
+    for (const BlockPlace& place : lessonBlocks(chapter.doc)){
+        const LessonBlock& block = blockAt(chapter.doc, place);
+        if (block.type != BlockType::Exercise) continue;
+        count++;
         CourseDrill drill;
         drill.lesson = lesson;
-        drill.step = i;
-        drill.id = chapter.id + "-" + std::to_string(i + 1);
-        drill.name = !step.title.empty() ? step.title : step.inlined ? "" : step.exercise;
-        drill.passPercent = step.inlined ? exercisePassPercent(step.inlineExercise) : 100;
+        drill.place = place;
+        const std::string number = blockValue(block, "id");
+        drill.id = chapter.id + "-" + (number.empty() ? std::to_string(count) : number); // (unnumbered: by its order)
+        const std::string named = blockValue(block, "exercise");
+        drill.name = !block.name.empty() ? block.name : named;
+        drill.passPercent = named.empty() ? exercisePassPercent(block.exercise) : 100;
         drills.push_back(drill);
     }
     for (size_t i = 0; i < drills.size(); i++)
