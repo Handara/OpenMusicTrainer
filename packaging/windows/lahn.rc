@@ -1,0 +1,2 @@
+// lahn.exe's icon (made by tools/make_assets.py icon)
+IDI_ICON1 ICON "lahn.ico"

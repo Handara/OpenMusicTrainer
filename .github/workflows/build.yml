@@ -1,0 +1,157 @@
+# lahn built for Windows, Linux and macOS on GitHub's machines, at every push to main, every pull request, or by hand
+# (Actions tab: Build, Run workflow). Each build is packed with its resources and a read-me, to download from the
+# run's page (Artifacts), and the tests are built and run on each system, so anything that behaves differently there
+# shows.
+#
+# A version tag (v0.1.0-prealpha.1, say: `git tag v0.1.0-prealpha.1 && git push origin v0.1.0-prealpha.1`) also makes
+# a pre-release on the repository's Releases page, with the three downloads and packaging/release-notes.md: a page
+# anyone can download from, without a GitHub account.
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+# A newer push to the same branch stops the build of the older one
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v5
+
+      # The C++ runtime linked in (MultiThreaded): lahn.exe needs only what comes with Windows, no Visual C++
+      # redistributable to install first
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+
+      - name: Build lahn
+        run: cmake --build build --config Release --target lahn -- /m
+
+      - name: Pack it
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force package/lahn | Out-Null
+          Copy-Item build/Release/lahn.exe package/lahn/
+          Copy-Item -Recurse build/Release/resources package/lahn/
+          Copy-Item packaging/windows/README.txt package/lahn/
+          Compress-Archive -Path package/lahn -DestinationPath lahn-windows.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lahn-windows
+          path: lahn-windows.zip
+          retention-days: 30
+
+      - name: Build the tests
+        run: cmake --build build --config Release --target lahn_tests -- /m
+
+      - name: Run the tests
+        run: build/Release/lahn_tests.exe
+
+  linux:
+    # The oldest Ubuntu GitHub builds on: what's built here runs on systems as old as it (glibc 2.35, 2022) and newer
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v5
+
+      # What raylib draws its window with (X11, OpenGL), and GCC 12 (22.04's own is 11). Sound needs nothing here:
+      # miniaudio finds the system's (PipeWire, PulseAudio, ALSA) when lahn starts.
+      - name: Install what it builds with
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++-12 libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev
+
+      # The C++ library linked in, so the program doesn't need the system's to be as new as GCC 12's
+      - name: Configure
+        run: >
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc-12 -DCMAKE_CXX_COMPILER=g++-12
+          "-DCMAKE_EXE_LINKER_FLAGS=-static-libstdc++ -static-libgcc"
+
+      - name: Build lahn
+        run: cmake --build build --target lahn -j 4
+
+      - name: Pack it
+        run: |
+          mkdir -p package/lahn
+          cp build/lahn package/lahn/
+          cp -R build/resources package/lahn/
+          cp packaging/linux/README.txt package/lahn/
+          chmod +x package/lahn/lahn
+          # A tar keeps the program runnable, which a zip may not
+          tar -C package -czf lahn-linux.tar.gz lahn
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lahn-linux
+          path: lahn-linux.tar.gz
+          retention-days: 30
+
+      - name: Build the tests
+        run: cmake --build build --target lahn_tests -j 4
+
+      - name: Run the tests
+        run: ./build/lahn_tests
+
+  macos:
+    # macOS 13.3 and later (decimals are written with std::to_chars); one program for Apple Silicon and Intel together
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=13.3
+
+      - name: Build lahn
+        run: cmake --build build --target lahn -j 4 -- -k # -k: every error at once, not just the first
+
+      - name: Pack it
+        run: |
+          mkdir -p package/lahn
+          cp build/lahn package/lahn/
+          cp -R build/resources package/lahn/
+          cp packaging/macos/"Start lahn.command" packaging/macos/README.txt package/lahn/
+          chmod +x package/lahn/lahn package/lahn/"Start lahn.command"
+          lipo -info package/lahn/lahn
+          # ditto keeps what makes the program and the start file runnable, which plain zip may lose
+          ditto -c -k --keepParent package/lahn lahn-macos.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lahn-macos
+          path: lahn-macos.zip
+          retention-days: 30
+
+      - name: Build the tests
+        run: cmake --build build --target lahn_tests -j 4
+
+      - name: Run the tests
+        run: ./build/lahn_tests
+
+  # A version tag, once all three are built and tested: a pre-release with the three downloads
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, linux, macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # to make the release
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Make the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "$GITHUB_REF_NAME" dist/lahn-windows.zip dist/lahn-linux.tar.gz dist/lahn-macos.zip
+          --title "lahn $GITHUB_REF_NAME" --notes-file packaging/release-notes.md --prerelease

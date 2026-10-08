@@ -948,6 +948,13 @@ int main(void){
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT, "lahn");
     SetExitKey(KEY_NULL); // Esc means "back" (handleBackKey), not "quit"
+    // Its icon, in the title bar and the taskbar (macOS gives a program's window none: it's the app's)
+    Image icon = LoadImage((app.resourcesDir + "images/lahn-icon.png").c_str());
+    if (icon.data){
+        ImageFormat(&icon, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8); // the only kind a window icon takes
+        SetWindowIcon(icon);
+        UnloadImage(icon);
+    }
     applyDisplaySettings(app.settings);
     initUi(app.resourcesDir, app.settings.darkTheme);
     if (!loadStaffFont(app.resourcesDir + "fonts/Bravura.otf")) TraceLog(LOG_WARNING, "Music font not found: sheet music uses plain shapes");

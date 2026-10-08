@@ -310,7 +310,13 @@ target_compile_definitions(lahn PRIVATE $<$<CONFIG:Release>:LAHN_PLAYER_BUILD>)
 target_link_libraries(lahn PRIVATE lahn_core raylib miniaudio imgui pl_mpeg nam ${CMAKE_DL_LIBS}) # dl: the stems add-on's runtime, loaded when it's there
 # ONNX Runtime's interface only (its headers): the library itself comes with the stems add-on (src/app/stemmodel.cpp)
 target_include_directories(lahn SYSTEM PRIVATE third_party/onnxruntime)
+if(MSVC)
+    # The build players get opens no console window beside the game (main() still starts it). The others keep theirs,
+    # for raylib's and lahn's messages.
+    target_link_options(lahn PRIVATE $<$<CONFIG:Release>:/SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup>)
+endif()
 if(WIN32)
+    target_sources(lahn PRIVATE packaging/windows/lahn.rc) # the program file's icon, in Explorer and the taskbar
     target_link_libraries(lahn PRIVATE winmm dbghelp comdlg32 asiosdk) # MIDI input (input/midi.cpp); crash reports (app/crashreport.cpp); the Open dialog (app/filedialog.cpp); ASIO
 endif()
 enable_warnings(lahn)

@@ -41,3 +41,6 @@ Desktop.ini
 
 # VS Code (optional - remove if you want to share settings with collaborators)
 .vscode/__pycache__/
+
+# Python
+__pycache__/

@@ -40,4 +40,5 @@ Not on macOS yet
 ----------------
 
 - The video and stems add-ons (they exist for Windows and Linux only for now).
+- MIDI keyboards: for now the piano is played on the computer's keys.
 - File dialogs: to bring in a song or a tab, drag the file onto lahn's window.
