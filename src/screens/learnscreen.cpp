@@ -433,7 +433,7 @@ bool learnBack(){
 
 // What a row of the Learn menu stands for
 struct LearnRow {
-    enum Kind { Heading, Lesson, Exercise, OpenExercises, OpenLessons, Course, Review, Daily } kind;
+    enum Kind { Heading, Lesson, Exercise, OpenExercises, OpenLessons, Course, Review, Daily, Refresh } kind;
     int index; // into learn.lessons or learn.exercises
 };
 
@@ -507,6 +507,37 @@ static void startDaily(){
     startWhenTuned(true, [entry](){ return createExercise(entry); });
 }
 
+// Spaced repetition (core/profile dueChapters): the chapter passed most overdue for a refresher, in a course of the
+// instrument played
+struct Refresher {
+    int course = -1, lesson = -1;
+    int daysSince = 0, reviews = 0;
+};
+static Refresher dueRefresher(){
+    for (const DueChapter& due : dueChapters(playerProfile(), today())){
+        for (int c = 0; c < (int)learn.courses.size(); c++){
+            const CourseEntry& entry = learn.courses[c];
+            if (!entry.error.empty() || !forInstrument(entry.course)) continue;
+            for (int l = 0; l < (int)entry.course.lessons.size(); l++)
+                if (entry.id + "-" + entry.course.lessons[l].id == due.id && !courseDrills(entry.course, l).empty()) return { c, l, due.daysSince, due.reviews };
+        }
+    }
+    return {};
+}
+// Its last drill (the one that mixes all of it), from its chapter's page
+static void startRefresher(const Refresher& due){
+    learn.openCourse = due.course;
+    learn.openLevel = -1;
+    const int c = due.course, lesson = due.lesson;
+    startWhenTuned(true, [c, lesson](){
+        const CourseEntry& entry = learn.courses[c];
+        auto chapter = std::make_unique<CourseChapter>(entry.course, lesson, [c](int l){ return courseChapterDrills(c, l); },
+                                                      createExercise, progressPath(entry.id), &learn.chapterLesson);
+        chapter->playDrill((int)courseDrills(entry.course, lesson).size() - 1);
+        return std::unique_ptr<Exercise>(std::move(chapter));
+    });
+}
+
 // A run of them, read on the staff: each asked three times or so, a slip showing where it is
 static void startReview(){
     const std::vector<NoteTally> notes = reviewNotes();
@@ -530,7 +561,16 @@ static void startReview(){
 // The selected lesson or exercise, on a card on the right: its title, what it's about, who made it, how far you are
 static void drawAbout(const LearnRow& row, float s){
     std::string title, about, author, progress;
-    if (row.kind == LearnRow::Daily){
+    if (row.kind == LearnRow::Refresh){
+        const Refresher due = dueRefresher();
+        if (due.course < 0) return;
+        const CourseLesson& chapter = learn.courses[due.course].course.lessons[due.lesson];
+        title = "Refresh: " + chapter.lesson.title;
+        about = "What isn't played for a while fades. A chapter you passed comes back now and then, at longer and longer "
+                "intervals (3 days, a week, two weeks, a month...), for one quick drill: then it stays.";
+        progress = TextFormat("%s  ·  last played %d days ago  ·  reviewed %d %s", learn.courses[due.course].course.title.c_str(), due.daysSince,
+                              due.reviews, due.reviews == 1 ? "time" : "times");
+    } else if (row.kind == LearnRow::Daily){
         title = "Today's challenge";
         about = "A new drill every day, from the notes you know on the " + std::string(learnInstrumentName())
               + " and a couple you've been missing: forty notes to a beat, with the band. Pass it clean at 100 bpm. "
@@ -875,6 +915,13 @@ static void exerciseMenu(){
                 row.detail = dailyDone() ? "passed today" : "a new one every day";
                 add(row, { LearnRow::Daily, -1 });
             }
+            const Refresher due = dueRefresher();
+            if (due.course >= 0){
+                MenuRow row;
+                row.label = "Refresh a chapter";
+                row.detail = learn.courses[due.course].course.lessons[due.lesson].lesson.title;
+                add(row, { LearnRow::Refresh, -1 });
+            }
             const std::vector<NoteTally> weak = reviewNotes();
             if (!weak.empty()){
                 MenuRow row;
@@ -954,6 +1001,9 @@ static void exerciseMenu(){
         startReview();
     } else if (target.kind == LearnRow::Daily){
         startDaily();
+    } else if (target.kind == LearnRow::Refresh){
+        const Refresher due = dueRefresher();
+        if (due.course >= 0) startRefresher(due);
     } else if (target.kind == LearnRow::Course){
         learn.openCourse = target.index;
         learn.openLevel = -1;

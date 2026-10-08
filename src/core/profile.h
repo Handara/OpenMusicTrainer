@@ -62,6 +62,14 @@ struct Unlock {
     std::string date;
 };
 
+// A chapter passed, as its practice goes on after: the day it was passed, the last day it was played, the days it
+// was played since (each a review)
+struct ChapterPractice {
+    int passedDay = 0;
+    int lastDay = 0;
+    std::set<int> reviewDays;
+};
+
 struct PlayerProfile {
     long long xp = 0;
     LevelInfo level;
@@ -81,6 +89,7 @@ struct PlayerProfile {
     std::map<int, NoteTally> recentNotes; //   the same, the last 14 days only
     std::map<std::string, std::map<int, NoteTally>> recentByInstrument; //   and by instrument ("guitar", "bass", "piano")
     std::vector<Unlock> unlocked;        // in the order earned
+    std::map<std::string, ChapterPractice> chapters; // the chapters passed, by id (the journal's)
     bool isUnlocked(int achievement) const;
 };
 
@@ -100,6 +109,15 @@ struct ProfileChange {
     bool freezeEarned = false; // just now
 };
 ProfileChange profileChange(const PlayerProfile& before, const PlayerProfile& after);
+
+// Spaced repetition: a chapter passed comes back for a refresher a while after it was last played, longer each time
+// it's been reviewed (3 days, then 7, 14, 30, 60, 120): what's due today, the most overdue first
+struct DueChapter {
+    std::string id;
+    int daysSince = 0; // since it was last played
+    int reviews = 0;
+};
+std::vector<DueChapter> dueChapters(const PlayerProfile& profile, int today);
 
 // The notes asked most often wrong lately (at least `minAsked` times asked), weakest first; on one instrument, or on
 // any ("")

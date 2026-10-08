@@ -155,3 +155,22 @@ TEST_CASE("the weakest notes: the ones most often wrong lately"){
     CHECK(weakestNotes(buildProfile({ a }, 10, DAY), 2, 4, "guitar").size() == 2); // played on the guitar
     CHECK(weakestNotes(buildProfile({ a }, 10, DAY), 2, 4, "bass").empty());
 }
+
+TEST_CASE("spaced repetition: a chapter passed comes back after 3 days, then after longer each time it's reviewed"){
+    Activity passed;
+    passed.kind = ActivityKind::Chapter;
+    passed.date = dateOf(DAY);
+    passed.id = "course-reading-the-high-e-string-e";
+    std::vector<Activity> journal = { passed };
+    CHECK(dueChapters(buildProfile(journal, 10, DAY + 2), DAY + 2).empty());
+    std::vector<DueChapter> due = dueChapters(buildProfile(journal, 10, DAY + 3), DAY + 3);
+    REQUIRE(due.size() == 1);
+    CHECK(due[0].id == passed.id);
+    CHECK(due[0].daysSince == 3);
+    // Reviewed (one of its drills played) on the fourth day: next due a week after that
+    Activity review = drillPass(DAY + 4, 38, 40, true, true);
+    review.id = passed.id + "-3";
+    journal.push_back(review);
+    CHECK(dueChapters(buildProfile(journal, 10, DAY + 10), DAY + 10).empty());
+    CHECK(dueChapters(buildProfile(journal, 10, DAY + 11), DAY + 11).size() == 1);
+}

@@ -195,6 +195,19 @@ PlayerProfile buildProfile(const std::vector<Activity>& journal, int goalMinutes
         }
         if (a.kind == ActivityKind::Game) m[(int)Metric::BestGameRounds] = std::max(m[(int)Metric::BestGameRounds], (long long)a.rounds);
         m[(int)Metric::BestCombo] = std::max(m[(int)Metric::BestCombo], (long long)a.combo);
+        // A chapter passed, and its drills played after (their ids its own and the step: "<chapter>-3"): its reviews
+        if (a.kind == ActivityKind::Chapter && !p.chapters.count(a.id)){
+            ChapterPractice& practice = p.chapters[a.id];
+            practice.passedDay = practice.lastDay = day;
+        }
+        if (a.kind == ActivityKind::Drill || a.kind == ActivityKind::Notes){
+            const size_t dash = a.id.rfind('-');
+            auto chapter = dash == std::string::npos ? p.chapters.end() : p.chapters.find(a.id.substr(0, dash));
+            if (chapter != p.chapters.end() && day > chapter->second.passedDay){
+                chapter->second.reviewDays.insert(day);
+                chapter->second.lastDay = std::max(chapter->second.lastDay, day);
+            }
+        }
         if (a.kind == ActivityKind::Chapter){
             m[(int)Metric::ChaptersPassed]++;
             if (a.unitDone) m[(int)Metric::LevelsDone]++;
@@ -274,6 +287,18 @@ ProfileChange profileChange(const PlayerProfile& before, const PlayerProfile& af
     change.freezeEarned = after.freezesEarned > before.freezesEarned;
     change.streak = after.streak;
     return change;
+}
+
+std::vector<DueChapter> dueChapters(const PlayerProfile& profile, int today){
+    static const int INTERVALS[] = { 3, 7, 14, 30, 60, 120 }; // days, by the reviews done
+    std::vector<DueChapter> due;
+    for (const auto& [id, practice] : profile.chapters){
+        const int reviews = (int)practice.reviewDays.size();
+        const int interval = INTERVALS[std::min(reviews, 5)];
+        if (today - practice.lastDay >= interval) due.push_back({ id, today - practice.lastDay, reviews });
+    }
+    std::sort(due.begin(), due.end(), [](const DueChapter& a, const DueChapter& b){ return a.daysSince > b.daysSince; });
+    return due;
 }
 
 std::vector<NoteTally> weakestNotes(const PlayerProfile& profile, int count, int minAsked, const std::string& instrument){

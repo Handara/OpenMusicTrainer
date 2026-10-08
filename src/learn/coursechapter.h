@@ -25,6 +25,7 @@ public:
     bool wantsToLeave() const override { return false; } // Esc (learnBack) ends it
     bool back() override;                                // a drill running: back to the chapter
     bool isMenu() const override { return !running || running->isMenu(); } // its page, or a drill's own menu
+    void playDrill(int index) { startDrill(index); } // straight into one of its drills (a refresher: its last)
 
 private:
     void load(int lesson);      // a chapter: its drills, the one to go on with
