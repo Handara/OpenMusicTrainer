@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -347,6 +348,60 @@ bool loadCourse(const std::string& path, Course& out, std::string& error){
     std::stringstream text;
     text << file.rdbuf();
     return parseCourse(text.str(), path, out, error);
+}
+
+// Its units' first chapters and counts worked out again from the chapters' units (in order)
+static void recountUnits(Course& course){
+    for (CourseUnit& unit : course.units){
+        unit.firstLesson = (int)course.lessons.size();
+        unit.lessonCount = 0;
+    }
+    for (int i = 0; i < (int)course.lessons.size(); i++){
+        CourseUnit& unit = course.units[(size_t)course.lessons[(size_t)i].unit];
+        unit.firstLesson = std::min(unit.firstLesson, i);
+        unit.lessonCount++;
+    }
+}
+
+int insertChapter(Course& course, int unit, int at, CourseLesson chapter){
+    if (course.units.empty()) return -1;
+    unit = std::clamp(unit, 0, (int)course.units.size() - 1);
+    const CourseUnit& level = course.units[(size_t)unit];
+    const int index = level.lessonCount == 0 ? (int)course.lessons.size() : level.firstLesson + std::clamp(at, 0, level.lessonCount);
+    chapter.unit = unit;
+    // Its id its own (the progress is kept by it)
+    const std::string base = courseSlug(chapter.lesson.title);
+    chapter.id = base;
+    for (int n = 2; std::any_of(course.lessons.begin(), course.lessons.end(), [&](const CourseLesson& other){ return other.id == chapter.id; }); n++){
+        chapter.id = base + "-" + std::to_string(n);
+        chapter.lesson.title = chapter.doc.title + " " + std::to_string(n);
+    }
+    course.lessons.insert(course.lessons.begin() + index, chapter);
+    recountUnits(course);
+    return index;
+}
+
+void removeChapter(Course& course, int lesson){
+    if (lesson < 0 || lesson >= (int)course.lessons.size()) return;
+    const int unit = course.lessons[(size_t)lesson].unit;
+    course.lessons.erase(course.lessons.begin() + lesson);
+    recountUnits(course);
+    if (course.units[(size_t)unit].lessonCount == 0){ // a level left empty goes
+        course.units.erase(course.units.begin() + unit);
+        for (CourseLesson& chapter : course.lessons) if (chapter.unit > unit) chapter.unit--;
+        recountUnits(course);
+    }
+}
+
+int addLevel(Course& course, const std::string& title, CourseLesson first){
+    course.units.push_back({ title, (int)course.lessons.size(), 0 });
+    return insertChapter(course, (int)course.units.size() - 1, 0, std::move(first));
+}
+
+int nextDrillId(const LessonDoc& chapter){
+    int highest = 0;
+    for (const BlockPlace& place : lessonBlocks(chapter)) highest = std::max(highest, std::atoi(blockValue(blockAt(chapter, place), "id").c_str()));
+    return highest + 1;
 }
 
 std::vector<CourseEntry> scanCourses(const std::string& dir){

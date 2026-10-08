@@ -91,6 +91,14 @@ bool parseCourse(const std::string& text, const std::string& path, Course& out, 
 LessonDoc chapterFromSteps(const Lesson& lesson, ExerciseInstrument instrument);
 // The course as version 2 text
 std::string writeCourse(const Course& course);
+
+// The lesson maker's changes to a course. A chapter put in a level, before the level's chapter `at` (its count: at
+// its end), its id from its title (made its own); taken out (a level left with none goes too); a level added at the
+// end with a first chapter; the number a new drill in a chapter takes (one more than its highest)
+int insertChapter(Course& course, int unit, int at, CourseLesson chapter); // returns its index in the course
+void removeChapter(Course& course, int lesson);
+int addLevel(Course& course, const std::string& title, CourseLesson first); // returns its first chapter's index
+int nextDrillId(const LessonDoc& chapter);
 bool loadCourse(const std::string& path, Course& out, std::string& error);
 
 struct CourseEntry {

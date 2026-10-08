@@ -184,6 +184,45 @@ TEST_CASE("courses, version 2: what's wrong is told by its line"){
     CHECK_FALSE(parseCourse("version 3\n", "c", course, error));
 }
 
+TEST_CASE("courses made in the maker: chapters put in a level and taken out, levels added, drills numbered"){
+    Course course;
+    std::string error;
+    REQUIRE(parseCourse("version 2\ntitle T\nlevel One\nchapter A\npage\nblock text\ntext a\nchapter B\npage\nblock text\ntext b\n"
+                        "level Two\nchapter C\npage\nblock exercise\nid 4\ntype notes\nnotes E4\n", "c", course, error));
+    auto chapter = [](const std::string& title){
+        CourseLesson made;
+        made.lesson.title = title;
+        made.doc.title = title;
+        made.doc.pages = { LessonPage{} };
+        return made;
+    };
+    // In level one, between A and B
+    CHECK(insertChapter(course, 0, 1, chapter("New")) == 1);
+    CHECK(course.lessons[1].id == "new");
+    CHECK(course.units[0].lessonCount == 3);
+    CHECK(course.units[1].firstLesson == 3);
+    // At level two's end; a title already there gets its own
+    CHECK(insertChapter(course, 1, 9, chapter("New")) == 4);
+    CHECK(course.lessons[4].id == "new-2");
+    CHECK(course.lessons[4].unit == 1);
+    // A new level, with its first chapter
+    CHECK(addLevel(course, "Three", chapter("D")) == 5);
+    CHECK(course.units.size() == 3);
+    CHECK(course.units[2].firstLesson == 5);
+    // Taken out: a level left with none goes
+    removeChapter(course, 5);
+    CHECK(course.units.size() == 2);
+    removeChapter(course, 0);
+    CHECK(course.units[0].lessonCount == 2);
+    CHECK(course.units[1].firstLesson == 2);
+    CHECK(nextDrillId(course.lessons[2].doc) == 5);
+    // Written and read back as it is
+    Course again;
+    REQUIRE_MESSAGE(parseCourse(writeCourse(course), "again", again, error), error);
+    CHECK(again.lessons.size() == 4);
+    CHECK(again.units[1].lessonCount == 2);
+}
+
 TEST_CASE("courses: drills scored by their best run; a chapter passed with all of them, then the next opens"){
     Course course;
     std::string error;

@@ -312,6 +312,12 @@ static void refreshExercises(){
 
     // Courses, and which of their lessons are done (a lesson's own progress, kept by the course's id and its title)
     learn.courses = scanCourses((std::filesystem::path(learn.setup.builtInExercises).parent_path() / "courses").string());
+    // The player's own: one with a built-in one's file name stands in for it (its progress the same)
+    for (const CourseEntry& own : scanCourses(learn.setup.userCourses)){
+        auto same = std::find_if(learn.courses.begin(), learn.courses.end(), [&](const CourseEntry& entry){ return entry.id == own.id; });
+        if (same != learn.courses.end()) *same = own;
+        else learn.courses.push_back(own);
+    }
     learn.courseScores.clear();
     for (CourseEntry& entry : learn.courses){
         learn.courseScores.push_back(loadCourseScores(progressPath(entry.id)));

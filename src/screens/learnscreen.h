@@ -21,6 +21,8 @@ struct LearnSetup {
     InputRole instrument = InputRole::Guitar; // what's played: only its courses and exercises are listed
     bool piano = false;                       //   a piano instead
     std::vector<std::string> songFolders;     // the game's songs (built in, the player's): lessons play them
+    std::string userCourses;                  // the player's own courses (made, or a built-in one changed: it stands
+                                              // in for the built-in one of its name)
 };
 
 void openLearnScreen(const LearnSetup& setup); // scans both exercise folders

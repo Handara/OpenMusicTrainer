@@ -1,6 +1,7 @@
 #include "screens/lessoneditor.h"
 
 #include "core/chart.h"
+#include "core/course.h"
 #include "core/files.h"
 #include "core/lessondoc.h"
 #include "core/music.h"
@@ -77,6 +78,7 @@ static struct {
     std::vector<ExerciseEntry> exercises;  // for exercise blocks to name
     std::vector<SongEntry> songs;          // the game's songs, for song blocks to play
     std::string newLessonName;
+    int newKind = 0;                       // what's made new: a lesson (0) or a course (1)
     int newTemplate = 0;                   // the new lesson's template (lessonTemplates), and its instrument
     int newInstrument = 1;                 //   (as ExerciseInstrument: guitar)
     bool focusName = false;                // the keyboard in the new lesson's name field, next frame
@@ -112,6 +114,14 @@ static struct {
     bool recordPiano = false;              // from the keys (MIDI or the computer keyboard), else the input
     int lastHeard = -1;
     std::string recordError;
+    // A course being made (courseMode): all of it, its file, and the chapter shown (its pages are `doc` meanwhile)
+    bool courseMode = false;
+    Course course;
+    std::string coursePath;
+    bool courseBuiltIn = false;            // the game's: saving makes the player's own copy, which stands in for it
+    int chapter = 0;
+    std::vector<CourseEntry> courses;      // the list to pick from
+
     bool active = false;
 } ed;
 
@@ -127,6 +137,13 @@ static void refreshLists(){
     ed.lessons.insert(ed.lessons.end(), userLessons.begin(), userLessons.end());
     checkLessonExercises(ed.lessons, ed.exercises);
     checkLessonSongs(ed.lessons, ed.setup.songFolders);
+    // Courses: the game's, then the player's (one of a built-in one's name stands in for it)
+    ed.courses = scanCourses(ed.setup.builtInCourses);
+    for (const CourseEntry& own : scanCourses(ed.setup.userCourses)){
+        auto same = std::find_if(ed.courses.begin(), ed.courses.end(), [&](const CourseEntry& entry){ return entry.id == own.id; });
+        if (same != ed.courses.end()) *same = own;
+        else ed.courses.push_back(own);
+    }
     ed.songs.clear();
     for (size_t i = 0; i < ed.setup.songFolders.size(); i++){
         std::vector<SongEntry> found = scanSongs(ed.setup.songFolders[i], i == 0);
@@ -186,6 +203,7 @@ static std::string findProblem(){
             if (!name.empty() && !findExercise(ed.exercises, ed.builtIn, name)) return where + "there's no exercise called " + name;
         }
     }
+    if (ed.courseMode) return ed.course.title.empty() ? "The course needs a title" : "";
     std::string error;
     if (!checkLessonFiles(ed.doc, ed.folder, error)) return error;
     if (ed.doc.title.empty()) return "The lesson needs a title";
@@ -283,6 +301,7 @@ static void addBlock(BlockType type, BlockPlace at){
     if (type == BlockType::Exercise){ // something to start from: a few notes to play
         std::string error;
         setBlockExercise(block, exerciseStarter(exerciseForms().front()), error);
+        if (ed.courseMode) setBlockValue(block, "id", std::to_string(nextDrillId(ed.doc))); // the course keeps its progress by it
     }
     if (ed.doc.pages[(size_t)ed.page].sections.empty()) ed.doc.pages[(size_t)ed.page].sections.push_back(makeSection(SectionLayout::Single));
     if (!insertBlock(ed.doc, at, block)){
@@ -345,7 +364,8 @@ static void duplicateChosen(){
     if (ed.picked == Picked::Block){
         const LessonBlock* block = blockPointer(ed.doc, ed.block);
         if (!block) return;
-        const LessonBlock copy = *block;
+        LessonBlock copy = *block;
+        if (ed.courseMode && copy.type == BlockType::Exercise) setBlockValue(copy, "id", std::to_string(nextDrillId(ed.doc))); // a drill of its own
         beforeChange();
         BlockPlace at = ed.block;
         at.block++;
@@ -425,7 +445,143 @@ static void openLesson(const std::string& folder, bool builtIn){
     ed.problem = findProblem();
 }
 
+// A course: all its chapters kept; the first shown (its pages edited as a lesson's)
+static void openCourse(const std::string& path, bool builtIn){
+    Course course;
+    std::string error;
+    if (!loadCourse(path, course, error)){
+        ed.listError = error;
+        return;
+    }
+    ed.courseMode = true;
+    ed.course = course;
+    ed.coursePath = path;
+    ed.courseBuiltIn = builtIn;
+    ed.chapter = 0;
+    ed.doc = course.lessons[0].doc;
+    ed.folder = "";       // (a course holds no files: pictures and sounds are a lesson's)
+    ed.builtIn = true;    // its drills name the game's exercises
+    ed.dirty = false;
+    ed.undos.clear();
+    ed.redos.clear();
+    ed.status = builtIn ? "Built in: saving makes your own copy, which stands in for it in Learn (its progress kept)" : "";
+    ed.editing = true;
+    ed.page = 0;
+    ed.scroll = 0.0f;
+    ed.folderFiles.clear();
+    choose(Picked::Page);
+    ed.problem = findProblem();
+}
+
+// The chapter shown kept in the course, another shown (its own undo from here)
+static void showChapter(int index){
+    if (!ed.courseMode || index < 0 || index >= (int)ed.course.lessons.size()) return;
+    ed.course.lessons[(size_t)ed.chapter].doc = ed.doc;
+    ed.chapter = index;
+    ed.doc = ed.course.lessons[(size_t)index].doc;
+    ed.undos.clear();
+    ed.redos.clear();
+    releasePageMedia(ed.media);
+    ed.page = 0;
+    ed.scroll = 0.0f;
+    choose(Picked::Page);
+    ed.problem = findProblem();
+}
+
+// A new chapter to start from: a few words and a drill, numbered
+static CourseLesson newChapter(const std::string& title){
+    CourseLesson chapter;
+    chapter.lesson.title = title;
+    chapter.doc.title = title;
+    chapter.doc.instrument = ed.course.instrument;
+    LessonPage page = makePage("drill", ed.course.instrument);
+    page.title.clear();
+    for (LessonSection& section : page.sections)
+        for (std::vector<LessonBlock>& column : section.columns)
+            for (LessonBlock& block : column) if (block.type == BlockType::Exercise) setBlockValue(block, "id", "1");
+    chapter.doc.pages = { page };
+    return chapter;
+}
+
+static void addChapter(bool newLevel){
+    ed.course.lessons[(size_t)ed.chapter].doc = ed.doc;
+    const int unit = ed.course.lessons[(size_t)ed.chapter].unit;
+    const int index = newLevel ? addLevel(ed.course, "A new level", newChapter("A new chapter"))
+                               : insertChapter(ed.course, unit, ed.chapter - ed.course.units[(size_t)unit].firstLesson + 1, newChapter("A new chapter"));
+    if (index >= 0){ // the new one shown
+        ed.chapter = index;
+        ed.doc = ed.course.lessons[(size_t)index].doc;
+    }
+    ed.undos.clear();
+    ed.redos.clear();
+    ed.page = 0;
+    choose(Picked::Lesson); // its title to give it, at the right
+    changed();
+}
+
+static void removeShownChapter(){
+    if (ed.course.lessons.size() <= 1) return;
+    removeChapter(ed.course, ed.chapter);
+    ed.chapter = std::min(ed.chapter, (int)ed.course.lessons.size() - 1);
+    ed.doc = ed.course.lessons[(size_t)ed.chapter].doc;
+    ed.undos.clear();
+    ed.redos.clear();
+    ed.page = 0;
+    choose(Picked::Page);
+    changed();
+}
+
+static void createCourse(){
+    const std::string name = safeFolderName(ed.newLessonName);
+    if (name.empty()){
+        ed.listError = "Give the course a name (letters, digits, spaces, - and _)";
+        return;
+    }
+    const fs::path path = fs::path(ed.setup.userCourses) / (name + ".course");
+    if (fs::exists(path)){
+        ed.listError = "There's already a course called '" + name + "'";
+        return;
+    }
+    ed.course = Course{};
+    ed.course.title = ed.newLessonName;
+    ed.course.instrument = ed.newInstrument == 0 ? ExerciseInstrument::Guitar : (ExerciseInstrument)ed.newInstrument;
+    addLevel(ed.course, "The first level", newChapter("The first chapter"));
+    std::error_code ec;
+    fs::create_directories(path.parent_path(), ec);
+    std::string error;
+    if (!writeFileAtomically(path.string(), writeCourse(ed.course), error)){
+        ed.listError = error;
+        return;
+    }
+    ed.newLessonName.clear();
+    ed.listError.clear();
+    refreshLists();
+    openCourse(path.string(), false);
+}
+
+static bool saveCourse(){
+    ed.course.lessons[(size_t)ed.chapter].doc = ed.doc;
+    const fs::path target = ed.courseBuiltIn ? fs::path(ed.setup.userCourses) / fs::path(ed.coursePath).filename() : fs::path(ed.coursePath);
+    std::error_code ec;
+    fs::create_directories(target.parent_path(), ec);
+    std::string error;
+    if (!writeFileAtomically(target.string(), writeCourse(ed.course), error)){
+        ed.status = error;
+        return false;
+    }
+    ed.coursePath = target.string();
+    ed.courseBuiltIn = false;
+    ed.dirty = false;
+    ed.status = "Saved to your courses";
+    ed.problem = findProblem();
+    return true;
+}
+
 static void createLesson(){
+    if (ed.newKind == 1){
+        createCourse();
+        return;
+    }
     const std::string folderName = safeFolderName(ed.newLessonName);
     if (folderName.empty()){
         ed.listError = "Give the lesson a name (letters, digits, spaces, - and _)";
@@ -450,6 +606,7 @@ static void createLesson(){
 }
 
 static bool saveEditedLesson(){
+    if (ed.courseMode) return saveCourse();
     if (ed.builtIn){
         // Built-in lessons ship with the game and are read-only, so the first save copies the folder, media and all
         const fs::path source = ed.folder;
@@ -596,7 +753,28 @@ static void recordButton(const std::string& key){
 // --- The outline: pages, and what to add --------------------------------------------------------------------------------
 
 static void outlinePanel(float s){
-    panelHeading("PAGES");
+    if (ed.courseMode){
+        // The course: its levels, each its chapters; one chosen shows its pages below
+        panelHeading("LEVELS AND CHAPTERS");
+        for (int u = 0; u < (int)ed.course.units.size(); u++){
+            const CourseUnit& unit = ed.course.units[(size_t)u];
+            ImGui::PushStyleColor(ImGuiCol_Text, uiColorVec(UiColor::Dim));
+            ImGui::PushFont(uiFonts().mono, 11 * s);
+            ImGui::TextWrapped("LEVEL %d  ·  %s", u + 1, unit.title.c_str());
+            ImGui::PopFont();
+            ImGui::PopStyleColor();
+            for (int i = unit.firstLesson; i < unit.firstLesson + unit.lessonCount; i++){
+                const std::string label = std::to_string(i - unit.firstLesson + 1) + "   " + ed.course.lessons[(size_t)i].lesson.title + "##chapter" + std::to_string(i);
+                if (ImGui::Selectable(label.c_str(), i == ed.chapter) && i != ed.chapter) showChapter(i);
+            }
+        }
+        const float half = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) / 2;
+        if (ImGui::Button("+ Chapter", ImVec2(half, 0))) addChapter(false);
+        ImGui::SameLine();
+        if (ImGui::Button("+ Level", ImVec2(half, 0))) addChapter(true);
+        if (ImGui::Button("This chapter's, the course's details", ImVec2(-1, 0))) choose(Picked::Lesson);
+    }
+    panelHeading(ed.courseMode ? "THE CHAPTER'S PAGES" : "PAGES");
     for (int i = 0; i < (int)ed.doc.pages.size(); i++){
         const std::string& title = ed.doc.pages[(size_t)i].title;
         const std::string label = std::to_string(i + 1) + "   " + (title.empty() ? "(no title)" : title)
@@ -624,8 +802,11 @@ static void outlinePanel(float s){
         ImGui::TextUnformatted(group.title);
         ImGui::PopFont();
         ImGui::PopStyleColor();
+        int shown = 0;
         for (size_t i = 0; i < group.types.size(); i++){
-            if (i % 2 == 1) ImGui::SameLine();
+            // (a course's drills are its exercises: a song or a practice there isn't one)
+            if (ed.courseMode && (group.types[i] == BlockType::Play || group.types[i] == BlockType::Practice)) continue;
+            if (shown++ % 2 == 1) ImGui::SameLine();
             const BlockInfo& info = blockInfo(group.types[i]);
             if (ImGui::Button(info.name, ImVec2(half, 0)) && ed.drag.kind != Drag::Adding) addBlock(info.type, placeForNew());
             if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left, DRAG_START * s) && ed.drag.kind == Drag::None){
@@ -932,6 +1113,47 @@ static void blockField(LessonBlock& block, const BlockField& field){
 
 static void inspectorPanel(float s){
     LessonPage* page = ed.doc.pages.empty() ? nullptr : &ed.doc.pages[(size_t)ed.page];
+    if (ed.courseMode && (ed.picked == Picked::Lesson || !page)){
+        auto label = [&](const char* text){
+            ImGui::PushFont(uiFonts().bold, 15 * s);
+            ImGui::TextUnformatted(text);
+            ImGui::PopFont();
+        };
+        CourseLesson& chapter = ed.course.lessons[(size_t)ed.chapter];
+        panelHeading("THIS CHAPTER");
+        label("Title");
+        if (undoableInput("##chaptertitle", &chapter.lesson.title)){
+            ed.doc.title = chapter.lesson.title;
+            changed();
+        }
+        dimText("Its progress is kept by its title: a new one starts it over.");
+        ImGui::BeginDisabled(ed.course.lessons.size() <= 1);
+        if (ImGui::Button("Delete this chapter")) removeShownChapter();
+        ImGui::EndDisabled();
+        panelHeading("ITS LEVEL");
+        label("Title");
+        if (undoableInput("##leveltitle", &ed.course.units[(size_t)chapter.unit].title)) changed();
+        panelHeading("THE COURSE");
+        label("Title");
+        if (undoableInput("##coursetitle", &ed.course.title)) changed();
+        label("What it's about");
+        if (undoableInput("##coursedescription", &ed.course.description, true, 70 * s)){
+            std::replace(ed.course.description.begin(), ed.course.description.end(), '\n', ' ');
+            changed();
+        }
+        label("Instrument");
+        const char* instruments[] = { "Guitar", "Bass", "Piano" };
+        int instrument = std::max(0, (int)ed.course.instrument - 1);
+        ImGui::SetNextItemWidth(-1);
+        if (ImGui::Combo("##courseinstrument", &instrument, instruments, 3)){
+            ed.course.instrument = (ExerciseInstrument)(instrument + 1);
+            for (CourseLesson& each : ed.course.lessons) each.doc.instrument = ed.course.instrument;
+            ed.doc.instrument = ed.course.instrument;
+            changed();
+        }
+        dimText("Learn lists it for this instrument; its diagrams are this instrument's.");
+        return;
+    }
     if (ed.picked == Picked::Lesson || !page){
         panelHeading("THE LESSON");
         ImGui::PushFont(uiFonts().bold, 15 * s);
@@ -1001,7 +1223,7 @@ static void inspectorPanel(float s){
         if (ImGui::Button("Delete")) removeChosen();
         ImGui::EndDisabled();
         ImGui::Dummy(ImVec2(0, 10 * s));
-        if (ImGui::Button("The lesson's details", ImVec2(-1, 0))) choose(Picked::Lesson);
+        if (ImGui::Button(ed.courseMode ? "The chapter's, the course's details" : "The lesson's details", ImVec2(-1, 0))) choose(Picked::Lesson);
         return;
     }
     if (ed.picked == Picked::Section){
@@ -1208,6 +1430,10 @@ static void takeDroppedFiles(){
     FilePathList dropped = LoadDroppedFiles();
     std::vector<std::string> paths(dropped.paths, dropped.paths + dropped.count);
     UnloadDroppedFiles(dropped);
+    if (ed.courseMode){
+        ed.status = "A course holds no files: pictures, sounds and videos are a lesson's";
+        return;
+    }
     if (ed.builtIn){
         ed.status = "Built in: save first, to have your own copy to add files to";
         return;
@@ -1262,13 +1488,15 @@ static void lessonCard(bool naming, const LessonEntry* entry, float s){
     const float width = ImGui::GetWindowWidth(), height = ImGui::GetWindowHeight();
     const ImVec2 card(width * 0.58f, height * 0.25f);
     const float cardWidth = width * 0.35f, pad = 26 * s, inner = cardWidth - 2 * pad;
-    const std::string title = naming ? "New lesson" : entry->lesson.title;
+    const std::string title = naming ? (ed.newKind == 1 ? "New course" : "New lesson") : entry->lesson.title;
     const std::string detail = naming ? "" : TextFormat("%d %s", (int)entry->doc.pages.size(), entry->doc.pages.size() == 1 ? "page" : "pages");
-    const std::string hint = naming ? lessonTemplates()[(size_t)ed.newTemplate].description : (entry->builtIn ? "Built in: saving makes your own copy" : "Yours");
+    const std::string hint = naming ? (ed.newKind == 1 ? "A level with a chapter to start from: add levels, chapters, pages and drills as you go"
+                                                       : lessonTemplates()[(size_t)ed.newTemplate].description)
+                                    : (entry->builtIn ? "Built in: saving makes your own copy" : "Yours");
     const std::string& error = naming ? ed.listError : entry->error;
     const float titleHeight = fonts.bold->CalcTextSizeA(24 * s, FLT_MAX, inner, title.c_str()).y;
     const float errorHeight = error.empty() ? 0.0f : fonts.text->CalcTextSizeA(15 * s, FLT_MAX, inner, error.c_str()).y + 12 * s;
-    const float fieldHeight = naming ? 3 * (ImGui::GetFrameHeight() + 10 * s) + 4 * s : 0.0f;
+    const float fieldHeight = naming ? 4 * (ImGui::GetFrameHeight() + 10 * s) + 4 * s : 0.0f;
     const float cardHeight = pad * 2 + titleHeight + 12 * s + fieldHeight + (naming ? ImGui::GetFrameHeight() + 10 * s : 0.0f) + (detail.empty() ? 0 : 18 * s) + 10 * s + 16 * s + errorHeight;
     draw->AddRectFilled(ImVec2(card.x, card.y + 3 * s), ImVec2(card.x + cardWidth, card.y + cardHeight + 3 * s), uiColor(UiColor::Ink, 0.04f), 10 * s);
     draw->AddRectFilled(card, ImVec2(card.x + cardWidth, card.y + cardHeight), uiColor(UiColor::Card), 10 * s);
@@ -1283,17 +1511,24 @@ static void lessonCard(bool naming, const LessonEntry* entry, float s){
         ed.focusName = false;
         if (ImGui::InputTextWithHint("##name", "Its name", &ed.newLessonName, ImGuiInputTextFlags_EnterReturnsTrue)) createLesson();
         if (ImGui::IsItemEdited()) ed.listError.clear(); // the complaint was about the old name
-        // What it starts from, and what it's played on
+        // A lesson or a course; what it starts from, and what it's played on
         ImGui::SetCursorScreenPos(ImVec2(x, y + ImGui::GetFrameHeight() + 10 * s));
         ImGui::SetNextItemWidth(inner);
-        if (ImGui::BeginCombo("##template", lessonTemplates()[(size_t)ed.newTemplate].name)){
+        const char* kinds[] = { "A lesson", "A course: levels of chapters" };
+        ImGui::Combo("##kind", &ed.newKind, kinds, 2);
+        ImGui::SetCursorScreenPos(ImVec2(x, y + 2 * (ImGui::GetFrameHeight() + 10 * s)));
+        ImGui::SetNextItemWidth(inner);
+        ImGui::BeginDisabled(ed.newKind == 1);
+        const bool templates = ImGui::BeginCombo("##template", ed.newKind == 1 ? "A first chapter" : lessonTemplates()[(size_t)ed.newTemplate].name);
+        ImGui::EndDisabled();
+        if (templates){
             for (int i = 0; i < (int)lessonTemplates().size(); i++){
                 if (ImGui::Selectable(lessonTemplates()[(size_t)i].name, i == ed.newTemplate)) ed.newTemplate = i;
                 if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", lessonTemplates()[(size_t)i].description);
             }
             ImGui::EndCombo();
         }
-        ImGui::SetCursorScreenPos(ImVec2(x, y + 2 * (ImGui::GetFrameHeight() + 10 * s)));
+        ImGui::SetCursorScreenPos(ImVec2(x, y + 3 * (ImGui::GetFrameHeight() + 10 * s)));
         ImGui::SetNextItemWidth(inner);
         const char* instruments[] = { "Any instrument", "Guitar", "Bass", "Piano" };
         ImGui::Combo("##instrument", &ed.newInstrument, instruments, 4);
@@ -1327,15 +1562,28 @@ static LessonEditorChoice lessonList(){
         row.note = entry.error;
         rows.push_back(row);
     }
+    const int firstCourse = (int)rows.size();
+    for (const CourseEntry& entry : ed.courses){
+        MenuRow row;
+        row.label = entry.course.title;
+        const char* instrument = entry.course.instrument == ExerciseInstrument::Bass ? "bass" : entry.course.instrument == ExerciseInstrument::Piano ? "piano" : "guitar";
+        row.detail = std::string("course · ") + instrument + (entry.path.rfind(ed.setup.builtInCourses, 0) == 0 ? " · built in" : " · yours");
+        row.note = entry.error;
+        rows.push_back(row);
+    }
     const int newLesson = (int)rows.size(), openLessons = newLesson + 1, back = newLesson + 2;
-    rows.push_back(actionRow("New lesson"));
+    rows.push_back(actionRow("New lesson or course"));
     rows.push_back(actionRow("Open lessons folder"));
     rows.push_back(actionRow("Back", "Esc"));
     const float width = ImGui::GetWindowWidth(), height = ImGui::GetWindowHeight();
     const bool typing = ImGui::GetIO().WantTextInput; // before the field is drawn: this frame's keys belong to it
     const int confirmed = menuList(list, rows, { ImVec2(width * 0.07f, height * 0.25f), width * 0.45f, height * 0.66f - 20 * s, s });
     if (confirmed == newLesson) ed.focusName = true;
-    if (confirmed >= 0 && confirmed < newLesson) openLesson(ed.lessons[(size_t)confirmed].folder, ed.lessons[(size_t)confirmed].builtIn);
+    if (confirmed >= 0 && confirmed < firstCourse) openLesson(ed.lessons[(size_t)confirmed].folder, ed.lessons[(size_t)confirmed].builtIn);
+    if (confirmed >= firstCourse && confirmed < newLesson){
+        const CourseEntry& entry = ed.courses[(size_t)(confirmed - firstCourse)];
+        openCourse(entry.path, entry.path.rfind(ed.setup.builtInCourses, 0) == 0);
+    }
     if (confirmed == openLessons){
         std::error_code ec;
         fs::create_directories(ed.setup.userLessons, ec);
@@ -1347,7 +1595,20 @@ static LessonEditorChoice lessonList(){
         return choice;
     }
     if (list.selected == newLesson) lessonCard(true, nullptr, s);
-    else if (list.selected >= 0 && list.selected < newLesson) lessonCard(false, &ed.lessons[(size_t)list.selected], s);
+    else if (list.selected >= 0 && list.selected < firstCourse) lessonCard(false, &ed.lessons[(size_t)list.selected], s);
+    else if (list.selected >= firstCourse && list.selected < newLesson){ // a course: its levels and chapters
+        const CourseEntry& entry = ed.courses[(size_t)(list.selected - firstCourse)];
+        ImDrawList* draw = ImGui::GetWindowDrawList();
+        const ImVec2 card(width * 0.58f, height * 0.25f);
+        const float cardWidth = width * 0.35f, pad = 26 * s;
+        draw->AddRectFilled(card, ImVec2(card.x + cardWidth, card.y + 130 * s), uiColor(UiColor::Card), 10 * s);
+        draw->AddText(uiFonts().bold, 24 * s, ImVec2(card.x + pad, card.y + pad), uiColor(UiColor::Ink), entry.course.title.c_str(), nullptr, cardWidth - 2 * pad);
+        draw->AddText(uiFonts().bold, 18 * s, ImVec2(card.x + pad, card.y + pad + 36 * s), uiColor(UiColor::Accent),
+                      TextFormat("%d levels, %d chapters", (int)entry.course.units.size(), (int)entry.course.lessons.size()));
+        draw->AddText(uiFonts().text, 15 * s, ImVec2(card.x + pad, card.y + pad + 62 * s), uiColor(entry.error.empty() ? UiColor::Dim : UiColor::Bad),
+                      entry.error.empty() ? (entry.path.rfind(ed.setup.builtInCourses, 0) == 0 ? "Built in: saving makes your own copy" : "Yours")
+                                          : entry.error.c_str(), nullptr, cardWidth - 2 * pad);
+    }
     else if (!ed.listError.empty()){
         ImGui::SetCursorPos(ImVec2(width * 0.07f, height * 0.17f + 20 * s));
         ImGui::TextColored(uiColorVec(UiColor::Bad), "%s", ed.listError.c_str());
@@ -1361,6 +1622,7 @@ static LessonEditorChoice lessonList(){
 
 static void leaveLesson(){
     stopRecording();
+    ed.courseMode = false;
     releasePageMedia(ed.media);
     ed.editing = false;
     refreshLists(); // a new copy, a new title or a fixed problem shows in the list
@@ -1412,7 +1674,8 @@ static void lessonEditing(){
     float pillWidth = 0.0f;
     if (pill(ImVec2(left, barY), "Back", false, true, s, &pillWidth)) requestBack = true;
     const float titleX = left + pillWidth + 18 * s;
-    const std::string title = (ed.doc.title.empty() ? std::string("(no title)") : ed.doc.title) + (ed.dirty ? "  *" : "");
+    const std::string title = (ed.courseMode ? ed.course.title + "  ·  " + ed.course.lessons[(size_t)ed.chapter].lesson.title
+                                             : ed.doc.title.empty() ? std::string("(no title)") : ed.doc.title) + (ed.dirty ? "  *" : "");
     draw->AddText(fonts.heavy, 22 * s, ImVec2(titleX, barY - 2 * s), uiColor(UiColor::Ink), title.c_str());
     const std::string state = !ed.status.empty() ? ed.status : ed.problem.empty() ? "Ready to be played" : "Not ready yet: " + ed.problem;
     draw->AddText(fonts.text, 13 * s, ImVec2(titleX, barY + 24 * s),

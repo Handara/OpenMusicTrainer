@@ -17,6 +17,8 @@ struct LessonEditorSetup {
     std::string builtInExercises; // exercise steps name exercises: the editor lists them to pick from
     std::string userExercises;
     std::vector<std::string> songFolders; // the game's songs, for song blocks to play
+    std::string builtInCourses;           // courses: the game's, and the player's own (made, or built-in ones changed)
+    std::string userCourses;
     Settings settings;                    // the player's input: notes are recorded from it
 };
 
