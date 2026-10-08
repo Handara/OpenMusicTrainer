@@ -1,5 +1,6 @@
 #include "core/profile.h"
 
+#include "core/difficulty.h"
 #include "core/routine.h"
 
 #include <algorithm>
@@ -80,6 +81,9 @@ const std::vector<Achievement>& achievements(){
         { "daily-1", "Today's challenge", "Pass a daily challenge", Metric::DailyChallenges, 1, Tier::Bronze },
         { "daily-7", "Seven days, seven challenges", "Pass 7 daily challenges", Metric::DailyChallenges, 7, Tier::Silver },
         { "daily-30", "Challenger", "Pass 30 daily challenges", Metric::DailyChallenges, 30, Tier::Gold },
+        { "pp-50", "On the board", "50 pp from your best runs of songs", Metric::TotalPp, 50, Tier::Bronze },
+        { "pp-500", "Contender", "500 pp from your best runs of songs", Metric::TotalPp, 500, Tier::Silver },
+        { "pp-2000", "Virtuoso", "2000 pp from your best runs of songs", Metric::TotalPp, 2000, Tier::Gold },
         { "chapter-1", "Chapter one", "Pass a course's chapter", Metric::ChaptersPassed, 1, Tier::Bronze },
         { "chapter-20", "Bookworm", "Pass 20 chapters", Metric::ChaptersPassed, 20, Tier::Silver },
         { "level-1", "Level complete", "Complete a level of a course", Metric::LevelsDone, 1, Tier::Silver },
@@ -192,6 +196,17 @@ PlayerProfile buildProfile(const std::vector<Activity>& journal, int goalMinutes
             m[(int)Metric::SongsPlayed]++;
             if (a.clean) m[(int)Metric::FullCombos]++;
             if (a.grade == "S" || a.grade == "SS") m[(int)Metric::SongsS]++;
+            // Its pp: the part's best counts, added up with the others' (core/difficulty)
+            if (a.pp > 0.0f){
+                float& best = p.bestPp[a.id];
+                if (a.pp > best){
+                    best = a.pp;
+                    std::vector<float> bests;
+                    for (const auto& [part, pp] : p.bestPp) bests.push_back(pp);
+                    p.totalPp = totalPerformance(bests);
+                    m[(int)Metric::TotalPp] = (long long)p.totalPp;
+                }
+            }
         }
         if (a.kind == ActivityKind::Game) m[(int)Metric::BestGameRounds] = std::max(m[(int)Metric::BestGameRounds], (long long)a.rounds);
         m[(int)Metric::BestCombo] = std::max(m[(int)Metric::BestCombo], (long long)a.combo);

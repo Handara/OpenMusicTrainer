@@ -5,6 +5,7 @@
 #include "audio/audio.h"
 #include "core/chart.h"
 #include "core/chords.h"
+#include "core/difficulty.h"
 #include "core/judge.h"
 #include "core/music.h"
 #include "core/paths.h"
@@ -400,6 +401,7 @@ static struct {
     int nextBeatTick = -1;
     float endsAt = 0.0f;      // where a trimmed song ends, 0 for the audio's own end
     std::string fingerprint;  // of the part being played
+    float stars = 0.0f;       // how hard it is (core/difficulty): rhythm runs aren't rated
     ChordListening chords;    // plucks near a chord, checked for its notes
     TuningWatch tuning;       // the notes played, for the instrument going out of tune
     bool watchingTuning = false; // with a guitar or a bass, until the player chooses to play on out of tune
@@ -546,6 +548,7 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
     // any part.
     game.fingerprint = partFingerprint(chart, options.part); // of the whole part, before anything is left out
     if (options.rhythmMode) game.fingerprint += "-rhythm";   // rhythm runs have records of their own
+    game.stars = options.rhythmMode ? 0.0f : partStars(chart, options.part);
     game.partName = partName(chart, options.part);
     game.keys = isKeysPart(chart, options.part);
     game.chart = chart;
@@ -1176,6 +1179,7 @@ GameResult gameplayResult(){
     result.timing = timingStats(state.errorsMs);
     result.withInstrument = game.keys ? midiInputActive() : game.options.playWithInstrument; // the computer keyboard isn't an instrument
     result.fingerprint = game.fingerprint;
+    result.stars = game.stars;
     result.errorsMs = state.errorsMs;
     result.distributionFrom = game.distribution;
     for (const PlayNote& note : game.notes){

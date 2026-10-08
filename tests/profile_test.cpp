@@ -174,3 +174,31 @@ TEST_CASE("spaced repetition: a chapter passed comes back after 3 days, then aft
     CHECK(dueChapters(buildProfile(journal, 10, DAY + 10), DAY + 10).empty());
     CHECK(dueChapters(buildProfile(journal, 10, DAY + 11), DAY + 11).size() == 1);
 }
+
+TEST_CASE("pp: each song part's best counts, added up the best first"){
+    auto song = [](int day, const char* id, float pp){
+        Activity a;
+        a.kind = ActivityKind::Song;
+        a.date = dateOf(day);
+        a.minute = 18 * 60;
+        a.id = id;
+        a.instrument = "guitar";
+        a.seconds = 180.0f;
+        a.right = 300;
+        a.total = 320;
+        a.pp = pp;
+        return a;
+    };
+    Activity read;
+    REQUIRE(readActivity(writeActivity(song(DAY, "s-part0", 123.4f)), read));
+    CHECK(read.pp == doctest::Approx(123.4f));
+    // The same part's better run replaces its worse; another part adds 95% of itself
+    const PlayerProfile p = buildProfile({ song(DAY, "s-part0", 40.0f), song(DAY, "s-part0", 60.0f), song(DAY, "s-part0", 50.0f),
+                                           song(DAY + 1, "t-part1", 20.0f) }, 10, DAY + 1);
+    CHECK(p.bestPp.at("s-part0") == doctest::Approx(60.0f));
+    CHECK(p.totalPp == doctest::Approx(60.0f + 20.0f * 0.95f));
+    const auto& all = achievements();
+    const auto onTheBoard = std::find_if(all.begin(), all.end(), [](const Achievement& a){ return std::string(a.id) == "pp-50"; });
+    REQUIRE(onTheBoard != all.end());
+    CHECK(p.isUnlocked((int)(onTheBoard - all.begin())));
+}

@@ -1,5 +1,6 @@
 #include "core/journal.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -35,6 +36,11 @@ std::string writeActivity(const Activity& a){
     if (!a.grade.empty()) out << " grade=" << token(a.grade);
     if (a.rounds > 0) out << " rounds=" << a.rounds;
     if (a.combo > 0) out << " combo=" << a.combo;
+    if (a.pp > 0.0f){
+        char pp[32];
+        std::snprintf(pp, sizeof pp, "%.1f", a.pp);
+        out << " pp=" << pp;
+    }
     if (a.unitDone) out << " unit=1";
     if (a.courseDone) out << " course=1";
     if (!a.notes.empty()){
@@ -79,6 +85,7 @@ bool readActivity(const std::string& line, Activity& out){
         else if (key == "grade") a.grade = value;
         else if (key == "rounds") a.rounds = std::atoi(value.c_str());
         else if (key == "combo") a.combo = std::atoi(value.c_str());
+        else if (key == "pp") a.pp = std::max(0.0f, (float)std::atof(value.c_str()));
         else if (key == "unit") a.unitDone = value == "1";
         else if (key == "course") a.courseDone = value == "1";
         else if (key == "notes"){

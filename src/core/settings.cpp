@@ -99,6 +99,8 @@ Settings loadSettings(const std::string& path, std::vector<std::string>& warning
             else warnings.push_back("line " + std::to_string(lineNumber) + ": heard_instrument is guitar or bass, keeping default");
         }
         else if (key == "learn_on_piano") settings.learnOnPiano = value == "1";
+        else if (key == "player_name") settings.playerName = value.substr(0, 24);
+        else if (key == "player_id") settings.playerId = value;
         else if (key == "color_blind") settings.colorBlind = value == "1";
         else if (key == "reduce_motion") settings.reduceMotion = value == "1";
         else if (key == "ui_scale") number(settings.uiScale, 0.8f, 1.5f);
@@ -171,6 +173,8 @@ bool saveSettings(const std::string& path, const Settings& settings, std::string
     out << "guitar_tone " << settings.guitarTone << "\n";
     out << "heard_instrument " << (settings.heardInstrument == InputRole::Guitar ? "guitar" : "bass") << "\n";
     out << "learn_on_piano " << (settings.learnOnPiano ? 1 : 0) << "\n";
+    out << "player_name " << settings.playerName << "\n";
+    out << "player_id " << settings.playerId << "\n";
     out << "color_blind " << (settings.colorBlind ? 1 : 0) << "\n";
     out << "reduce_motion " << (settings.reduceMotion ? 1 : 0) << "\n";
     out << "ui_scale " << settings.uiScale << "\n";

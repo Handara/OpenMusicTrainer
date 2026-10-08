@@ -334,7 +334,8 @@ static void displaySection(Settings& settings){
 }
 
 bool settingsUsedEscape(){
-    return screen.usedEscape || screen.popupWasOpen; // Esc cancelled choosing a key, or closed a dropdown
+    // Esc cancelled choosing a key, closed a dropdown, or stopped typing a name
+    return screen.usedEscape || screen.popupWasOpen || ImGui::GetIO().WantTextInput;
 }
 
 // The computer keyboard's piano: a small keyboard, each note with its key. Click a note, then press its new key
@@ -552,6 +553,9 @@ static void instrumentsSection(Settings& settings){
 }
 
 static void gameplaySection(Settings& settings, SettingsChoice& choice){
+    settingsGroup("YOU");
+    settingText("Your name", "On your profile, and on the leaderboards once ranked play opens", &settings.playerName, 24, "Player");
+
     settingsGroup("PLAYING");
     int input = !settings.playWithInstrument ? 0 : settings.playInstrument == InputRole::Bass ? 2 : 1;
     if (settingSegments("Learn's exercises: play with", "Songs are played on each part's own instrument", &input, { "Keyboard", "Guitar", "Bass" })){

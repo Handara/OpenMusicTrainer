@@ -2,6 +2,7 @@
 
 #include "core/backing.h"
 #include "core/chart.h"
+#include "core/difficulty.h"
 #include "core/files.h"
 
 #include <algorithm>
@@ -37,6 +38,7 @@ std::vector<SongEntry> scanSongs(const std::string& songsDir, bool builtIn){
                 info.stringCount = (int)track.tuning.size();
                 info.tuning = track.tuning;
                 info.fingerprint = partFingerprint(chart, part);
+                info.stars = partStars(chart, part);
                 song.parts.push_back(info);
             }
             for (int keys = 0; keys < (int)chart.keysTracks.size(); keys++){
@@ -45,6 +47,7 @@ std::vector<SongEntry> scanSongs(const std::string& songsDir, bool builtIn){
                 info.type = InstrumentType::Keys;
                 info.stringCount = 0;
                 info.fingerprint = partFingerprint(chart, (int)chart.frettedTracks.size() + keys);
+                info.stars = partStars(chart, (int)chart.frettedTracks.size() + keys);
                 song.parts.push_back(info);
             }
         } else if (song.error.rfind(song.chartPath, 0) == 0){

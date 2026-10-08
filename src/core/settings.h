@@ -61,6 +61,10 @@ struct Settings {
     int dailyGoalMinutes = 10;
     // Easier to see and to use: hits and misses in colours told apart by everyone (blue and orange, not green and
     // red), less moving about (no sparks, no slides), everything bigger or smaller
+    // Who's playing: a name they choose (shown on their profile), and an id made once, at random, on their first start:
+    // an account links to it later, so what they've played comes along
+    std::string playerName;
+    std::string playerId;
     bool colorBlind = false;
     bool reduceMotion = false;
     float uiScale = 1.0f;              // 0.9 to 1.3         // the practice a day that keeps the streak going (core/profile)

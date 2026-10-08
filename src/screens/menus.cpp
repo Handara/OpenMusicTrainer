@@ -6,6 +6,7 @@
 #include "screens/tuner.h"
 #include "ui/hitfeedback.h"
 #include "ui/menulist.h"
+#include "ui/rewards.h"
 #include "ui/rungraph.h"
 #include "ui/theme.h"
 #include "ui/ui.h"
@@ -48,6 +49,12 @@ static void drawSongCard(const SongEntry& song, float s){
         std::string instrument = part.type == InstrumentType::Keys ? "KEYS, MIDI"
                                : TextFormat("%s, %d STRINGS", part.type == InstrumentType::Bass ? "BASS" : "GUITAR", part.stringCount);
         draw->AddText(fonts.mono, 13 * s, ImVec2(x, y), uiColor(UiColor::Dim), TextFormat("%s  ·  %s", part.name.c_str(), instrument.c_str()));
+        if (part.stars > 0.0f){ // how hard it is, at the right (core/difficulty)
+            const char* stars = TextFormat("%.2f", part.stars);
+            const float starsWidth = fonts.mono->CalcTextSizeA(13 * s, FLT_MAX, 0.0f, stars).x;
+            draw->AddText(fonts.mono, 13 * s, ImVec2(x + inner - starsWidth, y), uiColor(UiColor::Accent), stars);
+            drawStar(draw, ImVec2(x + inner - starsWidth - 10 * s, y + 7 * s), 6 * s, uiColor(UiColor::Accent));
+        }
         float rowY = y + 20 * s;
         bool played = part.played;
         if (!played){
@@ -414,7 +421,11 @@ ResultsChoice resultsScreen(const GameResult& result){
         }
         y += 30 * s + 14 * s;
     };
-    row("SCORE", TextFormat("%lld", result.score), UiColor::Ink, "");
+    // What it's worth: pp from the part's stars and how it went (core/difficulty); on the keyboard, none
+    const std::string worth = result.stars <= 0.0f ? ""
+                            : result.pp > 0.0f ? TextFormat("%.0f pp  ·  %.2f stars", result.pp, result.stars)
+                                               : TextFormat("%.2f stars  ·  on the keyboard: no pp", result.stars);
+    row("SCORE", TextFormat("%lld", result.score), UiColor::Ink, worth);
     bool fullCombo = result.missCount == 0 && result.totalNotes > 0;
     row("BEST COMBO", TextFormat("%d", result.maxCombo), fullCombo ? UiColor::Accent : UiColor::Ink,
         fullCombo ? "FULL COMBO" : TextFormat("of %d notes", result.totalNotes));

@@ -16,6 +16,7 @@ struct MainMenuInfo {
     std::string userExercises;
     std::string progressDir;
     std::string coursesDir;       // the courses: the one played last, to go on with
+    std::string playerName;       // on the player's card ("" for none chosen)
 };
 
 MainMenuChoice mainMenuScreen(const MainMenuInfo& info, const std::string& error);

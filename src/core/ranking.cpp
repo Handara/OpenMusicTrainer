@@ -117,6 +117,8 @@ static std::vector<RunRecord> readRunLines(const std::string& path){
         if (!(ss >> run.score >> run.accuracy >> run.maxCombo >> run.perfect >> run.good >> run.miss >> run.unstableRate
                  >> instrument >> run.date)) continue;
         run.withInstrument = instrument != 0;
+        float pp;
+        if (ss >> pp && pp >= 0.0f) run.pp = pp; // (runs kept before pp have none)
         runs.push_back(run);
     }
     return runs;
@@ -126,10 +128,10 @@ static bool writeRunLines(const std::string& path, const char* what, const std::
     std::ostringstream out;
     out << "# lahn records: " << what << "\n";
     out << "version 1\n";
-    out << "# run <score> <accuracy> <max combo> <perfect> <good> <miss> <unstable rate> <instrument 0/1> <date>\n";
+    out << "# run <score> <accuracy> <max combo> <perfect> <good> <miss> <unstable rate> <instrument 0/1> <date> <pp>\n";
     for (const RunRecord& run : runs){
         out << "run " << run.score << " " << run.accuracy << " " << run.maxCombo << " " << run.perfect << " " << run.good << " "
-            << run.miss << " " << run.unstableRate << " " << (run.withInstrument ? 1 : 0) << " " << run.date << "\n";
+            << run.miss << " " << run.unstableRate << " " << (run.withInstrument ? 1 : 0) << " " << run.date << " " << run.pp << "\n";
     }
     return writeFileAtomically(path, out.str(), error);
 }

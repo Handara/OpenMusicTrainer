@@ -35,7 +35,7 @@ long long xpToReach(int level); // from nothing; level 1 at 0
 enum class Metric {
     NotesRight, CleanPasses, DrillsPassed, PerfectRuns, ChaptersPassed, LevelsDone, CoursesDone, BestStreak, GoalDays,
     MinutesTotal, BestDayMinutes, BestTempo, BandPasses, SongsPlayed, FullCombos, SongsS, BestGameRounds, NightOwl,
-    EarlyBird, Comebacks, Instruments, PianoRuns, NotesKnown, BestCombo, DailyChallenges, Count
+    EarlyBird, Comebacks, Instruments, PianoRuns, NotesKnown, BestCombo, DailyChallenges, TotalPp, Count
 };
 enum class Tier { Bronze, Silver, Gold };
 
@@ -90,6 +90,8 @@ struct PlayerProfile {
     std::map<std::string, std::map<int, NoteTally>> recentByInstrument; //   and by instrument ("guitar", "bass", "piano")
     std::vector<Unlock> unlocked;        // in the order earned
     std::map<std::string, ChapterPractice> chapters; // the chapters passed, by id (the journal's)
+    std::map<std::string, float> bestPp; // each song part's best run's pp, by id (core/difficulty)
+    float totalPp = 0.0f;                //   added up, the best first, each worth 95% of the one before
     bool isUnlocked(int achievement) const;
 };
 

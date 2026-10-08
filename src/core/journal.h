@@ -34,6 +34,7 @@ struct Activity {
     std::string grade;          // a song's ("S", "A"...)
     int rounds = 0;             // a game's
     int combo = 0;              // the most notes in a row played right (a drill's pass, a song)
+    float pp = 0.0f;            // a song's run: what it's worth (core/difficulty)
     bool unitDone = false;      // a chapter: its level complete with it
     bool courseDone = false;    //   the whole course
     std::vector<NoteTally> notes;

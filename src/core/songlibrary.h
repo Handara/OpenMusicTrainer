@@ -13,6 +13,7 @@ struct SongPart {
     int stringCount;           // 0 for keys
     std::vector<int> tuning;   // its open strings' MIDI pitches, lowest string first; empty for keys
     std::string fingerprint;   // its records are kept under it (core/ranking)
+    float stars = 0.0f;        // how hard it is (core/difficulty)
     bool played = false;       // filled in by whoever reads the records: the part's best run, if there's one...
     RunRecord best;
     bool playedRhythm = false; // ...and its best in rhythm mode

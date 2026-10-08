@@ -11,6 +11,7 @@
 #include "ui/ui.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cfloat>
 #include <filesystem>
 #include <string>
@@ -45,7 +46,7 @@ static struct {
 
 // The player's card, on the right, level with the list: their level and its bar, today's practice against the daily
 // goal (a ring filling) and the streak, then the next thing to do
-static void drawPlayerCard(ImDrawList* draw, ImVec2 topLeft, float width, float s){
+static void drawPlayerCard(ImDrawList* draw, ImVec2 topLeft, float width, float s, const std::string& name){
     const UiFonts& fonts = uiFonts();
     const TodaySummary& today = menu.today;
     const PlayerProfile& p = playerProfile();
@@ -65,8 +66,16 @@ static void drawPlayerCard(ImDrawList* draw, ImVec2 topLeft, float width, float 
     draw->AddCircleFilled(badge, radius, uiColor(UiColor::Accent), 40);
     centred(fonts.heavy, 24 * s, badge, uiColor(UiColor::Background), std::to_string(p.level.level));
     const float textX = x + 2 * radius + 16 * s;
-    draw->AddText(fonts.mono, 12 * s, ImVec2(textX, y), uiColor(UiColor::Dim), TextFormat("LEVEL %d", p.level.level));
+    std::string named;
+    for (char c : name) named += (char)std::toupper((unsigned char)c);
+    draw->AddText(fonts.mono, 12 * s, ImVec2(textX, y), uiColor(UiColor::Dim),
+                  named.empty() ? TextFormat("LEVEL %d", p.level.level) : TextFormat("%s  ·  LEVEL %d", named.c_str(), p.level.level));
     draw->AddText(fonts.bold, 20 * s, ImVec2(textX, y + 14 * s), uiColor(UiColor::Ink), p.level.title);
+    if (p.totalPp > 0.0f){ // what their best runs of songs are worth (core/difficulty), at the right
+        const char* pp = TextFormat("%.0f pp", p.totalPp);
+        const float ppWidth = fonts.bold->CalcTextSizeA(18 * s, FLT_MAX, 0.0f, pp).x;
+        draw->AddText(fonts.bold, 18 * s, ImVec2(x + inner - ppWidth, y + 16 * s), uiColor(UiColor::Accent), pp);
+    }
     const float fill = (float)p.level.intoLevel / (float)std::max(1LL, p.level.forNext), barRight = x + inner;
     draw->AddRectFilled(ImVec2(textX, y + 42 * s), ImVec2(barRight, y + 48 * s), uiColor(UiColor::StaffLine), 3 * s);
     draw->AddRectFilled(ImVec2(textX, y + 42 * s), ImVec2(textX + (barRight - textX) * fill, y + 48 * s), uiColor(UiColor::Accent), 3 * s);
@@ -163,7 +172,7 @@ MainMenuChoice mainMenuScreen(const MainMenuInfo& info, const std::string& error
     if (ImGui::IsKeyPressed(ImGuiKey_Escape)) menuListSelect(menu.list, menu.rows, ITEM_COUNT - 1);
     if (confirmed >= 0) choice = ITEMS[confirmed].choice;
 
-    drawPlayerCard(draw, ImVec2(width * 0.58f, menuTop), width * 0.35f, s);
+    drawPlayerCard(draw, ImVec2(width * 0.58f, menuTop), width * 0.35f, s, info.playerName);
 
     // The footer: what the game listens to, and which game this is
     float footY = height - 40 * s;

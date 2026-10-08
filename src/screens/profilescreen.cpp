@@ -62,7 +62,7 @@ static void tile(ImDrawList* draw, ImVec2 a, ImVec2 b, const char* label, const 
 bool profileScreen(Settings& settings){
     bool goalChanged = false;
     beginMenu("Profile");
-    menuTitle("Profile");
+    menuTitle(settings.playerName.empty() ? "Profile" : settings.playerName.c_str());
     const PlayerProfile& p = playerProfile();
     ImDrawList* draw = ImGui::GetWindowDrawList();
     const UiFonts& fonts = uiFonts();
@@ -77,6 +77,11 @@ bool profileScreen(Settings& settings){
     draw->AddText(fonts.heavy, 34 * s, ImVec2(badge.x - size.x / 2, badge.y - size.y / 2), uiColor(UiColor::Background), level.c_str());
     const float textX = left + 96 * s, barRight = middle - 30 * s;
     draw->AddText(fonts.mono, 12 * s, ImVec2(textX, top + 2 * s), uiColor(UiColor::Dim), TextFormat("LEVEL %d", p.level.level));
+    // The ranked number: what their best runs of songs are worth (core/difficulty), each part's best, added up
+    const char* pp = TextFormat("%s pp", thousands((long long)p.totalPp).c_str());
+    const float ppWidth = fonts.heavy->CalcTextSizeA(22 * s, FLT_MAX, 0.0f, pp).x;
+    draw->AddText(fonts.heavy, 22 * s, ImVec2(barRight - ppWidth, top + 18 * s), uiColor(p.totalPp > 0.0f ? UiColor::Accent : UiColor::Dim), pp);
+    draw->AddText(fonts.mono, 12 * s, ImVec2(barRight - ppWidth, top + 2 * s), uiColor(UiColor::Dim), "RANKED");
     draw->AddText(fonts.heavy, 28 * s, ImVec2(textX, top + 16 * s), uiColor(UiColor::Ink), p.level.title);
     const float fill = (float)p.level.intoLevel / (float)std::max(1LL, p.level.forNext);
     draw->AddRectFilled(ImVec2(textX, top + 58 * s), ImVec2(barRight, top + 66 * s), uiColor(UiColor::StaffLine), 4 * s);

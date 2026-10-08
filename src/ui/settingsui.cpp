@@ -1,6 +1,7 @@
 #include "ui/settingsui.h"
 
 #include "imgui_internal.h"
+#include "imgui_stdlib.h"
 #include "raylib.h"
 #include "ui/menulist.h"
 
@@ -315,6 +316,30 @@ int settingButtons(const char* label, const char* hint, const std::vector<const 
 
 bool settingButton(const char* label, const char* hint, const char* button){
     return settingButtons(label, hint, { button }) == 0;
+}
+
+bool settingText(const char* label, const char* hint, std::string* value, int longest, const char* placeholder){
+    const float s = scale();
+    SettingControl row = settingRow(label, hint, CONTROL_HEIGHT * s);
+    const ImVec2 after = ImGui::GetCursorScreenPos(); // the next row's place: back there once the field is drawn
+    ImGui::SetCursorScreenPos(row.min);
+    ImGui::PushFont(uiFonts().bold, 15 * s);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(12 * s, (CONTROL_HEIGHT * s - 15 * s) / 2));
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, RADIUS * s);
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, uiColorVec(UiColor::Card));
+    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, uiColorVec(UiColor::Card));
+    ImGui::PushStyleColor(ImGuiCol_FrameBgActive, uiColorVec(UiColor::Card));
+    ImGui::PushStyleColor(ImGuiCol_Border, uiColorVec(UiColor::StaffLine));
+    ImGui::PushStyleColor(ImGuiCol_Text, uiColorVec(UiColor::Ink));
+    ImGui::SetNextItemWidth(row.max.x - row.min.x);
+    bool changed = ImGui::InputTextWithHint(TextFormat("##%s", label), placeholder, value);
+    if (changed && (int)value->size() > longest) value->resize((size_t)longest);
+    ImGui::PopStyleColor(5);
+    ImGui::PopStyleVar(3);
+    ImGui::PopFont();
+    ImGui::SetCursorScreenPos(after);
+    return changed;
 }
 
 void settingInfo(const char* label, const char* hint, const char* value, UiColor color){

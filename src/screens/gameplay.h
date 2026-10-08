@@ -33,6 +33,8 @@ struct GameResult {
     TimingStats timing;      // the average error and the unstable rate
     bool withInstrument;
     std::string fingerprint; // of the part played: its records are kept under it
+    float stars = 0.0f;      // how hard the part is (core/difficulty); 0 in rhythm mode (not ranked)
+    float pp = 0.0f;         // what the run is worth: filled in once it's recorded
     std::vector<float> errorsMs;  // every hit's timing (+ early), for its distribution
     Rectangle distributionFrom;   // where the distribution was on the play screen: the results grow it from there
     // Filled in once the run is recorded: where it placed among the part's runs (0 = a new best, -1 = not kept),

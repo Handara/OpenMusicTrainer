@@ -25,6 +25,8 @@ bool settingDropdown(const char* label, const char* hint, int* chosen, const std
 // Buttons side by side on the right: the index of the one pressed, -1 for none
 int settingButtons(const char* label, const char* hint, const std::vector<const char*>& buttons);
 bool settingButton(const char* label, const char* hint, const char* button);
+// A line of text to type (at most `longest` characters); true when it's changed
+bool settingText(const char* label, const char* hint, std::string* value, int longest, const char* placeholder = "");
 // A setting shown, not changed here: its value on the right
 void settingInfo(const char* label, const char* hint, const char* value, UiColor color = UiColor::Dim);
 // A line across the panel, with no control: a status, a warning

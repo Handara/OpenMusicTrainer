@@ -166,6 +166,7 @@ add_library(lahn_core STATIC
     src/core/chart.cpp
     src/core/chords.cpp
     src/core/course.cpp
+    src/core/difficulty.cpp
     src/core/drill.cpp
     src/core/exercisefile.cpp
     src/core/fft.cpp
@@ -344,6 +345,7 @@ if(BUILD_TESTING)
         tests/chart_test.cpp
         tests/chords_test.cpp
         tests/course_test.cpp
+        tests/difficulty_test.cpp
         tests/profile_test.cpp
         tests/drill_test.cpp
         tests/groove_test.cpp

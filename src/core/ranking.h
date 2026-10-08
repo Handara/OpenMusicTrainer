@@ -33,6 +33,7 @@ struct RunRecord {
     float unstableRate = 0.0f;
     bool withInstrument = false; // played on the instrument, not the keyboard
     std::string date;            // YYYY-MM-DD
+    float pp = 0.0f;             // what it's worth (core/difficulty); 0 for runs kept before pp
     Grade grade() const { return gradeFor(accuracy, miss); }
     bool fullCombo() const { return miss == 0; }
 };

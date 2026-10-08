@@ -3,6 +3,7 @@
 #include "app/screenrecorder.h"
 #include "app/videoconvert.h"
 #include "audio/audio.h"
+#include "core/difficulty.h"
 #include "core/judge.h"
 #include "core/music.h"
 #include "core/paths.h"
@@ -43,6 +44,7 @@
 #include <cctype>
 #include <cmath>
 #include <filesystem>
+#include <random>
 #include <fstream>
 #include <map>
 #include <string>
@@ -308,6 +310,8 @@ static void recordRun(GameResult& result){
     run.miss = result.missCount;
     run.unstableRate = result.timing.unstableRate;
     run.withInstrument = result.withInstrument;
+    // What it's worth, for ranked play: its part's stars and how it went (on the instrument only)
+    result.pp = run.pp = runPerformance(result.stars, result.accuracy, result.missCount, result.totalNotes, result.withInstrument);
     int year, month, day;
     dateFromDays(today(), year, month, day);
     run.date = TextFormat("%04d-%02d-%02d", year, month, day);
@@ -333,6 +337,7 @@ static void recordRun(GameResult& result){
     activity.clean = run.fullCombo();
     activity.grade = gradeName(run.grade());
     activity.combo = result.maxCombo;
+    activity.pp = result.pp;
     std::map<int, NoteTally> tallies;
     for (const WrittenNote& note : result.written){
         NoteTally& tally = tallies[note.pitch];
@@ -635,7 +640,8 @@ static void handleBackKey(bool backClicked){
 static void runMenus(){
     switch (app.screen){
         case Screen::MainMenu:
-            switch (mainMenuScreen({app.settings.inputDevice, app.resourcesDir + "exercises", app.userExercisesDir, app.progressDir, app.resourcesDir + "courses"},
+            switch (mainMenuScreen({app.settings.inputDevice, app.resourcesDir + "exercises", app.userExercisesDir, app.progressDir, app.resourcesDir + "courses",
+                                    app.settings.playerName},
                                    app.mainMenuError)){
                 case MainMenuChoice::Play: goToSongSelect(); break;
                 case MainMenuChoice::Learn: goToLearn(); break;
@@ -910,6 +916,13 @@ int main(void){
     setClickVolume(app.settings.clickVolume);
     setRewardVolume(app.settings.rewardVolume);
     setAccessibility(app.settings.colorBlind, app.settings.reduceMotion, app.settings.uiScale);
+    if (app.settings.playerId.empty()){ // made once, on the first start: an account links to it later
+        std::random_device random;
+        char id[33];
+        for (int i = 0; i < 4; i++) std::snprintf(id + i * 8, 9, "%08x", (unsigned)random());
+        app.settings.playerId = id;
+        if (!firstStart) saveAppSettings(); // (someone new: saved as the welcome ends, so it welcomes them again until then)
+    }
     initTones((fs::path(app.userDataDir) / "tones").string());
     initPlayerProgress(app.progressDir, app.settings.dailyGoalMinutes); // the journal: XP, level, streak, achievements
     std::string monitorError;
