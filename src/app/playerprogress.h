@@ -20,10 +20,13 @@ const PlayerProfile& playerProfile();
 std::vector<Activity> recentRuns(const std::string& id, int count);
 
 struct Reward {
-    enum class Kind { Xp, Goal, Level, Achievement } kind = Kind::Xp;
+    enum class Kind { Xp, Goal, Level, Achievement, Chapter } kind = Kind::Xp;
     long long xp = 0;    // Xp: how much
     int level = 0;       // Level: the new one
     int achievement = 0; // Achievement: into achievements()
     int streak = 0;      // Goal: the streak it makes
+    std::string title;   // Chapter: its title
+    int stars = 0, starsPossible = 0; //   its drills' stars
+    bool unitDone = false, courseDone = false; //   its level, its course complete with it
 };
 bool takeReward(Reward& reward); // the oldest waiting, false for none

@@ -264,6 +264,12 @@ static int bestOf(const CourseScores& scores, const std::string& drill){
     return found == scores.best.end() ? 0 : found->second;
 }
 
+int drillStars(int best, int passPercent){
+    if (best < passPercent) return 0;
+    if (best >= 100) return 3;
+    return best >= 95 ? 2 : 1;
+}
+
 ChapterState chapterState(const Course& course, int lesson, const CourseScores& scores){
     ChapterState state;
     const std::vector<CourseDrill> drills = courseDrills(course, lesson);
@@ -278,6 +284,8 @@ ChapterState chapterState(const Course& course, int lesson, const CourseScores& 
     for (const CourseDrill& drill : drills){
         const int best = bestOf(scores, drill.id);
         sum += best;
+        state.stars += drillStars(best, drill.passPercent);
+        state.starsPossible += 3;
         if (best < drill.passPercent) state.passed = false;
         if (best < 100) state.perfect = false;
     }

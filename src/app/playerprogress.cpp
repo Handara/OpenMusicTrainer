@@ -63,10 +63,36 @@ void recordActivity(Activity activity){
     if (!appendToJournal(progress.journalPath, activity, error)) TraceLog(LOG_WARNING, "Progress: %s", error.c_str());
     rebuild();
     const ProfileChange change = profileChange(before, progress.profile);
-    if (change.xp > 0) progress.rewards.push_back({ Reward::Kind::Xp, change.xp, 0, 0, 0 });
-    if (change.goalMet) progress.rewards.push_back({ Reward::Kind::Goal, 0, 0, 0, change.streak });
-    if (change.newLevel > 0) progress.rewards.push_back({ Reward::Kind::Level, 0, change.newLevel, 0, 0 });
-    for (int achievement : change.achievements) progress.rewards.push_back({ Reward::Kind::Achievement, 0, 0, achievement, 0 });
+    auto reward = [](Reward::Kind kind){ Reward made; made.kind = kind; return made; };
+    if (change.xp > 0){
+        Reward xp = reward(Reward::Kind::Xp);
+        xp.xp = change.xp;
+        progress.rewards.push_back(xp);
+    }
+    if (activity.kind == ActivityKind::Chapter){ // its stars are its right and total
+        Reward chapter = reward(Reward::Kind::Chapter);
+        chapter.title = activity.title;
+        chapter.stars = activity.right;
+        chapter.starsPossible = activity.total;
+        chapter.unitDone = activity.unitDone;
+        chapter.courseDone = activity.courseDone;
+        progress.rewards.push_back(chapter);
+    }
+    if (change.goalMet){
+        Reward goal = reward(Reward::Kind::Goal);
+        goal.streak = change.streak;
+        progress.rewards.push_back(goal);
+    }
+    if (change.newLevel > 0){
+        Reward level = reward(Reward::Kind::Level);
+        level.level = change.newLevel;
+        progress.rewards.push_back(level);
+    }
+    for (int achievement : change.achievements){
+        Reward earned = reward(Reward::Kind::Achievement);
+        earned.achievement = achievement;
+        progress.rewards.push_back(earned);
+    }
 }
 
 std::vector<Activity> recentRuns(const std::string& id, int count){

@@ -96,7 +96,10 @@ struct ChapterState {
     int percent = 0;     // its drills' best scores, on average
     bool passed = false; // every drill passed (or, without drills, read)
     bool perfect = false;// every drill at 100%
+    int stars = 0, starsPossible = 0; // its drills' stars (drillStars), of three each
 };
+// A drill's stars by its best: one passed, two at 95% or more, three every note right; none not passed yet
+int drillStars(int best, int passPercent);
 ChapterState chapterState(const Course& course, int lesson, const CourseScores& scores);
 // The first, one whose chapter before is passed, or one played in already
 bool chapterOpen(const Course& course, int lesson, const CourseScores& scores);

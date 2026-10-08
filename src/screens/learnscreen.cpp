@@ -20,6 +20,7 @@
 #include "learn/singingexercise.h"
 #include "raylib.h"
 #include "ui/menulist.h"
+#include "ui/rewards.h"
 #include "ui/theme.h"
 #include "ui/ui.h"
 
@@ -549,6 +550,7 @@ struct CardRow {
     UiColor badgeColor = UiColor::Good;
     bool locked = false;
     bool highlight = false;  // the one to go on with
+    int stars = 0, starsPossible = 0; // its drills' stars (none possible: none shown)
 };
 
 // Cards in a column, one chosen (Up/Down, the wheel, a click), scrolled to keep it in view; returns the one confirmed
@@ -602,6 +604,12 @@ static int cardList(const std::vector<CardRow>& rows, int& chosen, float& scroll
                 draw->AddText(fonts.mono, 11 * s, ImVec2(after + 6 * s, barY - size.y / 2), uiColor(UiColor::Background), row.badge);
             }
         }
+        if (row.starsPossible > 0){ // its stars, at the top right
+            const std::string count = TextFormat("%d / %d", row.stars, row.starsPossible);
+            const float textWidth = fonts.mono->CalcTextSizeA(12 * s, FLT_MAX, 0.0f, count.c_str()).x;
+            drawStar(draw, ImVec2(b.x - 24 * s - textWidth - 14 * s, a.y + 19 * s), 8 * s, uiColor(row.stars > 0 ? UiColor::Accent : UiColor::StaffLine));
+            draw->AddText(fonts.mono, 12 * s, ImVec2(b.x - 20 * s - textWidth, a.y + 12 * s), uiColor(UiColor::Dim), count.c_str());
+        }
         if (click && mouse.x >= a.x && mouse.x <= b.x && mouse.y >= std::max(a.y, top) && mouse.y <= std::min(b.y, bottom)){
             if (isChosen) confirmed = i;
             chosen = i;
@@ -634,6 +642,11 @@ static void courseLevels(){
         row.title = unit.title;
         row.subtitle = TextFormat("%d %s", unit.lessonCount, unit.lessonCount == 1 ? "chapter" : "chapters");
         row.percent = levelPercent(course, u, scores);
+        for (int i = unit.firstLesson; i < unit.firstLesson + unit.lessonCount; i++){
+            const ChapterState chapterStars = chapterState(course, i, scores);
+            row.stars += chapterStars.stars;
+            row.starsPossible += chapterStars.starsPossible;
+        }
         bool perfect = true;
         for (int i = unit.firstLesson; i < unit.firstLesson + unit.lessonCount; i++) perfect = perfect && chapterState(course, i, scores).perfect;
         if (perfect) row.badge = "PERFECT", row.badgeColor = UiColor::Accent;
@@ -684,6 +697,8 @@ static void levelChapters(){
         row.title = course.lessons[lesson].lesson.title;
         row.subtitle = drills == 0 ? "to read" : TextFormat("%d %s", drills, drills == 1 ? "drill" : "drills");
         row.percent = state.percent;
+        row.stars = state.stars;
+        row.starsPossible = state.starsPossible;
         if (state.perfect) row.badge = "PERFECT", row.badgeColor = UiColor::Accent;
         else if (state.passed) row.badge = "PASSED";
         row.locked = !chapterOpen(course, lesson, scores);

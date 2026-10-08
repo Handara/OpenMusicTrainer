@@ -2,6 +2,7 @@
 
 #include "app/playerprogress.h"
 #include "imgui.h"
+#include "ui/rewards.h"
 #include "raylib.h"
 #include "ui/menulist.h"
 #include "ui/theme.h"
@@ -98,6 +99,9 @@ void CourseChapter::scored(int percent){
         activity.kind = ActivityKind::Chapter;
         activity.id = std::filesystem::path(scoresPath).stem().string() + "-" + course.lessons[lesson].id;
         activity.title = course.lessons[lesson].lesson.title;
+        const ChapterState passedState = chapterState(course, lesson, scores);
+        activity.right = passedState.stars; // a chapter's right and total: its stars
+        activity.total = passedState.starsPossible;
         const CourseUnit& unit = course.units[course.lessons[lesson].unit];
         activity.unitDone = true;
         for (int i = unit.firstLesson; i < unit.firstLesson + unit.lessonCount; i++)
@@ -200,6 +204,12 @@ void CourseChapter::draw(){
     int chapterNumber = lesson - course.units[chapter.unit].firstLesson + 1;
     draw->AddText(fonts.mono, 13 * s, ImVec2(left, height * 0.165f), uiColor(UiColor::Accent),
                   TextFormat("LEVEL %d  ·  CHAPTER %d  ·  %d%%%s", chapter.unit + 1, chapterNumber, state.percent, state.perfect ? "  ·  PERFECT" : ""));
+    if (state.starsPossible > 0){ // its stars, beside
+        const char* header = TextFormat("LEVEL %d  ·  CHAPTER %d  ·  %d%%%s", chapter.unit + 1, chapterNumber, state.percent, state.perfect ? "  ·  PERFECT" : "");
+        const float after = left + fonts.mono->CalcTextSizeA(13 * s, FLT_MAX, 0.0f, header).x + 22 * s;
+        drawStar(draw, ImVec2(after, height * 0.165f + 7 * s), 8 * s, uiColor(UiColor::Accent));
+        draw->AddText(fonts.mono, 13 * s, ImVec2(after + 12 * s, height * 0.165f), uiColor(UiColor::Accent), TextFormat("%d / %d", state.stars, state.starsPossible));
+    }
 
     // Its words, on the left
     const float textWidth = width * 0.4f;
@@ -245,13 +255,11 @@ void CourseChapter::draw(){
         draw->AddRectFilled(ImVec2(barX, barY), ImVec2(barX + barWidth, barY + 4 * s), uiColor(UiColor::StaffLine), 2 * s);
         if (best > 0) draw->AddRectFilled(ImVec2(barX, barY), ImVec2(barX + barWidth * best / 100.0f, barY + 4 * s), uiColor(passed ? UiColor::Good : UiColor::Accent), 2 * s);
         draw->AddText(fonts.mono, 12 * s, ImVec2(barX + barWidth + 10 * s, barY - 7 * s), uiColor(UiColor::Dim), best < 0 ? "-" : TextFormat("%d%%", best));
-        if (perfect || passed){
-            const char* badge = perfect ? "PERFECT" : "PASSED";
-            const ImVec2 size = fonts.mono->CalcTextSizeA(11 * s, FLT_MAX, 0.0f, badge);
-            const ImVec2 at(right - size.x - 24 * s, a.y + 10 * s);
-            draw->AddRectFilled(ImVec2(at.x - 6 * s, at.y - 3 * s), ImVec2(at.x + size.x + 6 * s, at.y + size.y + 3 * s), uiColor(perfect ? UiColor::Accent : UiColor::Good), 4 * s);
-            draw->AddText(fonts.mono, 11 * s, at, uiColor(UiColor::Background), badge);
-        }
+        // Its stars: one passed, two at 95%, three perfect
+        const int stars = drillStars(best, drill.passPercent);
+        for (int k = 0; k < 3; k++)
+            drawStar(draw, ImVec2(right - 66 * s + k * 22 * s, a.y + 18 * s), 9 * s, k < stars ? uiColor(UiColor::Accent) : uiColor(UiColor::StaffLine));
+        (void)perfect;
         if (click && mouse.x >= a.x && mouse.x <= b.x && mouse.y >= std::max(a.y, top) && mouse.y <= std::min(b.y, bottom)){
             if (isChosen) startDrill(i);
             chosen = i;

@@ -26,7 +26,7 @@ struct Activity {
     std::string title;          // as shown: "E and F, shown where"
     std::string instrument;     // guitar, bass, piano, keys (a song's part played on the keyboard)
     float seconds = 0.0f;       // how long it took to play
-    int right = 0, total = 0;   // notes (a drill's, a song's) or prompts (a run of notes) right, of how many
+    int right = 0, total = 0;   // notes (a drill's, a song's) or prompts (a run of notes) right, of how many; a chapter's stars
     int tempo = 0;              // bpm (drills, games)
     bool clean = false;         // a drill's pass at its pass mark; a run of notes passed; a song with nothing missed
     bool challenge = false;     // a drill's clean pass at its challenge tempo: it passes the drill

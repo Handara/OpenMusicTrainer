@@ -38,7 +38,7 @@ ImU32 tierColor(Tier tier, float alpha){
 }
 
 // A five-pointed star
-static void drawStar(ImDrawList* draw, ImVec2 c, float radius, ImU32 color){
+void drawStar(ImDrawList* draw, ImVec2 c, float radius, ImU32 color){
     ImVec2 points[10];
     for (int i = 0; i < 10; i++){
         const float angle = -1.5707963f + i * 3.14159265f / 5.0f, r = i % 2 ? radius * 0.45f : radius;
@@ -74,6 +74,10 @@ static void chime(Reward::Kind kind){
             note(79, 0.0, 0.5f, 0.45f);
             note(84, 0.12, 1.0f, 0.45f);
             note(88, 0.12, 1.0f, 0.25f);
+            break;
+        case Reward::Kind::Chapter: // a little fanfare: up the chord, twice
+            for (int i = 0; i < 3; i++) note(72 + (i == 0 ? 0 : i == 1 ? 4 : 7), i * 0.08, 0.4f, 0.4f);
+            for (int pitch : { 76, 79, 84 }) note(pitch, 0.32, 1.1f, 0.3f);
             break;
         case Reward::Kind::Goal:
             note(76, 0.0, 0.4f, 0.4f);
@@ -177,6 +181,27 @@ void drawRewards(float s){
             label("ACHIEVEMENT UNLOCKED", 16 * s);
             big(achievement.name, 32 * s, UiColor::Ink);
             small(achievement.description, 66 * s);
+            break;
+        }
+        case Reward::Kind::Chapter: {
+            // A big star in a disc, then its stars popping in one by one
+            draw->AddCircleFilled(badge, 30 * s, uiColor(UiColor::Accent, alpha), 40);
+            drawStar(draw, badge, 18 * s, uiColor(UiColor::Background, alpha));
+            label(card.courseDone ? "COURSE COMPLETE" : card.unitDone ? "LEVEL COMPLETE" : "CHAPTER COMPLETE", 16 * s);
+            std::string title = card.title;
+            if (title.size() > 30) title = title.substr(0, 29) + "...";
+            big(title, 32 * s, UiColor::Ink);
+            const int shownStars = std::min(card.starsPossible, 15);
+            for (int k = 0; k < shownStars; k++){
+                const float appear = (float)((age - 0.35 - k * 0.12) / 0.15);
+                const bool earned = k < card.stars;
+                const float pop = earned ? std::clamp(appear, 0.0f, 1.0f) : 1.0f;
+                if (pop <= 0.0f) continue;
+                const float grow = earned ? 1.0f + 0.5f * std::max(0.0f, 1.0f - std::fabs(appear - 1.0f) * 2.0f) : 1.0f;
+                drawStar(draw, ImVec2(textX + 8 * s + k * 18 * s, a.y + 74 * s), 7 * s * pop * grow, earned ? uiColor(UiColor::Accent, alpha) : uiColor(UiColor::StaffLine, alpha));
+            }
+            draw->AddText(fonts.mono, 12 * s, ImVec2(textX + 8 * s + shownStars * 18 * s, a.y + 67 * s), uiColor(UiColor::Dim, alpha),
+                          TextFormat("%d / %d", card.stars, card.starsPossible));
             break;
         }
         case Reward::Kind::Goal: {
