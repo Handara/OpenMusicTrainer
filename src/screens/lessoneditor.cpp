@@ -1,7 +1,7 @@
 #include "screens/lessoneditor.h"
 
 #include "core/files.h"
-#include "core/lesson.h"
+#include "core/lessondoc.h"
 #include "imgui.h"
 #include "imgui_stdlib.h"
 #include "learn/lessonview.h"
@@ -90,7 +90,8 @@ static void openLesson(const std::string& folder, bool builtIn){
     std::string error;
     Lesson lesson;
     if (!loadLesson(folder, lesson, error)){
-        ed.listError = error;
+        // A lesson of pages (version 2) isn't for this editor of steps: it would lose them saving
+        ed.listError = error.find("lesson format v2") != std::string::npos ? "This lesson is made of pages: the new lesson maker edits it" : error;
         return;
     }
     ed.lesson = lesson;

@@ -1,6 +1,6 @@
 #include "doctest/doctest.h"
 
-#include "core/lesson.h"
+#include "core/lessondoc.h"
 #include "core/paths.h"
 
 #include <filesystem>
@@ -152,8 +152,8 @@ TEST_CASE("scanning lessons and checking their exercises"){
         return std::string("not found");
     };
     CHECK(errorOf("user-uses-drill").empty()); // the player's lesson may use a built-in exercise
-    CHECK(errorOf("user-uses-routine").find("a routine can't be a lesson step") != std::string::npos);
-    CHECK(errorOf("user-uses-nothing") == "uses-nothing/lesson.lesson: step 1 (nope): there's no nope.exercise");
+    CHECK(errorOf("user-uses-routine").find("a routine can't be a lesson's exercise") != std::string::npos);
+    CHECK(errorOf("user-uses-nothing") == "uses-nothing/lesson.lesson: page 1 (nope): there's no nope.exercise");
     CHECK(errorOf("user-bad").find("bad/lesson.lesson:") == 0); // broken files show a short path
 }
 

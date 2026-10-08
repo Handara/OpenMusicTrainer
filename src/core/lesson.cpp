@@ -54,6 +54,18 @@ int lessonGoal(const LessonStep& step, ExerciseType exerciseType){
     return drill ? DEFAULT_CLEAN_PASSES : DEFAULT_ANSWERS_IN_A_ROW;
 }
 
+std::string lessonGoalText(const LessonStep& step, const ExerciseEntry* exercise){
+    if (step.type == LessonStepType::Play) return "Goal: hit " + std::to_string(lessonGoal(step)) + "% of the notes";
+    if (step.type != LessonStepType::Exercise || !exercise) return "";
+    int goal = lessonGoal(step, exercise->exercise.type);
+    ExerciseType type = exercise->exercise.type;
+    if (type == ExerciseType::Scale || type == ExerciseType::Rhythm || type == ExerciseType::Reading || type == ExerciseType::Chords) return "Goal: " + std::to_string(goal) + (goal == 1 ? " clean pass" : " clean passes");
+    if (type == ExerciseType::Notes) return "Goal: pass " + std::string(goal == 1 ? "a run" : std::to_string(goal) + " runs");
+    if (type == ExerciseType::Neck) return "Goal: " + std::to_string(goal) + (goal == 1 ? " run with no mistake" : " runs with no mistake");
+    if (type == ExerciseType::NeckWalk) return "Goal: clear " + std::to_string(goal) + (goal == 1 ? " round" : " rounds") + " in a game";
+    return "Goal: " + std::to_string(goal) + (goal == 1 ? " right answer" : " right answers in a row");
+}
+
 // "an image", "a video": for error messages
 static std::string withArticle(LessonStepType type){
     std::string name = lessonStepTypeName(type);
@@ -231,47 +243,6 @@ bool saveLesson(const std::string& folder, const Lesson& lesson, std::string& er
     std::error_code ec;
     fs::create_directories(folder, ec);
     return writeFileAtomically((fs::path(folder) / LESSON_FILE_NAME).string(), out.str(), error);
-}
-
-std::vector<LessonEntry> scanLessons(const std::string& dir, bool builtIn){
-    std::vector<LessonEntry> lessons;
-    std::error_code ec; // a missing folder just means no lessons
-    for (const fs::directory_entry& folder : fs::directory_iterator(dir, ec)){
-        if (!folder.is_directory() || !fs::exists(folder.path() / LESSON_FILE_NAME)) continue;
-        LessonEntry entry;
-        entry.folder = folder.path().string();
-        entry.builtIn = builtIn;
-        std::string name = folder.path().filename().string();
-        entry.id = std::string(builtIn ? "builtin-" : "user-") + name;
-        if (!loadLesson(entry.folder, entry.lesson, entry.error)){
-            entry.lesson.title = name;
-            // Menus show the error: "folder/lesson.lesson" is enough there, the full path would take several lines
-            std::string path = (folder.path() / LESSON_FILE_NAME).string();
-            if (entry.error.rfind(path, 0) == 0) entry.error = name + "/" + LESSON_FILE_NAME + entry.error.substr(path.size());
-        }
-        lessons.push_back(entry);
-    }
-    std::sort(lessons.begin(), lessons.end(), [](const LessonEntry& a, const LessonEntry& b){
-        if (a.lesson.category != b.lesson.category) return a.lesson.category < b.lesson.category;
-        return a.lesson.title < b.lesson.title;
-    });
-    return lessons;
-}
-
-void checkLessonExercises(std::vector<LessonEntry>& lessons, const std::vector<ExerciseEntry>& exercises){
-    for (LessonEntry& entry : lessons){
-        if (!entry.error.empty()) continue;
-        std::string where = fs::path(entry.folder).filename().string() + "/" + LESSON_FILE_NAME + ": step ";
-        for (size_t i = 0; i < entry.lesson.steps.size() && entry.error.empty(); i++){
-            const LessonStep& step = entry.lesson.steps[i];
-            if (step.type != LessonStepType::Exercise) continue;
-            const ExerciseEntry* found = findExercise(exercises, entry.builtIn, step.exercise);
-            std::string stepName = where + std::to_string(i + 1) + " (" + step.exercise + ")";
-            if (!found) entry.error = stepName + ": there's no " + step.exercise + ".exercise";
-            else if (!found->error.empty()) entry.error = stepName + ": that exercise has an error of its own";
-            else if (found->exercise.type == ExerciseType::Routine) entry.error = stepName + ": a routine can't be a lesson step";
-        }
-    }
 }
 
 bool stepPassed(const LessonProgress& progress, int step){

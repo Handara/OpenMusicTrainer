@@ -1,56 +1,65 @@
 #pragma once
 
-#include "core/lesson.h"
+#include "core/lessondoc.h"
 #include "learn/exercise.h"
-#include "learn/lessonview.h"
+#include "learn/lessonpage.h"
 #include "screens/gameplay.h"
 
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
-// A lesson, step by step: Previous and Next (the arrows, Enter), dots showing where you are, each step drawn by
-// lessonview. A step with a goal (an exercise, a song to play) starts as it's reached and runs inside the lesson,
-// with a small bar showing the goal; once it's met, the lesson goes on by itself (Esc goes back to the lesson). A
-// passed step stays passed. Progress is saved as you go, and the lesson reopens where you were.
+// A lesson, a page at a time (learn/lessonpage draws it): Back and Next (the arrows, the buttons at the foot), dots
+// for the pages. A page's drills and songs (its scored blocks) are cards: one chosen (Up and Down) or clicked runs
+// over the whole screen, with a bar at the top saying its goal; once it's met, the lesson comes back (or, on a page
+// with nothing else, goes on). A block that gates holds Next back until it's passed; Enter starts the first one still
+// to pass, else turns the page. Progress is saved as it goes: the lesson reopens where the student was.
 class LessonPlayer : public Exercise {
 public:
-    // `stepExercises`: for each step, the exercise it runs (a copy; empty for other steps)
-    // `playOptions`: how play steps play (the player's gameplay settings)
-    LessonPlayer(const LessonEntry& entry, std::vector<ExerciseEntry> stepExercises, ExerciseFactory create,
+    // `exercises`: what each exercise block runs, by its key (core/lessondoc scoredBlockKey): a copy
+    // `playOptions`: how song blocks play (the player's gameplay settings)
+    LessonPlayer(const LessonEntry& entry, std::map<int, ExerciseEntry> exercises, ExerciseFactory create,
                  const GameplayOptions& playOptions, const std::string& progressPath);
     ~LessonPlayer() override;
 
     void update() override;
     void draw() override;
     bool wantsToLeave() const override { return leave; }
-    bool back() override; // a step running: back to the lesson
+    bool back() override; // a block running: back to its page
+    bool isMenu() const override { return !running || running->isMenu(); }
 
 private:
-    const LessonStep& step() const { return lesson.steps[current]; }
-    bool hasGoal() const;
-    int goal() const;
-    bool canGoOn() const;           // the step's goal is met, or it has none
-    void goTo(int index);
-    void goOn();                    // the next step (an exercise starts at once), or the lesson finished
-    void startStep();               // runs the step's exercise, or plays its song
-    void stopStep();
+    std::vector<BlockPlace> pageBlocks() const; // the page's scored blocks, in reading order
+    bool passed(const BlockPlace& place) const;
+    bool canGoOn() const;          // every block on the page that gates is passed
+    int firstToPass() const;       // the first block still holding the page, -1 for none
+    const ExerciseEntry* exerciseFor(const BlockPlace& place) const;
+    int goal(const BlockPlace& place) const;
+    void goTo(int page);
+    void goOn();                   // the next page, or the lesson finished
+    void start(int number);        // runs the page's scored block
+    void stopRunning();
     void save();
-    void drawDots();
-    void drawGoalBar();
+    void drawFoot(float s);        // the dots, Back and Next
+    void drawGoalBar(float s);     // over a running block
 
-    Lesson lesson;
+    LessonDoc doc;
     std::string folder;
-    std::vector<ExerciseEntry> stepExercises;
+    std::map<int, ExerciseEntry> exercises;
     ExerciseFactory create;
     GameplayOptions playOptions;
     std::string progressPath;
     LessonProgress progress;
     std::string saveError;
 
-    int current = 0;
-    LessonMedia media;
-    std::unique_ptr<Exercise> running; // the step's exercise, while it runs
-    double passedAt = -1.0;            // when the running step's goal was met: the lesson goes on a moment later
+    int page = 0;
+    float scroll = 0.0f, pageHeight = 0.0f;
+    int chosen = -1;                  // the page's scored block chosen with the keys
+    bool chosenMoved = false;         //   just now: scrolled into view as it's drawn
+    PageMedia media;
+    std::unique_ptr<Exercise> running;
+    BlockPlace runningPlace;
+    double passedAt = -1.0;           // when the running block's goal was met: back a moment later
     bool leave = false;
 };

@@ -32,6 +32,14 @@ const std::vector<BlockInfo>& blockInfos(){
         { BlockType::Text, "text", "Text", "Paragraphs to read", BlockGroup::Show, false, {
             { "text", "Text", FieldKind::Paragraphs, "A paragraph each", "", {}, 0, 0, true },
         } },
+        { BlockType::Heading, "heading", "Heading", "A heading, over what follows", BlockGroup::Show, false, {
+            { "text", "Heading", FieldKind::Text, "Its words", "", {}, 0, 0, true },
+        } },
+        { BlockType::Callout, "callout", "Callout", "A tip, something to remember, or a warning, in a box of its own", BlockGroup::Show, false, {
+            { "style", "Kind", FieldKind::Choice, "A tip, something to remember, or something to be careful about", "tip",
+              { "tip", "remember", "careful" } },
+            { "text", "Text", FieldKind::Paragraphs, "A paragraph each", "", {}, 0, 0, true },
+        } },
         { BlockType::Image, "image", "Picture", "A picture from the lesson's folder", BlockGroup::Show, false, {
             { "file", "Picture", FieldKind::File, "A .png or .jpg in the lesson's folder", "", IMAGE_FILES, 0, 0, true },
             { "caption", "Caption", FieldKind::Text, "Under it", "" },
@@ -526,4 +534,102 @@ bool saveLessonDoc(const std::string& folder, const LessonDoc& doc, std::string&
     std::error_code ec;
     fs::create_directories(folder, ec);
     return writeFileAtomically((fs::path(folder) / LESSON_FILE_NAME).string(), writeLessonDoc(doc), error);
+}
+
+// --- Lessons in folders --------------------------------------------------------------------------------------------
+
+std::vector<LessonEntry> scanLessons(const std::string& dir, bool builtIn){
+    std::vector<LessonEntry> lessons;
+    std::error_code ec; // a missing folder just means no lessons
+    for (const fs::directory_entry& folder : fs::directory_iterator(dir, ec)){
+        if (!folder.is_directory() || !fs::exists(folder.path() / LESSON_FILE_NAME)) continue;
+        LessonEntry entry;
+        entry.folder = folder.path().string();
+        entry.builtIn = builtIn;
+        const std::string name = folder.path().filename().string();
+        entry.id = std::string(builtIn ? "builtin-" : "user-") + name;
+        const std::string path = (folder.path() / LESSON_FILE_NAME).string();
+        std::ifstream file(path);
+        std::stringstream text;
+        text << file.rdbuf();
+        entry.version = versionOf(text.str());
+        if (!loadLessonDoc(entry.folder, entry.doc, entry.error)){
+            entry.lesson.title = name;
+            // Menus show the error: "folder/lesson.lesson" is enough there, the full path would take several lines
+            if (entry.error.rfind(path, 0) == 0) entry.error = name + "/" + LESSON_FILE_NAME + entry.error.substr(path.size());
+        } else {
+            entry.lesson.title = entry.doc.title;
+            entry.lesson.category = entry.doc.category;
+            entry.lesson.author = entry.doc.author;
+            entry.lesson.description = entry.doc.description;
+            std::string stepsError;
+            if (entry.version == 1) loadLesson(entry.folder, entry.lesson, stepsError);
+        }
+        lessons.push_back(entry);
+    }
+    std::sort(lessons.begin(), lessons.end(), [](const LessonEntry& a, const LessonEntry& b){
+        if (a.lesson.category != b.lesson.category) return a.lesson.category < b.lesson.category;
+        return a.lesson.title < b.lesson.title;
+    });
+    return lessons;
+}
+
+void checkLessonExercises(std::vector<LessonEntry>& lessons, const std::vector<ExerciseEntry>& exercises){
+    for (LessonEntry& entry : lessons){
+        if (!entry.error.empty()) continue;
+        const std::string where = fs::path(entry.folder).filename().string() + "/" + LESSON_FILE_NAME + ": page ";
+        for (const BlockPlace& place : lessonBlocks(entry.doc)){
+            const LessonBlock& block = blockAt(entry.doc, place);
+            const std::string name = blockValue(block, "exercise");
+            if (block.type != BlockType::Exercise || name.empty()) continue;
+            const ExerciseEntry* found = findExercise(exercises, entry.builtIn, name);
+            const std::string blockName = where + std::to_string(place.page + 1) + " (" + name + ")";
+            if (!found) entry.error = blockName + ": there's no " + name + ".exercise";
+            else if (!found->error.empty()) entry.error = blockName + ": that exercise has an error of its own";
+            else if (found->exercise.type == ExerciseType::Routine) entry.error = blockName + ": a routine can't be a lesson's exercise";
+            if (!entry.error.empty()) break;
+        }
+    }
+}
+
+const int BLOCKS_A_PAGE = 1000; // a scored block's key: its page's number times this, and which of the page's it is
+
+std::vector<BlockPlace> scoredBlocks(const LessonDoc& doc, int page){
+    std::vector<BlockPlace> found;
+    for (const BlockPlace& place : lessonBlocks(doc)) if (place.page == page && blockScored(blockAt(doc, place))) found.push_back(place);
+    return found;
+}
+
+int scoredBlockKey(const LessonDoc& doc, const BlockPlace& place){
+    const std::vector<BlockPlace> onPage = scoredBlocks(doc, place.page);
+    int which = 0;
+    for (int i = 0; i < (int)onPage.size(); i++){
+        const BlockPlace& other = onPage[(size_t)i];
+        if (other.section == place.section && other.column == place.column && other.block == place.block) which = i;
+    }
+    return place.page * BLOCKS_A_PAGE + which;
+}
+
+void upgradeLessonProgress(LessonProgress& progress, int version){
+    if (version != 1) return;
+    std::vector<int> passed;
+    for (int step : progress.passed) passed.push_back(step < BLOCKS_A_PAGE ? step * BLOCKS_A_PAGE : step); // a step was a page
+    progress.passed.clear();
+    for (int key : passed) passStep(progress, key);
+}
+
+// As a version 1 step, to ask lessonGoal and its text what it takes
+static LessonStep asStep(const LessonBlock& block){
+    LessonStep step;
+    step.type = block.type == BlockType::Play ? LessonStepType::Play : LessonStepType::Exercise;
+    step.goal = blockGoal(block);
+    return step;
+}
+
+int scoredBlockGoal(const LessonBlock& block, ExerciseType exerciseType){
+    return lessonGoal(asStep(block), exerciseType);
+}
+
+std::string scoredBlockGoalText(const LessonBlock& block, const ExerciseEntry* exercise){
+    return lessonGoalText(asStep(block), exercise);
 }

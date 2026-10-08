@@ -41,7 +41,7 @@
 
 // --- Blocks -------------------------------------------------------------------------------------------------------
 
-enum class BlockType { Text, Image, Audio, Video, Exercise, Play, Count };
+enum class BlockType { Text, Heading, Callout, Image, Audio, Video, Exercise, Play, Count };
 enum class BlockGroup { Show, Play, Hear, Games, Smart }; // where the editor offers it
 
 // A setting a block takes
@@ -149,3 +149,31 @@ LessonDoc lessonDocFromSteps(const Lesson& lesson);
 bool loadLessonDoc(const std::string& folder, LessonDoc& out, std::string& error);
 bool checkLessonFiles(const LessonDoc& doc, const std::string& folder, std::string& error);
 bool saveLessonDoc(const std::string& folder, const LessonDoc& doc, std::string& error);
+
+// --- Lessons in folders --------------------------------------------------------------------------------------------
+
+struct LessonEntry {
+    std::string folder;
+    std::string id;     // names its progress file: "builtin-<folder name>" or "user-<folder name>"
+    bool builtIn;
+    int version = 0;    // its file's: 1 (steps) or 2 (pages)
+    LessonDoc doc;      // the lesson
+    Lesson lesson;      // its title, category, author and description (if it failed to load, only the title: the
+                        // folder's name); a version 1 lesson's steps too, for the editor of those
+    std::string error;  // why it can't be played, empty if it can
+};
+
+// Every folder with a lesson.lesson in it, sorted by category then title
+std::vector<LessonEntry> scanLessons(const std::string& dir, bool builtIn);
+// Exercise blocks may name exercises: marks lessons whose exercise is missing, broken, or a routine (a routine has no
+// goal a lesson could check)
+void checkLessonExercises(std::vector<LessonEntry>& lessons, const std::vector<ExerciseEntry>& exercises);
+
+// A scored block's place in its lesson's progress (LessonProgress::passed): its page's, and which of the page's
+// scored blocks it is. (A version 1 lesson kept a step's number there: read with the lesson, it's that step's page.)
+int scoredBlockKey(const LessonDoc& doc, const BlockPlace& place);
+std::vector<BlockPlace> scoredBlocks(const LessonDoc& doc, int page); // a page's, in reading order
+void upgradeLessonProgress(LessonProgress& progress, int version);    // a version 1 lesson's, to these keys
+// What a scored block takes to pass: its goal, or the usual one for what it runs ("Goal: 2 clean passes")
+int scoredBlockGoal(const LessonBlock& block, ExerciseType exerciseType);
+std::string scoredBlockGoalText(const LessonBlock& block, const ExerciseEntry* exercise);

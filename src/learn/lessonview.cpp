@@ -14,18 +14,6 @@ namespace fs = std::filesystem;
 const float HEADING_SCALE = 1.5f;       // a step's title, compared with body text
 const float MAX_IMAGE_HEIGHT = 0.55f;   // of the window's height, so the caption and buttons stay in view
 
-std::string lessonGoalText(const LessonStep& step, const ExerciseEntry* exercise){
-    if (step.type == LessonStepType::Play) return "Goal: hit " + std::to_string(lessonGoal(step)) + "% of the notes";
-    if (step.type != LessonStepType::Exercise || !exercise) return "";
-    int goal = lessonGoal(step, exercise->exercise.type);
-    ExerciseType type = exercise->exercise.type;
-    if (type == ExerciseType::Scale || type == ExerciseType::Rhythm || type == ExerciseType::Reading || type == ExerciseType::Chords) return "Goal: " + std::to_string(goal) + (goal == 1 ? " clean pass" : " clean passes");
-    if (type == ExerciseType::Notes) return "Goal: pass " + std::string(goal == 1 ? "a run" : std::to_string(goal) + " runs");
-    if (type == ExerciseType::Neck) return "Goal: " + std::to_string(goal) + (goal == 1 ? " run with no mistake" : " runs with no mistake");
-    if (type == ExerciseType::NeckWalk) return "Goal: clear " + std::to_string(goal) + (goal == 1 ? " round" : " rounds") + " in a game";
-    return "Goal: " + std::to_string(goal) + (goal == 1 ? " right answer" : " right answers in a row");
-}
-
 void releaseLessonMedia(LessonMedia& media){
     if (!media.imagePath.empty()) UnloadTexture(media.texture);
     if (!media.audioPath.empty()) unloadSong();

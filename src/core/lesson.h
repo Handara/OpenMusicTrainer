@@ -72,6 +72,8 @@ bool saveLesson(const std::string& folder, const Lesson& lesson, std::string& er
 
 // The goal a step really has: its own, or the usual one for what it runs
 int lessonGoal(const LessonStep& step, ExerciseType exerciseType = ExerciseType::Intervals);
+// "Goal: 2 clean passes": what passing an exercise or play step takes (`exercise`: the one it runs, if known)
+std::string lessonGoalText(const LessonStep& step, const ExerciseEntry* exercise);
 
 // Where a student is in a lesson. Steps with a goal stay passed once passed.
 struct LessonProgress {
@@ -83,17 +85,3 @@ bool stepPassed(const LessonProgress& progress, int step);
 void passStep(LessonProgress& progress, int step);
 LessonProgress loadLessonProgress(const std::string& path); // lenient, like all progress files
 bool saveLessonProgress(const std::string& path, const LessonProgress& progress, std::string& error);
-
-struct LessonEntry {
-    std::string folder;
-    std::string id;     // names its progress file: "builtin-<folder name>" or "user-<folder name>"
-    bool builtIn;
-    Lesson lesson;      // if it failed to load, only the title (the folder name) is set
-    std::string error;  // why it can't be played, empty if it can
-};
-
-// Every folder with a lesson.lesson in it, sorted by category then title
-std::vector<LessonEntry> scanLessons(const std::string& dir, bool builtIn);
-// Exercise steps name exercises: marks lessons whose exercise is missing, broken, or a routine (a routine has no
-// goal a lesson could check)
-void checkLessonExercises(std::vector<LessonEntry>& lessons, const std::vector<ExerciseEntry>& exercises);

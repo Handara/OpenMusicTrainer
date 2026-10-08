@@ -24,5 +24,3 @@ void drawLessonStep(const LessonStep& step, const std::string& folder, const Exe
 // Frees the texture and stops the clip: when the step changes, and when leaving
 void releaseLessonMedia(LessonMedia& media);
 
-// "Goal: 2 clean passes": what passing an exercise or play step takes
-std::string lessonGoalText(const LessonStep& step, const ExerciseEntry* exercise);

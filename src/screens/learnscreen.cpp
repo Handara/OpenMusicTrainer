@@ -3,7 +3,7 @@
 #include "app/playerprogress.h"
 #include "core/course.h"
 #include "core/exercisefile.h"
-#include "core/lesson.h"
+#include "core/lessondoc.h"
 #include "core/music.h"
 #include "core/plays.h"
 #include "core/routine.h"
@@ -330,10 +330,10 @@ static void refreshExercises(){
     learn.lessonProgressText.clear();
     for (const LessonEntry& entry : learn.lessons){
         LessonProgress progress = loadLessonProgress(progressPath(entry.id));
-        int steps = (int)entry.lesson.steps.size();
+        const int pages = (int)entry.doc.pages.size();
         if (!entry.error.empty()) learn.lessonProgressText.push_back("");
         else if (progress.completed) learn.lessonProgressText.push_back("done");
-        else if (progress.reached > 0) learn.lessonProgressText.push_back(TextFormat("step %d of %d", progress.reached + 1, steps));
+        else if (progress.reached > 0) learn.lessonProgressText.push_back(TextFormat("page %d of %d", progress.reached + 1, pages));
         else learn.lessonProgressText.push_back("");
     }
 }
@@ -353,13 +353,27 @@ static GameplayOptions lessonPlayOptions(){
 }
 
 static std::unique_ptr<Exercise> openLesson(const LessonEntry& entry){
-    // Each step's exercise, found now: a copy, since the lists are rebuilt when the lesson ends
-    std::vector<ExerciseEntry> stepExercises;
-    for (const LessonStep& step : entry.lesson.steps){
-        const ExerciseEntry* found = step.type == LessonStepType::Exercise ? findExercise(learn.exercises, entry.builtIn, step.exercise) : nullptr;
-        stepExercises.push_back(found ? *found : ExerciseEntry{});
+    // Each exercise block's exercise, found now (a copy: the lists are rebuilt when the lesson ends). One written in
+    // the lesson keeps its progress by the lesson and its place.
+    std::map<int, ExerciseEntry> exercises;
+    for (const BlockPlace& place : lessonBlocks(entry.doc)){
+        const LessonBlock& block = blockAt(entry.doc, place);
+        if (block.type != BlockType::Exercise) continue;
+        const int key = scoredBlockKey(entry.doc, place);
+        const std::string name = blockValue(block, "exercise");
+        if (!name.empty()){
+            if (const ExerciseEntry* found = findExercise(learn.exercises, entry.builtIn, name)) exercises[key] = *found;
+            continue;
+        }
+        ExerciseEntry inPlace;
+        inPlace.path = entry.folder;
+        inPlace.name = entry.id + "-" + std::to_string(key);
+        inPlace.id = inPlace.name;
+        inPlace.builtIn = entry.builtIn;
+        inPlace.exercise = block.exercise;
+        exercises[key] = inPlace;
     }
-    return std::make_unique<LessonPlayer>(entry, stepExercises, createExercise, lessonPlayOptions(), progressPath(entry.id));
+    return std::make_unique<LessonPlayer>(entry, exercises, createExercise, lessonPlayOptions(), progressPath(entry.id));
 }
 
 // A course's chapter's drills, each the exercise its step runs (written in place: kept by the course and drill)
@@ -609,7 +623,7 @@ static void drawAbout(const LearnRow& row, float s){
         title = entry.lesson.title;
         about = entry.lesson.description;
         author = entry.lesson.author;
-        progress = TextFormat("%d %s", (int)entry.lesson.steps.size(), entry.lesson.steps.size() == 1 ? "step" : "steps");
+        progress = TextFormat("%d %s", (int)entry.doc.pages.size(), entry.doc.pages.size() == 1 ? "page" : "pages");
         if (!learn.lessonProgressText[row.index].empty()) progress += "  ·  " + learn.lessonProgressText[row.index];
     } else if (row.kind == LearnRow::Course){
         const CourseEntry& entry = learn.courses[row.index];
