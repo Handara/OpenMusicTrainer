@@ -45,6 +45,13 @@ struct PageEvents {
     int started = -1; // a scored block clicked: its number on the page
     std::vector<ImVec2> scoredSpans; // where each scored block was drawn: its top and bottom, on the screen
     std::vector<PageRect> sections, columns, blocks;
+    // In the lesson maker, a click on a neck's place or a piano's key (in a neck or keyboard block): where, for the
+    // maker to mark it (its block -1: none)
+    struct Mark {
+        int section = -1, column = -1, block = -1;
+        int string = -1, fret = -1; // a neck's place (0 = the lowest string)
+        int pitch = -1;             // a key
+    } mark;
 };
 
 // Draws page `page` from `at`, `width` wide (the window's draw list); returns how tall it is

@@ -203,6 +203,11 @@ bool removeBlock(LessonDoc& doc, const BlockPlace& place);
 // Moved to before the block at `to` (as the column is before it's taken out); returns where it ended up, or `from`
 // when it can't go there
 BlockPlace moveBlock(LessonDoc& doc, const BlockPlace& from, const BlockPlace& to);
+// Marking by clicking (the maker's): a neck's place goes from nothing to a note, to a lit note, to nothing again (a
+// label it has goes with it); a piano's key, lit or not
+void cycleNeckPlace(LessonBlock& block, int string, int fret);
+void toggleLitKey(LessonBlock& block, int pitch);
+
 // A new layout: blocks of columns it no longer has go to the end of its last
 void setSectionLayout(LessonSection& section, SectionLayout layout);
 

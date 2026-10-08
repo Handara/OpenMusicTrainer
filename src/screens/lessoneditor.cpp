@@ -1002,6 +1002,18 @@ static void canvas(ImVec2 min, ImVec2 max, float s){
     PageEvents events;
     const ImVec2 at(min.x + CANVAS_PAD * s, top - ed.scroll);
     ed.pageHeight = drawLessonPage(ed.doc, ed.page, ed.folder, ed.media, state, events, at, width, s);
+    // A click on a neck or the keys marks it there: a note, lit, or nothing again
+    if (events.mark.block >= 0 && hovering){
+        const BlockPlace place{ ed.page, events.mark.section, events.mark.column, events.mark.block };
+        if (LessonBlock* block = blockPointer(ed.doc, place)){
+            beforeChange();
+            if (events.mark.pitch >= 0) toggleLitKey(*block, events.mark.pitch);
+            else cycleNeckPlace(*block, events.mark.string, events.mark.fret);
+            ed.fields.erase("dots");
+            ed.fields.erase("lit");
+            changed();
+        }
+    }
     // What's chosen, outlined in the accent colour; what's under the mouse, faintly
     const ImVec2 mouse = ImGui::GetIO().MousePos;
     auto inside = [&](const PageRect& rect){ return mouse.x >= rect.min.x && mouse.x <= rect.max.x && mouse.y >= rect.min.y && mouse.y <= rect.max.y; };

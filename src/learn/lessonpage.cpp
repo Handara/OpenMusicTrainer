@@ -48,6 +48,8 @@ struct BlockContext {
     ExerciseInstrument instrument; // the lesson's: whose neck, whose sound
     bool editing;
     float s;
+    PageEvents& events;
+    int section = 0, column = 0, block = 0; // the block being drawn's place
 };
 
 // In the lesson maker: a dashed box where something will go, saying what
@@ -263,6 +265,11 @@ float drawNeckBlock(const BlockContext& c, const LessonBlock& block, ImVec2 at, 
     };
     mark(readNeckPlaces(blockValue(block, "dots")), false);
     mark(readNeckPlaces(blockValue(block, "lit")), true);
+    // In the maker, a click on the board marks a place (the maker cycles it: a note, lit, none)
+    if (c.editing && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && mouse.y >= board.top && mouse.y <= board.top + board.height){
+        const int string = board.stringAt(mouse.y), fret = board.fretAt(mouse.x);
+        if (string >= 0 && fret >= 0) c.events.mark = { c.section, c.column, c.block, string, fret, -1 };
+    }
     const float height = board.height + 24 * s; // the fret numbers under it
     return height + drawCaption(c, block, ImVec2(at.x, at.y + height), width);
 }
@@ -284,6 +291,7 @@ float drawKeyboardBlock(const BlockContext& c, const LessonBlock& block, ImVec2 
         return look;
     });
     if (clicked >= 0) soundNote(ExerciseInstrument::Piano, clicked);
+    if (clicked >= 0 && c.editing) c.events.mark = { c.section, c.column, c.block, -1, -1, clicked }; // the maker lights it, or not
     return keys.height + drawCaption(c, block, ImVec2(at.x, at.y + keys.height), width);
 }
 
@@ -488,7 +496,7 @@ float drawLessonPage(const LessonDoc& doc, int pageNumber, const std::string& fo
     if (pageNumber < 0 || pageNumber >= (int)doc.pages.size()) return 0.0f;
     const LessonPage& page = doc.pages[(size_t)pageNumber];
     ImDrawList* draw = ImGui::GetWindowDrawList();
-    const BlockContext context{ draw, folder, media, doc.instrument, state.editing, s };
+    BlockContext context{ draw, folder, media, doc.instrument, state.editing, s, events };
     float y = at.y;
     if (!page.title.empty()){
         draw->AddText(uiFonts().heavy, PAGE_TITLE_SIZE * s, ImVec2(at.x, y), uiColor(UiColor::Ink), page.title.c_str(), nullptr, width);
@@ -515,6 +523,9 @@ float drawLessonPage(const LessonDoc& doc, int pageNumber, const std::string& fo
                 const LessonBlock& block = section.columns[c][b];
                 if (b > 0) columnY += BLOCK_GAP * s;
                 const ImVec2 blockAt(x, columnY);
+                context.section = (int)sectionIndex;
+                context.column = (int)c;
+                context.block = (int)b;
                 switch (block.type){
                     case BlockType::Text: columnY += drawText(context, block, blockAt, columnWidth); break;
                     case BlockType::Heading: columnY += drawHeading(context, block, blockAt, columnWidth); break;

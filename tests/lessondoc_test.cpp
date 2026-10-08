@@ -404,6 +404,26 @@ TEST_CASE("practice blocks: a drill made from notes given, on the lesson's instr
     CHECK(lessonNotes(doc) == std::vector<int>{ 60, 64, 65, 67 });
 }
 
+TEST_CASE("marking by clicking: a neck's place cycles a note, lit, nothing; a key, lit or not"){
+    LessonBlock neck = makeBlock(BlockType::Fretboard);
+    setBlockValue(neck, "dots", "6:3:G");
+    setBlockValue(neck, "lit", "");
+    cycleNeckPlace(neck, 0, 1); // the lowest string's 1st fret: a note
+    CHECK(blockValue(neck, "dots") == "6:3:G 1:1");
+    cycleNeckPlace(neck, 5, 3); // lit, its label with it
+    CHECK(blockValue(neck, "dots") == "1:1");
+    CHECK(blockValue(neck, "lit") == "6:3:G");
+    cycleNeckPlace(neck, 5, 3); // gone
+    CHECK(blockValue(neck, "lit").empty());
+    CHECK(blockValues(neck, "lit").empty()); // (not written at all)
+
+    LessonBlock keys = makeBlock(BlockType::Keyboard); // C4 E4 G4 lit
+    toggleLitKey(keys, 64);
+    CHECK(blockValue(keys, "lit") == "C4 G4");
+    toggleLitKey(keys, 62);
+    CHECK(blockValue(keys, "lit") == "C4 D4 G4"); // in order
+}
+
 TEST_CASE("a draft: blocks still missing what they need are kept, and read back"){
     LessonDoc doc;
     doc.title = "Draft";

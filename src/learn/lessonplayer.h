@@ -11,12 +11,13 @@
 #include <vector>
 
 // A lesson, a page at a time (learn/lessonpage draws it): Back and Next (the arrows, the buttons at the foot), dots
-// for the pages. Pages set aside (help) are skipped, shown only when a block missed twice sends the student there;
-// Next then goes back. A block aced the first time may send the student on ahead. Practice blocks make their drill
-// as they start, from the notes the student misses most (or the lesson's own). A page's drills and songs (its scored blocks) are cards: one chosen (Up and Down) or clicked runs
+// for the pages. A page's drills and songs (its scored blocks) are cards: one chosen (Up and Down) or clicked runs
 // over the whole screen, with a bar at the top saying its goal; once it's met, the lesson comes back (or, on a page
 // with nothing else, goes on). A block that gates holds Next back until it's passed; Enter starts the first one still
-// to pass, else turns the page. Progress is saved as it goes: the lesson reopens where the student was.
+// to pass, else turns the page. Pages set aside (help) are skipped, shown only when a block missed twice sends the
+// student there; Next then goes back. A block aced the first time may send the student on ahead. Practice blocks make
+// their drill as they start, from the notes the student misses most (or the lesson's own). Progress is saved as it
+// goes: the lesson reopens where the student was.
 class LessonPlayer : public Exercise {
 public:
     // `exercises`: what each exercise block runs, by its key (core/lessondoc scoredBlockKey): a copy

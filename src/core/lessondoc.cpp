@@ -912,6 +912,39 @@ BlockPlace moveBlock(LessonDoc& doc, const BlockPlace& from, const BlockPlace& t
     return landed;
 }
 
+// A neck's places as a setting writes them: string:fret (1 = the lowest string), and its label after another colon
+static std::string writeNeckPlaces(const std::vector<NeckPlace>& places){
+    std::string text;
+    for (const NeckPlace& place : places)
+        text += (text.empty() ? "" : " ") + std::to_string(place.string + 1) + ":" + std::to_string(place.fret) + (place.label.empty() ? "" : ":" + place.label);
+    return text;
+}
+
+void cycleNeckPlace(LessonBlock& block, int string, int fret){
+    std::vector<NeckPlace> dots = readNeckPlaces(blockValue(block, "dots")), lit = readNeckPlaces(blockValue(block, "lit"));
+    auto at = [&](std::vector<NeckPlace>& places){
+        return std::find_if(places.begin(), places.end(), [&](const NeckPlace& place){ return place.string == string && place.fret == fret; });
+    };
+    if (auto found = at(lit); found != lit.end()) lit.erase(found);         // lit: gone
+    else if (auto dot = at(dots); dot != dots.end()){                        // a note: lit
+        lit.push_back(*dot);
+        dots.erase(dot);
+    } else dots.push_back({ string, fret, "" });                             // nothing: a note
+    setBlockValue(block, "dots", writeNeckPlaces(dots));
+    setBlockValue(block, "lit", writeNeckPlaces(lit));
+}
+
+void toggleLitKey(LessonBlock& block, int pitch){
+    std::vector<int> lit = readNotes(blockValue(block, "lit"));
+    auto found = std::find(lit.begin(), lit.end(), pitch);
+    if (found != lit.end()) lit.erase(found);
+    else lit.push_back(pitch);
+    std::sort(lit.begin(), lit.end());
+    std::string text;
+    for (int key : lit) text += std::string(text.empty() ? "" : " ") + pitchClassName(key) + std::to_string(pitchOctave(key));
+    setBlockValue(block, "lit", text);
+}
+
 void setSectionLayout(LessonSection& section, SectionLayout layout){
     const size_t columns = (size_t)sectionColumns(layout);
     if (section.columns.size() > columns){
