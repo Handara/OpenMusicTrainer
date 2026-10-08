@@ -36,7 +36,8 @@ void drawHelpOverlay(float s){
     static const HelpSection columns[2][4] = {
         {
             { "EVERYWHERE", { { "Esc", "back (the mouse's back button too)" }, { "F1", "these controls" },
-                              { "F2", "hear your instrument, or not" }, { "Up / Down, Enter", "choose in a list" } } },
+                              { "F2", "hear your instrument, or not" }, { "Up / Down, Enter", "choose in a list" },
+                              { "F10", "record a video of the game (again: save it)" }, { "F12", "save a screenshot" } } },
             { "THE MENUS, BY PLAYING", { { "low E", "back" }, { "A / D", "up / down" }, { "G", "choose" },
                                           { "B / high E", "left / right (bass: the G string's 4th and 5th frets)" },
                                           { "a note shown", "beside a row: straight to it" } } },

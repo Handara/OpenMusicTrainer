@@ -12,7 +12,6 @@
 #include <mutex>
 #include <thread>
 
-const int PICTURES_PER_SECOND = 30;
 const size_t MOST_WAITING = 8;  // pictures waiting for FFmpeg: more wait as a count, given once there's room (FFmpeg
                                 // is behind: starting, the first ~0.3 s; without them the picture ran that far ahead)
 const long long MOST_OWED = 300; // pictures owed at most (10 s): FFmpeg far behind for good, the video runs short
@@ -27,6 +26,7 @@ static struct {
     bool running = false;
     std::atomic<bool> failed{false};
     int width = 0, height = 0;
+    int perSecond = 30;
     double startedAt = 0.0;
     long long taken = 0;          // pictures given so far, counting the repeated ones
     long long owed = 0;           // pictures due that found no room: given as repeats once there is
@@ -46,14 +46,19 @@ static void giveToFfmpeg(){
     }
 }
 
-bool startScreenRecording(const std::string& ffmpeg, const std::string& path, std::string& error){
-    if (recorder.running) return true;
+bool startScreenRecording(const std::string& ffmpeg, const std::string& path, std::string& error, const ScreenRecordingOptions& options){
+    if (recorder.running){
+        error = "something else is being recorded";
+        return false;
+    }
+    recorder.perSecond = std::max(1, options.picturesPerSecond);
     recorder.width = GetRenderWidth() / 2 * 2; // even: what H.264 takes
     recorder.height = GetRenderHeight() / 2 * 2;
     const std::string size = std::to_string(recorder.width) + "x" + std::to_string(recorder.height);
     recorder.ffmpeg = startFedProgram({ ffmpeg, "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgba", "-s", size,
-                                        "-framerate", std::to_string(PICTURES_PER_SECOND), "-i", "-",
-                                        "-vf", "scale=-2:'min(720,ih)'", "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+                                        "-framerate", std::to_string(recorder.perSecond), "-i", "-",
+                                        "-vf", "scale=-2:'min(" + std::to_string(options.mostLines) + ",ih)'", "-c:v", "libx264",
+                                        "-preset", "veryfast", "-crf", std::to_string(options.quality),
                                         "-pix_fmt", "yuv420p", "-movflags", "+faststart", path }, error);
     if (!recorder.ffmpeg) return false;
     recorder.running = true;
@@ -71,9 +76,10 @@ bool screenRecording(){
 
 void captureScreen(){
     if (!recorder.running) return;
-    const long long due = (long long)((GetTime() - recorder.startedAt) * PICTURES_PER_SECOND) + 1;
+    const long long due = (long long)((GetTime() - recorder.startedAt) * recorder.perSecond) + 1;
     if (recorder.taken >= due) return;
     // The screen as it's drawn, top row first (raylib turns OpenGL's rows the right way up)
+    rlDrawRenderBatchActive(); // everything drawn so far in it
     unsigned char* pixels = rlReadScreenPixels(recorder.width, recorder.height);
     if (!pixels) return;
     std::vector<unsigned char> picture(pixels, pixels + (size_t)recorder.width * recorder.height * 4);

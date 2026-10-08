@@ -23,6 +23,15 @@ double outputLatencySeconds();  // the output's buffering: how late sound leaves
 bool outputIsAsio();
 void setMasterVolume(float volume); // 0..1
 
+// What lahn plays, kept as it goes out (songs, clicks, sounds, the instrument heard through it: everything, mixed),
+// for a recording of the game (app/gamerecorder). Kept from start until stop, and taken every frame meanwhile: a few
+// seconds wait at most. At one rate: what goes out at another after a change of device is left out.
+void startOutputRecording();
+void stopOutputRecording();
+// What went out since the last call, appended to `frames`: stereo (left, right, left...), at outputRecordingRate()
+void takeOutputRecording(std::vector<float>& frames);
+int outputRecordingRate(); // 0 until something went out
+
 // One song at a time, streamed from disk. The song's playback position is the game's master clock.
 bool loadSong(const std::string& path, std::string& error);
 void unloadSong();

@@ -185,6 +185,11 @@ static struct {
     int directInputFrames = 0;
     std::atomic<ma_uint32> directRate{48000}; // the rate that callback runs at
     ToneRunner directTone;              // the direct monitor's (that callback's only)
+    // What goes out, kept for a recording of the game (startOutputRecording): written by whichever callback plays
+    std::atomic<bool> recordingOutput{false};
+    std::atomic<int> recordingRate{0};
+    ma_pcm_rb recordBuffer;
+    bool recordBufferReady = false;
 
     Voice voices[VOICE_COUNT];
     Voice synthVoices[2];  // the synth bass (playSynthNote): one playing, the last fading out while it starts
@@ -260,12 +265,15 @@ static void wakeEngineClock(){
     startVoice(audio.wake, audio.wake.samples.data(), audio.wake.samples.size(), 1.0f, 1.0f, 0);
 }
 
+static void engineCallback(ma_device* device, void* output, const void* input, ma_uint32 frameCount); // (below)
+
 static bool startEngine(const std::string& outputDevice, std::string& error){
     audio.outputDeviceWanted = outputDevice;
     ma_device_id id;
     ma_engine_config config = ma_engine_config_init();
     config.pContext = &audio.context;
     config.pPlaybackDeviceID = findDevice(ma_device_type_playback, outputDevice, id) ? &id : nullptr; // not found: system default
+    config.dataCallback = engineCallback; // miniaudio's own, and what goes out kept for a recording
     ma_result result = ma_engine_init(&config, &audio.engine);
     if (result != MA_SUCCESS){
         error = std::string("could not start audio output: ") + ma_result_description(result);
@@ -337,6 +345,9 @@ void closeAudio(){
     if (audio.monitorBufferReady) ma_pcm_rb_uninit(&audio.monitorBuffer);
     audio.monitorBufferReady = false;
     stopEngine();
+    audio.recordingOutput = false; // every callback stopped: its buffer goes
+    if (audio.recordBufferReady) ma_pcm_rb_uninit(&audio.recordBuffer);
+    audio.recordBufferReady = false;
     if (audio.contextReady) ma_context_uninit(&audio.context);
     audio.contextReady = false;
 }
@@ -385,6 +396,39 @@ double outputLatencySeconds(){
     if (audio.engineExternal) return asioOutputLatencyFrames() / std::max(1.0, asioSampleRate());
     const ma_device* device = ma_engine_get_device(&audio.engine);
     return (double)device->playback.internalPeriodSizeInFrames * device->playback.internalPeriods / std::max<ma_uint32>(1, device->playback.internalSampleRate);
+}
+
+const ma_uint32 RECORD_BUFFER_FRAMES = 4 * 48000; // what goes out waits here to be taken: seconds of it
+
+void startOutputRecording(){
+    if (audio.recordingOutput) return;
+    if (!audio.recordBufferReady){
+        if (ma_pcm_rb_init(ma_format_f32, 2, RECORD_BUFFER_FRAMES, nullptr, nullptr, &audio.recordBuffer) != MA_SUCCESS) return;
+        audio.recordBufferReady = true;
+    }
+    ma_pcm_rb_reset(&audio.recordBuffer); // (nothing writes while it isn't recording)
+    audio.recordingRate = 0;
+    audio.recordingOutput.store(true, std::memory_order_release);
+}
+
+void stopOutputRecording(){
+    audio.recordingOutput.store(false, std::memory_order_release);
+}
+
+void takeOutputRecording(std::vector<float>& frames){
+    if (!audio.recordBufferReady) return;
+    while (true){
+        ma_uint32 count = RECORD_BUFFER_FRAMES;
+        void* source;
+        if (ma_pcm_rb_acquire_read(&audio.recordBuffer, &count, &source) != MA_SUCCESS || count == 0) return;
+        const float* samples = (const float*)source;
+        frames.insert(frames.end(), samples, samples + (size_t)count * 2);
+        ma_pcm_rb_commit_read(&audio.recordBuffer, count);
+    }
+}
+
+int outputRecordingRate(){
+    return audio.recordingRate.load(std::memory_order_relaxed);
 }
 
 void setMasterVolume(float volume){
@@ -806,10 +850,49 @@ static void takeTone(ToneRunner& runner, int sampleRate){
     runner.seen = version;
 }
 
+// What just went out, kept while the game is recorded: its first two channels (one twice, if that's all there is)
+static void recordOutput(const float* frames, ma_uint32 count, ma_uint32 channels, ma_uint32 rate){
+    if (!audio.recordingOutput.load(std::memory_order_acquire) || channels == 0) return;
+    int expected = 0;
+    if (!audio.recordingRate.compare_exchange_strong(expected, (int)rate) && expected != (int)rate) return; // another rate
+    float stereo[2 * MONITOR_CHUNK];
+    for (ma_uint32 done = 0; done < count;){
+        const ma_uint32 chunk = std::min<ma_uint32>(count - done, MONITOR_CHUNK);
+        for (ma_uint32 i = 0; i < chunk; i++){
+            const float* frame = frames + (size_t)(done + i) * channels;
+            stereo[2 * i] = frame[0];
+            stereo[2 * i + 1] = channels > 1 ? frame[1] : frame[0];
+        }
+        for (ma_uint32 put = 0; put < chunk;){
+            ma_uint32 space = chunk - put;
+            void* destination;
+            if (ma_pcm_rb_acquire_write(&audio.recordBuffer, &space, &destination) != MA_SUCCESS || space == 0) return; // full: not taken in time
+            memcpy(destination, stereo + 2 * put, space * 2 * sizeof(float));
+            ma_pcm_rb_commit_write(&audio.recordBuffer, space);
+            put += space;
+        }
+        done += chunk;
+    }
+}
+
+// The engine's own device's call: the mix, as miniaudio's own call makes it, then kept if the game is being recorded
+static void engineCallback(ma_device* device, void* output, const void* input, ma_uint32 frameCount){
+    (void)input;
+    ma_engine_read_pcm_frames((ma_engine*)device->pUserData, output, frameCount, nullptr);
+    recordOutput((const float*)output, frameCount, device->playback.channels, device->sampleRate);
+}
+
+static void renderOutputMix(float* stereo, int frameCount);
+
 // The outputs, in the same call as the inputs (the ASIO driver's or the duplex device's): everything lahn plays, and
 // the instrument heard straight through (the real sound, not the synth), from the input just handed over: one buffer
-// in, one out, as Ableton does
+// in, one out, as Ableton does. Kept, too, while the game is recorded.
 static void renderOutput(float* stereo, int frameCount){
+    renderOutputMix(stereo, frameCount);
+    recordOutput(stereo, (ma_uint32)frameCount, 2, audio.directRate.load(std::memory_order_relaxed));
+}
+
+static void renderOutputMix(float* stereo, int frameCount){
     if (audio.engineExternal.load(std::memory_order_acquire)) ma_engine_read_pcm_frames(&audio.engine, stereo, (ma_uint64)frameCount, nullptr);
     if (!audio.monitorGate || audio.monitorSynth || !audio.directInput || audio.directInputFrames != frameCount) return;
     const ma_uint32 channels = audio.captureChannels, mixed = std::min<ma_uint32>(channels, MAX_MONITOR_INPUTS);

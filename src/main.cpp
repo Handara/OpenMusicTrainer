@@ -1,5 +1,6 @@
 #include "raylib.h"
 #include "app/crashreport.h"
+#include "app/gamerecorder.h"
 #include "app/screenrecorder.h"
 #include "app/videoconvert.h"
 #include "audio/audio.h"
@@ -957,6 +958,7 @@ int main(void){
     }
     applyDisplaySettings(app.settings);
     initUi(app.resourcesDir, app.settings.darkTheme);
+    initGameRecorder(app.userDataDir);
     if (!loadStaffFont(app.resourcesDir + "fonts/Bravura.otf")) TraceLog(LOG_WARNING, "Music font not found: sheet music uses plain shapes");
     if (!loadViewFont(app.resourcesDir + "fonts/Figtree-Bold.ttf")) TraceLog(LOG_WARNING, "Text font not found: the note views use the pixel font");
 
@@ -976,6 +978,8 @@ int main(void){
         const InstrumentStatus& played = statusOf(app.settings.heardInstrument);
         updateMenuInput(menuScreen, played.ready ? "" : played.problem.empty() ? "no instrument connected" : played.problem, app.settings,
                         app.settings.heardInstrument);
+
+        updateGameRecorder(); // a recording's sound (F10), written down
 
         BeginDrawing();
         if (app.screen == Screen::Playing) drawGameplay();
@@ -998,6 +1002,7 @@ int main(void){
             drawParticles(menuScale()); // sparks: notes hit, milestones
             drawRewards(menuScale()); // what was just earned, over everything
         }
+        gameRecorderUi(menuScale()); // F10 records the game, F12 a screenshot, from any screen; and what was just saved
         endUiFrame();
 
         // Changes of screen from outside the menus come after drawing, so this frame still shows the old screen and
@@ -1016,7 +1021,9 @@ int main(void){
         }
         saveShareCardIfAsked((fs::path(app.userDataDir) / "shares").string()); // the card as drawn, before anything's over it
         drawTransition();
-        captureScreen(); // a check's video, recording (F9 in a song): the frame as it will be shown
+        captureScreen(); // a video, recording (F10, or F9 in a song): the frame as it will be shown
+        captureGameRecorder(); // a screenshot (F12)
+        drawGameRecorderOverlay(menuScale()); // REC, after the pictures: not in them
         if (app.screen != shown && app.sameScreen) app.sameScreen = false;
         else if (app.screen != shown){
             startTransition(app.zoomTo.x, app.zoomTo.y);
@@ -1026,6 +1033,7 @@ int main(void){
     }
 
     saveAppSettings(); // what changed outside the settings screen too (the instrument played last)
+    closeGameRecorder(); // a recording going is saved
     stopGameplay();
     waitForChecks();
     stopTuner();

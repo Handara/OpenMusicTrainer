@@ -93,6 +93,7 @@ static double checkSavedAt = -100.0;
 // ...and the screen with it, when FFmpeg is there (the video add-on): its pictures as the song goes, then the sound
 // put under them (the instrument as recorded, and the song's audio) on a worker thread, as <base>.mp4
 static std::string checkBase;       // the files' path, without their endings
+static bool checkFilmed = false;    // its pictures are being filmed (the screen recorder is its)
 static std::string checkSongAudio;  // the song's audio file
 static double firstSyncRecording = -1.0, firstSyncSong = 0.0;
 static std::thread checkVideo;
@@ -1237,7 +1238,11 @@ static void beginCheck(){
     // The screen too, if FFmpeg is there
     const std::string ffmpeg = findFfmpeg(userDataDir() + "/addons");
     std::string error;
-    if (!ffmpeg.empty() && !startScreenRecording(ffmpeg, checkBase + "-pictures.mp4", error)) TraceLog(LOG_WARNING, "Recording the screen: %s", error.c_str());
+    checkFilmed = false;
+    if (!ffmpeg.empty() && !screenRecording()){ // (not while the game is being recorded: F10)
+        checkFilmed = startScreenRecording(ffmpeg, checkBase + "-pictures.mp4", error);
+        if (!checkFilmed) TraceLog(LOG_WARNING, "Recording the screen: %s", error.c_str());
+    }
 }
 
 void waitForChecks(){
@@ -1249,7 +1254,8 @@ static void saveCheck(){
     const std::string base = checkBase;
     std::string error;
     std::string screenError;
-    const bool filmed = screenRecording() && stopScreenRecording(screenError);
+    const bool filmed = checkFilmed && screenRecording() && stopScreenRecording(screenError);
+    checkFilmed = false;
     if (!screenError.empty()) TraceLog(LOG_WARNING, "Recording the screen: %s", screenError.c_str());
     if (!saveInputRecording(base, error)){
         checkSaved = "Check not saved: " + error;

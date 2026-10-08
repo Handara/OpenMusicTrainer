@@ -235,6 +235,7 @@ add_executable(lahn
     src/app/filedialog.cpp
     src/app/process.cpp
     src/app/screenrecorder.cpp
+    src/app/gamerecorder.cpp
     src/app/stemmodel.cpp
     src/app/videoconvert.cpp
     src/audio/audio.cpp

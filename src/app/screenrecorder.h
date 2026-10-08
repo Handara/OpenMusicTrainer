@@ -3,11 +3,17 @@
 #include <string>
 #include <vector>
 
-// What lahn shows, recorded as a video (a check of a song: F9 while playing). Its pictures, 30 a second, are taken as
-// they're drawn and given to FFmpeg (the video add-on's: app/videoconvert), which makes them an mp4 (H.264, at most
-// 720 lines high) as the song goes. The sound is put under it afterwards (addSoundToVideo).
+// What lahn shows, recorded as a video (a check of a song: F9 while playing; the game: app/gamerecorder). Its pictures
+// are taken as they're drawn and given to FFmpeg (the video add-on's: app/videoconvert), which makes them an mp4
+// (H.264) as it goes. The sound is put under it afterwards (addSoundToVideo). One recording at a time.
 
-bool startScreenRecording(const std::string& ffmpeg, const std::string& path, std::string& error);
+struct ScreenRecordingOptions {
+    int picturesPerSecond = 30;
+    int mostLines = 720;   // made smaller if the window's taller
+    int quality = 23;      // H.264's CRF: lower is better and bigger (18 is close to what was drawn)
+};
+bool startScreenRecording(const std::string& ffmpeg, const std::string& path, std::string& error,
+                          const ScreenRecordingOptions& options = {});
 bool screenRecording();
 // Every frame, once it's drawn and before it's shown (before EndDrawing): a picture, when one is due
 void captureScreen();
