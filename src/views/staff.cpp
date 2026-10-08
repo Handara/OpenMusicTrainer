@@ -342,7 +342,9 @@ static float drawGroup(const Staff& staff, const Score& score, size_t first, siz
         // The stem, from the note on the far side to the tip, and a flag if it isn't beamed
         if (event.value != NoteValue::Whole){
             float from = up ? staff.yAt(column.heads.front().position) : staff.yAt(column.heads.back().position);
-            DrawLineEx({column.stemX, from}, {column.stemX, column.stemTipY}, STEM_THICKNESS * space, column.heads.front().color);
+            // At least a pixel wide, on a pixel's middle: a thinner line between two pixels lights neither (it vanished)
+            const float stemX = std::floor(column.stemX) + 0.5f;
+            DrawLineEx({stemX, from}, {stemX, column.stemTipY}, std::max(1.0f, STEM_THICKNESS * space), column.heads.front().color);
             int beams = beamCount(event.value);
             if (!beamed && beams > 0) drawGlyph(GLYPH_FLAG_8TH_UP + 2 * (beams - 1) + (up ? 0 : 1), column.stemX - STEM_THICKNESS * space / 2, column.stemTipY, space, column.heads.front().color);
             top = std::min(top, column.stemTipY - space);
