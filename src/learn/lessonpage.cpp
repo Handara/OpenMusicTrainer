@@ -45,8 +45,28 @@ struct BlockContext {
     const std::string& folder;
     PageMedia& media;
     ExerciseInstrument instrument; // the lesson's: whose neck, whose sound
+    bool editing;
     float s;
 };
+
+// In the lesson maker: a dashed box where something will go, saying what
+float drawPlaceholder(ImDrawList* draw, ImVec2 at, float width, float height, const char* text, float s){
+    const ImVec2 b(at.x + width, at.y + height);
+    const ImU32 color = uiColor(UiColor::Dim, 0.7f);
+    const float dash = 8 * s, gap = 6 * s;
+    for (float x = at.x; x < b.x; x += dash + gap){
+        horizontalLine(draw, x, std::min(x + dash, b.x), at.y, 1.5f * s, color);
+        horizontalLine(draw, x, std::min(x + dash, b.x), b.y, 1.5f * s, color);
+    }
+    for (float y = at.y; y < b.y; y += dash + gap){
+        verticalLine(draw, at.x, y, std::min(y + dash, b.y), 1.5f * s, color);
+        verticalLine(draw, b.x, y, std::min(y + dash, b.y), 1.5f * s, color);
+    }
+    const ImVec2 extent = uiFonts().text->CalcTextSizeA(15 * s, FLT_MAX, width - 20 * s, text);
+    draw->AddText(uiFonts().text, 15 * s, ImVec2(at.x + (width - extent.x) / 2, at.y + (height - extent.y) / 2), uiColor(UiColor::Dim), text, nullptr,
+                  width - 20 * s);
+    return height;
+}
 
 const std::vector<int> GUITAR_TUNING = { 40, 45, 50, 55, 59, 64 };
 const std::vector<int> BASS_TUNING = { 28, 33, 38, 43 };
@@ -203,6 +223,12 @@ float drawText(const BlockContext& c, const LessonBlock& block, ImVec2 at, float
 
 // Its button, until pressed; then what it hid
 float drawReveal(const BlockContext& c, const LessonBlock& block, ImVec2 at, float width, const std::string& key){
+    if (c.editing){ // its button's words, then what it hides
+        const std::string label = "HIDDEN BEHIND  \"" + blockValue(block, "label") + "\"";
+        c.draw->AddText(uiFonts().mono, 12 * c.s, at, uiColor(UiColor::Dim), label.c_str());
+        return 20 * c.s + richParagraphs(c.draw, ImVec2(at.x, at.y + 20 * c.s), width, TEXT_SIZE * c.s, uiColor(UiColor::Ink, 0.75f),
+                                         blockValues(block, "text"), c.instrument, c.s);
+    }
     if (!c.media.revealed.count(key)){
         if (pageButton(c.draw, at, blockValue(block, "label").c_str(), false, c.s)) c.media.revealed.insert(key);
         return 32 * c.s;
@@ -332,6 +358,7 @@ float drawCallout(const BlockContext& c, const LessonBlock& block, ImVec2 at, fl
 }
 
 float drawImageBlock(const BlockContext& c, const LessonBlock& block, ImVec2 at, float width){
+    if (blockValue(block, "file").empty()) return c.editing ? drawPlaceholder(c.draw, at, width, 120 * c.s, "A picture: choose its file", c.s) : 0.0f;
     const Texture2D* texture = pictureFor(c.media, (fs::path(c.folder) / blockValue(block, "file")).string());
     float height = texture ? drawPicture(c, *texture, at, width) : 0.0f;
     return height + drawCaption(c, block, ImVec2(at.x, at.y + height), width);
@@ -339,6 +366,7 @@ float drawImageBlock(const BlockContext& c, const LessonBlock& block, ImVec2 at,
 
 // A sound: Listen (or Stop) and where it's got to; through the song stream, so starting it stops any other
 float drawAudioBlock(const BlockContext& c, const LessonBlock& block, ImVec2 at, float width){
+    if (blockValue(block, "file").empty()) return c.editing ? drawPlaceholder(c.draw, at, width, 60 * c.s, "A sound: choose its file", c.s) : 0.0f;
     const std::string path = (fs::path(c.folder) / blockValue(block, "file")).string();
     const bool playing = c.media.audioPath == path && !songEnded();
     if (pageButton(c.draw, at, playing ? "Stop" : "Listen", playing, c.s)){
@@ -360,6 +388,7 @@ float drawAudioBlock(const BlockContext& c, const LessonBlock& block, ImVec2 at,
 
 // A video: its first picture until Play; Stop closes it (it opens again on its first picture)
 float drawVideoBlock(const BlockContext& c, const LessonBlock& block, ImVec2 at, float width){
+    if (blockValue(block, "file").empty()) return c.editing ? drawPlaceholder(c.draw, at, width, 120 * c.s, "A video: choose its file", c.s) : 0.0f;
     const std::string path = (fs::path(c.folder) / blockValue(block, "file")).string();
     if (c.media.videoPath != path){
         if (!c.media.videoPath.empty()) closeVideo();
@@ -424,7 +453,7 @@ float drawScoredBlock(const BlockContext& c, const LessonBlock& block, ImVec2 at
         if (name.empty()) name = exercise->exercise.title;
     } else {
         kind = "Exercise";
-        if (name.empty()) name = blockValue(block, "exercise") + " (not found)";
+        if (name.empty()) name = blockValue(block, "exercise").empty() ? "Choose an exercise" : blockValue(block, "exercise") + " (not found)";
     }
     if (!blockGates(block)) kind += "  ·  optional";
     c.draw->AddText(fonts.mono, 12 * s, ImVec2(at.x + pad, at.y + pad - 2 * s), uiColor(UiColor::Dim), kind.c_str());
@@ -449,22 +478,29 @@ float drawLessonPage(const LessonDoc& doc, int pageNumber, const std::string& fo
     if (pageNumber < 0 || pageNumber >= (int)doc.pages.size()) return 0.0f;
     const LessonPage& page = doc.pages[(size_t)pageNumber];
     ImDrawList* draw = ImGui::GetWindowDrawList();
-    const BlockContext context{ draw, folder, media, doc.instrument, s };
+    const BlockContext context{ draw, folder, media, doc.instrument, state.editing, s };
     float y = at.y;
     if (!page.title.empty()){
         draw->AddText(uiFonts().heavy, PAGE_TITLE_SIZE * s, ImVec2(at.x, y), uiColor(UiColor::Ink), page.title.c_str(), nullptr, width);
         y += textHeight(uiFonts().heavy, PAGE_TITLE_SIZE * s, width, page.title) + SECTION_GAP * s * 0.8f;
     }
     int scored = 0; // the page's scored blocks, counted in reading order
+    if (page.sections.empty() && state.editing){
+        y += drawPlaceholder(draw, ImVec2(at.x, y), width, 90 * s, "An empty page: add a block from the left, or drop one here", s);
+        events.columns.push_back({ -1, -1, -1, ImVec2(at.x, y - 90 * s), ImVec2(at.x + width, y) });
+    }
     for (size_t sectionIndex = 0; sectionIndex < page.sections.size(); sectionIndex++){
         const LessonSection& section = page.sections[sectionIndex];
         if (sectionIndex > 0) y += SECTION_GAP * s;
         const std::vector<float> shares = sectionShares(section.layout);
         const float usable = width - COLUMN_GAP * s * (float)(shares.size() - 1);
         float x = at.x, tallest = 0.0f;
+        const size_t firstColumn = events.columns.size();
         for (size_t c = 0; c < section.columns.size() && c < shares.size(); c++){
             const float columnWidth = usable * shares[c];
             float columnY = y;
+            if (section.columns[c].empty() && state.editing) // somewhere to put the first block
+                columnY += drawPlaceholder(draw, ImVec2(x, y), columnWidth, 64 * s, "An empty column: add or drop a block here", s);
             for (size_t b = 0; b < section.columns[c].size(); b++){
                 const LessonBlock& block = section.columns[c][b];
                 if (b > 0) columnY += BLOCK_GAP * s;
@@ -491,10 +527,17 @@ float drawLessonPage(const LessonDoc& doc, int pageNumber, const std::string& fo
                     }
                     case BlockType::Count: break;
                 }
+                // (a block that draws nothing still has a little room, to be found and chosen)
+                columnY = std::max(columnY, blockAt.y + (state.editing ? 12 * s : 0.0f));
+                events.blocks.push_back({ (int)sectionIndex, (int)c, (int)b, blockAt, ImVec2(x + columnWidth, columnY) });
             }
             tallest = std::max(tallest, columnY - y);
+            events.columns.push_back({ (int)sectionIndex, (int)c, -1, ImVec2(x, y), ImVec2(x + columnWidth, columnY) });
             x += columnWidth + COLUMN_GAP * s;
         }
+        // Each column as tall as its section: somewhere to drop under its last block
+        for (size_t k = firstColumn; k < events.columns.size(); k++) events.columns[k].max.y = y + tallest;
+        events.sections.push_back({ (int)sectionIndex, -1, -1, ImVec2(at.x, y), ImVec2(at.x + width, y + tallest) });
         y += tallest;
     }
     if (!media.error.empty()){

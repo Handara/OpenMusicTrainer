@@ -30,12 +30,21 @@ struct PageState {
     std::vector<bool> passed;
     int chosen = -1;
     std::vector<const ExerciseEntry*> exercises;
+    bool editing = false; // in the lesson maker: hidden things shown, empty columns and unfinished blocks shown as such
+};
+
+// Where something was drawn on the page: a section (its column and block -1), a column (as tall as its section; its
+// block -1) or a block
+struct PageRect {
+    int section = -1, column = -1, block = -1;
+    ImVec2 min, max;
 };
 
 // What happened on the page this frame
 struct PageEvents {
     int started = -1; // a scored block clicked: its number on the page
     std::vector<ImVec2> scoredSpans; // where each scored block was drawn: its top and bottom, on the screen
+    std::vector<PageRect> sections, columns, blocks;
 };
 
 // Draws page `page` from `at`, `width` wide (the window's draw list); returns how tall it is
