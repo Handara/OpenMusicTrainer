@@ -250,6 +250,83 @@ TEST_CASE("every block's settings are described, for the editor"){
     }
 }
 
+TEST_CASE("making lessons: blocks added, moved and taken out, layouts changed"){
+    LessonDoc doc;
+    doc.title = "T";
+    doc.pages.push_back({ "P", { makeSection(SectionLayout::Halves) } });
+    auto text = [](const char* words){ LessonBlock block = makeBlock(BlockType::Text); setBlockValues(block, "text", { words }); return block; };
+    REQUIRE(insertBlock(doc, { 0, 0, 0, 0 }, text("a")));
+    REQUIRE(insertBlock(doc, { 0, 0, 0, 1 }, text("b")));
+    REQUIRE(insertBlock(doc, { 0, 0, 0, 2 }, text("c")));
+    CHECK_FALSE(insertBlock(doc, { 0, 0, 0, 9 }, text("x"))); // past the column's end
+    CHECK_FALSE(insertBlock(doc, { 0, 0, 2, 0 }, text("x"))); // a column it hasn't got
+    auto words = [&](int column){
+        std::string all;
+        for (const LessonBlock& block : doc.pages[0].sections[0].columns[(size_t)column]) all += blockValue(block, "text");
+        return all;
+    };
+    CHECK(words(0) == "abc");
+    // Down its own column: before the block at 3 (the end) is after c
+    BlockPlace landed = moveBlock(doc, { 0, 0, 0, 0 }, { 0, 0, 0, 3 });
+    CHECK(words(0) == "bca");
+    CHECK(landed.block == 2);
+    // Where it is already: nothing moves
+    CHECK(moveBlock(doc, { 0, 0, 0, 1 }, { 0, 0, 0, 2 }).block == 1);
+    CHECK(words(0) == "bca");
+    // To the other column
+    landed = moveBlock(doc, { 0, 0, 0, 1 }, { 0, 0, 1, 0 });
+    CHECK(words(0) == "ba");
+    CHECK(words(1) == "c");
+    CHECK(landed.column == 1);
+    CHECK(removeBlock(doc, { 0, 0, 0, 0 }));
+    CHECK(words(0) == "a");
+    CHECK(blockPointer(doc, { 0, 0, 0, 5 }) == nullptr);
+    // One column now: the second's blocks join the first's end
+    setSectionLayout(doc.pages[0].sections[0], SectionLayout::Single);
+    CHECK(doc.pages[0].sections[0].columns.size() == 1);
+    CHECK(words(0) == "ac");
+    setSectionLayout(doc.pages[0].sections[0], SectionLayout::Thirds);
+    CHECK(doc.pages[0].sections[0].columns.size() == 3);
+}
+
+TEST_CASE("making lessons: new blocks show something, exercises written in them are read"){
+    for (int type = 0; type < (int)BlockType::Count; type++){
+        const LessonBlock block = makeBlock((BlockType)type);
+        CHECK(block.type == (BlockType)type);
+        for (const auto& [key, value] : block.values) CHECK_MESSAGE(checkBlockValue(*findBlockField(block.type, key), value).empty(), key);
+    }
+    LessonBlock exercise = makeBlock(BlockType::Exercise);
+    exercise.name = "E and F";
+    setBlockValue(exercise, "exercise", "e-minor-open");
+    std::string error;
+    REQUIRE_MESSAGE(setBlockExercise(exercise, "type notes\n  notes E4 F4\n\n# a comment\ncount 6\n", error), error);
+    CHECK(exercise.exerciseLines == std::vector<std::string>{ "type notes", "notes E4 F4", "count 6" });
+    CHECK(exercise.exercise.title == "E and F");
+    CHECK(blockValue(exercise, "exercise").empty()); // written in it now: not named
+    CHECK_FALSE(setBlockExercise(exercise, "type notes\nnotes H4\n", error));
+    CHECK(exercise.exerciseLines.size() == 3); // left as it was
+    CHECK_FALSE(setBlockExercise(exercise, "type notes\ngate no\n", error));
+    CHECK(error.find("the block's own setting") != std::string::npos);
+    CHECK_FALSE(setBlockExercise(exercise, "\n", error));
+}
+
+TEST_CASE("a draft: blocks still missing what they need are kept, and read back"){
+    LessonDoc doc;
+    doc.title = "Draft";
+    doc.pages.push_back({ "P", { makeSection(SectionLayout::Single) } });
+    insertBlock(doc, { 0, 0, 0, 0 }, makeBlock(BlockType::Image));    // no picture chosen yet
+    insertBlock(doc, { 0, 0, 0, 1 }, makeBlock(BlockType::Exercise)); // no exercise yet
+    const std::string written = writeLessonDoc(doc);
+    LessonDoc read;
+    std::string error;
+    CHECK_FALSE(parseLessonDoc(written, "strict", read, error)); // not to be played like this
+    REQUIRE_MESSAGE(parseLessonDoc(written, "draft", read, error, true), error);
+    CHECK(read.pages[0].sections[0].columns[0].size() == 2);
+    CHECK(writeLessonDoc(read) == written);
+    // Anything else wrong is still wrong
+    CHECK_FALSE(parseLessonDoc(written + "  block nothing\n", "draft", read, error, true));
+}
+
 TEST_CASE("the built-in lessons load"){
     const std::vector<LessonEntry> lessons = scanLessons(std::string(LAHN_RESOURCES_DIR) + "lessons", true);
     CHECK_FALSE(lessons.empty());

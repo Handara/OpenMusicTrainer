@@ -153,16 +153,37 @@ const LessonBlock& blockAt(const LessonDoc& doc, const BlockPlace& place);
 const int LESSON_DOC_VERSION = 2;
 
 // Strict, like charts and exercises: lessons are shared. `path` names it in errors. Version 1 is read too (a page
-// a step).
-bool parseLessonDoc(const std::string& text, const std::string& path, LessonDoc& out, std::string& error);
+// a step). A draft (the lesson maker's: a lesson being made) may have blocks still missing what they need (a picture
+// not chosen yet, an exercise not picked): everything else is as strict.
+bool parseLessonDoc(const std::string& text, const std::string& path, LessonDoc& out, std::string& error, bool draft = false);
 std::string writeLessonDoc(const LessonDoc& doc);
 // A version 1 lesson's steps, a page each
 LessonDoc lessonDocFromSteps(const Lesson& lesson);
 
 // From a lesson's folder: the file read, then its media checked (each file in the folder, a play block's chart loading)
 bool loadLessonDoc(const std::string& folder, LessonDoc& out, std::string& error);
+bool loadLessonDraft(const std::string& folder, LessonDoc& out, std::string& error); // a draft, its media not checked
 bool checkLessonFiles(const LessonDoc& doc, const std::string& folder, std::string& error);
 bool saveLessonDoc(const std::string& folder, const LessonDoc& doc, std::string& error);
+
+// --- Making lessons (the lesson maker's changes) -----------------------------------------------------------------
+
+// A new block of a kind, with something in it to show (a starter text, notes on a neck...): what's added is seen
+LessonBlock makeBlock(BlockType type);
+// A setting's value checked against what it takes: "" when it's fine, else what's wrong
+std::string checkBlockValue(const BlockField& field, const std::string& value);
+// An exercise written in a block: its settings, a line each, read as one (false and why when they don't read)
+bool setBlockExercise(LessonBlock& block, const std::string& lines, std::string& error);
+
+// Where a block goes: a page's section's column, before the block at `block` (the column's size: at its end)
+LessonBlock* blockPointer(LessonDoc& doc, const BlockPlace& place); // nullptr for no such block
+bool insertBlock(LessonDoc& doc, const BlockPlace& at, const LessonBlock& block);
+bool removeBlock(LessonDoc& doc, const BlockPlace& place);
+// Moved to before the block at `to` (as the column is before it's taken out); returns where it ended up, or `from`
+// when it can't go there
+BlockPlace moveBlock(LessonDoc& doc, const BlockPlace& from, const BlockPlace& to);
+// A new layout: blocks of columns it no longer has go to the end of its last
+void setSectionLayout(LessonSection& section, SectionLayout layout);
 
 // --- Lessons in folders --------------------------------------------------------------------------------------------
 

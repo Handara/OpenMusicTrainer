@@ -333,7 +333,7 @@ static std::string checkValue(const BlockField& field, const std::string& value)
     }
 }
 
-bool parseLessonDoc(const std::string& text, const std::string& path, LessonDoc& out, std::string& error){
+bool parseLessonDoc(const std::string& text, const std::string& path, LessonDoc& out, std::string& error, bool draft){
     const int version = versionOf(text);
     if (version == 0){ error = path + ": missing 'version'"; return false; }
     if (version < 0){ error = path + ": expected: version <number>"; return false; }
@@ -369,14 +369,14 @@ bool parseLessonDoc(const std::string& text, const std::string& path, LessonDoc&
         lineNumber = blockLine;
         const BlockInfo& info = blockInfo(block->type);
         for (const BlockField& field : info.fields)
-            if (field.required && blockValues(*block, field.key).empty()) return lineError(std::string("a ") + info.id + " block needs '" + field.key + "'");
+            if (field.required && !draft && blockValues(*block, field.key).empty()) return lineError(std::string("a ") + info.id + " block needs '" + field.key + "'");
         if (block->type == BlockType::Exercise){
             const bool named = !blockValues(*block, "exercise").empty();
             if (named && !block->exerciseLines.empty())
                 return lineError("an exercise block names an exercise or has one written in it, not both");
-            if (!named && block->exerciseLines.empty())
+            if (!named && block->exerciseLines.empty() && !draft)
                 return lineError("an exercise block needs an exercise: 'exercise <file name>', or its settings written in it");
-            if (!named){
+            if (!named && !block->exerciseLines.empty()){
                 std::string exerciseError;
                 if (!parseExercise(exerciseSource, path, exerciseLine, block->name.empty() ? "Exercise" : block->name, block->exercise, exerciseError)){
                     error = exerciseError;
@@ -620,10 +620,141 @@ bool loadLessonDoc(const std::string& folder, LessonDoc& out, std::string& error
     return true;
 }
 
+bool loadLessonDraft(const std::string& folder, LessonDoc& out, std::string& error){
+    const std::string path = (fs::path(folder) / LESSON_FILE_NAME).string();
+    std::ifstream file(path);
+    if (!file){
+        error = path + ": could not open file";
+        return false;
+    }
+    std::stringstream text;
+    text << file.rdbuf();
+    return parseLessonDoc(text.str(), path, out, error, true);
+}
+
 bool saveLessonDoc(const std::string& folder, const LessonDoc& doc, std::string& error){
     std::error_code ec;
     fs::create_directories(folder, ec);
     return writeFileAtomically((fs::path(folder) / LESSON_FILE_NAME).string(), writeLessonDoc(doc), error);
+}
+
+// --- Making lessons -------------------------------------------------------------------------------------------------
+
+std::string checkBlockValue(const BlockField& field, const std::string& value){
+    return checkValue(field, value);
+}
+
+LessonBlock makeBlock(BlockType type){
+    LessonBlock block;
+    block.type = type;
+    switch (type){
+        case BlockType::Text: block.values = { { "text", "Write here. **Bold** words, and notes to click and hear: [E4] [F4]." } }; break;
+        case BlockType::Heading: block.values = { { "text", "A heading" } }; break;
+        case BlockType::Callout: block.values = { { "style", "tip" }, { "text", "A tip for the student." } }; break;
+        case BlockType::Reveal: block.values = { { "text", "The answer, shown once it's asked for." } }; break;
+        case BlockType::Fretboard: block.values = { { "frets", "0 5" }, { "lit", "6:1" } }; break;
+        case BlockType::Keyboard: block.values = { { "from", "C4" }, { "to", "B4" }, { "lit", "C4 E4 G4" } }; break;
+        case BlockType::Staff: block.values = { { "notes", "E4 F4 G4" } }; break;
+        default: break; // a file or an exercise to choose: nothing yet
+    }
+    return block;
+}
+
+bool setBlockExercise(LessonBlock& block, const std::string& lines, std::string& error){
+    std::vector<std::string> kept;
+    std::istringstream text(lines);
+    std::string line;
+    while (std::getline(text, line)){
+        while (!line.empty() && (line.back() == '\r' || std::isspace((unsigned char)line.back()))) line.pop_back();
+        const size_t start = line.find_first_not_of(" \t");
+        if (start == std::string::npos || line[start] == '#') continue;
+        line = line.substr(start);
+        // The block's own settings don't belong among the exercise's
+        std::istringstream words(line);
+        std::string key;
+        words >> key;
+        if (findBlockField(block.type, key)){
+            error = "'" + key + "' is the block's own setting, not the exercise's";
+            return false;
+        }
+        kept.push_back(line);
+    }
+    if (kept.empty()){
+        error = "an exercise needs its settings: its type first (type notes, type reading...)";
+        return false;
+    }
+    std::string source;
+    for (const std::string& setting : kept) source += setting + "\n";
+    ExerciseFile exercise;
+    if (!parseExercise(source, "the exercise", 1, block.name.empty() ? "Exercise" : block.name, exercise, error)) return false;
+    if (exercise.type == ExerciseType::Routine){
+        error = "a routine can't be a block (it has no goal to reach)";
+        return false;
+    }
+    block.exerciseLines = kept;
+    block.exercise = exercise;
+    setBlockValue(block, "exercise", ""); // written here, not named
+    return true;
+}
+
+LessonBlock* blockPointer(LessonDoc& doc, const BlockPlace& place){
+    if (place.page < 0 || place.page >= (int)doc.pages.size()) return nullptr;
+    LessonPage& page = doc.pages[(size_t)place.page];
+    if (place.section < 0 || place.section >= (int)page.sections.size()) return nullptr;
+    LessonSection& section = page.sections[(size_t)place.section];
+    if (place.column < 0 || place.column >= (int)section.columns.size()) return nullptr;
+    std::vector<LessonBlock>& column = section.columns[(size_t)place.column];
+    if (place.block < 0 || place.block >= (int)column.size()) return nullptr;
+    return &column[(size_t)place.block];
+}
+
+// The column a place is in, or nullptr
+static std::vector<LessonBlock>* columnAt(LessonDoc& doc, const BlockPlace& place){
+    if (place.page < 0 || place.page >= (int)doc.pages.size()) return nullptr;
+    LessonPage& page = doc.pages[(size_t)place.page];
+    if (place.section < 0 || place.section >= (int)page.sections.size()) return nullptr;
+    LessonSection& section = page.sections[(size_t)place.section];
+    if (place.column < 0 || place.column >= (int)section.columns.size()) return nullptr;
+    return &section.columns[(size_t)place.column];
+}
+
+bool insertBlock(LessonDoc& doc, const BlockPlace& at, const LessonBlock& block){
+    std::vector<LessonBlock>* column = columnAt(doc, at);
+    if (!column || at.block < 0 || at.block > (int)column->size()) return false;
+    column->insert(column->begin() + at.block, block);
+    return true;
+}
+
+bool removeBlock(LessonDoc& doc, const BlockPlace& place){
+    std::vector<LessonBlock>* column = columnAt(doc, place);
+    if (!column || place.block < 0 || place.block >= (int)column->size()) return false;
+    column->erase(column->begin() + place.block);
+    return true;
+}
+
+BlockPlace moveBlock(LessonDoc& doc, const BlockPlace& from, const BlockPlace& to){
+    const LessonBlock* moving = blockPointer(doc, from);
+    std::vector<LessonBlock>* target = columnAt(doc, to);
+    if (!moving || !target || to.block < 0 || to.block > (int)target->size()) return from;
+    const LessonBlock block = *moving;
+    BlockPlace landed = to;
+    // In its own column, taking it out moves up what was after it
+    const bool sameColumn = from.page == to.page && from.section == to.section && from.column == to.column;
+    if (sameColumn && to.block > from.block) landed.block--;
+    if (sameColumn && landed.block == from.block) return from; // where it already is
+    removeBlock(doc, from);
+    insertBlock(doc, landed, block);
+    return landed;
+}
+
+void setSectionLayout(LessonSection& section, SectionLayout layout){
+    const size_t columns = (size_t)sectionColumns(layout);
+    if (section.columns.size() > columns){
+        std::vector<LessonBlock>& last = section.columns[columns - 1];
+        for (size_t c = columns; c < section.columns.size(); c++) last.insert(last.end(), section.columns[c].begin(), section.columns[c].end());
+    }
+    section.columns.resize(columns);
+    section.layout = layout;
 }
 
 // --- Lessons in folders --------------------------------------------------------------------------------------------
