@@ -1,0 +1,938 @@
+# lahn course: written by tools/courses/make_ear_course.py (change it there, and run it again)
+version 1
+title Ear training
+description lahn plays a note, you find it on the keys and play it back: from two notes far apart to every note of a scale, then intervals by name.
+instrument piano
+
+
+unit Hear it, find it
+
+lesson High or low
+text lahn plays a C: middle C, or the C an octave above. They're far apart: listen, and play the one you hear.
+text The first drill lights the key as it plays: sound and place, together. Then by ear: the keys it could be are tinted. Space plays it again.
+drill Heard and shown
+type notes
+notes C4 C5
+show ear
+instrument piano
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes C4 C5
+show ear
+instrument piano
+count 8
+pass 7
+drill No slips
+type notes
+notes C4 C5
+show ear
+instrument piano
+count 8
+pass 8
+
+lesson Add the G between them
+text One more: the G between them. Listen, then play back the one you hear.
+text The first drill lights the key as it plays: sound and place, together. Then by ear: the keys it could be are tinted. Space plays it again.
+drill Heard and shown
+type notes
+notes C4 C5 G4
+show ear
+instrument piano
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes C4 C5 G4
+show ear
+instrument piano
+count 8
+pass 7
+drill No slips
+type notes
+notes C4 C5 G4
+show ear
+instrument piano
+count 8
+pass 8
+
+lesson Add the C below middle C
+text One more: the C below middle C. Listen, then play back the one you hear.
+text The first drill lights the key as it plays: sound and place, together. Then by ear: the keys it could be are tinted. Space plays it again.
+drill Heard and shown
+type notes
+notes C4 C5 G4 C3
+show ear
+instrument piano
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes C4 C5 G4 C3
+show ear
+instrument piano
+count 8
+pass 7
+drill No slips
+type notes
+notes C4 C5 G4 C3
+show ear
+instrument piano
+count 8
+pass 8
+
+lesson Add the E above middle C
+text One more: the E above middle C. Listen, then play back the one you hear.
+text The first drill lights the key as it plays: sound and place, together. Then by ear: the keys it could be are tinted. Space plays it again.
+drill Heard and shown
+type notes
+notes C4 C5 G4 C3 E4
+show ear
+instrument piano
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes C4 C5 G4 C3 E4
+show ear
+instrument piano
+count 8
+pass 7
+drill No slips
+type notes
+notes C4 C5 G4 C3 E4
+show ear
+instrument piano
+count 8
+pass 8
+
+lesson Add the A above middle C
+text One more: the A above middle C. Listen, then play back the one you hear.
+text The first drill lights the key as it plays: sound and place, together. Then by ear: the keys it could be are tinted. Space plays it again.
+drill Heard and shown
+type notes
+notes C4 C5 G4 C3 E4 A4
+show ear
+instrument piano
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes C4 C5 G4 C3 E4 A4
+show ear
+instrument piano
+count 8
+pass 7
+drill No slips
+type notes
+notes C4 C5 G4 C3 E4 A4
+show ear
+instrument piano
+count 8
+pass 8
+
+
+unit C major, step by step
+
+lesson The root and the fifth
+text Middle C, then either the same C or G, five white keys up: the 1st and 5th of C major.
+text C, the root, plays first each time: hear the other note against it. The keys it could be are tinted.
+drill Heard and shown
+type notes
+notes C4 G4
+show ear
+instrument piano
+reference C4
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes C4 G4
+show ear
+instrument piano
+reference C4
+count 8
+pass 7
+drill No slips
+type notes
+notes C4 G4
+show ear
+instrument piano
+reference C4
+count 8
+pass 8
+
+lesson 1, 3 and 5
+text C, E and G: the notes of the C major chord, every other white key.
+text C, the root, plays first each time: hear the other note against it. The keys it could be are tinted.
+drill Heard and shown
+type notes
+notes C4 E4 G4
+show ear
+instrument piano
+reference C4
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes C4 E4 G4
+show ear
+instrument piano
+reference C4
+count 8
+pass 7
+drill No slips
+type notes
+notes C4 E4 G4
+show ear
+instrument piano
+reference C4
+count 8
+pass 8
+
+lesson 1 to 5
+text C, D, E, F, G: your right hand's five fingers.
+text C, the root, plays first each time: hear the other note against it. The keys it could be are tinted.
+drill Heard and shown
+type notes
+notes C4 D4 E4 F4 G4
+show ear
+instrument piano
+reference C4
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes C4 D4 E4 F4 G4
+show ear
+instrument piano
+reference C4
+count 8
+pass 7
+drill No slips
+type notes
+notes C4 D4 E4 F4 G4
+show ear
+instrument piano
+reference C4
+count 8
+pass 8
+
+lesson The whole scale
+text Every white key from middle C up to the next C.
+text C, the root, plays first each time: hear the other note against it. The keys it could be are tinted.
+drill Heard and shown
+type notes
+notes C4 D4 E4 F4 G4 A4 B4 C5
+show ear
+instrument piano
+reference C4
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes C4 D4 E4 F4 G4 A4 B4 C5
+show ear
+instrument piano
+reference C4
+count 8
+pass 7
+drill No slips
+type notes
+notes C4 D4 E4 F4 G4 A4 B4 C5
+show ear
+instrument piano
+reference C4
+count 8
+pass 8
+
+lesson 1 and the octave
+text The same note, an octave apart: middle C and the C above.
+text C, the root, plays first each time: hear the other note against it. The keys it could be are tinted.
+drill Heard and shown
+type notes
+notes C4 C5
+show ear
+instrument piano
+reference C4
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes C4 C5
+show ear
+instrument piano
+reference C4
+count 8
+pass 7
+drill No slips
+type notes
+notes C4 C5
+show ear
+instrument piano
+reference C4
+count 8
+pass 8
+
+lesson The top of the scale
+text 5, 6, 7 and 8: G, A, B and C.
+text C, the root, plays first each time: hear the other note against it. The keys it could be are tinted.
+drill Heard and shown
+type notes
+notes G4 A4 B4 C5
+show ear
+instrument piano
+reference C4
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes G4 A4 B4 C5
+show ear
+instrument piano
+reference C4
+count 8
+pass 7
+drill No slips
+type notes
+notes G4 A4 B4 C5
+show ear
+instrument piano
+reference C4
+count 8
+pass 8
+
+
+unit In G major
+
+lesson G: 1, 3 and 5
+text The G major chord's notes.
+text G, the root, plays first each time: hear the other note against it. The keys it could be are tinted.
+drill Heard and shown
+type notes
+notes G3 B3 D4
+show ear
+instrument piano
+reference G3
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes G3 B3 D4
+show ear
+instrument piano
+reference G3
+count 8
+pass 7
+drill No slips
+type notes
+notes G3 B3 D4
+show ear
+instrument piano
+reference G3
+count 8
+pass 8
+
+lesson G: 1 to 5
+text The first five notes of G major.
+text G, the root, plays first each time: hear the other note against it. The keys it could be are tinted.
+drill Heard and shown
+type notes
+notes G3 A3 B3 C4 D4
+show ear
+instrument piano
+reference G3
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes G3 A3 B3 C4 D4
+show ear
+instrument piano
+reference G3
+count 8
+pass 7
+drill No slips
+type notes
+notes G3 A3 B3 C4 D4
+show ear
+instrument piano
+reference G3
+count 8
+pass 8
+
+lesson G: the whole scale
+text G major, with F#, the one black key in it.
+text G, the root, plays first each time: hear the other note against it. The keys it could be are tinted.
+drill Heard and shown
+type notes
+notes G3 A3 B3 C4 D4 E4 F#4 G4
+show ear
+instrument piano
+reference G3
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes G3 A3 B3 C4 D4 E4 F#4 G4
+show ear
+instrument piano
+reference G3
+count 8
+pass 7
+drill No slips
+type notes
+notes G3 A3 B3 C4 D4 E4 F#4 G4
+show ear
+instrument piano
+reference G3
+count 8
+pass 8
+
+
+unit In F major
+
+lesson F: 1, 3 and 5
+text The F major chord's notes.
+text F, the root, plays first each time: hear the other note against it. The keys it could be are tinted.
+drill Heard and shown
+type notes
+notes F3 A3 C4
+show ear
+instrument piano
+reference F3
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes F3 A3 C4
+show ear
+instrument piano
+reference F3
+count 8
+pass 7
+drill No slips
+type notes
+notes F3 A3 C4
+show ear
+instrument piano
+reference F3
+count 8
+pass 8
+
+lesson F: 1 to 5
+text The first five notes of F major.
+text F, the root, plays first each time: hear the other note against it. The keys it could be are tinted.
+drill Heard and shown
+type notes
+notes F3 G3 A3 A#3 C4
+show ear
+instrument piano
+reference F3
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes F3 G3 A3 A#3 C4
+show ear
+instrument piano
+reference F3
+count 8
+pass 7
+drill No slips
+type notes
+notes F3 G3 A3 A#3 C4
+show ear
+instrument piano
+reference F3
+count 8
+pass 8
+
+lesson F: the whole scale
+text F major, with Bb, the one black key in it.
+text F, the root, plays first each time: hear the other note against it. The keys it could be are tinted.
+drill Heard and shown
+type notes
+notes F3 G3 A3 A#3 C4 D4 E4 F4
+show ear
+instrument piano
+reference F3
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes F3 G3 A3 A#3 C4 D4 E4 F4
+show ear
+instrument piano
+reference F3
+count 8
+pass 7
+drill No slips
+type notes
+notes F3 G3 A3 A#3 C4 D4 E4 F4
+show ear
+instrument piano
+reference F3
+count 8
+pass 8
+
+
+unit In D major
+
+lesson D: 1, 3 and 5
+text The D major chord's notes.
+text D, the root, plays first each time: hear the other note against it. The keys it could be are tinted.
+drill Heard and shown
+type notes
+notes D4 F#4 A4
+show ear
+instrument piano
+reference D4
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes D4 F#4 A4
+show ear
+instrument piano
+reference D4
+count 8
+pass 7
+drill No slips
+type notes
+notes D4 F#4 A4
+show ear
+instrument piano
+reference D4
+count 8
+pass 8
+
+lesson D: 1 to 5
+text The first five notes of D major.
+text D, the root, plays first each time: hear the other note against it. The keys it could be are tinted.
+drill Heard and shown
+type notes
+notes D4 E4 F#4 G4 A4
+show ear
+instrument piano
+reference D4
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes D4 E4 F#4 G4 A4
+show ear
+instrument piano
+reference D4
+count 8
+pass 7
+drill No slips
+type notes
+notes D4 E4 F#4 G4 A4
+show ear
+instrument piano
+reference D4
+count 8
+pass 8
+
+lesson D: the whole scale
+text D major, with F# and C#, its two black keys.
+text D, the root, plays first each time: hear the other note against it. The keys it could be are tinted.
+drill Heard and shown
+type notes
+notes D4 E4 F#4 G4 A4 B4 C#5 D5
+show ear
+instrument piano
+reference D4
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes D4 E4 F#4 G4 A4 B4 C#5 D5
+show ear
+instrument piano
+reference D4
+count 8
+pass 7
+drill No slips
+type notes
+notes D4 E4 F#4 G4 A4 B4 C#5 D5
+show ear
+instrument piano
+reference D4
+count 8
+pass 8
+
+
+unit Minor
+
+lesson Major or minor third
+text The 3rd decides it: three keys up (counting black ones) sounds minor, four sounds major.
+text A, the root, plays first each time: hear the other note against it. The keys it could be are tinted.
+drill Heard and shown
+type notes
+notes A3 C4 C#4
+show ear
+instrument piano
+reference A3
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes A3 C4 C#4
+show ear
+instrument piano
+reference A3
+count 8
+pass 7
+drill No slips
+type notes
+notes A3 C4 C#4
+show ear
+instrument piano
+reference A3
+count 8
+pass 8
+
+lesson A minor: 1, b3 and 5
+text A, C and E: the A minor chord's notes, all white keys.
+text A, the root, plays first each time: hear the other note against it. The keys it could be are tinted.
+drill Heard and shown
+type notes
+notes A3 C4 E4
+show ear
+instrument piano
+reference A3
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes A3 C4 E4
+show ear
+instrument piano
+reference A3
+count 8
+pass 7
+drill No slips
+type notes
+notes A3 C4 E4
+show ear
+instrument piano
+reference A3
+count 8
+pass 8
+
+lesson A minor: 1 to 5
+text The first five notes of A minor.
+text A, the root, plays first each time: hear the other note against it. The keys it could be are tinted.
+drill Heard and shown
+type notes
+notes A3 B3 C4 D4 E4
+show ear
+instrument piano
+reference A3
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes A3 B3 C4 D4 E4
+show ear
+instrument piano
+reference A3
+count 8
+pass 7
+drill No slips
+type notes
+notes A3 B3 C4 D4 E4
+show ear
+instrument piano
+reference A3
+count 8
+pass 8
+
+lesson A minor: the whole scale
+text Every white key from A to A: A minor.
+text A, the root, plays first each time: hear the other note against it. The keys it could be are tinted.
+drill Heard and shown
+type notes
+notes A3 B3 C4 D4 E4 F4 G4 A4
+show ear
+instrument piano
+reference A3
+where yes
+count 6
+pass 5
+drill By ear
+type notes
+notes A3 B3 C4 D4 E4 F4 G4 A4
+show ear
+instrument piano
+reference A3
+count 8
+pass 7
+drill No slips
+type notes
+notes A3 B3 C4 D4 E4 F4 G4 A4
+show ear
+instrument piano
+reference A3
+count 8
+pass 8
+
+
+unit Intervals by name
+
+lesson Fifth or third
+text Two notes: how far apart? A perfect 5th or a major 3rd.
+drill Going up
+type intervals
+direction up
+intervals 7 4
+start 2
+goal 8
+drill Going down
+type intervals
+direction down
+intervals 7 4
+start 2
+goal 8
+drill Played together
+type intervals
+direction together
+intervals 7 4
+start 2
+goal 8
+
+lesson Octave
+text One more: the octave. Going up, going down, then both notes at once.
+drill Going up
+type intervals
+direction up
+intervals 7 4 12
+start 3
+goal 8
+drill Going down
+type intervals
+direction down
+intervals 7 4 12
+start 3
+goal 8
+drill Played together
+type intervals
+direction together
+intervals 7 4 12
+start 3
+goal 8
+
+lesson Perfect 4th
+text One more: the perfect 4th. Going up, going down, then both notes at once.
+drill Going up
+type intervals
+direction up
+intervals 7 4 12 5
+start 4
+goal 8
+drill Going down
+type intervals
+direction down
+intervals 7 4 12 5
+start 4
+goal 8
+drill Played together
+type intervals
+direction together
+intervals 7 4 12 5
+start 4
+goal 8
+
+lesson Minor 3rd
+text One more: the minor 3rd. Going up, going down, then both notes at once.
+drill Going up
+type intervals
+direction up
+intervals 7 4 12 5 3
+start 5
+goal 8
+drill Going down
+type intervals
+direction down
+intervals 7 4 12 5 3
+start 5
+goal 8
+drill Played together
+type intervals
+direction together
+intervals 7 4 12 5 3
+start 5
+goal 8
+
+lesson Major 2nd
+text One more: the major 2nd. Going up, going down, then both notes at once.
+drill Going up
+type intervals
+direction up
+intervals 7 4 12 5 3 2
+start 6
+goal 8
+drill Going down
+type intervals
+direction down
+intervals 7 4 12 5 3 2
+start 6
+goal 8
+drill Played together
+type intervals
+direction together
+intervals 7 4 12 5 3 2
+start 6
+goal 8
+
+lesson Major 6th
+text One more: the major 6th. Going up, going down, then both notes at once.
+drill Going up
+type intervals
+direction up
+intervals 7 4 12 5 3 2 9
+start 7
+goal 8
+drill Going down
+type intervals
+direction down
+intervals 7 4 12 5 3 2 9
+start 7
+goal 8
+drill Played together
+type intervals
+direction together
+intervals 7 4 12 5 3 2 9
+start 7
+goal 8
+
+lesson Minor 7th
+text One more: the minor 7th. Going up, going down, then both notes at once.
+drill Going up
+type intervals
+direction up
+intervals 7 4 12 5 3 2 9 10
+start 8
+goal 8
+drill Going down
+type intervals
+direction down
+intervals 7 4 12 5 3 2 9 10
+start 8
+goal 8
+drill Played together
+type intervals
+direction together
+intervals 7 4 12 5 3 2 9 10
+start 8
+goal 8
+
+lesson Minor 6th
+text One more: the minor 6th. Going up, going down, then both notes at once.
+drill Going up
+type intervals
+direction up
+intervals 7 4 12 5 3 2 9 10 8
+start 9
+goal 8
+drill Going down
+type intervals
+direction down
+intervals 7 4 12 5 3 2 9 10 8
+start 9
+goal 8
+drill Played together
+type intervals
+direction together
+intervals 7 4 12 5 3 2 9 10 8
+start 9
+goal 8
+
+lesson Minor 2nd
+text One more: the minor 2nd. Going up, going down, then both notes at once.
+drill Going up
+type intervals
+direction up
+intervals 7 4 12 5 3 2 9 10 8 1
+start 10
+goal 8
+drill Going down
+type intervals
+direction down
+intervals 7 4 12 5 3 2 9 10 8 1
+start 10
+goal 8
+drill Played together
+type intervals
+direction together
+intervals 7 4 12 5 3 2 9 10 8 1
+start 10
+goal 8
+
+lesson Major 7th
+text One more: the major 7th. Going up, going down, then both notes at once.
+drill Going up
+type intervals
+direction up
+intervals 7 4 12 5 3 2 9 10 8 1 11
+start 11
+goal 8
+drill Going down
+type intervals
+direction down
+intervals 7 4 12 5 3 2 9 10 8 1 11
+start 11
+goal 8
+drill Played together
+type intervals
+direction together
+intervals 7 4 12 5 3 2 9 10 8 1 11
+start 11
+goal 8
+
+lesson Tritone
+text One more: the tritone. Going up, going down, then both notes at once.
+drill Going up
+type intervals
+direction up
+intervals 7 4 12 5 3 2 9 10 8 1 11 6
+start 12
+goal 8
+drill Going down
+type intervals
+direction down
+intervals 7 4 12 5 3 2 9 10 8 1 11 6
+start 12
+goal 8
+drill Played together
+type intervals
+direction together
+intervals 7 4 12 5 3 2 9 10 8 1 11 6
+start 12
+goal 8

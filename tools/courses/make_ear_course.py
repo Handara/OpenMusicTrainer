@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Writes lahn's Ear training courses, for guitar (resources/courses/03-ear-training.course) and for bass
-(03-ear-training-bass.course): you hear a note, and play it back, a few more notes at a time; then intervals by
+"""Writes lahn's Ear training courses, for guitar (resources/courses/03-ear-training.course), for bass
+(03-ear-training-bass.course) and for piano (03-ear-training-piano.course): you hear a note, and play it back, a few more notes at a time; then intervals by
 name. Learn shows the one for the instrument played. Change the plans below and run it again:
 
     python3 tools/courses/make_ear_course.py
@@ -30,9 +30,9 @@ def listing(items):
     return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " and " + items[-1]
 
 
-def ear_drills(notes, string=None, reference=None, hold_where=True):
+def ear_drills(notes, string=None, reference=None, hold_where=True, piano=False):
     """The three drills of a chapter of notes heard and played back"""
-    common = ["type notes", "notes " + " ".join(notes), "show ear"]
+    common = ["type notes", "notes " + " ".join(notes), "show ear"] + (["instrument piano"] if piano else [])
     if string:
         common.append(f"strings {string}")
     if reference:
@@ -80,6 +80,85 @@ PLANS = {
         "minor": ("A", 33, 2),
     },
 }
+
+
+# The piano's: middle C's neighbours far apart first, then degrees of a scale on the keys, other keys, minor, intervals
+def piano_degrees_chapter(title, root, degrees, text):
+    pitches = [root + d for d in degrees]
+    lines = [f"lesson {title}", f"text {text}",
+             f"text {NAMES[root % 12]}, the root, plays first each time: hear the other note against it. The keys it could be are tinted."]
+    lines += ear_drills([note(p) for p in pitches], reference=note(root), piano=True)
+    return lines
+
+
+def build_piano():
+    out = ["# lahn course: written by tools/courses/make_ear_course.py (change it there, and run it again)",
+           "version 1",
+           "title Ear training",
+           "description lahn plays a note, you find it on the keys and play it back: from two notes far apart to every note of a scale, then intervals by name.",
+           "instrument piano", ""]
+
+    def level(title):
+        out.extend(["", f"unit {title}", ""])
+
+    def chapter(lines):
+        out.extend(lines + [""])
+
+    level("Hear it, find it")
+    keys = [("C4", "middle C"), ("C5", "the C above it"), ("G4", "the G between them"), ("C3", "the C below middle C"),
+            ("E4", "the E above middle C"), ("A4", "the A above middle C")]
+    for count in range(2, len(keys) + 1):
+        pool = [n for n, _ in keys[:count]]
+        newest = keys[count - 1]
+        if count == 2:
+            title = "High or low"
+            text = "lahn plays a C: middle C, or the C an octave above. They're far apart: listen, and play the one you hear."
+        else:
+            title, text = f"Add {newest[1]}", f"One more: {newest[1]}. Listen, then play back the one you hear."
+        lines = [f"lesson {title}", f"text {text}",
+                 "text The first drill lights the key as it plays: sound and place, together. Then by ear: the keys it could be are tinted. Space plays it again."]
+        lines += ear_drills(pool, piano=True)
+        chapter(lines)
+
+    level("C major, step by step")
+    for title, degrees, text in [
+        ("The root and the fifth", [0, 7], "Middle C, then either the same C or G, five white keys up: the 1st and 5th of C major."),
+        ("1, 3 and 5", [0, 4, 7], "C, E and G: the notes of the C major chord, every other white key."),
+        ("1 to 5", [0, 2, 4, 5, 7], "C, D, E, F, G: your right hand's five fingers."),
+        ("The whole scale", [0, 2, 4, 5, 7, 9, 11, 12], "Every white key from middle C up to the next C."),
+        ("1 and the octave", [0, 12], "The same note, an octave apart: middle C and the C above."),
+        ("The top of the scale", [7, 9, 11, 12], "5, 6, 7 and 8: G, A, B and C."),
+    ]:
+        chapter(piano_degrees_chapter(title, 60, degrees, text))
+
+    for key_name, key_root, black in [("G", 55, "F#, the one black key in it"), ("F", 53, "Bb, the one black key in it"), ("D", 62, "F# and C#, its two black keys")]:
+        level(f"In {key_name} major")
+        for title, degrees, text in [
+            (f"{key_name}: 1, 3 and 5", [0, 4, 7], f"The {key_name} major chord's notes."),
+            (f"{key_name}: 1 to 5", [0, 2, 4, 5, 7], f"The first five notes of {key_name} major."),
+            (f"{key_name}: the whole scale", [0, 2, 4, 5, 7, 9, 11, 12], f"{key_name} major, with {black}."),
+        ]:
+            chapter(piano_degrees_chapter(title, key_root, degrees, text))
+
+    level("Minor")
+    for title, degrees, text in [
+        ("Major or minor third", [0, 3, 4], "The 3rd decides it: three keys up (counting black ones) sounds minor, four sounds major."),
+        ("A minor: 1, b3 and 5", [0, 3, 7], "A, C and E: the A minor chord's notes, all white keys."),
+        ("A minor: 1 to 5", [0, 2, 3, 5, 7], "The first five notes of A minor."),
+        ("A minor: the whole scale", [0, 2, 3, 5, 7, 8, 10, 12], "Every white key from A to A: A minor."),
+    ]:
+        chapter(piano_degrees_chapter(title, 57, degrees, text))
+
+    level("Intervals by name")
+    order = [7, 4, 12, 5, 3, 2, 9, 10, 8, 1, 11, 6]
+    for count in range(2, len(order) + 1):
+        pool = order[:count]
+        newest = INTERVAL_NAMES[pool[-1]]
+        text = (f"Two notes: how far apart? A {INTERVAL_NAMES[7]} or a {INTERVAL_NAMES[4]}." if count == 2
+                else f"One more: the {newest}. Going up, going down, then both notes at once.")
+        chapter(interval_chapter(f"{newest.capitalize()}" if count > 2 else "Fifth or third", pool, text))
+
+    return "\n".join(out).rstrip() + "\n"
 
 
 def build(instrument):
@@ -162,9 +241,9 @@ def build(instrument):
 
 if __name__ == "__main__":
     here = os.path.dirname(os.path.abspath(__file__))
-    for instrument, file in (("guitar", "03-ear-training.course"), ("bass", "03-ear-training-bass.course")):
+    for instrument, file in (("guitar", "03-ear-training.course"), ("bass", "03-ear-training-bass.course"), ("piano", "03-ear-training-piano.course")):
         path = os.path.join(here, "..", "..", "resources", "courses", file)
-        text = build(instrument)
+        text = build_piano() if instrument == "piano" else build(instrument)
         with open(path, "w") as f:
             f.write(text)
         drills = sum(1 for line in text.splitlines() if line.startswith("drill "))

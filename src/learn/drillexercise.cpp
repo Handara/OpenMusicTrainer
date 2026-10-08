@@ -51,6 +51,16 @@ DrillExercise::DrillExercise(const std::string& title, const DrillSetup& setup, 
     drillNotes = this->setup.nextPass();
     chart = drillChart(drillNotes, setup.tuning, setup.key, setup.beatsPerBar);
     tempo = drillTempo(setup.tempo, progress);
+    // On a piano: the keys its notes may need (written in the clef that suits them all, pass after pass)
+    piano = isPianoTuning(this->setup.tuning);
+    if (piano){
+        keysLow = setup.lowPitch, keysHigh = setup.highPitch;
+        if (keysLow < 0 || keysHigh < 0){
+            keysLow = 127, keysHigh = 0;
+            for (const DrillNote& note : drillNotes) keysLow = std::min(keysLow, note.pitch), keysHigh = std::max(keysHigh, note.pitch);
+            if (keysLow > keysHigh) keysLow = 60, keysHigh = 72;
+        }
+    }
     placePass(WAITING_DOWNBEAT);
     // Its band: a style that suits its tempos, its own (from its id); the band or the metronome, as chosen last
     bandSeed = stableHash(std::filesystem::path(progressPath).filename().string());
@@ -60,15 +70,8 @@ DrillExercise::DrillExercise(const std::string& title, const DrillSetup& setup, 
     std::string sound;
     bandOn = !(chosen >> sound) || sound != "metronome";
     band.setVolume(settings.bandVolume);
-    piano = isPianoTuning(this->setup.tuning);
     if (piano){
         // A MIDI keyboard, else the computer's laid out as a piano from the C at or below the lowest note
-        keysLow = setup.lowPitch, keysHigh = setup.highPitch;
-        if (keysLow < 0 || keysHigh < 0){
-            keysLow = 127, keysHigh = 0;
-            for (const DrillNote& note : drillNotes) keysLow = std::min(keysLow, note.pitch), keysHigh = std::max(keysHigh, note.pitch);
-            if (keysLow > keysHigh) keysLow = 60, keysHigh = 72;
-        }
         startKeysInput(settings, keysLow);
     } else if (settings.playWithInstrument){
         float lowest = midiToFrequency((float)*std::min_element(setup.tuning.begin(), setup.tuning.end())) * 0.9f;
@@ -138,6 +141,7 @@ void DrillExercise::placePass(double downbeat){
     chart.offset = downbeat;
     chart.tempoMap = {{0, (double)tempo}};
     score = buildScore(chart, chart.frettedTracks[0]);
+    if (piano) score.clef = keysLow + keysHigh < 2 * 60 ? Clef::Bass : Clef::Treble; // not each pass's own: the same every pass
 }
 
 // The pass played to its end: judged and kept, then the end menu, the next pass's notes ready behind it

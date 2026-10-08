@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Writes lahn's Reading music courses, one for guitar (resources/courses/02-reading.course, the treble clef) and one
-for bass (02-reading-bass.course, the bass clef): hundreds of small drills, a note or two at a time, in the same steps
+"""Writes lahn's Reading music courses, one for guitar (resources/courses/02-reading.course, the treble clef), one
+for bass (02-reading-bass.course, the bass clef) and one for piano (02-reading-piano.course, both clefs): hundreds of small drills, a note or two at a time, in the same steps
 every time. Learn shows the one for the instrument played. Change the plans below and run it again:
 
     python3 tools/courses/make_reading_course.py
@@ -131,7 +131,7 @@ def beat_drill(instrument, name, notes, where, key=None):
         lines.append("where yes")
     lines += ["cells quarter", f"bars {BEAT_BARS}", BEAT_TEMPO, BEAT_CHALLENGE, f"pass {BEAT_PASS}", "goal 1"]
     if key:
-        tonic, mode = key.split()
+        tonic, mode = key.split()[:2]
         lines += [f"key {tonic}", f"scale {'major' if mode == 'major' else 'minor'}"]
     if instrument is BASS:
         lines.append("tuning " + " ".join(str(p) for p in BASS.tuning))
@@ -265,6 +265,192 @@ PLANS = {
 }
 
 
+# --- The piano's course: its own steps (the treble clef for the right hand, the bass clef for the left) ---------------
+
+PIANO_TREBLE_TEXT = ("Music is written on five lines, the staff. The higher a note sits, the higher it sounds. The curl at the start is "
+                     "the treble clef, for your right hand. Piano music is written just where it sounds.")
+PIANO_BASS_TEXT = ("The bass clef, the curl with two dots, is for the lower notes, your left hand's. The same five lines, other names: "
+                   "middle C is just above it, on its own short line.")
+TREBLE = Instrument("piano", [0], [], "E5", "")  # (staff_text counts written an octave up, as guitar music is: not piano)
+BASS_CLEF = Instrument("piano", [0], [], "G3", "")
+
+KEY_PLACES = {
+    "C": "the white key just left of a group of two black keys",
+    "D": "the white key between the two black keys",
+    "E": "the white key just right of the two black keys",
+    "F": "the white key just left of a group of three black keys",
+    "G": "the white key between the first two of the three black keys",
+    "A": "the white key between the last two of the three black keys",
+    "B": "the white key just right of the three black keys",
+}
+
+
+def which_one(name):
+    """'E4' -> 'the E above middle C', 'C4' -> 'middle C', 'A3' -> 'the A below middle C'"""
+    pitch = parse(name)[0]
+    said = spoken(name)
+    if pitch == 60:
+        return "middle C"
+    if pitch == 72:
+        return "the C above middle C"
+    if pitch == 48:
+        return "the C below middle C"
+    if 60 < pitch < 72:
+        return f"the {said} above middle C"
+    if 48 < pitch < 60:
+        return f"the {said} below middle C"
+    if pitch > 72:
+        return f"the {said} above the C above middle C"
+    return f"the low {said}, below the C below middle C"
+
+
+def piano_title(name):
+    """'E4' -> 'E above middle C', 'C4' -> 'Middle C'"""
+    said = which_one(name)
+    said = said[4:] if said.startswith("the ") else said
+    return said[0].upper() + said[1:]
+
+
+def key_text(name):
+    """Where it is on the keyboard"""
+    if len(name) > 1 and name[1] in "#b":
+        neighbour = name[0]
+        side = "right" if name[1] == "#" else "left"
+        return f"the black key just {side} of {neighbour}: {which_one(name)}"
+    return f"{KEY_PLACES[name[0]]}: {which_one(name)}"
+
+
+def piano_drill(name, notes, where, key=None):
+    lines = [f"drill {name}", "type reading", "instrument piano", "notes " + " ".join(notes)]
+    if where:
+        lines.append("where yes")
+    lines += ["cells quarter", f"bars {BEAT_BARS}", BEAT_TEMPO, BEAT_CHALLENGE, f"pass {BEAT_PASS}", "goal 1"]
+    if key:
+        tonic, mode = key.split()[:2]
+        lines += [f"key {tonic}", f"scale {'major' if mode == 'major' else 'minor'}"]
+    return lines
+
+
+def piano_note_chapter(clef, title, new, around, known, intro=None):
+    """A chapter bringing in `new` (on one clef): alone, with its neighbours, on its own, mixed with that clef's notes"""
+    lines = [f"lesson {title}"]
+    if intro:
+        lines.append(f"text {intro}")
+    for note in new:
+        lines.append(f"text {spoken(note)} sits {clef.staff_text(note)}. On the piano it's {key_text(note)}.")
+    group = list(dict.fromkeys(around + new))
+    mixed = list(dict.fromkeys(known + new))
+    if len(new) == 1:
+        lines += piano_drill(f"{spoken(new[0])} alone", new, True)
+    if len(group) > len(new):
+        lines += piano_drill(f"{listing(group)}, shown where", group, True)
+    lines += piano_drill(f"{listing(group)}, on your own", group, False)
+    if len(mixed) > len(group):
+        lines += piano_drill("Mixed with what you know", mixed[-9:], False)
+    return lines
+
+
+def piano_review(title, notes, text, key=None):
+    lines = [f"lesson {title}", f"text {text}"]
+    lines += piano_drill("Shown where", notes, True, key)
+    lines += piano_drill("On your own", notes, False, key)
+    return lines
+
+
+def piano_timed(title, text, low, high, cells, key="C major", leap=2):
+    tonic, mode = key.split()
+    scale = "major" if mode == "major" else "minor"
+    lines = [f"lesson {title}", f"text {text}"]
+    for label, start, goal in SLOW:
+        lines += [f"drill {label}", "type reading", "instrument piano", f"key {tonic}", f"scale {scale}", f"range {low} {high}", f"leap {leap}",
+                  "cells " + " ".join(cells), f"bars {BEAT_BARS}", f"tempo {start} {goal} 5", f"pass {BEAT_PASS}", "goal 1"]
+    return lines
+
+
+def build_piano():
+    out = ["# lahn course: written by tools/courses/make_reading_course.py (change it there, and run it again)",
+           "version 1",
+           "title Reading music",
+           "description From middle C to reading both clefs to a beat, in every key: a note or two at a time.",
+           "instrument piano", ""]
+
+    def level(title):
+        out.extend(["", f"unit {title}", ""])
+
+    def chapter(lines):
+        out.extend(lines + [""])
+
+    def walk(clef, notes, known, intro):
+        for i, name in enumerate(notes):
+            before = known[-3:]
+            chapter(piano_note_chapter(clef, piano_title(name), [name], before, known, intro=intro if i == 0 else None))
+            known.append(name)
+
+    treble, bass = [], []
+    level("The treble clef: middle C and up")
+    walk(TREBLE, ["C4", "D4", "E4", "F4", "G4"], treble, PIANO_TREBLE_TEXT)
+    chapter(piano_review("Five fingers", ["C4", "D4", "E4", "F4", "G4"], "Your right hand's five fingers on C, D, E, F and G: read them as they come."))
+
+    level("The treble clef: up to the top")
+    walk(TREBLE, ["A4", "B4", "C5", "D5", "E5", "F5", "G5"], treble, None)
+    chapter(piano_review("The whole treble staff", ["C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5", "D5", "E5", "F5", "G5"],
+                         "From middle C to the G above the staff."))
+
+    level("The bass clef: middle C and down")
+    walk(BASS_CLEF, ["C4", "B3", "A3", "G3", "F3", "E3", "D3", "C3"][1:], bass + ["C4"], PIANO_BASS_TEXT)
+    bass = ["C4", "B3", "A3", "G3", "F3", "E3", "D3", "C3"]
+    chapter(piano_review("Five fingers, left hand", ["C3", "D3", "E3", "F3", "G3"], "Your left hand's five fingers, little finger on the C below middle C."))
+
+    level("The bass clef: down to the bottom")
+    walk(BASS_CLEF, ["B2", "A2", "G2", "F2", "E2"], bass, None)
+    chapter(piano_review("The whole bass staff", ["E2", "F2", "G2", "A2", "B2", "C3", "D3", "E3", "F3", "G3", "A3", "B3"],
+                         "From the E below the staff up to B, just under middle C."))
+
+    level("Sharps and flats")
+    for new, around, clef, intro in [
+        ("F#4", ["E4", "F4", "G4"], TREBLE, "A sharp sign raises a note to the very next key up, mostly a black one; a flat lowers it to the next key down."),
+        ("C#4", ["C4", "D4"], TREBLE, None),
+        ("Bb4", ["A4", "B4", "C5"], TREBLE, "Bb is B flat: the black key just left of B."),
+        ("Eb4", ["D4", "E4"], TREBLE, None),
+        ("G#4", ["G4", "A4"], TREBLE, None),
+        ("F#3", ["E3", "F3", "G3"], BASS_CLEF, None),
+        ("Bb2", ["A2", "B2", "C3"], BASS_CLEF, None),
+    ]:
+        chapter(piano_note_chapter(clef, piano_title(new), [new], around, [], intro=intro))
+
+    level("Key signatures")
+    for key, text, notes in [
+        ("G major", "One sharp, F#: every F is played F sharp, though no sign stands by it.", ["D4", "E4", "F#4", "G4", "A4", "B4", "C5", "D5"]),
+        ("F major", "One flat, Bb: every B is played B flat.", ["C4", "D4", "E4", "F4", "G4", "A4", "Bb4", "C5"]),
+        ("D major", "Two sharps, F# and C#.", ["D4", "E4", "F#4", "G4", "A4", "B4", "C#5", "D5"]),
+        ("G major, left hand", "The same one sharp, in the bass clef.", ["G2", "A2", "B2", "C3", "D3", "E3", "F#3", "G3"]),
+        ("Bb major", "Two flats: Bb, Eb.", ["Bb3", "C4", "D4", "Eb4", "F4", "G4", "A4", "Bb4"]),
+        ("A major", "Three sharps: F#, C#, G#.", ["A3", "B3", "C#4", "D4", "E4", "F#4", "G#4", "A4"]),
+    ]:
+        chapter(piano_review(f"In {key}", notes, text, key=key))
+
+    level("Reading to a beat")
+    for title, text, low, high, cells in [
+        ("Five fingers, quarter notes", "Now melodies, a note on each beat: your right hand on C to G. A bar counts you in.", "C4", "G4", ["quarter"]),
+        ("Rests", "A rest is a beat with no note: lift the finger, and count it.", "C4", "G4", ["quarter", "rest"]),
+        ("Eighth notes", "Two notes on a beat: count 1 and 2 and.", "C4", "G4", ["quarter", "eighths"]),
+        ("Up to the next C", "The hand moves: middle C to the C above.", "C4", "C5", ["quarter", "eighths", "rest"]),
+        ("Left hand", "The same in the bass clef, your left hand on C to G.", "C3", "G3", ["quarter", "rest"]),
+        ("Left hand, eighths", "Two on a beat, left hand.", "C3", "G3", ["quarter", "eighths"]),
+        ("Off the beat", "An eighth rest, then a note: the and of the beat.", "C4", "G4", ["quarter", "offbeat", "rest"]),
+        ("Dotted rhythms", "A long note and a short one: a dotted eighth and a sixteenth.", "C4", "G4", ["quarter", "dotted"]),
+        ("Triplets", "Three notes on a beat.", "C4", "G4", ["quarter", "triplets"]),
+        ("Sixteenths", "Four notes on a beat, slowly.", "C4", "G4", ["quarter", "sixteenths"]),
+    ]:
+        chapter(piano_timed(title, text, low, high, cells))
+
+    level("Keys to a beat")
+    for key, low, high in [("G major", "G4", "G5"), ("F major", "F4", "F5"), ("D major", "D4", "D5"), ("A minor", "A3", "A4"), ("E minor", "E4", "E5")]:
+        chapter(piano_timed(f"{key}, to a beat", f"Melodies in {key}, read to a beat.", low, high, ["quarter", "eighths", "rest"], key=key))
+
+    return "\n".join(out).rstrip() + "\n"
+
+
 def build(instrument):
     plan = PLANS[instrument.name]
     out = ["# lahn course: written by tools/courses/make_reading_course.py (change it there, and run it again)",
@@ -329,9 +515,9 @@ def build(instrument):
 
 if __name__ == "__main__":
     here = os.path.dirname(os.path.abspath(__file__))
-    for instrument, file in ((GUITAR, "02-reading.course"), (BASS, "02-reading-bass.course")):
+    for instrument, file in ((GUITAR, "02-reading.course"), (BASS, "02-reading-bass.course"), (None, "02-reading-piano.course")):
         path = os.path.join(here, "..", "..", "resources", "courses", file)
-        text = build(instrument)
+        text = build(instrument) if instrument else build_piano()
         with open(path, "w") as f:
             f.write(text)
         drills = sum(1 for line in text.splitlines() if line.startswith("drill "))

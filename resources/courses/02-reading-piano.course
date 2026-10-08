@@ -1,0 +1,2126 @@
+# lahn course: written by tools/courses/make_reading_course.py (change it there, and run it again)
+version 1
+title Reading music
+description From middle C to reading both clefs to a beat, in every key: a note or two at a time.
+instrument piano
+
+
+unit The treble clef: middle C and up
+
+lesson Middle C
+text Music is written on five lines, the staff. The higher a note sits, the higher it sounds. The curl at the start is the treble clef, for your right hand. Piano music is written just where it sounds.
+text C sits on the 1st ledger line below the staff. On the piano it's the white key just left of a group of two black keys: middle C.
+drill C alone
+type reading
+instrument piano
+notes C4
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill C, on your own
+type reading
+instrument piano
+notes C4
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+lesson D above middle C
+text D sits just below the staff. On the piano it's the white key between the two black keys: the D above middle C.
+drill D alone
+type reading
+instrument piano
+notes D4
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill C and D, shown where
+type reading
+instrument piano
+notes C4 D4
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill C and D, on your own
+type reading
+instrument piano
+notes C4 D4
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+lesson E above middle C
+text E sits on the bottom line. On the piano it's the white key just right of the two black keys: the E above middle C.
+drill E alone
+type reading
+instrument piano
+notes E4
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill C, D and E, shown where
+type reading
+instrument piano
+notes C4 D4 E4
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill C, D and E, on your own
+type reading
+instrument piano
+notes C4 D4 E4
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+lesson F above middle C
+text F sits in the bottom space. On the piano it's the white key just left of a group of three black keys: the F above middle C.
+drill F alone
+type reading
+instrument piano
+notes F4
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill C, D, E and F, shown where
+type reading
+instrument piano
+notes C4 D4 E4 F4
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill C, D, E and F, on your own
+type reading
+instrument piano
+notes C4 D4 E4 F4
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+lesson G above middle C
+text G sits on the second line. On the piano it's the white key between the first two of the three black keys: the G above middle C.
+drill G alone
+type reading
+instrument piano
+notes G4
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill D, E, F and G, shown where
+type reading
+instrument piano
+notes D4 E4 F4 G4
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill D, E, F and G, on your own
+type reading
+instrument piano
+notes D4 E4 F4 G4
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill Mixed with what you know
+type reading
+instrument piano
+notes C4 D4 E4 F4 G4
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+lesson Five fingers
+text Your right hand's five fingers on C, D, E, F and G: read them as they come.
+drill Shown where
+type reading
+instrument piano
+notes C4 D4 E4 F4 G4
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill On your own
+type reading
+instrument piano
+notes C4 D4 E4 F4 G4
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+
+unit The treble clef: up to the top
+
+lesson A above middle C
+text A sits in the second space. On the piano it's the white key between the last two of the three black keys: the A above middle C.
+drill A alone
+type reading
+instrument piano
+notes A4
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill E, F, G and A, shown where
+type reading
+instrument piano
+notes E4 F4 G4 A4
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill E, F, G and A, on your own
+type reading
+instrument piano
+notes E4 F4 G4 A4
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill Mixed with what you know
+type reading
+instrument piano
+notes C4 D4 E4 F4 G4 A4
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+lesson B above middle C
+text B sits on the middle line. On the piano it's the white key just right of the three black keys: the B above middle C.
+drill B alone
+type reading
+instrument piano
+notes B4
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill F, G, A and B, shown where
+type reading
+instrument piano
+notes F4 G4 A4 B4
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill F, G, A and B, on your own
+type reading
+instrument piano
+notes F4 G4 A4 B4
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill Mixed with what you know
+type reading
+instrument piano
+notes C4 D4 E4 F4 G4 A4 B4
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+lesson C above middle C
+text C sits in the third space. On the piano it's the white key just left of a group of two black keys: the C above middle C.
+drill C alone
+type reading
+instrument piano
+notes C5
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill G, A, B and C, shown where
+type reading
+instrument piano
+notes G4 A4 B4 C5
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill G, A, B and C, on your own
+type reading
+instrument piano
+notes G4 A4 B4 C5
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill Mixed with what you know
+type reading
+instrument piano
+notes C4 D4 E4 F4 G4 A4 B4 C5
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+lesson D above the C above middle C
+text D sits on the fourth line. On the piano it's the white key between the two black keys: the D above the C above middle C.
+drill D alone
+type reading
+instrument piano
+notes D5
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill A, B, C and D, shown where
+type reading
+instrument piano
+notes A4 B4 C5 D5
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill A, B, C and D, on your own
+type reading
+instrument piano
+notes A4 B4 C5 D5
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill Mixed with what you know
+type reading
+instrument piano
+notes C4 D4 E4 F4 G4 A4 B4 C5 D5
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+lesson E above the C above middle C
+text E sits in the top space. On the piano it's the white key just right of the two black keys: the E above the C above middle C.
+drill E alone
+type reading
+instrument piano
+notes E5
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill B, C, D and E, shown where
+type reading
+instrument piano
+notes B4 C5 D5 E5
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill B, C, D and E, on your own
+type reading
+instrument piano
+notes B4 C5 D5 E5
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill Mixed with what you know
+type reading
+instrument piano
+notes D4 E4 F4 G4 A4 B4 C5 D5 E5
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+lesson F above the C above middle C
+text F sits on the top line. On the piano it's the white key just left of a group of three black keys: the F above the C above middle C.
+drill F alone
+type reading
+instrument piano
+notes F5
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill C, D, E and F, shown where
+type reading
+instrument piano
+notes C5 D5 E5 F5
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill C, D, E and F, on your own
+type reading
+instrument piano
+notes C5 D5 E5 F5
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill Mixed with what you know
+type reading
+instrument piano
+notes E4 F4 G4 A4 B4 C5 D5 E5 F5
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+lesson G above the C above middle C
+text G sits just above the staff. On the piano it's the white key between the first two of the three black keys: the G above the C above middle C.
+drill G alone
+type reading
+instrument piano
+notes G5
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill D, E, F and G, shown where
+type reading
+instrument piano
+notes D5 E5 F5 G5
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill D, E, F and G, on your own
+type reading
+instrument piano
+notes D5 E5 F5 G5
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill Mixed with what you know
+type reading
+instrument piano
+notes F4 G4 A4 B4 C5 D5 E5 F5 G5
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+lesson The whole treble staff
+text From middle C to the G above the staff.
+drill Shown where
+type reading
+instrument piano
+notes C4 D4 E4 F4 G4 A4 B4 C5 D5 E5 F5 G5
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill On your own
+type reading
+instrument piano
+notes C4 D4 E4 F4 G4 A4 B4 C5 D5 E5 F5 G5
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+
+unit The bass clef: middle C and down
+
+lesson B below middle C
+text The bass clef, the curl with two dots, is for the lower notes, your left hand's. The same five lines, other names: middle C is just above it, on its own short line.
+text B sits just above the staff. On the piano it's the white key just right of the three black keys: the B below middle C.
+drill B alone
+type reading
+instrument piano
+notes B3
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill C and B, shown where
+type reading
+instrument piano
+notes C4 B3
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill C and B, on your own
+type reading
+instrument piano
+notes C4 B3
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+lesson A below middle C
+text A sits on the top line. On the piano it's the white key between the last two of the three black keys: the A below middle C.
+drill A alone
+type reading
+instrument piano
+notes A3
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill C, B and A, shown where
+type reading
+instrument piano
+notes C4 B3 A3
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill C, B and A, on your own
+type reading
+instrument piano
+notes C4 B3 A3
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+lesson G below middle C
+text G sits in the top space. On the piano it's the white key between the first two of the three black keys: the G below middle C.
+drill G alone
+type reading
+instrument piano
+notes G3
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill C, B, A and G, shown where
+type reading
+instrument piano
+notes C4 B3 A3 G3
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill C, B, A and G, on your own
+type reading
+instrument piano
+notes C4 B3 A3 G3
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+lesson F below middle C
+text F sits on the fourth line. On the piano it's the white key just left of a group of three black keys: the F below middle C.
+drill F alone
+type reading
+instrument piano
+notes F3
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill B, A, G and F, shown where
+type reading
+instrument piano
+notes B3 A3 G3 F3
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill B, A, G and F, on your own
+type reading
+instrument piano
+notes B3 A3 G3 F3
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill Mixed with what you know
+type reading
+instrument piano
+notes C4 B3 A3 G3 F3
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+lesson E below middle C
+text E sits in the third space. On the piano it's the white key just right of the two black keys: the E below middle C.
+drill E alone
+type reading
+instrument piano
+notes E3
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill A, G, F and E, shown where
+type reading
+instrument piano
+notes A3 G3 F3 E3
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill A, G, F and E, on your own
+type reading
+instrument piano
+notes A3 G3 F3 E3
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill Mixed with what you know
+type reading
+instrument piano
+notes C4 B3 A3 G3 F3 E3
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+lesson D below middle C
+text D sits on the middle line. On the piano it's the white key between the two black keys: the D below middle C.
+drill D alone
+type reading
+instrument piano
+notes D3
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill G, F, E and D, shown where
+type reading
+instrument piano
+notes G3 F3 E3 D3
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill G, F, E and D, on your own
+type reading
+instrument piano
+notes G3 F3 E3 D3
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill Mixed with what you know
+type reading
+instrument piano
+notes C4 B3 A3 G3 F3 E3 D3
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+lesson C below middle C
+text C sits in the second space. On the piano it's the white key just left of a group of two black keys: the C below middle C.
+drill C alone
+type reading
+instrument piano
+notes C3
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill F, E, D and C, shown where
+type reading
+instrument piano
+notes F3 E3 D3 C3
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill F, E, D and C, on your own
+type reading
+instrument piano
+notes F3 E3 D3 C3
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill Mixed with what you know
+type reading
+instrument piano
+notes C4 B3 A3 G3 F3 E3 D3 C3
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+lesson Five fingers, left hand
+text Your left hand's five fingers, little finger on the C below middle C.
+drill Shown where
+type reading
+instrument piano
+notes C3 D3 E3 F3 G3
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill On your own
+type reading
+instrument piano
+notes C3 D3 E3 F3 G3
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+
+unit The bass clef: down to the bottom
+
+lesson Low B, below the C below middle C
+text B sits on the second line. On the piano it's the white key just right of the three black keys: the low B, below the C below middle C.
+drill B alone
+type reading
+instrument piano
+notes B2
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill E, D, C and B, shown where
+type reading
+instrument piano
+notes E3 D3 C3 B2
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill E, D, C and B, on your own
+type reading
+instrument piano
+notes E3 D3 C3 B2
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill Mixed with what you know
+type reading
+instrument piano
+notes C4 B3 A3 G3 F3 E3 D3 C3 B2
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+lesson Low A, below the C below middle C
+text A sits in the bottom space. On the piano it's the white key between the last two of the three black keys: the low A, below the C below middle C.
+drill A alone
+type reading
+instrument piano
+notes A2
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill D, C, B and A, shown where
+type reading
+instrument piano
+notes D3 C3 B2 A2
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill D, C, B and A, on your own
+type reading
+instrument piano
+notes D3 C3 B2 A2
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill Mixed with what you know
+type reading
+instrument piano
+notes B3 A3 G3 F3 E3 D3 C3 B2 A2
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+lesson Low G, below the C below middle C
+text G sits on the bottom line. On the piano it's the white key between the first two of the three black keys: the low G, below the C below middle C.
+drill G alone
+type reading
+instrument piano
+notes G2
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill C, B, A and G, shown where
+type reading
+instrument piano
+notes C3 B2 A2 G2
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill C, B, A and G, on your own
+type reading
+instrument piano
+notes C3 B2 A2 G2
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill Mixed with what you know
+type reading
+instrument piano
+notes A3 G3 F3 E3 D3 C3 B2 A2 G2
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+lesson Low F, below the C below middle C
+text F sits just below the staff. On the piano it's the white key just left of a group of three black keys: the low F, below the C below middle C.
+drill F alone
+type reading
+instrument piano
+notes F2
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill B, A, G and F, shown where
+type reading
+instrument piano
+notes B2 A2 G2 F2
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill B, A, G and F, on your own
+type reading
+instrument piano
+notes B2 A2 G2 F2
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill Mixed with what you know
+type reading
+instrument piano
+notes G3 F3 E3 D3 C3 B2 A2 G2 F2
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+lesson Low E, below the C below middle C
+text E sits on the 1st ledger line below the staff. On the piano it's the white key just right of the two black keys: the low E, below the C below middle C.
+drill E alone
+type reading
+instrument piano
+notes E2
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill A, G, F and E, shown where
+type reading
+instrument piano
+notes A2 G2 F2 E2
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill A, G, F and E, on your own
+type reading
+instrument piano
+notes A2 G2 F2 E2
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill Mixed with what you know
+type reading
+instrument piano
+notes F3 E3 D3 C3 B2 A2 G2 F2 E2
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+lesson The whole bass staff
+text From the E below the staff up to B, just under middle C.
+drill Shown where
+type reading
+instrument piano
+notes E2 F2 G2 A2 B2 C3 D3 E3 F3 G3 A3 B3
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill On your own
+type reading
+instrument piano
+notes E2 F2 G2 A2 B2 C3 D3 E3 F3 G3 A3 B3
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+
+unit Sharps and flats
+
+lesson F sharp above middle C
+text A sharp sign raises a note to the very next key up, mostly a black one; a flat lowers it to the next key down.
+text F sharp sits in the bottom space. On the piano it's the black key just right of F: the F sharp above middle C.
+drill F sharp alone
+type reading
+instrument piano
+notes F#4
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill E, F, G and F sharp, shown where
+type reading
+instrument piano
+notes E4 F4 G4 F#4
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill E, F, G and F sharp, on your own
+type reading
+instrument piano
+notes E4 F4 G4 F#4
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+lesson C sharp above middle C
+text C sharp sits on the 1st ledger line below the staff. On the piano it's the black key just right of C: the C sharp above middle C.
+drill C sharp alone
+type reading
+instrument piano
+notes C#4
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill C, D and C sharp, shown where
+type reading
+instrument piano
+notes C4 D4 C#4
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill C, D and C sharp, on your own
+type reading
+instrument piano
+notes C4 D4 C#4
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+lesson B flat above middle C
+text Bb is B flat: the black key just left of B.
+text B flat sits on the middle line. On the piano it's the black key just left of B: the B flat above middle C.
+drill B flat alone
+type reading
+instrument piano
+notes Bb4
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill A, B, C and B flat, shown where
+type reading
+instrument piano
+notes A4 B4 C5 Bb4
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill A, B, C and B flat, on your own
+type reading
+instrument piano
+notes A4 B4 C5 Bb4
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+lesson E flat above middle C
+text E flat sits on the bottom line. On the piano it's the black key just left of E: the E flat above middle C.
+drill E flat alone
+type reading
+instrument piano
+notes Eb4
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill D, E and E flat, shown where
+type reading
+instrument piano
+notes D4 E4 Eb4
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill D, E and E flat, on your own
+type reading
+instrument piano
+notes D4 E4 Eb4
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+lesson G sharp above middle C
+text G sharp sits on the second line. On the piano it's the black key just right of G: the G sharp above middle C.
+drill G sharp alone
+type reading
+instrument piano
+notes G#4
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill G, A and G sharp, shown where
+type reading
+instrument piano
+notes G4 A4 G#4
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill G, A and G sharp, on your own
+type reading
+instrument piano
+notes G4 A4 G#4
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+lesson F sharp below middle C
+text F sharp sits on the fourth line. On the piano it's the black key just right of F: the F sharp below middle C.
+drill F sharp alone
+type reading
+instrument piano
+notes F#3
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill E, F, G and F sharp, shown where
+type reading
+instrument piano
+notes E3 F3 G3 F#3
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill E, F, G and F sharp, on your own
+type reading
+instrument piano
+notes E3 F3 G3 F#3
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+lesson Low B flat, below the C below middle C
+text B flat sits on the second line. On the piano it's the black key just left of B: the low B flat, below the C below middle C.
+drill B flat alone
+type reading
+instrument piano
+notes Bb2
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill A, B, C and B flat, shown where
+type reading
+instrument piano
+notes A2 B2 C3 Bb2
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+drill A, B, C and B flat, on your own
+type reading
+instrument piano
+notes A2 B2 C3 Bb2
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+
+
+unit Key signatures
+
+lesson In G major
+text One sharp, F#: every F is played F sharp, though no sign stands by it.
+drill Shown where
+type reading
+instrument piano
+notes D4 E4 F#4 G4 A4 B4 C5 D5
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+key G
+scale major
+drill On your own
+type reading
+instrument piano
+notes D4 E4 F#4 G4 A4 B4 C5 D5
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+key G
+scale major
+
+lesson In F major
+text One flat, Bb: every B is played B flat.
+drill Shown where
+type reading
+instrument piano
+notes C4 D4 E4 F4 G4 A4 Bb4 C5
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+key F
+scale major
+drill On your own
+type reading
+instrument piano
+notes C4 D4 E4 F4 G4 A4 Bb4 C5
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+key F
+scale major
+
+lesson In D major
+text Two sharps, F# and C#.
+drill Shown where
+type reading
+instrument piano
+notes D4 E4 F#4 G4 A4 B4 C#5 D5
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+key D
+scale major
+drill On your own
+type reading
+instrument piano
+notes D4 E4 F#4 G4 A4 B4 C#5 D5
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+key D
+scale major
+
+lesson In G major, left hand
+text The same one sharp, in the bass clef.
+drill Shown where
+type reading
+instrument piano
+notes G2 A2 B2 C3 D3 E3 F#3 G3
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+key G
+scale minor
+drill On your own
+type reading
+instrument piano
+notes G2 A2 B2 C3 D3 E3 F#3 G3
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+key G
+scale minor
+
+lesson In Bb major
+text Two flats: Bb, Eb.
+drill Shown where
+type reading
+instrument piano
+notes Bb3 C4 D4 Eb4 F4 G4 A4 Bb4
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+key Bb
+scale major
+drill On your own
+type reading
+instrument piano
+notes Bb3 C4 D4 Eb4 F4 G4 A4 Bb4
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+key Bb
+scale major
+
+lesson In A major
+text Three sharps: F#, C#, G#.
+drill Shown where
+type reading
+instrument piano
+notes A3 B3 C#4 D4 E4 F#4 G#4 A4
+where yes
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+key A
+scale major
+drill On your own
+type reading
+instrument piano
+notes A3 B3 C#4 D4 E4 F#4 G#4 A4
+cells quarter
+bars 10
+tempo 90 120 5
+challenge 100
+pass 87
+goal 1
+key A
+scale major
+
+
+unit Reading to a beat
+
+lesson Five fingers, quarter notes
+text Now melodies, a note on each beat: your right hand on C to G. A bar counts you in.
+drill Slowly
+type reading
+instrument piano
+key C
+scale major
+range C4 G4
+leap 2
+cells quarter
+bars 10
+tempo 60 80 5
+pass 87
+goal 1
+drill Steady
+type reading
+instrument piano
+key C
+scale major
+range C4 G4
+leap 2
+cells quarter
+bars 10
+tempo 75 100 5
+pass 87
+goal 1
+drill Moving on
+type reading
+instrument piano
+key C
+scale major
+range C4 G4
+leap 2
+cells quarter
+bars 10
+tempo 90 120 5
+pass 87
+goal 1
+
+lesson Rests
+text A rest is a beat with no note: lift the finger, and count it.
+drill Slowly
+type reading
+instrument piano
+key C
+scale major
+range C4 G4
+leap 2
+cells quarter rest
+bars 10
+tempo 60 80 5
+pass 87
+goal 1
+drill Steady
+type reading
+instrument piano
+key C
+scale major
+range C4 G4
+leap 2
+cells quarter rest
+bars 10
+tempo 75 100 5
+pass 87
+goal 1
+drill Moving on
+type reading
+instrument piano
+key C
+scale major
+range C4 G4
+leap 2
+cells quarter rest
+bars 10
+tempo 90 120 5
+pass 87
+goal 1
+
+lesson Eighth notes
+text Two notes on a beat: count 1 and 2 and.
+drill Slowly
+type reading
+instrument piano
+key C
+scale major
+range C4 G4
+leap 2
+cells quarter eighths
+bars 10
+tempo 60 80 5
+pass 87
+goal 1
+drill Steady
+type reading
+instrument piano
+key C
+scale major
+range C4 G4
+leap 2
+cells quarter eighths
+bars 10
+tempo 75 100 5
+pass 87
+goal 1
+drill Moving on
+type reading
+instrument piano
+key C
+scale major
+range C4 G4
+leap 2
+cells quarter eighths
+bars 10
+tempo 90 120 5
+pass 87
+goal 1
+
+lesson Up to the next C
+text The hand moves: middle C to the C above.
+drill Slowly
+type reading
+instrument piano
+key C
+scale major
+range C4 C5
+leap 2
+cells quarter eighths rest
+bars 10
+tempo 60 80 5
+pass 87
+goal 1
+drill Steady
+type reading
+instrument piano
+key C
+scale major
+range C4 C5
+leap 2
+cells quarter eighths rest
+bars 10
+tempo 75 100 5
+pass 87
+goal 1
+drill Moving on
+type reading
+instrument piano
+key C
+scale major
+range C4 C5
+leap 2
+cells quarter eighths rest
+bars 10
+tempo 90 120 5
+pass 87
+goal 1
+
+lesson Left hand
+text The same in the bass clef, your left hand on C to G.
+drill Slowly
+type reading
+instrument piano
+key C
+scale major
+range C3 G3
+leap 2
+cells quarter rest
+bars 10
+tempo 60 80 5
+pass 87
+goal 1
+drill Steady
+type reading
+instrument piano
+key C
+scale major
+range C3 G3
+leap 2
+cells quarter rest
+bars 10
+tempo 75 100 5
+pass 87
+goal 1
+drill Moving on
+type reading
+instrument piano
+key C
+scale major
+range C3 G3
+leap 2
+cells quarter rest
+bars 10
+tempo 90 120 5
+pass 87
+goal 1
+
+lesson Left hand, eighths
+text Two on a beat, left hand.
+drill Slowly
+type reading
+instrument piano
+key C
+scale major
+range C3 G3
+leap 2
+cells quarter eighths
+bars 10
+tempo 60 80 5
+pass 87
+goal 1
+drill Steady
+type reading
+instrument piano
+key C
+scale major
+range C3 G3
+leap 2
+cells quarter eighths
+bars 10
+tempo 75 100 5
+pass 87
+goal 1
+drill Moving on
+type reading
+instrument piano
+key C
+scale major
+range C3 G3
+leap 2
+cells quarter eighths
+bars 10
+tempo 90 120 5
+pass 87
+goal 1
+
+lesson Off the beat
+text An eighth rest, then a note: the and of the beat.
+drill Slowly
+type reading
+instrument piano
+key C
+scale major
+range C4 G4
+leap 2
+cells quarter offbeat rest
+bars 10
+tempo 60 80 5
+pass 87
+goal 1
+drill Steady
+type reading
+instrument piano
+key C
+scale major
+range C4 G4
+leap 2
+cells quarter offbeat rest
+bars 10
+tempo 75 100 5
+pass 87
+goal 1
+drill Moving on
+type reading
+instrument piano
+key C
+scale major
+range C4 G4
+leap 2
+cells quarter offbeat rest
+bars 10
+tempo 90 120 5
+pass 87
+goal 1
+
+lesson Dotted rhythms
+text A long note and a short one: a dotted eighth and a sixteenth.
+drill Slowly
+type reading
+instrument piano
+key C
+scale major
+range C4 G4
+leap 2
+cells quarter dotted
+bars 10
+tempo 60 80 5
+pass 87
+goal 1
+drill Steady
+type reading
+instrument piano
+key C
+scale major
+range C4 G4
+leap 2
+cells quarter dotted
+bars 10
+tempo 75 100 5
+pass 87
+goal 1
+drill Moving on
+type reading
+instrument piano
+key C
+scale major
+range C4 G4
+leap 2
+cells quarter dotted
+bars 10
+tempo 90 120 5
+pass 87
+goal 1
+
+lesson Triplets
+text Three notes on a beat.
+drill Slowly
+type reading
+instrument piano
+key C
+scale major
+range C4 G4
+leap 2
+cells quarter triplets
+bars 10
+tempo 60 80 5
+pass 87
+goal 1
+drill Steady
+type reading
+instrument piano
+key C
+scale major
+range C4 G4
+leap 2
+cells quarter triplets
+bars 10
+tempo 75 100 5
+pass 87
+goal 1
+drill Moving on
+type reading
+instrument piano
+key C
+scale major
+range C4 G4
+leap 2
+cells quarter triplets
+bars 10
+tempo 90 120 5
+pass 87
+goal 1
+
+lesson Sixteenths
+text Four notes on a beat, slowly.
+drill Slowly
+type reading
+instrument piano
+key C
+scale major
+range C4 G4
+leap 2
+cells quarter sixteenths
+bars 10
+tempo 60 80 5
+pass 87
+goal 1
+drill Steady
+type reading
+instrument piano
+key C
+scale major
+range C4 G4
+leap 2
+cells quarter sixteenths
+bars 10
+tempo 75 100 5
+pass 87
+goal 1
+drill Moving on
+type reading
+instrument piano
+key C
+scale major
+range C4 G4
+leap 2
+cells quarter sixteenths
+bars 10
+tempo 90 120 5
+pass 87
+goal 1
+
+
+unit Keys to a beat
+
+lesson G major, to a beat
+text Melodies in G major, read to a beat.
+drill Slowly
+type reading
+instrument piano
+key G
+scale major
+range G4 G5
+leap 2
+cells quarter eighths rest
+bars 10
+tempo 60 80 5
+pass 87
+goal 1
+drill Steady
+type reading
+instrument piano
+key G
+scale major
+range G4 G5
+leap 2
+cells quarter eighths rest
+bars 10
+tempo 75 100 5
+pass 87
+goal 1
+drill Moving on
+type reading
+instrument piano
+key G
+scale major
+range G4 G5
+leap 2
+cells quarter eighths rest
+bars 10
+tempo 90 120 5
+pass 87
+goal 1
+
+lesson F major, to a beat
+text Melodies in F major, read to a beat.
+drill Slowly
+type reading
+instrument piano
+key F
+scale major
+range F4 F5
+leap 2
+cells quarter eighths rest
+bars 10
+tempo 60 80 5
+pass 87
+goal 1
+drill Steady
+type reading
+instrument piano
+key F
+scale major
+range F4 F5
+leap 2
+cells quarter eighths rest
+bars 10
+tempo 75 100 5
+pass 87
+goal 1
+drill Moving on
+type reading
+instrument piano
+key F
+scale major
+range F4 F5
+leap 2
+cells quarter eighths rest
+bars 10
+tempo 90 120 5
+pass 87
+goal 1
+
+lesson D major, to a beat
+text Melodies in D major, read to a beat.
+drill Slowly
+type reading
+instrument piano
+key D
+scale major
+range D4 D5
+leap 2
+cells quarter eighths rest
+bars 10
+tempo 60 80 5
+pass 87
+goal 1
+drill Steady
+type reading
+instrument piano
+key D
+scale major
+range D4 D5
+leap 2
+cells quarter eighths rest
+bars 10
+tempo 75 100 5
+pass 87
+goal 1
+drill Moving on
+type reading
+instrument piano
+key D
+scale major
+range D4 D5
+leap 2
+cells quarter eighths rest
+bars 10
+tempo 90 120 5
+pass 87
+goal 1
+
+lesson A minor, to a beat
+text Melodies in A minor, read to a beat.
+drill Slowly
+type reading
+instrument piano
+key A
+scale minor
+range A3 A4
+leap 2
+cells quarter eighths rest
+bars 10
+tempo 60 80 5
+pass 87
+goal 1
+drill Steady
+type reading
+instrument piano
+key A
+scale minor
+range A3 A4
+leap 2
+cells quarter eighths rest
+bars 10
+tempo 75 100 5
+pass 87
+goal 1
+drill Moving on
+type reading
+instrument piano
+key A
+scale minor
+range A3 A4
+leap 2
+cells quarter eighths rest
+bars 10
+tempo 90 120 5
+pass 87
+goal 1
+
+lesson E minor, to a beat
+text Melodies in E minor, read to a beat.
+drill Slowly
+type reading
+instrument piano
+key E
+scale minor
+range E4 E5
+leap 2
+cells quarter eighths rest
+bars 10
+tempo 60 80 5
+pass 87
+goal 1
+drill Steady
+type reading
+instrument piano
+key E
+scale minor
+range E4 E5
+leap 2
+cells quarter eighths rest
+bars 10
+tempo 75 100 5
+pass 87
+goal 1
+drill Moving on
+type reading
+instrument piano
+key E
+scale minor
+range E4 E5
+leap 2
+cells quarter eighths rest
+bars 10
+tempo 90 120 5
+pass 87
+goal 1
