@@ -62,6 +62,7 @@ const double TRIM_FADE_S = 0.4;    // a trimmed song's end fades out over this l
 const double RESUME_RUNUP_S = 1.5; // resuming, the song picks up this long before where it was paused
 const double CLICK_LOOKAHEAD_S = 0.2; // the metronome's clicks are handed to the audio engine this far ahead
 
+const double TAKE_LONGEST_S = 600.0; // practising, a pass is recorded up to this long (longer, it isn't kept)
 const float PASS_TAIL_S = 0.35f;   // practising, a pass ends this long after its section does: its last note's judgement
 const float TEMPO_BANNER_S = 2.0f; // how long the new tempo shows after a pass raises it
 // Note by note, the song slows as a note still to play comes near, down to a crawl, its sound going on all the time;
@@ -414,8 +415,28 @@ static struct {
     PracticeProgress progress;
     bool waiting = false;
     float waitTime = 0.0f;
+    bool listening = false;   // listening back to the last pass (practice): the song and the take, nothing judged
     bool active = false;
 } game;
+
+// Practising on the instrument, each pass is recorded: what the input heard, as the note detector got it, to be
+// listened back to (the last pass played to its end) over the song, through the player's own tone. A pass paused
+// or started over isn't kept.
+namespace {
+struct PassTake {
+    std::vector<float> samples;
+    int rate = 0;
+    double songAt = 0.0;          // the song's time its first sample was played at
+    float speed = 1.0f;           // the song's speed then
+    std::vector<PlayNote> notes;  // the pass's notes, as they were judged
+    bool broken = false;          // paused, or too long: not kept
+};
+PassTake recordingTake, lastTake;
+} // namespace
+
+static void beginTake(){
+    recordingTake = PassTake{};
+}
 
 // The feedback for a hit: the note itself, as long as it's written to ring, a chord all of its notes, on the sound the
 // song gives the part (the editor's choice: its own instrument unless it says otherwise, as the editor plays it).
@@ -684,6 +705,7 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
     game.active = true;
     game.countInBeats = 0;
     game.waiting = false;
+    game.listening = false;
     setSongVolume(1.0f);
     if (options.practice.on){
         game.sectionNotes = game.notes;
@@ -691,6 +713,8 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
         game.sectionEnd = (float)tickToSeconds(game.chart, options.practice.toTick);
         game.progress = PracticeProgress{};
         game.progress.speed = options.practice.speed;
+        beginTake();
+        lastTake = PassTake{};
         startWithCountIn(game.sectionStart);
     }
     else if (fromTick > 0) playSongFrom(tickToSeconds(game.chart, fromTick) - LEAD_IN_S, game.startsAt);
@@ -700,6 +724,7 @@ bool startGameplayWithChart(const Chart& chart, const std::string& audioPath, co
 
 // Practising: the section again from the top, its notes as new, counted in at the speed it's at
 static void startPass(){
+    beginTake();
     game.notes = game.sectionNotes;
     game.state = {};
     game.state.multiplier = 1;
@@ -717,6 +742,10 @@ static bool endPass(){
     for (const PlayNote& note : game.notes) hits += note.hit;
     const int total = (int)game.notes.size();
     progress.passes++;
+    if (!recordingTake.broken && !recordingTake.samples.empty()){ // to listen back to
+        lastTake = std::move(recordingTake);
+        lastTake.notes = game.notes;
+    }
     progress.lastAccuracy = total > 0 ? (float)hits / total : 1.0f;
     progress.bestAccuracy = std::max(progress.bestAccuracy, progress.lastAccuracy);
     if (hits == total){
@@ -742,15 +771,22 @@ static bool passFailed(){
            (strict == StartOver::UnlessPerfect && game.state.nearCount > 0);
 }
 static void startPassOver(){
-    stopSong();
+    stopSong(); // (its take isn't kept: startPass begins the next)
     game.progress.startedOver++;
     game.progress.startedOverAt = GetTime();
     setSongSpeed(game.progress.speed);
     startPass();
 }
 
+static void stopListening();
+
 void pauseGameplay(){
     if (!game.active || game.paused) return;
+    if (game.listening){ // listening back: Esc, or away from the window, stops it, and practising goes on
+        stopListening();
+        return;
+    }
+    recordingTake.broken = true;
     stopSong();
     stopPreviews();
     game.paused = true;
@@ -764,6 +800,79 @@ void resumeGameplay(){
     game.resumeAt = game.songTime;
     const double from = game.songTime + game.options.offsetSeconds * songSpeed() - RESUME_RUNUP_S;
     anchorBeats(playSongFrom(from, game.startsAt), from, from);
+}
+
+// A take through the player's tone, as they heard themselves (core/tonechain, on the main thread's own capture models),
+// at the engine's rate
+static std::vector<float> renderTake(const PassTake& take){
+    static ToneChain chain; // big (delay lines for any rate): made once
+    static bool made = false;
+    if (!made){
+        initToneChain(chain, take.rate);
+        made = true;
+    }
+    chain.runner = 2; // the main thread's (core/tonechain TONE_RUNNERS)
+    setToneChainRate(chain, take.rate);
+    setToneChain(chain, monitorTone());
+    clearToneChain(chain);
+    std::vector<float> toned = take.samples;
+    const int CHUNK = 512;
+    for (size_t at = 0; at < toned.size(); at += CHUNK) processToneChain(chain, toned.data() + at, (int)std::min<size_t>(CHUNK, toned.size() - at));
+    // To the engine's rate, in a straight line between samples
+    const int rate = audioSampleRate();
+    if (rate <= 0 || rate == take.rate) return toned;
+    const double step = (double)take.rate / rate;
+    std::vector<float> out((size_t)(toned.size() / step));
+    for (size_t i = 0; i < out.size(); i++){
+        const double at = i * step;
+        const size_t k = (size_t)at;
+        const float t = (float)(at - k);
+        out[i] = k + 1 < toned.size() ? toned[k] + (toned[k + 1] - toned[k]) * t : toned.back();
+    }
+    return out;
+}
+
+bool gameplayCanListenBack(){
+    return game.active && game.options.practice.on && !lastTake.samples.empty();
+}
+
+bool gameplayListeningBack(){
+    return game.active && game.listening;
+}
+
+// The last pass again: the song from where its recording starts, at its speed, and the take with it, timed so each
+// note sounds where it was played against the song (both go out the same way, so they arrive together); its notes
+// on screen as they were judged
+void listenBackToLastPass(){
+    if (!gameplayCanListenBack()) return;
+    stopSong();
+    stopPreviews();
+    game.paused = false;
+    game.listening = true;
+    game.notes = lastTake.notes;
+    game.countInBeats = 0;
+    setSongSpeed(lastTake.speed);
+    const double from = std::max(0.0, lastTake.songAt);
+    const double begins = playSongFrom(from, game.startsAt);
+    if (begins < 0.0){
+        stopListening();
+        return;
+    }
+    anchorBeats(begins, from, from);
+    // A take that started before the song could (its first moments before the song's start) skips them
+    std::vector<float> toned = renderTake(lastTake);
+    const double early = from - lastTake.songAt; // song seconds
+    const size_t skip = (size_t)std::max(0.0, early / lastTake.speed * audioSampleRate());
+    if (skip > 0) toned.erase(toned.begin(), toned.begin() + (ptrdiff_t)std::min(skip, toned.size()));
+    playSamplesAt(toned, begins, 1.0f);
+}
+
+static void stopListening(){
+    game.listening = false;
+    stopSong();
+    stopPreviews();
+    setSongSpeed(game.progress.speed);
+    startPass(); // practising again, from the section's start
 }
 
 bool gameplayPaused(){
@@ -793,6 +902,14 @@ bool updateGameplay(){
     float speed = songSpeed();
     game.songTime = (float)(songPosition() - game.options.offsetSeconds * speed);
     game.waiting = false;
+    if (game.listening){ // listening back: what's played meanwhile isn't judged, nor kept; at the section's end, practising again
+        if (noteInputActive()) updateNoteInput();
+        if (midiInputActive()) updateMidiInput();
+        if (pianoKeysActive()) updatePianoKeys();
+        scheduleBeats();
+        if (game.songTime >= game.sectionEnd + PASS_TAIL_S || songEnded()) stopListening();
+        return true;
+    }
     if (game.options.practice.on && game.options.practice.noteByNote){
         const float tempo = game.progress.speed;
         auto due = std::find_if(game.notes.begin(), game.notes.end(), [](const PlayNote& note){ return !note.judged; });
@@ -817,6 +934,11 @@ bool updateGameplay(){
     frozenTime = game.waiting;
     frozenAt = game.waitTime;
     checkSongTime = game.songTime;
+    // L, practising: the last pass, heard back
+    if (game.options.practice.on && IsKeyPressed(KEY_L) && gameplayCanListenBack() && !game.keys){
+        listenBackToLastPass();
+        return true;
+    }
     // F9: recording a check, or not
     if (IsKeyPressed(KEY_F9) && noteInputActive()){
         recordChecks = !recordChecks;
@@ -833,6 +955,21 @@ bool updateGameplay(){
     if (noteInputActive()) handleInstrument(game.notes, game.state, game.songTime, game.options.inputOffsetSeconds, game.lastPlayed,
                                             game.options.rhythmMode, game.lastAttackAt, game.anyOctave,
                                             game.watchingTuning ? &game.tuning : nullptr, game.chords);
+    // Practising: the pass recorded as it's played (not note by note: the song's speed changes under it)
+    if (game.options.practice.on && !game.options.practice.noteByNote && noteInputActive() && !recordingTake.broken){
+        const std::vector<float>& heard = latestInputSamples();
+        const int rate = noteInputSampleRate();
+        if (!heard.empty() && rate > 0){
+            if (recordingTake.samples.empty()){
+                // Its newest sample was played at the song's time now, less the input's own delay
+                recordingTake.rate = rate;
+                recordingTake.speed = speed;
+                recordingTake.songAt = game.songTime - (game.options.inputOffsetSeconds + (double)heard.size() / rate) * speed;
+            }
+            if (recordingTake.samples.size() + heard.size() > (size_t)(TAKE_LONGEST_S * rate)) recordingTake.broken = true;
+            else recordingTake.samples.insert(recordingTake.samples.end(), heard.begin(), heard.end());
+        }
+    }
     // The two clocks side by side, four times a second: the recording's end is what was read this frame
     if (inputRecording() && (lastSync < 0.0 || inputRecordingSeconds() - lastSync >= 0.25)){
         lastSync = inputRecordingSeconds();
@@ -1010,7 +1147,14 @@ void drawGameplayHud(){
         if (progress.passes > 0) line += TextFormat("  ·  LAST %d%%", (int)std::lround(progress.lastAccuracy * 100.0f));
         if (progress.startedOver > 0) line += TextFormat("  ·  STARTED OVER %d", progress.startedOver);
         if (practice.metronome && !practice.noteByNote) line += "  ·  METRONOME";
+        if (game.listening) line = "LISTENING BACK TO YOUR LAST PASS  ·  ESC: BACK TO PRACTISING";
+        else if (!lastTake.samples.empty()) line += "  ·  L: HEAR YOUR LAST PASS";
         draw->AddText(fonts.mono, 14 * s, ImVec2(margin, top + 56 * s), uiColor(UiColor::Accent), line.c_str());
+        if (game.listening){ // a red-dot-less "playing back" mark, pulsing: it's a recording
+            const float pulse = 0.5f + 0.5f * std::sin((float)GetTime() * 4.0f);
+            const float x = margin + textWidth(fonts.mono, 14 * s, line.c_str()) + 14 * s;
+            draw->AddTriangleFilled(ImVec2(x, top + 57 * s), ImVec2(x, top + 69 * s), ImVec2(x + 10 * s, top + 63 * s), uiColor(UiColor::Accent, 0.5f + 0.5f * pulse));
+        }
         if (game.waiting){
             std::string waiting = "WAITING FOR";
             for (const PlayNote& note : game.notes){

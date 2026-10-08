@@ -267,7 +267,7 @@ SongSelectChoice songSelectScreen(const char* title, const std::vector<SongEntry
     return choice;
 }
 
-PauseChoice pauseScreen(const std::string& song, bool practising, const char* instrument, bool canSwitch, int metronome){
+PauseChoice pauseScreen(const std::string& song, bool practising, const char* instrument, bool canSwitch, int metronome, bool canListenBack){
     static MenuList list;
     // Resume, start over, switch between playing it through and practising part of it, tune, leave
     std::vector<MenuRow> rows = { actionRow("Resume", "Esc"), actionRow(practising ? "Start the practice over" : "Retry") };
@@ -281,6 +281,12 @@ PauseChoice pauseScreen(const std::string& song, bool practising, const char* in
         row.detail = metronome ? "on" : "off";
         rows.push_back(row);
         choices.push_back(PauseChoice::Metronome);
+    }
+    if (canListenBack){
+        MenuRow row = actionRow("Hear your last pass", "L");
+        row.detail = "over the song, through your tone";
+        rows.push_back(row);
+        choices.push_back(PauseChoice::ListenBack);
     }
     if (canSwitch){
         rows.push_back(actionRow(practising ? "Quit practice mode" : "Practise this part")); // quitting it, the song is played through
@@ -303,6 +309,7 @@ PauseChoice pauseScreen(const std::string& song, bool practising, const char* in
     int confirmed = menuList(list, rows, {ImVec2(width * 0.07f, height * 0.25f), width * 0.45f, rows.size() * 48 * s, s});
     if (confirmed >= 0 && confirmed < (int)choices.size()) choice = choices[confirmed];
     if (metronome >= 0 && ImGui::IsKeyPressed(ImGuiKey_M, false)) choice = PauseChoice::Metronome;
+    if (canListenBack && ImGui::IsKeyPressed(ImGuiKey_L, false)) choice = PauseChoice::ListenBack;
     menuScreenHint("Enter  choose    Esc  resume", s);
     ImGui::End();
     return choice;

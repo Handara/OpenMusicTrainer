@@ -126,6 +126,8 @@ bool setMonitor(bool on, const std::string& inputDevice, const std::vector<int>&
 // The tone the real sound goes through (core/tonechain): taken up at once, while it plays, without a click
 void setMonitorTone(const ToneParameters& tone);
 bool monitorActive();
+// The tone last set: the player's sound, for a recording of their playing to be heard through it too
+ToneParameters monitorTone();
 // Heard as a synth instead (the default): the speakers don't play the input; the main thread reads it (readMonitor,
 // input/synthmonitor), finds the notes played, and plays them on the synth bass. Clean, a little later than the input.
 void setMonitorSynth(bool synth);

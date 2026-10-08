@@ -115,6 +115,11 @@ void drawGameplayHud(); // the song, the score and the meters over them, with Im
 void pauseGameplay();
 void resumeGameplay();
 bool gameplayPaused();
+// Practising: the last pass played to its end can be listened back to (the song, and what was played, through the
+// player's tone); while it plays nothing is judged, and Esc (or its end) goes back to practising
+bool gameplayCanListenBack();
+void listenBackToLastPass();
+bool gameplayListeningBack();
 // Practising, a click on every beat: whether it's on, and switching it (while paused: it starts with the song again)
 bool gameplayMetronome();
 void setGameplayMetronome(bool on);

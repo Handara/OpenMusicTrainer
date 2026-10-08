@@ -1101,7 +1101,14 @@ bool setMonitor(bool on, const std::string& inputDevice, const std::vector<int>&
     return true;
 }
 
+static ToneParameters lastMonitorTone; // (the main thread's copy)
+
+ToneParameters monitorTone(){
+    return lastMonitorTone;
+}
+
 void setMonitorTone(const ToneParameters& tone){
+    lastMonitorTone = tone;
     unsigned version = audio.toneVersion.load(std::memory_order_relaxed);
     audio.toneVersion.store(version + 1, std::memory_order_relaxed); // odd: being written
     std::atomic_thread_fence(std::memory_order_release);

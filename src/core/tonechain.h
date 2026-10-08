@@ -76,7 +76,8 @@ public:
     virtual ~CaptureModel() = default;
     virtual void process(float* samples, int count, int sampleRate) = 0;
 };
-const int TONE_RUNNERS = 2; // the audio threads that play tones (the engine's, and the direct monitor's)
+const int TONE_RUNNERS = 3; // what plays tones: the audio threads (the engine's, the direct monitor's), and the main
+                            // thread rendering a recording through one (practice: listening back)
 
 // What an effect plays through beyond its settings, worked out off the audio thread: a cabinet's impulse response
 // (core/cabinets), at each rate a device may run at, back to front (the oldest sample meets the last tap); a
