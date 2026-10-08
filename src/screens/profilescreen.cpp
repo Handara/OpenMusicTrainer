@@ -7,6 +7,7 @@
 #include "raylib.h"
 #include "ui/menulist.h"
 #include "ui/rewards.h"
+#include "ui/sharecard.h"
 #include "ui/theme.h"
 #include "ui/ui.h"
 
@@ -126,7 +127,8 @@ bool profileScreen(Settings& settings){
     int index = 0;
     const int count = (int)(sizeof GOAL_CHOICES / sizeof GOAL_CHOICES[0]);
     for (int i = 0; i < count; i++) if (GOAL_CHOICES[i] <= settings.dailyGoalMinutes) index = i;
-    const int change = ImGui::IsKeyPressed(ImGuiKey_RightArrow) ? 1 : ImGui::IsKeyPressed(ImGuiKey_LeftArrow) ? -1 : 0;
+    const bool sharing = shareCardOpen(); // the card over it has the keys
+    const int change = sharing ? 0 : ImGui::IsKeyPressed(ImGuiKey_RightArrow) ? 1 : ImGui::IsKeyPressed(ImGuiKey_LeftArrow) ? -1 : 0;
     if (change != 0){
         const int next = std::clamp(index + change, 0, count - 1);
         if (GOAL_CHOICES[next] != settings.dailyGoalMinutes){
@@ -265,7 +267,9 @@ bool profileScreen(Settings& settings){
         draw->AddText(fonts.text, 14 * s, ImVec2(rightX, y), uiColor(UiColor::Dim), "Point at a medal to see what it's for");
     }
 
-    menuScreenHint("Left / Right  daily goal    Esc  back", s);
+    menuScreenHint("Left / Right  daily goal    S  share    Esc  back", s);
+    if (!sharing && ImGui::IsKeyPressed(ImGuiKey_S, false)) openShareCard();
+    drawShareCard(settings.playerName, s);
     ImGui::Dummy(ImVec2(1, 1));
     ImGui::End();
     return goalChanged;

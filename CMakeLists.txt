@@ -292,6 +292,7 @@ add_executable(lahn
     src/ui/helpoverlay.cpp
     src/ui/particles.cpp
     src/ui/rewards.cpp
+    src/ui/sharecard.cpp
     src/app/playerprogress.cpp
     src/views/neckview.cpp
     src/views/noteviews.cpp

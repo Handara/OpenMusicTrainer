@@ -35,6 +35,7 @@
 #include "ui/menulist.h"
 #include "ui/particles.h"
 #include "ui/rewards.h"
+#include "ui/sharecard.h"
 #include "ui/transition.h"
 #include "ui/ui.h"
 #include "views/staff.h"
@@ -605,7 +606,10 @@ static void handleBackKey(bool backClicked){
             break;
         case Screen::Results: if (!resultsBack()) goToSongSelect(); break;
         case Screen::Tuner: leaveTuner(); break;
-        case Screen::Profile: app.screen = Screen::MainMenu; break;
+        case Screen::Profile:
+            if (shareCardOpen()) closeShareCard(); // the share card first
+            else app.screen = Screen::MainMenu;
+            break;
         case Screen::Welcome: if (welcomeBack()){ closeWelcomeScreen(); saveAppSettings(); app.screen = Screen::MainMenu; } break;
         case Screen::Instrument: leaveInstrument(); break;
         case Screen::Settings: if (!settingsUsedEscape()) leaveSettings(); break;
@@ -981,9 +985,11 @@ int main(void){
         bool backClicked = !helpOpen() && app.screen == shown && hasBackButton(shown) && menuBackButton(menuScale());
         const bool hearingShown = hasBackButton(shown) || (shown == Screen::Playing && gameplayPaused());
         if ((app.screen == shown && hearingShown && hearingButton(menuScale())) || IsKeyPressed(KEY_F2)) toggleHearing();
-        if (app.screen == shown && menuScreen) drawMenuInputLegend(menuScale());
-        drawParticles(menuScale()); // sparks: notes hit, milestones
-        drawRewards(menuScale()); // what was just earned, over everything
+        if (!shareCardOpen()){ // (the share card is a picture: nothing over it)
+            if (app.screen == shown && menuScreen) drawMenuInputLegend(menuScale());
+            drawParticles(menuScale()); // sparks: notes hit, milestones
+            drawRewards(menuScale()); // what was just earned, over everything
+        }
         endUiFrame();
 
         // Changes of screen from outside the menus come after drawing, so this frame still shows the old screen and
@@ -1000,6 +1006,7 @@ int main(void){
             app.zoomTo = { from.x + from.width / 2, from.y + from.height / 2 }; // into the timing distribution
             app.screen = Screen::Results;
         }
+        saveShareCardIfAsked((fs::path(app.userDataDir) / "shares").string()); // the card as drawn, before anything's over it
         drawTransition();
         captureScreen(); // a check's video, recording (F9 in a song): the frame as it will be shown
         if (app.screen != shown && app.sameScreen) app.sameScreen = false;
