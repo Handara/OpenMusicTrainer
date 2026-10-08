@@ -4,6 +4,7 @@
 #include "core/course.h"
 #include "core/exercisefile.h"
 #include "core/lessondoc.h"
+#include "core/lessonpackage.h"
 #include "core/music.h"
 #include "core/plays.h"
 #include "core/routine.h"
@@ -1166,6 +1167,27 @@ static void exerciseMenu(){
     }
 }
 
+// Lessons and courses shared with the player (a .lahnlesson, a .course) dropped on Learn: installed among theirs
+static std::string dropNotice;
+static double dropNoticeAt = -100.0;
+static void takeDroppedPackages(){
+    if (!IsFileDropped()) return;
+    FilePathList dropped = LoadDroppedFiles();
+    std::vector<std::string> paths(dropped.paths, dropped.paths + dropped.count);
+    UnloadDroppedFiles(dropped);
+    for (const std::string& path : paths){
+        const std::string extension = std::filesystem::path(path).extension().string();
+        std::string installed, error;
+        bool ok = false;
+        if (extension == LESSON_PACKAGE_EXTENSION) ok = installLessonPackage(path, learn.setup.userLessons, installed, error);
+        else if (extension == COURSE_EXTENSION) ok = installCourseFile(path, learn.setup.userCourses, installed, error);
+        else error = std::filesystem::path(path).filename().string() + " isn't a lesson (.lahnlesson) or a course (.course)";
+        dropNotice = ok ? "Installed: " + std::filesystem::path(installed).filename().string() : error;
+        dropNoticeAt = GetTime();
+    }
+    refreshExercises();
+}
+
 void learnScreen(){
     beginMenu("Learn");
     if (learn.exercise){
@@ -1173,7 +1195,15 @@ void learnScreen(){
         learn.exercise->draw();
         if (learn.exercise->wantsToLeave()) endExercise();
     } else {
+        takeDroppedPackages();
         exerciseMenu();
+        if (GetTime() - dropNoticeAt < 5.0){ // what was installed (or why not), a while
+            const float s = menuScale();
+            const ImVec2 extent = uiFonts().bold->CalcTextSizeA(16 * s, FLT_MAX, 0.0f, dropNotice.c_str());
+            const ImVec2 display = ImGui::GetIO().DisplaySize;
+            ImGui::GetForegroundDrawList()->AddText(uiFonts().bold, 16 * s, ImVec2((display.x - extent.x) / 2, display.y - 70 * s),
+                                                    uiColor(dropNotice.rfind("Installed", 0) == 0 ? UiColor::Good : UiColor::Bad), dropNotice.c_str());
+        }
     }
     ImGui::End();
 }

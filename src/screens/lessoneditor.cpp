@@ -4,6 +4,7 @@
 #include "core/course.h"
 #include "core/files.h"
 #include "core/lessondoc.h"
+#include "core/lessonpackage.h"
 #include "core/music.h"
 #include "core/songlibrary.h"
 #include "imgui.h"
@@ -603,6 +604,38 @@ static void createLesson(){
     ed.listError.clear();
     refreshLists();
     openLesson(folder.string(), false);
+}
+
+static bool saveEditedLesson();
+
+// Shared: saved, then packed (a lesson with its files) or copied (a course) into the shared folder, which opens; only
+// what plays is shared
+static void share(){
+    if (!ed.problem.empty()){
+        ed.status = "Not ready to share: " + ed.problem;
+        return;
+    }
+    if ((ed.dirty || ed.builtIn || ed.courseBuiltIn) && !saveEditedLesson()) return;
+    const fs::path shared = fs::path(ed.setup.userLessons).parent_path() / "shared";
+    std::error_code ec;
+    fs::create_directories(shared, ec);
+    std::string error;
+    fs::path made;
+    if (ed.courseMode){
+        made = shared / fs::path(ed.coursePath).filename();
+        fs::copy_file(ed.coursePath, made, fs::copy_options::overwrite_existing, ec);
+        if (ec) error = "Couldn't share the course: " + ec.message();
+    } else {
+        std::string name = safeFolderName(ed.doc.title);
+        made = shared / ((name.empty() ? "Lesson" : name) + LESSON_PACKAGE_EXTENSION);
+        exportLessonPackage(ed.folder, made.string(), error);
+    }
+    if (!error.empty()){
+        ed.status = error;
+        return;
+    }
+    ed.status = "Shared: " + made.filename().string() + ", in the shared folder (dropped on lahn, it installs)";
+    openFolder(shared.string());
 }
 
 static bool saveEditedLesson(){
@@ -1547,9 +1580,27 @@ static void lessonCard(bool naming, const LessonEntry* entry, float s){
     if (!error.empty()) draw->AddText(fonts.text, 15 * s, ImVec2(x, y + 12 * s), uiColor(UiColor::Bad), error.c_str(), nullptr, inner);
 }
 
+// Lessons and courses shared with the player, dropped on the list: installed among theirs
+static void takeDroppedPackages(){
+    if (!IsFileDropped()) return;
+    FilePathList dropped = LoadDroppedFiles();
+    std::vector<std::string> paths(dropped.paths, dropped.paths + dropped.count);
+    UnloadDroppedFiles(dropped);
+    for (const std::string& path : paths){
+        const std::string extension = fs::path(path).extension().string();
+        std::string installed, error;
+        if (extension == LESSON_PACKAGE_EXTENSION) installLessonPackage(path, ed.setup.userLessons, installed, error);
+        else if (extension == COURSE_EXTENSION) installCourseFile(path, ed.setup.userCourses, installed, error);
+        else error = fs::path(path).filename().string() + " isn't a lesson (.lahnlesson) or a course (.course)";
+        ed.listError = error.empty() ? "" : error;
+    }
+    refreshLists();
+}
+
 static LessonEditorChoice lessonList(){
     static MenuList list;
     LessonEditorChoice choice = LessonEditorChoice::None;
+    takeDroppedPackages();
     beginMenu("Lesson maker");
     const float s = menuScale();
     menuScreenTitle("Lesson maker", s);
@@ -1689,6 +1740,7 @@ static void lessonEditing(){
         return clicked;
     };
     if (barButton("Save", ed.dirty, true)) saveEditedLesson();
+    if (barButton("Share", false, ed.problem.empty())) share();
     if (barButton("Try this page", false, !ed.doc.pages.empty())) startTryout();
     if (barButton("Redo", false, !ed.redos.empty())) redo();
     if (barButton("Undo", false, !ed.undos.empty())) undo();
