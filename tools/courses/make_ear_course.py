@@ -13,6 +13,8 @@ A chapter of notes to play back goes:
 
 import os
 
+from coursev2 import to_v2
+
 LETTERS = "CDEFGAB"
 SEMITONES = [0, 2, 4, 5, 7, 9, 11]
 NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
@@ -243,10 +245,10 @@ if __name__ == "__main__":
     here = os.path.dirname(os.path.abspath(__file__))
     for instrument, file in (("guitar", "03-ear-training.course"), ("bass", "03-ear-training-bass.course"), ("piano", "03-ear-training-piano.course")):
         path = os.path.join(here, "..", "..", "resources", "courses", file)
-        text = build_piano() if instrument == "piano" else build(instrument)
+        text = to_v2(build_piano() if instrument == "piano" else build(instrument))
         with open(path, "w") as f:
             f.write(text)
-        drills = sum(1 for line in text.splitlines() if line.startswith("drill "))
-        chapters = sum(1 for line in text.splitlines() if line.startswith("lesson "))
-        levels = sum(1 for line in text.splitlines() if line.startswith("unit "))
+        drills = sum(1 for line in text.splitlines() if line.strip().startswith("block exercise"))
+        chapters = sum(1 for line in text.splitlines() if line.startswith("chapter "))
+        levels = sum(1 for line in text.splitlines() if line.startswith("level "))
         print(f"{os.path.normpath(path)}: {levels} levels, {chapters} chapters, {drills} drills")

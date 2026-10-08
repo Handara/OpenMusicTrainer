@@ -1,2128 +1,2575 @@
-# lahn course: written by tools/courses/make_reading_course.py (change it there, and run it again)
-version 1
+# lahn course: written by the course tools (tools/courses; change it there, and run them again)
+version 2
 title Reading music
 description From your first note on the staff to reading melodies to a beat, in every key: a note or two at a time.
 instrument guitar
 
 
-unit The high E string
-
-lesson The high E string: E
-text Music is written on five lines, the staff. The higher a note sits, the higher it sounds. The little 8 under the clef says guitar sounds an octave lower than written.
-text E sits in the top space. On the guitar it's the open high E string.
-drill E alone
-type reading
-notes E4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill E, on your own
-type reading
-notes E4
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-lesson The high E string: F
-text F sits on the top line. On the guitar it's the 1st fret of the high E string.
-drill F alone
-type reading
-notes F4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill E and F, shown where
-type reading
-notes E4 F4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill E and F, on your own
-type reading
-notes E4 F4
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-lesson The high E string: G
-text G sits just above the staff. On the guitar it's the 3rd fret of the high E string.
-drill G alone
-type reading
-notes G4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill E, F and G, shown where
-type reading
-notes E4 F4 G4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill E, F and G, on your own
-type reading
-notes E4 F4 G4
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-lesson The high E string: all of it
-text E, F and G, and the strings before: read them as they come.
-drill Shown where
-type reading
-notes E4 F4 G4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill On your own
-type reading
-notes E4 F4 G4
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-
-unit The B string
-
-lesson The B string: B
-text B sits on the middle line. On the guitar it's the open B string.
-drill B alone
-type reading
-notes B3
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill B, on your own
-type reading
-notes B3
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill Mixed with what you know
-type reading
-notes E4 F4 G4 B3
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-lesson The B string: C
-text C sits in the third space. On the guitar it's the 1st fret of the B string.
-drill C alone
-type reading
-notes C4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill B and C, shown where
-type reading
-notes B3 C4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill B and C, on your own
-type reading
-notes B3 C4
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill Mixed with what you know
-type reading
-notes E4 F4 G4 B3 C4
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-lesson The B string: D
-text D sits on the fourth line. On the guitar it's the 3rd fret of the B string.
-drill D alone
-type reading
-notes D4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill B, C and D, shown where
-type reading
-notes B3 C4 D4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill B, C and D, on your own
-type reading
-notes B3 C4 D4
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill Mixed with what you know
-type reading
-notes E4 F4 G4 B3 C4 D4
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-lesson The B string: all of it
-text B, C and D, and the strings before: read them as they come.
-drill Shown where
-type reading
-notes E4 F4 G4 B3 C4 D4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill On your own
-type reading
-notes E4 F4 G4 B3 C4 D4
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-
-unit The G string
-
-lesson The G string: G
-text G sits on the second line. On the guitar it's the open G string.
-drill G alone
-type reading
-notes G3
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill G, on your own
-type reading
-notes G3
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill Mixed with what you know
-type reading
-notes E4 F4 G4 B3 C4 D4 G3
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-lesson The G string: A
-text A sits in the second space. On the guitar it's the 2nd fret of the G string.
-drill A alone
-type reading
-notes A3
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill G and A, shown where
-type reading
-notes G3 A3
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill G and A, on your own
-type reading
-notes G3 A3
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill Mixed with what you know
-type reading
-notes E4 F4 G4 B3 C4 D4 G3 A3
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-lesson The G string: all of it
-text G and A, and the strings before: read them as they come.
-drill Shown where
-type reading
-notes E4 F4 G4 B3 C4 D4 G3 A3
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill On your own
-type reading
-notes E4 F4 G4 B3 C4 D4 G3 A3
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-
-unit The D string
-
-lesson The D string: D
-text Down into the ledger lines: the short lines under the staff, each one more step down.
-text D sits just below the staff. On the guitar it's the open D string.
-drill D alone
-type reading
-notes D3
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill D, on your own
-type reading
-notes D3
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill Mixed with what you know
-type reading
-notes E4 F4 G4 B3 C4 D4 G3 A3 D3
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-lesson The D string: E
-text E sits on the bottom line. On the guitar it's the 2nd fret of the D string.
-drill E alone
-type reading
-notes E3
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill D and E, shown where
-type reading
-notes D3 E3
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill D and E, on your own
-type reading
-notes D3 E3
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill Mixed with what you know
-type reading
-notes F4 G4 B3 C4 D4 G3 A3 D3 E3
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-lesson The D string: F
-text F sits in the bottom space. On the guitar it's the 3rd fret of the D string.
-drill F alone
-type reading
-notes F3
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill D, E and F, shown where
-type reading
-notes D3 E3 F3
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill D, E and F, on your own
-type reading
-notes D3 E3 F3
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill Mixed with what you know
-type reading
-notes G4 B3 C4 D4 G3 A3 D3 E3 F3
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-lesson The D string: all of it
-text D, E and F, and the strings before: read them as they come.
-drill Shown where
-type reading
-notes G4 B3 C4 D4 G3 A3 D3 E3 F3
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill On your own
-type reading
-notes G4 B3 C4 D4 G3 A3 D3 E3 F3
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-
-unit The A string
-
-lesson The A string: A
-text A sits on the 2nd ledger line below the staff. On the guitar it's the open A string.
-drill A alone
-type reading
-notes A2
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill A, on your own
-type reading
-notes A2
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill Mixed with what you know
-type reading
-notes B3 C4 D4 G3 A3 D3 E3 F3 A2
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-lesson The A string: B
-text B sits below the 1st ledger line under the staff. On the guitar it's the 2nd fret of the A string.
-drill B alone
-type reading
-notes B2
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill A and B, shown where
-type reading
-notes A2 B2
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill A and B, on your own
-type reading
-notes A2 B2
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill Mixed with what you know
-type reading
-notes C4 D4 G3 A3 D3 E3 F3 A2 B2
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-lesson The A string: C
-text C sits on the 1st ledger line below the staff. On the guitar it's the 3rd fret of the A string.
-drill C alone
-type reading
-notes C3
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill A, B and C, shown where
-type reading
-notes A2 B2 C3
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill A, B and C, on your own
-type reading
-notes A2 B2 C3
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill Mixed with what you know
-type reading
-notes D4 G3 A3 D3 E3 F3 A2 B2 C3
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-lesson The A string: all of it
-text A, B and C, and the strings before: read them as they come.
-drill Shown where
-type reading
-notes D4 G3 A3 D3 E3 F3 A2 B2 C3
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill On your own
-type reading
-notes D4 G3 A3 D3 E3 F3 A2 B2 C3
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-
-unit The low E string
-
-lesson The low E string: E
-text E sits below the 3rd ledger line under the staff. On the guitar it's the open low E string.
-drill E alone
-type reading
-notes E2
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill E, on your own
-type reading
-notes E2
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill Mixed with what you know
-type reading
-notes G3 A3 D3 E3 F3 A2 B2 C3 E2
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-lesson The low E string: F
-text F sits on the 3rd ledger line below the staff. On the guitar it's the 1st fret of the low E string.
-drill F alone
-type reading
-notes F2
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill E and F, shown where
-type reading
-notes E2 F2
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill E and F, on your own
-type reading
-notes E2 F2
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill Mixed with what you know
-type reading
-notes A3 D3 E3 F3 A2 B2 C3 E2 F2
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-lesson The low E string: G
-text G sits below the 2nd ledger line under the staff. On the guitar it's the 3rd fret of the low E string.
-drill G alone
-type reading
-notes G2
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill E, F and G, shown where
-type reading
-notes E2 F2 G2
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill E, F and G, on your own
-type reading
-notes E2 F2 G2
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill Mixed with what you know
-type reading
-notes D3 E3 F3 A2 B2 C3 E2 F2 G2
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-lesson The low E string: all of it
-text E, F and G, and the strings before: read them as they come.
-drill Shown where
-type reading
-notes D3 E3 F3 A2 B2 C3 E2 F2 G2
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill On your own
-type reading
-notes D3 E3 F3 A2 B2 C3 E2 F2 G2
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-
-unit The whole open position
-
-lesson The top three strings
-text 8 notes, from G to G.
-drill Shown where
-type reading
-notes G3 A3 B3 C4 D4 E4 F4 G4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill On your own
-type reading
-notes G3 A3 B3 C4 D4 E4 F4 G4
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-lesson The middle strings
-text 7 notes, from D to C.
-drill Shown where
-type reading
-notes D3 E3 F3 G3 A3 B3 C4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill On your own
-type reading
-notes D3 E3 F3 G3 A3 B3 C4
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-lesson The bottom three strings
-text 9 notes, from E to F.
-drill Shown where
-type reading
-notes E2 F2 G2 A2 B2 C3 D3 E3 F3
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill On your own
-type reading
-notes E2 F2 G2 A2 B2 C3 D3 E3 F3
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-lesson Low and high
-text 7 notes, from E to G.
-drill Shown where
-type reading
-notes E2 G2 C3 F3 A3 D4 G4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill On your own
-type reading
-notes E2 G2 C3 F3 A3 D4 G4
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-lesson Everything
-text 17 notes, from E to G.
-drill Shown where
-type reading
-notes E2 F2 G2 A2 B2 C3 D3 E3 F3 G3 A3 B3 C4 D4 E4 F4 G4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill On your own
-type reading
-notes E2 F2 G2 A2 B2 C3 D3 E3 F3 G3 A3 B3 C4 D4 E4 F4 G4
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-
-unit Above the staff
-
-lesson Above the staff: A
-text A sits on the 1st ledger line above the staff. On the guitar it's the 5th fret of the high E string.
-drill A alone
-type reading
-notes A4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill E, F, G and A, shown where
-type reading
-notes E4 F4 G4 A4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill E, F, G and A, on your own
-type reading
-notes E4 F4 G4 A4
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill Mixed with what you know
-type reading
-notes E3 F3 A2 B2 C3 E2 F2 G2 A4
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-lesson Above the staff: B
-text B sits above the 1st ledger line over the staff. On the guitar it's the 7th fret of the high E string.
-drill B alone
-type reading
-notes B4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill F, G, A and B, shown where
-type reading
-notes F4 G4 A4 B4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill F, G, A and B, on your own
-type reading
-notes F4 G4 A4 B4
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill Mixed with what you know
-type reading
-notes F3 A2 B2 C3 E2 F2 G2 A4 B4
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-lesson Above the staff: C
-text C sits on the 2nd ledger line above the staff. On the guitar it's the 8th fret of the high E string.
-drill C alone
-type reading
-notes C5
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill G, A, B and C, shown where
-type reading
-notes G4 A4 B4 C5
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill G, A, B and C, on your own
-type reading
-notes G4 A4 B4 C5
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill Mixed with what you know
-type reading
-notes A2 B2 C3 E2 F2 G2 A4 B4 C5
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-
-unit Sharps and flats
-
-lesson F sharp on the high E string
-text A sharp sign raises a note a fret, a flat lowers it a fret. F sharp is one fret above F.
-text F sharp sits on the top line. On the guitar it's the 2nd fret of the high E string.
-drill F sharp alone
-type reading
-notes F#4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill E, F, G and F sharp, shown where
-type reading
-notes E4 F4 G4 F#4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill E, F, G and F sharp, on your own
-type reading
-notes E4 F4 G4 F#4
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill Mixed with what you know
-type reading
-notes B2 C3 E2 F2 G2 A4 B4 C5 F#4
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-lesson C sharp on the B string
-text C sharp sits in the third space. On the guitar it's the 2nd fret of the B string.
-drill C sharp alone
-type reading
-notes C#4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill B, C, D and C sharp, shown where
-type reading
-notes B3 C4 D4 C#4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill B, C, D and C sharp, on your own
-type reading
-notes B3 C4 D4 C#4
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill Mixed with what you know
-type reading
-notes C3 E2 F2 G2 A4 B4 C5 F#4 C#4
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-lesson G sharp on the G string
-text G sharp sits on the second line. On the guitar it's the 1st fret of the G string.
-drill G sharp alone
-type reading
-notes G#3
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill G, A and G sharp, shown where
-type reading
-notes G3 A3 G#3
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill G, A and G sharp, on your own
-type reading
-notes G3 A3 G#3
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill Mixed with what you know
-type reading
-notes E2 F2 G2 A4 B4 C5 F#4 C#4 G#3
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-lesson B flat on the G string
-text Bb is B flat: a fret below B.
-text B flat sits on the middle line. On the guitar it's the 3rd fret of the G string.
-drill B flat alone
-type reading
-notes Bb3
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill A, B and B flat, shown where
-type reading
-notes A3 B3 Bb3
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill A, B and B flat, on your own
-type reading
-notes A3 B3 Bb3
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill Mixed with what you know
-type reading
-notes F2 G2 A4 B4 C5 F#4 C#4 G#3 Bb3
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-lesson E flat on the B string
-text E flat sits in the top space. On the guitar it's the 4th fret of the B string.
-drill E flat alone
-type reading
-notes Eb4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill D, E and E flat, shown where
-type reading
-notes D4 E4 Eb4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill D, E and E flat, on your own
-type reading
-notes D4 E4 Eb4
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill Mixed with what you know
-type reading
-notes G2 A4 B4 C5 F#4 C#4 G#3 Bb3 Eb4
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-lesson F sharp on the D string
-text F sharp sits in the bottom space. On the guitar it's the 4th fret of the D string.
-drill F sharp alone
-type reading
-notes F#3
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill E, F, G and F sharp, shown where
-type reading
-notes E3 F3 G3 F#3
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill E, F, G and F sharp, on your own
-type reading
-notes E3 F3 G3 F#3
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill Mixed with what you know
-type reading
-notes A4 B4 C5 F#4 C#4 G#3 Bb3 Eb4 F#3
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-lesson C sharp on the A string
-text C sharp sits on the 1st ledger line below the staff. On the guitar it's the 4th fret of the A string.
-drill C sharp alone
-type reading
-notes C#3
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill B, C, D and C sharp, shown where
-type reading
-notes B2 C3 D3 C#3
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill B, C, D and C sharp, on your own
-type reading
-notes B2 C3 D3 C#3
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill Mixed with what you know
-type reading
-notes B4 C5 F#4 C#4 G#3 Bb3 Eb4 F#3 C#3
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-lesson F sharp on the low E string
-text F sharp sits on the 3rd ledger line below the staff. On the guitar it's the 2nd fret of the low E string.
-drill F sharp alone
-type reading
-notes F#2
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill E, F, G and F sharp, shown where
-type reading
-notes E2 F2 G2 F#2
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill E, F, G and F sharp, on your own
-type reading
-notes E2 F2 G2 F#2
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-drill Mixed with what you know
-type reading
-notes C5 F#4 C#4 G#3 Bb3 Eb4 F#3 C#3 F#2
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-
-
-unit Key signatures
-
-lesson In G major
-text One sharp, F#: every F is played F sharp, though no sign stands by it.
-drill Shown where
-type reading
-notes D3 E3 F#3 G3 A3 B3 C4 D4 E4 F#4 G4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-key G
-scale major
-drill On your own
-type reading
-notes D3 E3 F#3 G3 A3 B3 C4 D4 E4 F#4 G4
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-key G
-scale major
-
-lesson In D major
-text Two sharps, F# and C#.
-drill Shown where
-type reading
-notes D3 E3 F#3 G3 A3 B3 C#4 D4 E4 F#4 G4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-key D
-scale major
-drill On your own
-type reading
-notes D3 E3 F#3 G3 A3 B3 C#4 D4 E4 F#4 G4
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-key D
-scale major
-
-lesson In F major
-text One flat, Bb: every B is played B flat.
-drill Shown where
-type reading
-notes C3 D3 E3 F3 G3 A3 Bb3 C4 D4 E4 F4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-key F
-scale major
-drill On your own
-type reading
-notes C3 D3 E3 F3 G3 A3 Bb3 C4 D4 E4 F4
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-key F
-scale major
-
-lesson In A major
-text Three sharps: F#, C#, G#.
-drill Shown where
-type reading
-notes A2 B2 C#3 E3 F#3 G#3 A3 B3 C#4 E4 F#4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-key A
-scale major
-drill On your own
-type reading
-notes A2 B2 C#3 E3 F#3 G#3 A3 B3 C#4 E4 F#4
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-key A
-scale major
-
-lesson In Bb major
-text Two flats: Bb, Eb.
-drill Shown where
-type reading
-notes Bb2 C3 D3 Eb3 F3 G3 A3 Bb3 C4 D4 Eb4 F4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-key Bb
-scale major
-drill On your own
-type reading
-notes Bb2 C3 D3 Eb3 F3 G3 A3 Bb3 C4 D4 Eb4 F4
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-key Bb
-scale major
-
-lesson In E major
-text Four sharps: F#, C#, G#, D#.
-drill Shown where
-type reading
-notes E2 F#2 G#2 B2 C#3 E3 F#3 G#3 B3 C#4 E4
-where yes
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-key E
-scale major
-drill On your own
-type reading
-notes E2 F#2 G#2 B2 C#3 E3 F#3 G#3 B3 C#4 E4
-cells quarter
-bars 10
-tempo 90 120 5
-challenge 100
-pass 87
-goal 1
-key E
-scale major
-
-
-unit Reading to a beat
-
-lesson Quarter notes, top two strings
-text Now the notes come on a beat, a note on each one. A bar of clicks counts you in.
-drill Slowly
-type reading
-key C
-scale major
-frets 0 3
-strings 5 6
-leap 2
-cells quarter
-bars 10
-tempo 60 80 5
-pass 87
-goal 1
-drill Steady
-type reading
-key C
-scale major
-frets 0 3
-strings 5 6
-leap 2
-cells quarter
-bars 10
-tempo 75 100 5
-pass 87
-goal 1
-drill Moving on
-type reading
-key C
-scale major
-frets 0 3
-strings 5 6
-leap 2
-cells quarter
-bars 10
-tempo 90 120 5
-pass 87
-goal 1
-
-lesson Quarter notes, top three strings
-text One more string.
-drill Slowly
-type reading
-key C
-scale major
-frets 0 3
-strings 4 5 6
-leap 2
-cells quarter
-bars 10
-tempo 60 80 5
-pass 87
-goal 1
-drill Steady
-type reading
-key C
-scale major
-frets 0 3
-strings 4 5 6
-leap 2
-cells quarter
-bars 10
-tempo 75 100 5
-pass 87
-goal 1
-drill Moving on
-type reading
-key C
-scale major
-frets 0 3
-strings 4 5 6
-leap 2
-cells quarter
-bars 10
-tempo 90 120 5
-pass 87
-goal 1
-
-lesson Rests
-text A rest is a beat with no note: let the string be quiet, and count it.
-drill Slowly
-type reading
-key C
-scale major
-frets 0 3
-strings 4 5 6
-leap 2
-cells quarter rest
-bars 10
-tempo 60 80 5
-pass 87
-goal 1
-drill Steady
-type reading
-key C
-scale major
-frets 0 3
-strings 4 5 6
-leap 2
-cells quarter rest
-bars 10
-tempo 75 100 5
-pass 87
-goal 1
-drill Moving on
-type reading
-key C
-scale major
-frets 0 3
-strings 4 5 6
-leap 2
-cells quarter rest
-bars 10
-tempo 90 120 5
-pass 87
-goal 1
-
-lesson Quarter notes, four strings
-text Down to the D string.
-drill Slowly
-type reading
-key C
-scale major
-frets 0 3
-strings 3 4 5 6
-leap 2
-cells quarter rest
-bars 10
-tempo 60 80 5
-pass 87
-goal 1
-drill Steady
-type reading
-key C
-scale major
-frets 0 3
-strings 3 4 5 6
-leap 2
-cells quarter rest
-bars 10
-tempo 75 100 5
-pass 87
-goal 1
-drill Moving on
-type reading
-key C
-scale major
-frets 0 3
-strings 3 4 5 6
-leap 2
-cells quarter rest
-bars 10
-tempo 90 120 5
-pass 87
-goal 1
-
-lesson Eighth notes
-text Two notes on a beat: count 1 and 2 and.
-drill Slowly
-type reading
-key C
-scale major
-frets 0 3
-strings 4 5 6
-leap 2
-cells quarter eighths
-bars 10
-tempo 60 80 5
-pass 87
-goal 1
-drill Steady
-type reading
-key C
-scale major
-frets 0 3
-strings 4 5 6
-leap 2
-cells quarter eighths
-bars 10
-tempo 75 100 5
-pass 87
-goal 1
-drill Moving on
-type reading
-key C
-scale major
-frets 0 3
-strings 4 5 6
-leap 2
-cells quarter eighths
-bars 10
-tempo 90 120 5
-pass 87
-goal 1
-
-lesson Eighths, four strings
-text The same, a string lower.
-drill Slowly
-type reading
-key C
-scale major
-frets 0 3
-strings 3 4 5 6
-leap 2
-cells quarter eighths rest
-bars 10
-tempo 60 80 5
-pass 87
-goal 1
-drill Steady
-type reading
-key C
-scale major
-frets 0 3
-strings 3 4 5 6
-leap 2
-cells quarter eighths rest
-bars 10
-tempo 75 100 5
-pass 87
-goal 1
-drill Moving on
-type reading
-key C
-scale major
-frets 0 3
-strings 3 4 5 6
-leap 2
-cells quarter eighths rest
-bars 10
-tempo 90 120 5
-pass 87
-goal 1
-
-lesson Off the beat
-text An eighth rest, then a note: the and of the beat.
-drill Slowly
-type reading
-key C
-scale major
-frets 0 3
-strings 4 5 6
-leap 2
-cells quarter offbeat rest
-bars 10
-tempo 60 80 5
-pass 87
-goal 1
-drill Steady
-type reading
-key C
-scale major
-frets 0 3
-strings 4 5 6
-leap 2
-cells quarter offbeat rest
-bars 10
-tempo 75 100 5
-pass 87
-goal 1
-drill Moving on
-type reading
-key C
-scale major
-frets 0 3
-strings 4 5 6
-leap 2
-cells quarter offbeat rest
-bars 10
-tempo 90 120 5
-pass 87
-goal 1
-
-lesson Dotted rhythms
-text A long note and a short one: a dotted eighth and a sixteenth.
-drill Slowly
-type reading
-key C
-scale major
-frets 0 3
-strings 4 5 6
-leap 2
-cells quarter dotted
-bars 10
-tempo 60 80 5
-pass 87
-goal 1
-drill Steady
-type reading
-key C
-scale major
-frets 0 3
-strings 4 5 6
-leap 2
-cells quarter dotted
-bars 10
-tempo 75 100 5
-pass 87
-goal 1
-drill Moving on
-type reading
-key C
-scale major
-frets 0 3
-strings 4 5 6
-leap 2
-cells quarter dotted
-bars 10
-tempo 90 120 5
-pass 87
-goal 1
-
-lesson All six strings
-text The whole open position, to a beat.
-drill Slowly
-type reading
-key C
-scale major
-frets 0 3
-strings 1 2 3 4 5 6
-leap 2
-cells quarter eighths rest
-bars 10
-tempo 60 80 5
-pass 87
-goal 1
-drill Steady
-type reading
-key C
-scale major
-frets 0 3
-strings 1 2 3 4 5 6
-leap 2
-cells quarter eighths rest
-bars 10
-tempo 75 100 5
-pass 87
-goal 1
-drill Moving on
-type reading
-key C
-scale major
-frets 0 3
-strings 1 2 3 4 5 6
-leap 2
-cells quarter eighths rest
-bars 10
-tempo 90 120 5
-pass 87
-goal 1
-
-lesson Triplets
-text Three notes on a beat.
-drill Slowly
-type reading
-key C
-scale major
-frets 0 3
-strings 4 5 6
-leap 2
-cells quarter triplets
-bars 10
-tempo 60 80 5
-pass 87
-goal 1
-drill Steady
-type reading
-key C
-scale major
-frets 0 3
-strings 4 5 6
-leap 2
-cells quarter triplets
-bars 10
-tempo 75 100 5
-pass 87
-goal 1
-drill Moving on
-type reading
-key C
-scale major
-frets 0 3
-strings 4 5 6
-leap 2
-cells quarter triplets
-bars 10
-tempo 90 120 5
-pass 87
-goal 1
-
-lesson Sixteenths
-text Four notes on a beat, slowly.
-drill Slowly
-type reading
-key C
-scale major
-frets 0 3
-strings 5 6
-leap 2
-cells quarter sixteenths
-bars 10
-tempo 60 80 5
-pass 87
-goal 1
-drill Steady
-type reading
-key C
-scale major
-frets 0 3
-strings 5 6
-leap 2
-cells quarter sixteenths
-bars 10
-tempo 75 100 5
-pass 87
-goal 1
-drill Moving on
-type reading
-key C
-scale major
-frets 0 3
-strings 5 6
-leap 2
-cells quarter sixteenths
-bars 10
-tempo 90 120 5
-pass 87
-goal 1
-
-
-unit Keys to a beat
-
-lesson G major, to a beat
-text Melodies in G major, read to a beat.
-drill Slowly
-type reading
-key G
-scale major
-frets 0 4
-strings 3 4 5 6
-leap 2
-cells quarter eighths rest
-bars 10
-tempo 60 80 5
-pass 87
-goal 1
-drill Steady
-type reading
-key G
-scale major
-frets 0 4
-strings 3 4 5 6
-leap 2
-cells quarter eighths rest
-bars 10
-tempo 75 100 5
-pass 87
-goal 1
-drill Moving on
-type reading
-key G
-scale major
-frets 0 4
-strings 3 4 5 6
-leap 2
-cells quarter eighths rest
-bars 10
-tempo 90 120 5
-pass 87
-goal 1
-
-lesson F major, to a beat
-text Melodies in F major, read to a beat.
-drill Slowly
-type reading
-key F
-scale major
-frets 0 4
-strings 3 4 5 6
-leap 2
-cells quarter eighths rest
-bars 10
-tempo 60 80 5
-pass 87
-goal 1
-drill Steady
-type reading
-key F
-scale major
-frets 0 4
-strings 3 4 5 6
-leap 2
-cells quarter eighths rest
-bars 10
-tempo 75 100 5
-pass 87
-goal 1
-drill Moving on
-type reading
-key F
-scale major
-frets 0 4
-strings 3 4 5 6
-leap 2
-cells quarter eighths rest
-bars 10
-tempo 90 120 5
-pass 87
-goal 1
-
-lesson D major, to a beat
-text Melodies in D major, read to a beat.
-drill Slowly
-type reading
-key D
-scale major
-frets 0 4
-strings 3 4 5 6
-leap 2
-cells quarter eighths rest
-bars 10
-tempo 60 80 5
-pass 87
-goal 1
-drill Steady
-type reading
-key D
-scale major
-frets 0 4
-strings 3 4 5 6
-leap 2
-cells quarter eighths rest
-bars 10
-tempo 75 100 5
-pass 87
-goal 1
-drill Moving on
-type reading
-key D
-scale major
-frets 0 4
-strings 3 4 5 6
-leap 2
-cells quarter eighths rest
-bars 10
-tempo 90 120 5
-pass 87
-goal 1
-
-lesson A minor, to a beat
-text Melodies in A minor, read to a beat.
-drill Slowly
-type reading
-key A
-scale minor
-frets 0 4
-strings 3 4 5 6
-leap 2
-cells quarter eighths rest
-bars 10
-tempo 60 80 5
-pass 87
-goal 1
-drill Steady
-type reading
-key A
-scale minor
-frets 0 4
-strings 3 4 5 6
-leap 2
-cells quarter eighths rest
-bars 10
-tempo 75 100 5
-pass 87
-goal 1
-drill Moving on
-type reading
-key A
-scale minor
-frets 0 4
-strings 3 4 5 6
-leap 2
-cells quarter eighths rest
-bars 10
-tempo 90 120 5
-pass 87
-goal 1
-
-lesson E minor, to a beat
-text Melodies in E minor, read to a beat.
-drill Slowly
-type reading
-key E
-scale minor
-frets 0 4
-strings 3 4 5 6
-leap 2
-cells quarter eighths rest
-bars 10
-tempo 60 80 5
-pass 87
-goal 1
-drill Steady
-type reading
-key E
-scale minor
-frets 0 4
-strings 3 4 5 6
-leap 2
-cells quarter eighths rest
-bars 10
-tempo 75 100 5
-pass 87
-goal 1
-drill Moving on
-type reading
-key E
-scale minor
-frets 0 4
-strings 3 4 5 6
-leap 2
-cells quarter eighths rest
-bars 10
-tempo 90 120 5
-pass 87
-goal 1
+level The high E string
+
+chapter The high E string: E
+page
+  block text
+    text Music is written on five lines, the staff. The higher a note sits, the higher it sounds. The little 8 under the clef says guitar sounds an octave lower than written.
+    text E sits in the top space. On the guitar it's the open high E string.
+  block staff
+    notes E4
+  block fretboard
+    frets 0 4
+    lit 6:0
+  block exercise E alone
+    id 2
+    goal 1
+    type reading
+    notes E4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise E, on your own
+    id 3
+    goal 1
+    type reading
+    notes E4
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+chapter The high E string: F
+page
+  block text
+    text F sits on the top line. On the guitar it's the 1st fret of the high E string.
+  block staff
+    notes F4
+  block fretboard
+    frets 0 4
+    lit 6:1
+  block exercise F alone
+    id 2
+    goal 1
+    type reading
+    notes F4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise E and F, shown where
+    id 3
+    goal 1
+    type reading
+    notes E4 F4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise E and F, on your own
+    id 4
+    goal 1
+    type reading
+    notes E4 F4
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+chapter The high E string: G
+page
+  block text
+    text G sits just above the staff. On the guitar it's the 3rd fret of the high E string.
+  block staff
+    notes G4
+  block fretboard
+    frets 0 4
+    lit 6:3
+  block exercise G alone
+    id 2
+    goal 1
+    type reading
+    notes G4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise E, F and G, shown where
+    id 3
+    goal 1
+    type reading
+    notes E4 F4 G4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise E, F and G, on your own
+    id 4
+    goal 1
+    type reading
+    notes E4 F4 G4
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+chapter The high E string: all of it
+page
+  block text
+    text E, F and G, and the strings before: read them as they come.
+  block exercise Shown where
+    id 2
+    goal 1
+    type reading
+    notes E4 F4 G4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise On your own
+    id 3
+    goal 1
+    type reading
+    notes E4 F4 G4
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+
+level The B string
+
+chapter The B string: B
+page
+  block text
+    text B sits on the middle line. On the guitar it's the open B string.
+  block staff
+    notes B3
+  block fretboard
+    frets 0 4
+    lit 5:0
+  block exercise B alone
+    id 2
+    goal 1
+    type reading
+    notes B3
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise B, on your own
+    id 3
+    goal 1
+    type reading
+    notes B3
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise Mixed with what you know
+    id 4
+    goal 1
+    type reading
+    notes E4 F4 G4 B3
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+chapter The B string: C
+page
+  block text
+    text C sits in the third space. On the guitar it's the 1st fret of the B string.
+  block staff
+    notes C4
+  block fretboard
+    frets 0 4
+    lit 5:1
+  block exercise C alone
+    id 2
+    goal 1
+    type reading
+    notes C4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise B and C, shown where
+    id 3
+    goal 1
+    type reading
+    notes B3 C4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise B and C, on your own
+    id 4
+    goal 1
+    type reading
+    notes B3 C4
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise Mixed with what you know
+    id 5
+    goal 1
+    type reading
+    notes E4 F4 G4 B3 C4
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+chapter The B string: D
+page
+  block text
+    text D sits on the fourth line. On the guitar it's the 3rd fret of the B string.
+  block staff
+    notes D4
+  block fretboard
+    frets 0 4
+    lit 5:3
+  block exercise D alone
+    id 2
+    goal 1
+    type reading
+    notes D4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise B, C and D, shown where
+    id 3
+    goal 1
+    type reading
+    notes B3 C4 D4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise B, C and D, on your own
+    id 4
+    goal 1
+    type reading
+    notes B3 C4 D4
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise Mixed with what you know
+    id 5
+    goal 1
+    type reading
+    notes E4 F4 G4 B3 C4 D4
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+chapter The B string: all of it
+page
+  block text
+    text B, C and D, and the strings before: read them as they come.
+  block exercise Shown where
+    id 2
+    goal 1
+    type reading
+    notes E4 F4 G4 B3 C4 D4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise On your own
+    id 3
+    goal 1
+    type reading
+    notes E4 F4 G4 B3 C4 D4
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+
+level The G string
+
+chapter The G string: G
+page
+  block text
+    text G sits on the second line. On the guitar it's the open G string.
+  block staff
+    notes G3
+  block fretboard
+    frets 0 4
+    lit 4:0
+  block exercise G alone
+    id 2
+    goal 1
+    type reading
+    notes G3
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise G, on your own
+    id 3
+    goal 1
+    type reading
+    notes G3
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise Mixed with what you know
+    id 4
+    goal 1
+    type reading
+    notes E4 F4 G4 B3 C4 D4 G3
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+chapter The G string: A
+page
+  block text
+    text A sits in the second space. On the guitar it's the 2nd fret of the G string.
+  block staff
+    notes A3
+  block fretboard
+    frets 0 4
+    lit 4:2
+  block exercise A alone
+    id 2
+    goal 1
+    type reading
+    notes A3
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise G and A, shown where
+    id 3
+    goal 1
+    type reading
+    notes G3 A3
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise G and A, on your own
+    id 4
+    goal 1
+    type reading
+    notes G3 A3
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise Mixed with what you know
+    id 5
+    goal 1
+    type reading
+    notes E4 F4 G4 B3 C4 D4 G3 A3
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+chapter The G string: all of it
+page
+  block text
+    text G and A, and the strings before: read them as they come.
+  block exercise Shown where
+    id 2
+    goal 1
+    type reading
+    notes E4 F4 G4 B3 C4 D4 G3 A3
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise On your own
+    id 3
+    goal 1
+    type reading
+    notes E4 F4 G4 B3 C4 D4 G3 A3
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+
+level The D string
+
+chapter The D string: D
+page
+  block text
+    text Down into the ledger lines: the short lines under the staff, each one more step down.
+    text D sits just below the staff. On the guitar it's the open D string.
+  block staff
+    notes D3
+  block fretboard
+    frets 0 4
+    lit 3:0
+  block exercise D alone
+    id 2
+    goal 1
+    type reading
+    notes D3
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise D, on your own
+    id 3
+    goal 1
+    type reading
+    notes D3
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise Mixed with what you know
+    id 4
+    goal 1
+    type reading
+    notes E4 F4 G4 B3 C4 D4 G3 A3 D3
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+chapter The D string: E
+page
+  block text
+    text E sits on the bottom line. On the guitar it's the 2nd fret of the D string.
+  block staff
+    notes E3
+  block fretboard
+    frets 0 4
+    lit 3:2
+  block exercise E alone
+    id 2
+    goal 1
+    type reading
+    notes E3
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise D and E, shown where
+    id 3
+    goal 1
+    type reading
+    notes D3 E3
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise D and E, on your own
+    id 4
+    goal 1
+    type reading
+    notes D3 E3
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise Mixed with what you know
+    id 5
+    goal 1
+    type reading
+    notes F4 G4 B3 C4 D4 G3 A3 D3 E3
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+chapter The D string: F
+page
+  block text
+    text F sits in the bottom space. On the guitar it's the 3rd fret of the D string.
+  block staff
+    notes F3
+  block fretboard
+    frets 0 4
+    lit 3:3
+  block exercise F alone
+    id 2
+    goal 1
+    type reading
+    notes F3
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise D, E and F, shown where
+    id 3
+    goal 1
+    type reading
+    notes D3 E3 F3
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise D, E and F, on your own
+    id 4
+    goal 1
+    type reading
+    notes D3 E3 F3
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise Mixed with what you know
+    id 5
+    goal 1
+    type reading
+    notes G4 B3 C4 D4 G3 A3 D3 E3 F3
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+chapter The D string: all of it
+page
+  block text
+    text D, E and F, and the strings before: read them as they come.
+  block exercise Shown where
+    id 2
+    goal 1
+    type reading
+    notes G4 B3 C4 D4 G3 A3 D3 E3 F3
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise On your own
+    id 3
+    goal 1
+    type reading
+    notes G4 B3 C4 D4 G3 A3 D3 E3 F3
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+
+level The A string
+
+chapter The A string: A
+page
+  block text
+    text A sits on the 2nd ledger line below the staff. On the guitar it's the open A string.
+  block staff
+    notes A2
+  block fretboard
+    frets 0 4
+    lit 2:0
+  block exercise A alone
+    id 2
+    goal 1
+    type reading
+    notes A2
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise A, on your own
+    id 3
+    goal 1
+    type reading
+    notes A2
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise Mixed with what you know
+    id 4
+    goal 1
+    type reading
+    notes B3 C4 D4 G3 A3 D3 E3 F3 A2
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+chapter The A string: B
+page
+  block text
+    text B sits below the 1st ledger line under the staff. On the guitar it's the 2nd fret of the A string.
+  block staff
+    notes B2
+  block fretboard
+    frets 0 4
+    lit 2:2
+  block exercise B alone
+    id 2
+    goal 1
+    type reading
+    notes B2
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise A and B, shown where
+    id 3
+    goal 1
+    type reading
+    notes A2 B2
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise A and B, on your own
+    id 4
+    goal 1
+    type reading
+    notes A2 B2
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise Mixed with what you know
+    id 5
+    goal 1
+    type reading
+    notes C4 D4 G3 A3 D3 E3 F3 A2 B2
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+chapter The A string: C
+page
+  block text
+    text C sits on the 1st ledger line below the staff. On the guitar it's the 3rd fret of the A string.
+  block staff
+    notes C3
+  block fretboard
+    frets 0 4
+    lit 2:3
+  block exercise C alone
+    id 2
+    goal 1
+    type reading
+    notes C3
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise A, B and C, shown where
+    id 3
+    goal 1
+    type reading
+    notes A2 B2 C3
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise A, B and C, on your own
+    id 4
+    goal 1
+    type reading
+    notes A2 B2 C3
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise Mixed with what you know
+    id 5
+    goal 1
+    type reading
+    notes D4 G3 A3 D3 E3 F3 A2 B2 C3
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+chapter The A string: all of it
+page
+  block text
+    text A, B and C, and the strings before: read them as they come.
+  block exercise Shown where
+    id 2
+    goal 1
+    type reading
+    notes D4 G3 A3 D3 E3 F3 A2 B2 C3
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise On your own
+    id 3
+    goal 1
+    type reading
+    notes D4 G3 A3 D3 E3 F3 A2 B2 C3
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+
+level The low E string
+
+chapter The low E string: E
+page
+  block text
+    text E sits below the 3rd ledger line under the staff. On the guitar it's the open low E string.
+  block staff
+    notes E2
+  block fretboard
+    frets 0 4
+    lit 1:0
+  block exercise E alone
+    id 2
+    goal 1
+    type reading
+    notes E2
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise E, on your own
+    id 3
+    goal 1
+    type reading
+    notes E2
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise Mixed with what you know
+    id 4
+    goal 1
+    type reading
+    notes G3 A3 D3 E3 F3 A2 B2 C3 E2
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+chapter The low E string: F
+page
+  block text
+    text F sits on the 3rd ledger line below the staff. On the guitar it's the 1st fret of the low E string.
+  block staff
+    notes F2
+  block fretboard
+    frets 0 4
+    lit 1:1
+  block exercise F alone
+    id 2
+    goal 1
+    type reading
+    notes F2
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise E and F, shown where
+    id 3
+    goal 1
+    type reading
+    notes E2 F2
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise E and F, on your own
+    id 4
+    goal 1
+    type reading
+    notes E2 F2
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise Mixed with what you know
+    id 5
+    goal 1
+    type reading
+    notes A3 D3 E3 F3 A2 B2 C3 E2 F2
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+chapter The low E string: G
+page
+  block text
+    text G sits below the 2nd ledger line under the staff. On the guitar it's the 3rd fret of the low E string.
+  block staff
+    notes G2
+  block fretboard
+    frets 0 4
+    lit 1:3
+  block exercise G alone
+    id 2
+    goal 1
+    type reading
+    notes G2
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise E, F and G, shown where
+    id 3
+    goal 1
+    type reading
+    notes E2 F2 G2
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise E, F and G, on your own
+    id 4
+    goal 1
+    type reading
+    notes E2 F2 G2
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise Mixed with what you know
+    id 5
+    goal 1
+    type reading
+    notes D3 E3 F3 A2 B2 C3 E2 F2 G2
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+chapter The low E string: all of it
+page
+  block text
+    text E, F and G, and the strings before: read them as they come.
+  block exercise Shown where
+    id 2
+    goal 1
+    type reading
+    notes D3 E3 F3 A2 B2 C3 E2 F2 G2
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise On your own
+    id 3
+    goal 1
+    type reading
+    notes D3 E3 F3 A2 B2 C3 E2 F2 G2
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+
+level The whole open position
+
+chapter The top three strings
+page
+  block text
+    text 8 notes, from G to G.
+  block exercise Shown where
+    id 2
+    goal 1
+    type reading
+    notes G3 A3 B3 C4 D4 E4 F4 G4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise On your own
+    id 3
+    goal 1
+    type reading
+    notes G3 A3 B3 C4 D4 E4 F4 G4
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+chapter The middle strings
+page
+  block text
+    text 7 notes, from D to C.
+  block exercise Shown where
+    id 2
+    goal 1
+    type reading
+    notes D3 E3 F3 G3 A3 B3 C4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise On your own
+    id 3
+    goal 1
+    type reading
+    notes D3 E3 F3 G3 A3 B3 C4
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+chapter The bottom three strings
+page
+  block text
+    text 9 notes, from E to F.
+  block exercise Shown where
+    id 2
+    goal 1
+    type reading
+    notes E2 F2 G2 A2 B2 C3 D3 E3 F3
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise On your own
+    id 3
+    goal 1
+    type reading
+    notes E2 F2 G2 A2 B2 C3 D3 E3 F3
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+chapter Low and high
+page
+  block text
+    text 7 notes, from E to G.
+  block exercise Shown where
+    id 2
+    goal 1
+    type reading
+    notes E2 G2 C3 F3 A3 D4 G4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise On your own
+    id 3
+    goal 1
+    type reading
+    notes E2 G2 C3 F3 A3 D4 G4
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+chapter Everything
+page
+  block text
+    text 17 notes, from E to G.
+  block exercise Shown where
+    id 2
+    goal 1
+    type reading
+    notes E2 F2 G2 A2 B2 C3 D3 E3 F3 G3 A3 B3 C4 D4 E4 F4 G4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise On your own
+    id 3
+    goal 1
+    type reading
+    notes E2 F2 G2 A2 B2 C3 D3 E3 F3 G3 A3 B3 C4 D4 E4 F4 G4
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+
+level Above the staff
+
+chapter Above the staff: A
+page
+  block text
+    text A sits on the 1st ledger line above the staff. On the guitar it's the 5th fret of the high E string.
+  block staff
+    notes A4
+  block fretboard
+    frets 0 6
+    lit 6:5
+  block exercise A alone
+    id 2
+    goal 1
+    type reading
+    notes A4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise E, F, G and A, shown where
+    id 3
+    goal 1
+    type reading
+    notes E4 F4 G4 A4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise E, F, G and A, on your own
+    id 4
+    goal 1
+    type reading
+    notes E4 F4 G4 A4
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise Mixed with what you know
+    id 5
+    goal 1
+    type reading
+    notes E3 F3 A2 B2 C3 E2 F2 G2 A4
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+chapter Above the staff: B
+page
+  block text
+    text B sits above the 1st ledger line over the staff. On the guitar it's the 7th fret of the high E string.
+  block staff
+    notes B4
+  block fretboard
+    frets 0 8
+    lit 6:7
+  block exercise B alone
+    id 2
+    goal 1
+    type reading
+    notes B4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise F, G, A and B, shown where
+    id 3
+    goal 1
+    type reading
+    notes F4 G4 A4 B4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise F, G, A and B, on your own
+    id 4
+    goal 1
+    type reading
+    notes F4 G4 A4 B4
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise Mixed with what you know
+    id 5
+    goal 1
+    type reading
+    notes F3 A2 B2 C3 E2 F2 G2 A4 B4
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+chapter Above the staff: C
+page
+  block text
+    text C sits on the 2nd ledger line above the staff. On the guitar it's the 8th fret of the high E string.
+  block staff
+    notes C5
+  block fretboard
+    frets 0 9
+    lit 6:8
+  block exercise C alone
+    id 2
+    goal 1
+    type reading
+    notes C5
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise G, A, B and C, shown where
+    id 3
+    goal 1
+    type reading
+    notes G4 A4 B4 C5
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise G, A, B and C, on your own
+    id 4
+    goal 1
+    type reading
+    notes G4 A4 B4 C5
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise Mixed with what you know
+    id 5
+    goal 1
+    type reading
+    notes A2 B2 C3 E2 F2 G2 A4 B4 C5
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+
+level Sharps and flats
+
+chapter F sharp on the high E string
+page
+  block text
+    text A sharp sign raises a note a fret, a flat lowers it a fret. F sharp is one fret above F.
+    text F sharp sits on the top line. On the guitar it's the 2nd fret of the high E string.
+  block staff
+    notes F#4
+  block fretboard
+    frets 0 4
+    lit 6:2
+  block exercise F sharp alone
+    id 2
+    goal 1
+    type reading
+    notes F#4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise E, F, G and F sharp, shown where
+    id 3
+    goal 1
+    type reading
+    notes E4 F4 G4 F#4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise E, F, G and F sharp, on your own
+    id 4
+    goal 1
+    type reading
+    notes E4 F4 G4 F#4
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise Mixed with what you know
+    id 5
+    goal 1
+    type reading
+    notes B2 C3 E2 F2 G2 A4 B4 C5 F#4
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+chapter C sharp on the B string
+page
+  block text
+    text C sharp sits in the third space. On the guitar it's the 2nd fret of the B string.
+  block staff
+    notes C#4
+  block fretboard
+    frets 0 4
+    lit 5:2
+  block exercise C sharp alone
+    id 2
+    goal 1
+    type reading
+    notes C#4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise B, C, D and C sharp, shown where
+    id 3
+    goal 1
+    type reading
+    notes B3 C4 D4 C#4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise B, C, D and C sharp, on your own
+    id 4
+    goal 1
+    type reading
+    notes B3 C4 D4 C#4
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise Mixed with what you know
+    id 5
+    goal 1
+    type reading
+    notes C3 E2 F2 G2 A4 B4 C5 F#4 C#4
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+chapter G sharp on the G string
+page
+  block text
+    text G sharp sits on the second line. On the guitar it's the 1st fret of the G string.
+  block staff
+    notes G#3
+  block fretboard
+    frets 0 4
+    lit 4:1
+  block exercise G sharp alone
+    id 2
+    goal 1
+    type reading
+    notes G#3
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise G, A and G sharp, shown where
+    id 3
+    goal 1
+    type reading
+    notes G3 A3 G#3
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise G, A and G sharp, on your own
+    id 4
+    goal 1
+    type reading
+    notes G3 A3 G#3
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise Mixed with what you know
+    id 5
+    goal 1
+    type reading
+    notes E2 F2 G2 A4 B4 C5 F#4 C#4 G#3
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+chapter B flat on the G string
+page
+  block text
+    text Bb is B flat: a fret below B.
+    text B flat sits on the middle line. On the guitar it's the 3rd fret of the G string.
+  block staff
+    notes Bb3
+  block fretboard
+    frets 0 4
+    lit 4:3
+  block exercise B flat alone
+    id 2
+    goal 1
+    type reading
+    notes Bb3
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise A, B and B flat, shown where
+    id 3
+    goal 1
+    type reading
+    notes A3 B3 Bb3
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise A, B and B flat, on your own
+    id 4
+    goal 1
+    type reading
+    notes A3 B3 Bb3
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise Mixed with what you know
+    id 5
+    goal 1
+    type reading
+    notes F2 G2 A4 B4 C5 F#4 C#4 G#3 Bb3
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+chapter E flat on the B string
+page
+  block text
+    text E flat sits in the top space. On the guitar it's the 4th fret of the B string.
+  block staff
+    notes Eb4
+  block fretboard
+    frets 0 5
+    lit 5:4
+  block exercise E flat alone
+    id 2
+    goal 1
+    type reading
+    notes Eb4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise D, E and E flat, shown where
+    id 3
+    goal 1
+    type reading
+    notes D4 E4 Eb4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise D, E and E flat, on your own
+    id 4
+    goal 1
+    type reading
+    notes D4 E4 Eb4
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise Mixed with what you know
+    id 5
+    goal 1
+    type reading
+    notes G2 A4 B4 C5 F#4 C#4 G#3 Bb3 Eb4
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+chapter F sharp on the D string
+page
+  block text
+    text F sharp sits in the bottom space. On the guitar it's the 4th fret of the D string.
+  block staff
+    notes F#3
+  block fretboard
+    frets 0 5
+    lit 3:4
+  block exercise F sharp alone
+    id 2
+    goal 1
+    type reading
+    notes F#3
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise E, F, G and F sharp, shown where
+    id 3
+    goal 1
+    type reading
+    notes E3 F3 G3 F#3
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise E, F, G and F sharp, on your own
+    id 4
+    goal 1
+    type reading
+    notes E3 F3 G3 F#3
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise Mixed with what you know
+    id 5
+    goal 1
+    type reading
+    notes A4 B4 C5 F#4 C#4 G#3 Bb3 Eb4 F#3
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+chapter C sharp on the A string
+page
+  block text
+    text C sharp sits on the 1st ledger line below the staff. On the guitar it's the 4th fret of the A string.
+  block staff
+    notes C#3
+  block fretboard
+    frets 0 5
+    lit 2:4
+  block exercise C sharp alone
+    id 2
+    goal 1
+    type reading
+    notes C#3
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise B, C, D and C sharp, shown where
+    id 3
+    goal 1
+    type reading
+    notes B2 C3 D3 C#3
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise B, C, D and C sharp, on your own
+    id 4
+    goal 1
+    type reading
+    notes B2 C3 D3 C#3
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise Mixed with what you know
+    id 5
+    goal 1
+    type reading
+    notes B4 C5 F#4 C#4 G#3 Bb3 Eb4 F#3 C#3
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+chapter F sharp on the low E string
+page
+  block text
+    text F sharp sits on the 3rd ledger line below the staff. On the guitar it's the 2nd fret of the low E string.
+  block staff
+    notes F#2
+  block fretboard
+    frets 0 4
+    lit 1:2
+  block exercise F sharp alone
+    id 2
+    goal 1
+    type reading
+    notes F#2
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise E, F, G and F sharp, shown where
+    id 3
+    goal 1
+    type reading
+    notes E2 F2 G2 F#2
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise E, F, G and F sharp, on your own
+    id 4
+    goal 1
+    type reading
+    notes E2 F2 G2 F#2
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+  block exercise Mixed with what you know
+    id 5
+    goal 1
+    type reading
+    notes C5 F#4 C#4 G#3 Bb3 Eb4 F#3 C#3 F#2
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+
+
+level Key signatures
+
+chapter In G major
+page
+  block text
+    text One sharp, F#: every F is played F sharp, though no sign stands by it.
+  block exercise Shown where
+    id 2
+    goal 1
+    type reading
+    notes D3 E3 F#3 G3 A3 B3 C4 D4 E4 F#4 G4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+    key G
+    scale major
+  block exercise On your own
+    id 3
+    goal 1
+    type reading
+    notes D3 E3 F#3 G3 A3 B3 C4 D4 E4 F#4 G4
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+    key G
+    scale major
+
+chapter In D major
+page
+  block text
+    text Two sharps, F# and C#.
+  block exercise Shown where
+    id 2
+    goal 1
+    type reading
+    notes D3 E3 F#3 G3 A3 B3 C#4 D4 E4 F#4 G4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+    key D
+    scale major
+  block exercise On your own
+    id 3
+    goal 1
+    type reading
+    notes D3 E3 F#3 G3 A3 B3 C#4 D4 E4 F#4 G4
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+    key D
+    scale major
+
+chapter In F major
+page
+  block text
+    text One flat, Bb: every B is played B flat.
+  block exercise Shown where
+    id 2
+    goal 1
+    type reading
+    notes C3 D3 E3 F3 G3 A3 Bb3 C4 D4 E4 F4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+    key F
+    scale major
+  block exercise On your own
+    id 3
+    goal 1
+    type reading
+    notes C3 D3 E3 F3 G3 A3 Bb3 C4 D4 E4 F4
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+    key F
+    scale major
+
+chapter In A major
+page
+  block text
+    text Three sharps: F#, C#, G#.
+  block exercise Shown where
+    id 2
+    goal 1
+    type reading
+    notes A2 B2 C#3 E3 F#3 G#3 A3 B3 C#4 E4 F#4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+    key A
+    scale major
+  block exercise On your own
+    id 3
+    goal 1
+    type reading
+    notes A2 B2 C#3 E3 F#3 G#3 A3 B3 C#4 E4 F#4
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+    key A
+    scale major
+
+chapter In Bb major
+page
+  block text
+    text Two flats: Bb, Eb.
+  block exercise Shown where
+    id 2
+    goal 1
+    type reading
+    notes Bb2 C3 D3 Eb3 F3 G3 A3 Bb3 C4 D4 Eb4 F4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+    key Bb
+    scale major
+  block exercise On your own
+    id 3
+    goal 1
+    type reading
+    notes Bb2 C3 D3 Eb3 F3 G3 A3 Bb3 C4 D4 Eb4 F4
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+    key Bb
+    scale major
+
+chapter In E major
+page
+  block text
+    text Four sharps: F#, C#, G#, D#.
+  block exercise Shown where
+    id 2
+    goal 1
+    type reading
+    notes E2 F#2 G#2 B2 C#3 E3 F#3 G#3 B3 C#4 E4
+    where yes
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+    key E
+    scale major
+  block exercise On your own
+    id 3
+    goal 1
+    type reading
+    notes E2 F#2 G#2 B2 C#3 E3 F#3 G#3 B3 C#4 E4
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    challenge 100
+    pass 87
+    key E
+    scale major
+
+
+level Reading to a beat
+
+chapter Quarter notes, top two strings
+page
+  block text
+    text Now the notes come on a beat, a note on each one. A bar of clicks counts you in.
+  block exercise Slowly
+    id 2
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 5 6
+    leap 2
+    cells quarter
+    bars 10
+    tempo 60 80 5
+    pass 87
+  block exercise Steady
+    id 3
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 5 6
+    leap 2
+    cells quarter
+    bars 10
+    tempo 75 100 5
+    pass 87
+  block exercise Moving on
+    id 4
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 5 6
+    leap 2
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    pass 87
+
+chapter Quarter notes, top three strings
+page
+  block text
+    text One more string.
+  block exercise Slowly
+    id 2
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 4 5 6
+    leap 2
+    cells quarter
+    bars 10
+    tempo 60 80 5
+    pass 87
+  block exercise Steady
+    id 3
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 4 5 6
+    leap 2
+    cells quarter
+    bars 10
+    tempo 75 100 5
+    pass 87
+  block exercise Moving on
+    id 4
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 4 5 6
+    leap 2
+    cells quarter
+    bars 10
+    tempo 90 120 5
+    pass 87
+
+chapter Rests
+page
+  block text
+    text A rest is a beat with no note: let the string be quiet, and count it.
+  block exercise Slowly
+    id 2
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 4 5 6
+    leap 2
+    cells quarter rest
+    bars 10
+    tempo 60 80 5
+    pass 87
+  block exercise Steady
+    id 3
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 4 5 6
+    leap 2
+    cells quarter rest
+    bars 10
+    tempo 75 100 5
+    pass 87
+  block exercise Moving on
+    id 4
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 4 5 6
+    leap 2
+    cells quarter rest
+    bars 10
+    tempo 90 120 5
+    pass 87
+
+chapter Quarter notes, four strings
+page
+  block text
+    text Down to the D string.
+  block exercise Slowly
+    id 2
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 3 4 5 6
+    leap 2
+    cells quarter rest
+    bars 10
+    tempo 60 80 5
+    pass 87
+  block exercise Steady
+    id 3
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 3 4 5 6
+    leap 2
+    cells quarter rest
+    bars 10
+    tempo 75 100 5
+    pass 87
+  block exercise Moving on
+    id 4
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 3 4 5 6
+    leap 2
+    cells quarter rest
+    bars 10
+    tempo 90 120 5
+    pass 87
+
+chapter Eighth notes
+page
+  block text
+    text Two notes on a beat: count 1 and 2 and.
+  block exercise Slowly
+    id 2
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 4 5 6
+    leap 2
+    cells quarter eighths
+    bars 10
+    tempo 60 80 5
+    pass 87
+  block exercise Steady
+    id 3
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 4 5 6
+    leap 2
+    cells quarter eighths
+    bars 10
+    tempo 75 100 5
+    pass 87
+  block exercise Moving on
+    id 4
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 4 5 6
+    leap 2
+    cells quarter eighths
+    bars 10
+    tempo 90 120 5
+    pass 87
+
+chapter Eighths, four strings
+page
+  block text
+    text The same, a string lower.
+  block exercise Slowly
+    id 2
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 3 4 5 6
+    leap 2
+    cells quarter eighths rest
+    bars 10
+    tempo 60 80 5
+    pass 87
+  block exercise Steady
+    id 3
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 3 4 5 6
+    leap 2
+    cells quarter eighths rest
+    bars 10
+    tempo 75 100 5
+    pass 87
+  block exercise Moving on
+    id 4
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 3 4 5 6
+    leap 2
+    cells quarter eighths rest
+    bars 10
+    tempo 90 120 5
+    pass 87
+
+chapter Off the beat
+page
+  block text
+    text An eighth rest, then a note: the and of the beat.
+  block exercise Slowly
+    id 2
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 4 5 6
+    leap 2
+    cells quarter offbeat rest
+    bars 10
+    tempo 60 80 5
+    pass 87
+  block exercise Steady
+    id 3
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 4 5 6
+    leap 2
+    cells quarter offbeat rest
+    bars 10
+    tempo 75 100 5
+    pass 87
+  block exercise Moving on
+    id 4
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 4 5 6
+    leap 2
+    cells quarter offbeat rest
+    bars 10
+    tempo 90 120 5
+    pass 87
+
+chapter Dotted rhythms
+page
+  block text
+    text A long note and a short one: a dotted eighth and a sixteenth.
+  block exercise Slowly
+    id 2
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 4 5 6
+    leap 2
+    cells quarter dotted
+    bars 10
+    tempo 60 80 5
+    pass 87
+  block exercise Steady
+    id 3
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 4 5 6
+    leap 2
+    cells quarter dotted
+    bars 10
+    tempo 75 100 5
+    pass 87
+  block exercise Moving on
+    id 4
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 4 5 6
+    leap 2
+    cells quarter dotted
+    bars 10
+    tempo 90 120 5
+    pass 87
+
+chapter All six strings
+page
+  block text
+    text The whole open position, to a beat.
+  block exercise Slowly
+    id 2
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 1 2 3 4 5 6
+    leap 2
+    cells quarter eighths rest
+    bars 10
+    tempo 60 80 5
+    pass 87
+  block exercise Steady
+    id 3
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 1 2 3 4 5 6
+    leap 2
+    cells quarter eighths rest
+    bars 10
+    tempo 75 100 5
+    pass 87
+  block exercise Moving on
+    id 4
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 1 2 3 4 5 6
+    leap 2
+    cells quarter eighths rest
+    bars 10
+    tempo 90 120 5
+    pass 87
+
+chapter Triplets
+page
+  block text
+    text Three notes on a beat.
+  block exercise Slowly
+    id 2
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 4 5 6
+    leap 2
+    cells quarter triplets
+    bars 10
+    tempo 60 80 5
+    pass 87
+  block exercise Steady
+    id 3
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 4 5 6
+    leap 2
+    cells quarter triplets
+    bars 10
+    tempo 75 100 5
+    pass 87
+  block exercise Moving on
+    id 4
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 4 5 6
+    leap 2
+    cells quarter triplets
+    bars 10
+    tempo 90 120 5
+    pass 87
+
+chapter Sixteenths
+page
+  block text
+    text Four notes on a beat, slowly.
+  block exercise Slowly
+    id 2
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 5 6
+    leap 2
+    cells quarter sixteenths
+    bars 10
+    tempo 60 80 5
+    pass 87
+  block exercise Steady
+    id 3
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 5 6
+    leap 2
+    cells quarter sixteenths
+    bars 10
+    tempo 75 100 5
+    pass 87
+  block exercise Moving on
+    id 4
+    goal 1
+    type reading
+    key C
+    scale major
+    frets 0 3
+    strings 5 6
+    leap 2
+    cells quarter sixteenths
+    bars 10
+    tempo 90 120 5
+    pass 87
+
+
+level Keys to a beat
+
+chapter G major, to a beat
+page
+  block text
+    text Melodies in G major, read to a beat.
+  block exercise Slowly
+    id 2
+    goal 1
+    type reading
+    key G
+    scale major
+    frets 0 4
+    strings 3 4 5 6
+    leap 2
+    cells quarter eighths rest
+    bars 10
+    tempo 60 80 5
+    pass 87
+  block exercise Steady
+    id 3
+    goal 1
+    type reading
+    key G
+    scale major
+    frets 0 4
+    strings 3 4 5 6
+    leap 2
+    cells quarter eighths rest
+    bars 10
+    tempo 75 100 5
+    pass 87
+  block exercise Moving on
+    id 4
+    goal 1
+    type reading
+    key G
+    scale major
+    frets 0 4
+    strings 3 4 5 6
+    leap 2
+    cells quarter eighths rest
+    bars 10
+    tempo 90 120 5
+    pass 87
+
+chapter F major, to a beat
+page
+  block text
+    text Melodies in F major, read to a beat.
+  block exercise Slowly
+    id 2
+    goal 1
+    type reading
+    key F
+    scale major
+    frets 0 4
+    strings 3 4 5 6
+    leap 2
+    cells quarter eighths rest
+    bars 10
+    tempo 60 80 5
+    pass 87
+  block exercise Steady
+    id 3
+    goal 1
+    type reading
+    key F
+    scale major
+    frets 0 4
+    strings 3 4 5 6
+    leap 2
+    cells quarter eighths rest
+    bars 10
+    tempo 75 100 5
+    pass 87
+  block exercise Moving on
+    id 4
+    goal 1
+    type reading
+    key F
+    scale major
+    frets 0 4
+    strings 3 4 5 6
+    leap 2
+    cells quarter eighths rest
+    bars 10
+    tempo 90 120 5
+    pass 87
+
+chapter D major, to a beat
+page
+  block text
+    text Melodies in D major, read to a beat.
+  block exercise Slowly
+    id 2
+    goal 1
+    type reading
+    key D
+    scale major
+    frets 0 4
+    strings 3 4 5 6
+    leap 2
+    cells quarter eighths rest
+    bars 10
+    tempo 60 80 5
+    pass 87
+  block exercise Steady
+    id 3
+    goal 1
+    type reading
+    key D
+    scale major
+    frets 0 4
+    strings 3 4 5 6
+    leap 2
+    cells quarter eighths rest
+    bars 10
+    tempo 75 100 5
+    pass 87
+  block exercise Moving on
+    id 4
+    goal 1
+    type reading
+    key D
+    scale major
+    frets 0 4
+    strings 3 4 5 6
+    leap 2
+    cells quarter eighths rest
+    bars 10
+    tempo 90 120 5
+    pass 87
+
+chapter A minor, to a beat
+page
+  block text
+    text Melodies in A minor, read to a beat.
+  block exercise Slowly
+    id 2
+    goal 1
+    type reading
+    key A
+    scale minor
+    frets 0 4
+    strings 3 4 5 6
+    leap 2
+    cells quarter eighths rest
+    bars 10
+    tempo 60 80 5
+    pass 87
+  block exercise Steady
+    id 3
+    goal 1
+    type reading
+    key A
+    scale minor
+    frets 0 4
+    strings 3 4 5 6
+    leap 2
+    cells quarter eighths rest
+    bars 10
+    tempo 75 100 5
+    pass 87
+  block exercise Moving on
+    id 4
+    goal 1
+    type reading
+    key A
+    scale minor
+    frets 0 4
+    strings 3 4 5 6
+    leap 2
+    cells quarter eighths rest
+    bars 10
+    tempo 90 120 5
+    pass 87
+
+chapter E minor, to a beat
+page
+  block text
+    text Melodies in E minor, read to a beat.
+  block exercise Slowly
+    id 2
+    goal 1
+    type reading
+    key E
+    scale minor
+    frets 0 4
+    strings 3 4 5 6
+    leap 2
+    cells quarter eighths rest
+    bars 10
+    tempo 60 80 5
+    pass 87
+  block exercise Steady
+    id 3
+    goal 1
+    type reading
+    key E
+    scale minor
+    frets 0 4
+    strings 3 4 5 6
+    leap 2
+    cells quarter eighths rest
+    bars 10
+    tempo 75 100 5
+    pass 87
+  block exercise Moving on
+    id 4
+    goal 1
+    type reading
+    key E
+    scale minor
+    frets 0 4
+    strings 3 4 5 6
+    leap 2
+    cells quarter eighths rest
+    bars 10
+    tempo 90 120 5
+    pass 87

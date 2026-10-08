@@ -17,6 +17,8 @@ Then come levels of melodies read to a beat, more and more rhythms, then key sig
 
 import os
 
+from coursev2 import to_v2
+
 LETTERS = "CDEFGAB"
 SEMITONES = [0, 2, 4, 5, 7, 9, 11]
 
@@ -111,6 +113,9 @@ def note_chapter(instrument, title, new, string_notes, known, key=None, intro=No
         lines.append(f"text {intro}")
     for note in new:
         lines.append(f"text {spoken(note)} sits {instrument.staff_text(note)}. On the {instrument.name} it's {instrument.place_text(note)}.")
+    # Seen as well as said: written on the staff, and lit where it's played
+    lines.append("@staff " + " ".join(new))
+    lines.append("@neck " + " ".join(f"{instrument.place(note)[0] + 1}:{instrument.place(note)[1]}" for note in new))
     group = list(dict.fromkeys(string_notes + new))
     mixed = list(dict.fromkeys(known + new))
     if len(new) == 1:
@@ -338,6 +343,8 @@ def piano_note_chapter(clef, title, new, around, known, intro=None):
         lines.append(f"text {intro}")
     for note in new:
         lines.append(f"text {spoken(note)} sits {clef.staff_text(note)}. On the piano it's {key_text(note)}.")
+    lines.append("@staff " + " ".join(new))
+    lines.append("@keys " + " ".join(new))
     group = list(dict.fromkeys(around + new))
     mixed = list(dict.fromkeys(known + new))
     if len(new) == 1:
@@ -517,10 +524,10 @@ if __name__ == "__main__":
     here = os.path.dirname(os.path.abspath(__file__))
     for instrument, file in ((GUITAR, "02-reading.course"), (BASS, "02-reading-bass.course"), (None, "02-reading-piano.course")):
         path = os.path.join(here, "..", "..", "resources", "courses", file)
-        text = build(instrument) if instrument else build_piano()
+        text = to_v2(build(instrument) if instrument else build_piano())
         with open(path, "w") as f:
             f.write(text)
-        drills = sum(1 for line in text.splitlines() if line.startswith("drill "))
-        chapters = sum(1 for line in text.splitlines() if line.startswith("lesson "))
-        levels = sum(1 for line in text.splitlines() if line.startswith("unit "))
+        drills = sum(1 for line in text.splitlines() if line.strip().startswith("block exercise"))
+        chapters = sum(1 for line in text.splitlines() if line.startswith("chapter "))
+        levels = sum(1 for line in text.splitlines() if line.startswith("level "))
         print(f"{os.path.normpath(path)}: {levels} levels, {chapters} chapters, {drills} drills")
