@@ -11,7 +11,9 @@
 #include <vector>
 
 // A lesson, a page at a time (learn/lessonpage draws it): Back and Next (the arrows, the buttons at the foot), dots
-// for the pages. A page's drills and songs (its scored blocks) are cards: one chosen (Up and Down) or clicked runs
+// for the pages. Pages set aside (help) are skipped, shown only when a block missed twice sends the student there;
+// Next then goes back. A block aced the first time may send the student on ahead. Practice blocks make their drill
+// as they start, from the notes the student misses most (or the lesson's own). A page's drills and songs (its scored blocks) are cards: one chosen (Up and Down) or clicked runs
 // over the whole screen, with a bar at the top saying its goal; once it's met, the lesson comes back (or, on a page
 // with nothing else, goes on). A block that gates holds Next back until it's passed; Enter starts the first one still
 // to pass, else turns the page. Progress is saved as it goes: the lesson reopens where the student was.
@@ -43,6 +45,8 @@ private:
     void goOn();                   // the next page, or the lesson finished
     void start(int number);        // runs the page's scored block
     void stopRunning();
+    void sendTo(int page);         // to a page a block names (help, or ahead), coming back from help
+    int nextPage(int from, int by) const; // the next page that isn't set aside, that way; -1 for none
     void save();
     void drawFoot(float s);        // the dots, Back and Next
     void drawGoalBar(float s);     // over a running block
@@ -50,6 +54,8 @@ private:
     LessonDoc doc;
     std::string folder;
     std::map<int, ExerciseEntry> exercises;
+    std::map<int, ExerciseEntry> made;       // practice blocks' drills, made as they started (by key)
+    std::map<int, int> misses, runs;         // each block's runs missed in a row, and runs played, this time
     ExerciseFactory create;
     GameplayOptions playOptions;
     std::vector<std::string> songFolders;
@@ -65,5 +71,8 @@ private:
     std::unique_ptr<Exercise> running;
     BlockPlace runningPlace;
     double passedAt = -1.0;           // when the running block's goal was met: back a moment later
+    int helpFrom = -1;                // the page help was shown for: Next goes back to it
+    int sendPage = -1;                // a page a block sends the student to, a moment after its run
+    double sendAt = 0.0;
     bool leave = false;
 };

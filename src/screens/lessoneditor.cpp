@@ -60,6 +60,7 @@ const std::vector<PaletteGroup>& palette(){
         { "DIAGRAMS", { BlockType::Fretboard, BlockType::Keyboard, BlockType::Staff } },
         { "MEDIA", { BlockType::Image, BlockType::Audio, BlockType::Video } },
         { "TO PLAY", { BlockType::Exercise, BlockType::Play } },
+        { "SMART", { BlockType::Practice } },
     };
     return groups;
 }
@@ -156,6 +157,10 @@ static std::string findProblem(){
         for (const BlockField& field : info.fields)
             if (field.required && blockValues(block, field.key).empty())
                 return where + "a " + std::string(info.name) + " block still needs its " + std::string(field.name);
+        for (const char* key : { "help", "ace" }){
+            const std::string title = blockValue(block, key);
+            if (!title.empty() && findPage(ed.doc, title) < 0) return where + "there's no page called '" + title + "' to send the student to";
+        }
         if (block.type == BlockType::Play){
             const std::string song = blockValue(block, "song");
             if (song.empty() && blockValue(block, "file").empty()) return where + "a song block still needs its song";
@@ -505,7 +510,8 @@ static void outlinePanel(float s){
     panelHeading("PAGES");
     for (int i = 0; i < (int)ed.doc.pages.size(); i++){
         const std::string& title = ed.doc.pages[(size_t)i].title;
-        const std::string label = std::to_string(i + 1) + "   " + (title.empty() ? "(no title)" : title) + "##page" + std::to_string(i);
+        const std::string label = std::to_string(i + 1) + "   " + (title.empty() ? "(no title)" : title)
+                                + (ed.doc.pages[(size_t)i].aside ? "   (help)" : "") + "##page" + std::to_string(i);
         if (ImGui::Selectable(label.c_str(), i == ed.page)){
             showPage(i);
             choose(Picked::Page);
@@ -706,6 +712,30 @@ static void blockField(LessonBlock& block, const BlockField& field){
             }
             break;
         }
+        case FieldKind::Page: {
+            // The lesson's pages by their titles (the ones set aside for help first): where the block sends the student
+            const std::string current = blockValue(block, field.key);
+            ImGui::SetNextItemWidth(-1);
+            if (ImGui::BeginCombo(id.c_str(), current.empty() ? "Nowhere" : current.c_str())){
+                if (ImGui::Selectable("Nowhere", current.empty()) && !current.empty()){
+                    beforeChange();
+                    setBlockValue(block, field.key, "");
+                    changed();
+                }
+                for (int pass = 0; pass < 2; pass++){
+                    for (const LessonPage& page : ed.doc.pages){
+                        if (page.aside != (pass == 0) || page.title.empty()) continue;
+                        const std::string label = page.title + (page.aside ? "   (help)" : "");
+                        if (!ImGui::Selectable(label.c_str(), page.title == current) || page.title == current) continue;
+                        beforeChange();
+                        setBlockValue(block, field.key, page.title);
+                        changed();
+                    }
+                }
+                ImGui::EndCombo();
+            }
+            break;
+        }
         case FieldKind::Song: {
             // The game's songs, by their titles: one chosen plays instead of a file
             const std::string current = blockValue(block, field.key);
@@ -844,8 +874,24 @@ static void inspectorPanel(float s){
         ImGui::PushFont(uiFonts().bold, 15 * s);
         ImGui::TextUnformatted("Title");
         ImGui::PopFont();
-        if (undoableInput("##pagetitle", &page->title)) changed();
+        // Renamed, the blocks sending the student here follow it
+        const std::string before = page->title;
+        if (undoableInput("##pagetitle", &page->title)){
+            for (const BlockPlace& place : lessonBlocks(ed.doc)){
+                LessonBlock* block = blockPointer(ed.doc, place);
+                for (const char* key : { "help", "ace" })
+                    if (!before.empty() && blockValue(*block, key) == before) setBlockValue(*block, key, page->title);
+            }
+            changed();
+        }
         dimText("Over the page, big. Left empty, none.");
+        bool aside = page->aside;
+        if (ImGui::Checkbox("Set aside, for help", &aside)){
+            beforeChange();
+            page->aside = aside;
+            changed();
+        }
+        dimText("Skipped on the way through: shown only when a drill missed twice sends the student here, then back.");
         ImGui::Dummy(ImVec2(0, 6 * s));
         if (ImGui::Button("Earlier")) moveChosen(-1);
         ImGui::SameLine();

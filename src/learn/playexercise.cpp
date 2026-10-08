@@ -25,6 +25,13 @@ static int percentHit(const GameResult& result){
     return result.totalNotes > 0 ? 100 * (result.perfectCount + result.nearCount) / result.totalNotes : 0;
 }
 
+bool PlayExercise::takeFinishedRun(int& percent){
+    if (finishedPercent < 0) return false;
+    percent = finishedPercent;
+    finishedPercent = -1;
+    return true;
+}
+
 void PlayExercise::update(){
     if (!playing) return;
     if (updateGameplay()) return;
@@ -32,6 +39,7 @@ void PlayExercise::update(){
     last = gameplayResult();
     hasResult = true;
     bestPercent = std::max(bestPercent, percentHit(last));
+    finishedPercent = percentHit(last);
     stopGameplay();
     playing = false;
 }

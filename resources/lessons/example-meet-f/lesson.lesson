@@ -24,6 +24,7 @@ page F, on the top line
     block heading
       text Now play it
     block exercise F alone
+      help Finding F
       type notes
       notes F4
       show staff
@@ -62,7 +63,26 @@ page Where F lives
       label Which note is on the top line?
       text It's [F4]: the top line of the treble staff.
 
+page Finding F
+  aside yes
+  section wide-narrow
+    block text
+      text Missed it twice? Here it is again, slowly.
+      text Put your first finger just behind the **1st fret** of the thinnest string, press, and pluck: that's [F4].
+    block callout
+      style careful
+      text The thinnest string is the one nearest the floor as you hold the guitar.
+  column
+    block fretboard
+      frets 0 3
+      lit 6:1:1
+      labels none
+      caption Finger 1, 1st fret, high E string
+
 page Well done
     block callout
       style remember
       text E in the top space, F on the top line, G just above the staff.
+    block practice Your notes, once more
+      from lesson
+      as notes

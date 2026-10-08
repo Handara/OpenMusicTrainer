@@ -17,6 +17,8 @@ public:
     void draw() override;
     bool wantsToLeave() const override { return leave; }
     int lessonScore() const override { return bestPercent; }
+    bool takeFinishedRun(int& percent) override; // a run just played to its end: its share of notes hit
+    bool scoresRuns() const override { return true; }
 
 private:
     void start();
@@ -27,6 +29,7 @@ private:
     GameResult last{};
     bool hasResult = false;
     int bestPercent = 0;
+    int finishedPercent = -1; // a run just ended, until it's taken
     std::string error;
     bool leave = false;
 };
