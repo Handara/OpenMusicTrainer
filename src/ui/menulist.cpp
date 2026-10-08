@@ -34,7 +34,7 @@ const float HINT_SIZE = 14.0f;
 const int NOTES[] = { 69, 71, 73, 76, 78, 81, 83 };
 
 float menuScale(){
-    return std::clamp(ImGui::GetIO().DisplaySize.y / REFERENCE_HEIGHT, 0.75f, 2.0f);
+    return std::clamp(ImGui::GetIO().DisplaySize.y / REFERENCE_HEIGHT, 0.75f, 2.0f) * uiScaleSetting();
 }
 
 static bool selectable(const MenuRow& row){

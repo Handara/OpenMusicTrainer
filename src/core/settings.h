@@ -58,7 +58,12 @@ struct Settings {
     std::string guitarTone = "Clean";
     InputRole heardInstrument = InputRole::Bass;
     bool learnOnPiano = false;         // Learn's instrument switch on PIANO (heardInstrument stays the guitar or bass)
-    int dailyGoalMinutes = 10;         // the practice a day that keeps the streak going (core/profile)
+    int dailyGoalMinutes = 10;
+    // Easier to see and to use: hits and misses in colours told apart by everyone (blue and orange, not green and
+    // red), less moving about (no sparks, no slides), everything bigger or smaller
+    bool colorBlind = false;
+    bool reduceMotion = false;
+    float uiScale = 1.0f;              // 0.9 to 1.3         // the practice a day that keeps the streak going (core/profile)
     std::string& toneFor(InputRole role){ return role == InputRole::Guitar ? guitarTone : bassTone; }
     const std::string& toneFor(InputRole role) const { return role == InputRole::Guitar ? guitarTone : bassTone; }
 

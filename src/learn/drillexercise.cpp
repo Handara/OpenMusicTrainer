@@ -409,7 +409,7 @@ void DrillExercise::drawEnd(float s){
     const int challenge = drillChallengeTempo(setup.tempo);
     const bool atChallenge = endTempo >= challenge, passed = clean && atChallenge;
     const int percent = endTotal > 0 ? endHits * 100 / endTotal : 0, toPass = (endTotal * setup.tempo.passPercent + 99) / 100;
-    const float grow = 1.0f + 0.25f * std::exp(-(float)(GetTime() - endedAt) * 8.0f);
+    const float grow = reducedMotion() ? 1.0f : 1.0f + 0.25f * std::exp(-(float)(GetTime() - endedAt) * 8.0f);
     float y = height * 0.19f;
     draw->AddText(fonts.heavy, 54 * s * grow, ImVec2(left, y), uiColor(clean ? UiColor::Good : UiColor::Ink), passed ? "Passed!" : clean ? "Clean!" : "Not yet");
     y += 70 * s;
@@ -527,7 +527,7 @@ void DrillExercise::drawCountIn(float s){
     const std::string text = std::to_string(number);
     ImDrawList* draw = ImGui::GetForegroundDrawList();
     ImFont* font = uiFonts().heavy;
-    const float size = 150 * s * (1.0f + 0.25f * std::max(0.0f, 1.0f - within * 4.0f));
+    const float size = 150 * s * (1.0f + (reducedMotion() ? 0.0f : 0.25f) * std::max(0.0f, 1.0f - within * 4.0f));
     const ImVec2 extent = font->CalcTextSizeA(size, FLT_MAX, 0.0f, text.c_str());
     const ImVec2 display = ImGui::GetIO().DisplaySize;
     draw->AddText(font, size, ImVec2((display.x - extent.x) / 2, display.y * 0.66f - extent.y / 2), uiColor(UiColor::Accent, 0.85f * (1.0f - within * 0.7f)),
@@ -541,7 +541,8 @@ void DrillExercise::drawCombo(float s){
     const UiFonts& fonts = uiFonts();
     const float since = (float)(GetTime() - comboAt), right = ImGui::GetWindowWidth() * 0.93f, top = ImGui::GetWindowHeight() * 0.235f;
     const bool milestone = combo % 10 == 0 && since < 0.6f;
-    const float size = 40 * s * (1.0f + (milestone ? 0.45f : 0.2f) * std::max(0.0f, 1.0f - since / 0.2f));
+    const float grow = reducedMotion() ? 0.0f : milestone ? 0.45f : 0.2f;
+    const float size = 40 * s * (1.0f + grow * std::max(0.0f, 1.0f - since / 0.2f));
     const std::string text = std::to_string(combo);
     const ImVec2 extent = fonts.heavy->CalcTextSizeA(size, FLT_MAX, 0.0f, text.c_str());
     const ImVec2 at(right - extent.x, top);
@@ -550,7 +551,7 @@ void DrillExercise::drawCombo(float s){
         spawnBurst(ImVec2(at.x + extent.x / 2, at.y + extent.y / 2), uiColor(UiColor::Good), 24, 320.0f, s);
         burstCombo = combo;
     }
-    if (milestone){
+    if (milestone && !reducedMotion()){
         const ImVec2 c(at.x + extent.x / 2, at.y + extent.y / 2);
         draw->AddCircle(c, extent.y * (0.6f + since * 1.2f), uiColor(UiColor::Good, 1.0f - since / 0.6f), 40, 3 * s);
     }

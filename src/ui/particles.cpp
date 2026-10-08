@@ -1,6 +1,7 @@
 #include "ui/particles.h"
 
 #include "raylib.h"
+#include "ui/theme.h"
 
 #include <cmath>
 #include <random>
@@ -21,6 +22,7 @@ struct SparkField {
 static SparkField field;
 
 void spawnBurst(ImVec2 at, ImU32 color, int count, float speed, float scale){
+    if (reducedMotion()) return;
     std::uniform_real_distribution<float> angle(0.0f, 6.2831853f), spread(0.4f, 1.0f), life(0.35f, 0.7f), size(1.5f, 3.5f);
     for (int i = 0; i < count; i++){
         Spark& spark = field.sparks[field.next];

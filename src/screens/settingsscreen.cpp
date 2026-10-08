@@ -311,6 +311,18 @@ static void displaySection(Settings& settings){
         setTheme(settings.darkTheme ? ThemeMode::Dark : ThemeMode::Light); // at once, so the choice can be seen
     }
 
+    settingsGroup("ACCESSIBILITY");
+    bool accessChanged = settingToggle("Colour-blind colours", "Hits and misses in blue and orange, told apart with any colour vision", &settings.colorBlind);
+    accessChanged = settingToggle("Less motion", "No sparks, no sliding cards, screens change at once", &settings.reduceMotion) || accessChanged;
+    const float SCALES[] = { 0.9f, 1.0f, 1.15f, 1.3f };
+    int scale = 1;
+    for (int i = 0; i < 4; i++) if (std::fabs(settings.uiScale - SCALES[i]) < 0.01f) scale = i;
+    if (settingSegments("Interface size", "Everything in the menus and the learning screens", &scale, { "90%", "100%", "115%", "130%" })){
+        settings.uiScale = SCALES[scale];
+        accessChanged = true;
+    }
+    if (accessChanged) setAccessibility(settings.colorBlind, settings.reduceMotion, settings.uiScale);
+
     settingsGroup("WINDOW");
     if (settingToggle("Fullscreen", nullptr, &settings.fullscreen)) applyDisplaySettings(settings);
     int rate = FRAME_RATE_CHOICE_COUNT - 1;

@@ -219,8 +219,13 @@ void NoteQuizExercise::drawProgress(float left, float right, float top, float s)
         const ImVec2 at(left + radius + i * gap, top);
         if (i < (int)run.firstTime.size()){
             const float since = i + 1 == (int)run.firstTime.size() ? (float)(GetTime() - rightAt) : 99.0f;
-            const float pop = since < 0.25f ? 4 * s * (1.0f - since / 0.25f) : 0.0f;
+            const float pop = since < 0.25f && !reducedMotion() ? 4 * s * (1.0f - since / 0.25f) : 0.0f;
             draw->AddCircleFilled(at, radius + pop, uiColor(run.firstTime[i] ? UiColor::Good : UiColor::Bad), 24);
+            if (!run.firstTime[i]){ // a miss is told by its shape too, not by its colour alone
+                const float d = radius * 0.45f;
+                draw->AddLine(ImVec2(at.x - d, at.y - d), ImVec2(at.x + d, at.y + d), uiColor(UiColor::Background), 2 * s);
+                draw->AddLine(ImVec2(at.x - d, at.y + d), ImVec2(at.x + d, at.y - d), uiColor(UiColor::Background), 2 * s);
+            }
         } else if (i == (int)run.next){
             draw->AddCircle(at, radius + 2 * s, uiColor(UiColor::Accent), 24, 2.5f * s);
         } else {

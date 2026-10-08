@@ -158,7 +158,7 @@ void drawRewards(float s){
     }
     const float slide = (float)std::min(1.0, std::min(age / SLIDE_S, (CARD_S - age) / SLIDE_S));
     const float ease = slide * slide * (3.0f - 2.0f * slide), alpha = ease;
-    const float width = 470 * s, height = 96 * s, top = -height + (height + 80 * s) * ease;
+    const float width = 470 * s, height = 96 * s, top = reducedMotion() ? 80 * s : -height + (height + 80 * s) * ease; // less motion: no slide, a fade
     const ImVec2 a(centre - width / 2, top), b(centre + width / 2, top + height);
     const Reward& card = shown.card;
     ImU32 edge = uiColor(UiColor::Accent, alpha);

@@ -29,6 +29,11 @@ void setTheme(ThemeMode mode); // restyles ImGui at once
 ThemeMode currentTheme();
 
 Color themeColor(UiColor role);
+// Accessibility (the settings'): good and bad in blue and orange (told apart with any colour vision), less motion,
+// everything a size bigger or smaller
+void setAccessibility(bool colorBlind, bool reduceMotion, float uiScale);
+bool reducedMotion();
+float uiScaleSetting();
 ImU32 uiColor(UiColor role, float alpha = 1.0f);
 ImVec4 uiColorVec(UiColor role, float alpha = 1.0f);
 

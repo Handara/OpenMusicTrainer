@@ -1,4 +1,5 @@
 #include "ui/transition.h"
+#include "ui/theme.h"
 
 #include "raylib.h"
 
@@ -15,6 +16,7 @@ static float zoomX = -1.0f, zoomY = -1.0f;
 
 void startTransition(float x, float y){
     unloadTransition();
+    if (reducedMotion()) return; // less motion: screens change at once
     // The frame being drawn, read back before it's shown. Once per change of screen, so reading it back is cheap.
     Image frame = LoadImageFromScreen();
     picture = LoadTextureFromImage(frame);

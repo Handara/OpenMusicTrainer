@@ -18,6 +18,23 @@ const Palette DARK = {
     {28, 36, 52, 255}, {0, 229, 255, 255}, {57, 255, 160, 255}, {255, 61, 105, 255},
 };
 
+// Good and bad for colour-blind eyes: blue and orange, apart for every kind of colour vision
+const Color CB_GOOD_DARK = {96, 170, 255, 255}, CB_BAD_DARK = {255, 160, 40, 255};
+const Color CB_GOOD_LIGHT = {0, 100, 220, 255}, CB_BAD_LIGHT = {215, 105, 0, 255};
+
+static struct {
+    bool colorBlind = false, reduceMotion = false;
+    float uiScale = 1.0f;
+} access;
+
+void setAccessibility(bool colorBlind, bool reduceMotion, float uiScale){
+    access.colorBlind = colorBlind;
+    access.reduceMotion = reduceMotion;
+    access.uiScale = std::clamp(uiScale, 0.8f, 1.5f);
+}
+bool reducedMotion(){ return access.reduceMotion; }
+float uiScaleSetting(){ return access.uiScale; }
+
 static struct {
     ThemeMode mode = ThemeMode::Light;
     UiFonts fonts;
@@ -37,8 +54,8 @@ Color themeColor(UiColor role){
         case UiColor::Dim:        return p.dim;
         case UiColor::StaffLine:  return p.staffLine;
         case UiColor::Accent:     return p.accent;
-        case UiColor::Good:       return p.good;
-        case UiColor::Bad:        return p.bad;
+        case UiColor::Good:       return access.colorBlind ? (theme.mode == ThemeMode::Dark ? CB_GOOD_DARK : CB_GOOD_LIGHT) : p.good;
+        case UiColor::Bad:        return access.colorBlind ? (theme.mode == ThemeMode::Dark ? CB_BAD_DARK : CB_BAD_LIGHT) : p.bad;
     }
     return p.ink;
 }
