@@ -783,6 +783,107 @@ static void courseLevels(){
     }
 }
 
+// A padlock: a body and its shackle
+static void drawLock(ImDrawList* draw, ImVec2 c, float size, ImU32 color){
+    draw->AddRectFilled(ImVec2(c.x - size * 0.55f, c.y - size * 0.1f), ImVec2(c.x + size * 0.55f, c.y + size * 0.65f), color, size * 0.12f);
+    draw->PathArcTo(ImVec2(c.x, c.y - size * 0.1f), size * 0.35f, 3.14159f, 6.28318f, 16);
+    draw->PathStroke(color, 0, size * 0.16f);
+}
+
+// A level's chapters as a map: a node each, along a path winding down the screen, lit as far as it's been passed;
+// the one to go on with pulsing, the one chosen ringed, the locked ones padlocked; each named beside it with its
+// stars. The chosen one's card at the right. Up/Down (the wheel) choose, Enter or a click on the chosen one opens it.
+static int chapterMap(const std::vector<CardRow>& rows, int& chosen, float& scroll, float left, float top, float width, float bottom, float s){
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    const UiFonts& fonts = uiFonts();
+    const int count = (int)rows.size();
+    if (count == 0) return -1;
+    if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) chosen++;
+    if (ImGui::IsKeyPressed(ImGuiKey_UpArrow)) chosen--;
+    const float wheel = ImGui::GetIO().MouseWheel;
+    if (wheel != 0.0f) chosen -= wheel > 0 ? 1 : -1;
+    chosen = std::clamp(chosen, 0, count - 1);
+    int confirmed = ImGui::IsKeyPressed(ImGuiKey_Enter, false) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false) ? chosen : -1;
+    const float step = 112 * s, radius = 32 * s, view = bottom - top;
+    const float target = std::clamp(chosen * step - view * 0.4f, 0.0f, std::max(0.0f, (count - 1) * step + 2 * radius + 40 * s - view));
+    scroll = scroll < 0.0f ? target : scroll + (target - scroll) * std::min(1.0f, GetFrameTime() * 10.0f);
+    const float centreX = left + width * 0.32f, swing = width * 0.16f;
+    auto nodeAt = [&](int i){ return ImVec2(centreX + std::sin(i * 1.1f) * swing, top + radius + 10 * s + i * step - scroll); };
+    const ImVec2 mouse = ImGui::GetMousePos();
+    const bool click = ImGui::IsMouseClicked(ImGuiMouseButton_Left);
+    const float pulse = 0.5f + 0.5f * std::sin((float)GetTime() * 4.0f);
+    draw->PushClipRect(ImVec2(left - 10 * s, top - 10 * s), ImVec2(left + width, bottom), true);
+    // The path, lit up to the last chapter passed
+    for (int i = 1; i < count; i++){
+        const ImVec2 a = nodeAt(i - 1), b = nodeAt(i);
+        const bool lit = rows[i - 1].badge != nullptr;
+        draw->AddBezierCubic(a, ImVec2(a.x, (a.y + b.y) / 2), ImVec2(b.x, (a.y + b.y) / 2), b, uiColor(lit ? UiColor::Accent : UiColor::StaffLine, lit ? 0.7f : 1.0f),
+                             (lit ? 5.0f : 4.0f) * s, 24);
+    }
+    for (int i = 0; i < count; i++){
+        const CardRow& row = rows[i];
+        const ImVec2 c = nodeAt(i);
+        if (c.y < top - step || c.y > bottom + step) continue;
+        const bool passed = row.badge != nullptr, isChosen = i == chosen;
+        // The one to go on with: a ring pulsing round it
+        if (row.highlight) draw->AddCircle(c, radius + 8 * s + 6 * s * pulse, uiColor(UiColor::Accent, 0.35f + 0.4f * (1.0f - pulse)), 48, 3 * s);
+        draw->AddCircleFilled(c, radius, passed ? uiColor(UiColor::Accent) : row.locked ? uiColor(UiColor::Card) : uiColor(UiColor::Card), 48);
+        draw->AddCircle(c, radius, uiColor(row.locked ? UiColor::StaffLine : UiColor::Accent, passed ? 1.0f : 0.8f), 48, (row.highlight ? 3.0f : 2.0f) * s);
+        if (isChosen) draw->AddCircle(c, radius + 5 * s, uiColor(UiColor::Ink), 48, 2.5f * s);
+        if (row.locked) drawLock(draw, ImVec2(c.x, c.y - 2 * s), 18 * s, uiColor(UiColor::Dim));
+        else {
+            const std::string number = std::to_string(i + 1);
+            const ImVec2 extent = fonts.heavy->CalcTextSizeA(24 * s, FLT_MAX, 0.0f, number.c_str());
+            draw->AddText(fonts.heavy, 24 * s, ImVec2(c.x - extent.x / 2, c.y - extent.y / 2), uiColor(passed ? UiColor::Background : UiColor::Ink), number.c_str());
+        }
+        // Its name beside it, on the side with room, and its stars
+        const bool right = std::sin(i * 1.1f) <= 0.0f;
+        const float textX = right ? c.x + radius + 18 * s : c.x - radius - 18 * s;
+        const ImVec2 titleSize = fonts.bold->CalcTextSizeA(18 * s, FLT_MAX, 0.0f, row.title.c_str());
+        const float x = right ? textX : textX - titleSize.x;
+        draw->AddText(fonts.bold, 18 * s, ImVec2(x, c.y - 20 * s), uiColor(row.locked ? UiColor::Dim : UiColor::Ink), row.title.c_str());
+        if (row.starsPossible > 0){
+            for (int k = 0; k < std::min(row.starsPossible, 12); k++)
+                drawStar(draw, ImVec2(x + 7 * s + k * 15 * s, c.y + 12 * s), 6 * s, k < row.stars ? uiColor(UiColor::Accent) : uiColor(UiColor::StaffLine));
+        } else draw->AddText(fonts.text, 14 * s, ImVec2(x, c.y + 4 * s), uiColor(UiColor::Dim), row.subtitle.c_str());
+        const float dx = mouse.x - c.x, dy = mouse.y - c.y;
+        if (click && dx * dx + dy * dy <= (radius + 6 * s) * (radius + 6 * s) && mouse.y >= top && mouse.y <= bottom){
+            if (isChosen) confirmed = i;
+            chosen = i;
+        }
+    }
+    draw->PopClipRect();
+
+    // The chosen chapter's card, at the right
+    const CardRow& row = rows[chosen];
+    const float cardX = left + width + 20 * s, cardWidth = ImGui::GetWindowWidth() * 0.93f - cardX, pad = 24 * s;
+    const ImVec2 a(cardX, top), b(cardX + cardWidth, top + 210 * s);
+    draw->AddRectFilled(a, b, uiColor(UiColor::Card), 12 * s);
+    float y = a.y + pad;
+    draw->AddText(fonts.mono, 12 * s, ImVec2(a.x + pad, y), uiColor(row.highlight ? UiColor::Accent : UiColor::Dim),
+                  (row.label + (row.locked ? "  ·  LOCKED" : row.highlight ? "  ·  NEXT" : "")).c_str());
+    y += 20 * s;
+    draw->AddText(fonts.bold, 22 * s, ImVec2(a.x + pad, y), uiColor(UiColor::Ink), row.title.c_str(), nullptr, cardWidth - 2 * pad);
+    y += fonts.bold->CalcTextSizeA(22 * s, FLT_MAX, cardWidth - 2 * pad, row.title.c_str()).y + 8 * s;
+    draw->AddText(fonts.text, 16 * s, ImVec2(a.x + pad, y), uiColor(UiColor::Dim), row.subtitle.c_str());
+    y += 30 * s;
+    if (row.percent >= 0){
+        const float barWidth = cardWidth - 2 * pad - 50 * s;
+        draw->AddRectFilled(ImVec2(a.x + pad, y), ImVec2(a.x + pad + barWidth, y + 4 * s), uiColor(UiColor::StaffLine), 2 * s);
+        draw->AddRectFilled(ImVec2(a.x + pad, y), ImVec2(a.x + pad + barWidth * row.percent / 100.0f, y + 4 * s), uiColor(UiColor::Accent), 2 * s);
+        draw->AddText(fonts.mono, 12 * s, ImVec2(a.x + pad + barWidth + 10 * s, y - 7 * s), uiColor(UiColor::Dim), TextFormat("%d%%", row.percent));
+        y += 20 * s;
+    }
+    if (row.starsPossible > 0){
+        drawStar(draw, ImVec2(a.x + pad + 7 * s, y + 8 * s), 7 * s, uiColor(UiColor::Accent));
+        draw->AddText(fonts.mono, 12 * s, ImVec2(a.x + pad + 20 * s, y + 1 * s), uiColor(UiColor::Dim), TextFormat("%d / %d stars", row.stars, row.starsPossible));
+        y += 24 * s;
+    }
+    draw->AddText(fonts.text, 15 * s, ImVec2(a.x + pad, y + 4 * s), uiColor(row.locked ? UiColor::Dim : UiColor::Accent),
+                  row.locked ? "Pass the chapter before it to open it" : "Enter to open it", nullptr, cardWidth - 2 * pad);
+    return confirmed;
+}
+
 // A level: its chapters, each with how far it's come, passed or perfect, or locked until the one before is passed
 static void levelChapters(){
     const int c = learn.openCourse;
@@ -810,10 +911,7 @@ static void levelChapters(){
         row.highlight = lesson == next && !state.passed;
         rows.push_back(row);
     }
-    const int confirmed = cardList(rows, learn.levelRow, learn.levelScroll, width * 0.07f, height * 0.2f, width * 0.6f, height * 0.92f, 128 * s, s);
-    if (rows[learn.levelRow].locked)
-        ImGui::GetWindowDrawList()->AddText(uiFonts().text, 17 * s, ImVec2(width * 0.71f, height * 0.2f), uiColor(UiColor::Dim),
-                                            "Locked: pass the chapter before it to open it.", nullptr, width * 0.22f);
+    const int confirmed = chapterMap(rows, learn.levelRow, learn.levelScroll, width * 0.07f, height * 0.2f, width * 0.55f, height * 0.92f, s);
     menuScreenHint("Up/Down  choose    Enter  open    Esc  back to the levels", s);
     if (confirmed >= 0 && !rows[confirmed].locked){
         const int lesson = unit.firstLesson + confirmed;
