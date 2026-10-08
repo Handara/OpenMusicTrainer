@@ -58,6 +58,7 @@ enum class FieldKind {
     Places,     // places on the neck, apart: string:fret (1 = the lowest string), and a label if wanted (6:1:F)
     Span,       // two whole numbers, the lower first, from min to max
     Key,        // a key: its note and major or minor (G major, E minor)
+    Song,       // a song of the game's, by its folder's name
 };
 
 // A place on the neck, as a Places setting writes it
@@ -219,6 +220,12 @@ std::vector<LessonEntry> scanLessons(const std::string& dir, bool builtIn);
 // Exercise blocks may name exercises: marks lessons whose exercise is missing, broken, or a routine (a routine has no
 // goal a lesson could check)
 void checkLessonExercises(std::vector<LessonEntry>& lessons, const std::vector<ExerciseEntry>& exercises);
+
+// A song block's song: a song of the game's (its folder's name, found in these folders of songs), else a chart in the
+// lesson's folder. "" when it's neither, or the song isn't there.
+std::string songBlockChart(const LessonBlock& block, const std::string& lessonFolder, const std::vector<std::string>& songFolders);
+// Marks lessons whose song blocks name songs that aren't in these folders
+void checkLessonSongs(std::vector<LessonEntry>& lessons, const std::vector<std::string>& songFolders);
 
 // A scored block's place in its lesson's progress (LessonProgress::passed): its page's, and which of the page's
 // scored blocks it is. (A version 1 lesson kept a step's number there: read with the lesson, it's that step's page.)

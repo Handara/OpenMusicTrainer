@@ -334,6 +334,31 @@ TEST_CASE("exercises written in blocks, as forms: every kind starts from somethi
     CHECK(exerciseSetting(block, "count").empty());
 }
 
+TEST_CASE("song blocks: a song of the game's, or a file, not both; a part, some bars, a tempo"){
+    LessonDoc doc;
+    std::string error;
+    REQUIRE_MESSAGE(parseLessonDoc(HEAD + "page P\nblock play\nsong first-light\npart 2\nbars 5 8\ntempo 70\n", "song", doc, error), error);
+    const LessonBlock& block = doc.pages[0].sections[0].columns[0][0];
+    CHECK(blockValue(block, "song") == "first-light");
+    CHECK(blockValue(block, "bars") == "5 8");
+    CHECK_FALSE(parseLessonDoc(HEAD + "page P\nblock play\nsong a\nfile b.chart\n", "both", doc, error));
+    CHECK(error.find("not both") != std::string::npos);
+    CHECK_FALSE(parseLessonDoc(HEAD + "page P\nblock play\ngoal 50\n", "neither", doc, error));
+    CHECK(error.find("needs a song") != std::string::npos);
+    CHECK_FALSE(parseLessonDoc(HEAD + "page P\nblock play\nsong ../x\n", "outside", doc, error));
+    CHECK_FALSE(parseLessonDoc(HEAD + "page P\nblock play\nsong a\ntempo 20\n", "too slow", doc, error));
+    // Found among the game's songs, else nowhere; a file, in the lesson's folder
+    const std::string songs = std::string(LAHN_RESOURCES_DIR) + "songs";
+    LessonBlock song = makeBlock(BlockType::Play);
+    setBlockValue(song, "song", "first-light");
+    CHECK_FALSE(songBlockChart(song, "/lesson", { songs }).empty());
+    setBlockValue(song, "song", "no-such-song");
+    CHECK(songBlockChart(song, "/lesson", { songs }).empty());
+    setBlockValue(song, "song", "");
+    setBlockValue(song, "file", "riff.chart");
+    CHECK(fs::path(songBlockChart(song, "/lesson", { songs })) == fs::path("/lesson") / "riff.chart");
+}
+
 TEST_CASE("a draft: blocks still missing what they need are kept, and read back"){
     LessonDoc doc;
     doc.title = "Draft";

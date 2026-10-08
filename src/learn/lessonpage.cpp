@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
+#include <cstdlib>
 #include <filesystem>
 #include <sstream>
 
@@ -446,8 +447,14 @@ float drawScoredBlock(const BlockContext& c, const LessonBlock& block, ImVec2 at
     // What it is, its name, its goal
     std::string kind, name = block.name;
     if (block.type == BlockType::Play){
+        // "Play along · bars 5 to 8 · 80%"
         kind = "Play along";
-        if (name.empty()) name = fs::path(blockValue(block, "file")).stem().string();
+        int from = 0, to = 0;
+        std::istringstream(blockValue(block, "bars")) >> from >> to;
+        if (from > 0) kind += from == to ? TextFormat("  ·  bar %d", from) : TextFormat("  ·  bars %d to %d", from, to);
+        const std::string tempo = blockValue(block, "tempo");
+        if (std::atoi(tempo.c_str()) < 100) kind += "  ·  " + tempo + "%";
+        if (name.empty()) name = blockValue(block, "song").empty() ? fs::path(blockValue(block, "file")).stem().string() : blockValue(block, "song");
     } else if (exercise){
         kind = exerciseKind(exercise->exercise);
         if (name.empty()) name = exercise->exercise.title;

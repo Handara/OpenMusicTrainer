@@ -1,5 +1,6 @@
 #include "learn/lessonplayer.h"
 
+#include "core/chart.h"
 #include "imgui.h"
 #include "learn/playexercise.h"
 #include "raylib.h"
@@ -9,16 +10,19 @@
 
 #include <algorithm>
 #include <cfloat>
+#include <cstdlib>
 #include <filesystem>
+#include <sstream>
 
 const float MAX_PAGE_WIDTH = 1060.0f; // at a 720-pixel-tall window: lines of text stay easy to read
 const float SCROLL_STEP = 60.0f;
 const double BACK_AFTER_S = 1.6;      // a goal met: the moment to see it (and hear the crowd) before the lesson comes back
 
 LessonPlayer::LessonPlayer(const LessonEntry& entry, std::map<int, ExerciseEntry> exercises, ExerciseFactory create,
-                           const GameplayOptions& playOptions, const std::string& progressPath, int startPage)
+                           const GameplayOptions& playOptions, std::vector<std::string> songFolders, const std::string& progressPath,
+                           int startPage)
     : doc(entry.doc), folder(entry.folder), exercises(std::move(exercises)), create(create), playOptions(playOptions),
-      progressPath(progressPath){
+      songFolders(std::move(songFolders)), progressPath(progressPath){
     progress = loadLessonProgress(progressPath);
     upgradeLessonProgress(progress, entry.version); // a version 1 lesson's steps are its pages now
     // Reopens where the student was; a finished lesson starts over from the top
@@ -92,8 +96,29 @@ void LessonPlayer::start(int number){
     releasePageMedia(media); // what runs may need the audio a sound or video holds
     const BlockPlace place = blocks[(size_t)number];
     const LessonBlock& block = blockAt(doc, place);
-    if (block.type == BlockType::Play)
-        running = std::make_unique<PlayExercise>((std::filesystem::path(folder) / blockValue(block, "file")).string(), playOptions);
+    if (block.type == BlockType::Play){
+        // Its part (a bass's listened to as a bass); a few bars of it, or slower, played as in practice mode, once
+        const std::string chartPath = songBlockChart(block, folder, songFolders);
+        GameplayOptions options = playOptions;
+        options.part = std::max(0, std::atoi(blockValue(block, "part").c_str()) - 1);
+        Chart chart;
+        std::string error;
+        if (loadChart(chartPath, chart, error)){
+            if (options.part < (int)chart.frettedTracks.size())
+                options.instrument = chart.frettedTracks[(size_t)options.part].type == InstrumentType::Bass ? InputRole::Bass : InputRole::Guitar;
+            int from = 0, to = 0;
+            std::istringstream(blockValue(block, "bars")) >> from >> to;
+            const int tempo = std::atoi(blockValue(block, "tempo").c_str());
+            if (from > 0 || tempo < 100){
+                options.practice.on = true;
+                options.practice.fromTick = from > 0 ? barStartTick(chart, from - 1) : 0;
+                options.practice.toTick = from > 0 ? std::min(chart.endTick, barStartTick(chart, to)) : chart.endTick;
+                options.practice.speed = std::clamp(tempo, 30, 100) / 100.0f;
+                options.practice.passes = 1;
+            }
+        }
+        running = std::make_unique<PlayExercise>(chartPath, options);
+    }
     else if (const ExerciseEntry* exercise = exerciseFor(place)) running = create(*exercise);
     runningPlace = place;
     chosen = number;

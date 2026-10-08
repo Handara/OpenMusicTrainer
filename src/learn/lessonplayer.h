@@ -20,8 +20,10 @@ public:
     // `exercises`: what each exercise block runs, by its key (core/lessondoc scoredBlockKey): a copy
     // `playOptions`: how song blocks play (the player's gameplay settings)
     // `startPage`: where it opens (-1: where the student was)
+    // `songFolders`: where the game's songs are, for song blocks that name one
     LessonPlayer(const LessonEntry& entry, std::map<int, ExerciseEntry> exercises, ExerciseFactory create,
-                 const GameplayOptions& playOptions, const std::string& progressPath, int startPage = -1);
+                 const GameplayOptions& playOptions, std::vector<std::string> songFolders, const std::string& progressPath,
+                 int startPage = -1);
     ~LessonPlayer() override;
 
     void update() override;
@@ -50,6 +52,7 @@ private:
     std::map<int, ExerciseEntry> exercises;
     ExerciseFactory create;
     GameplayOptions playOptions;
+    std::vector<std::string> songFolders;
     std::string progressPath;
     LessonProgress progress;
     std::string saveError;

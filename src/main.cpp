@@ -116,9 +116,7 @@ static void goToLearn(){
     InputRole instrument = app.settings.heardInstrument;
     if (app.guitar.ready != app.bass.ready) instrument = app.guitar.ready ? InputRole::Guitar : InputRole::Bass;
     LearnSetup setup{ app.resourcesDir + "exercises", app.userExercisesDir, app.resourcesDir + "lessons", app.userLessonsDir,
-                      app.progressDir, app.settings };
-    setup.instrument = instrument;
-    setup.piano = app.settings.learnOnPiano;
+                      app.progressDir, app.settings, instrument, app.settings.learnOnPiano, { app.resourcesDir + "songs", app.userSongsDir } };
     openLearnScreen(setup);
     app.screen = Screen::Learn;
 }
@@ -811,7 +809,8 @@ static void runMenus(){
             }
             if (learnWantsEditor()){
                 closeLearnScreen();
-                openLessonEditor({app.resourcesDir + "lessons", app.userLessonsDir, app.resourcesDir + "exercises", app.userExercisesDir});
+                openLessonEditor({app.resourcesDir + "lessons", app.userLessonsDir, app.resourcesDir + "exercises", app.userExercisesDir,
+                                  { app.resourcesDir + "songs", app.userSongsDir }});
                 app.screen = Screen::LessonEditor;
             }
             break;

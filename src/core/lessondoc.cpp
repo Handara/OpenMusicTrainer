@@ -86,8 +86,12 @@ const std::vector<BlockInfo>& blockInfos(){
             goalField("Clean passes for a drill, right answers in a row for intervals (left out: the usual)", 999),
             gateField(),
         } },
-        { BlockType::Play, "play", "Song", "A song (or a piece of one) to play along to", BlockGroup::Play, true, {
-            { "file", "Song", FieldKind::File, "A .chart in the lesson's folder, with its audio", "", CHART_FILES, 0, 0, true },
+        { BlockType::Play, "play", "Song", "A song (or a few bars of one) to play along to", BlockGroup::Play, true, {
+            { "song", "Song", FieldKind::Song, "One of the game's songs" },
+            { "file", "Or a file", FieldKind::File, "Or a .chart in the lesson's folder, with its audio", "", CHART_FILES },
+            { "part", "Part", FieldKind::Number, "Which of its parts is played (1: its first)", "1", {}, 1, 16 },
+            { "bars", "Bars", FieldKind::Span, "Only these bars, as in practice mode (5 8); left out: all of it", "", {}, 1, 9999 },
+            { "tempo", "Tempo", FieldKind::Number, "Its speed, in percent of the song's own (time-stretched, its pitch kept)", "100", {}, 30, 100 },
             goalField("The share of notes to hit, in percent (left out: 80)", 100),
             gateField(),
         } },
@@ -186,8 +190,8 @@ static const std::vector<LayoutInfo>& layouts(){
     static const std::vector<LayoutInfo> all = {
         { SectionLayout::Single, "single", "One column", { 1.0f } },
         { SectionLayout::Halves, "halves", "Two halves", { 0.5f, 0.5f } },
-        { SectionLayout::WideNarrow, "wide-narrow", "Wide and narrow", { 0.62f, 0.38f } },
-        { SectionLayout::NarrowWide, "narrow-wide", "Narrow and wide", { 0.38f, 0.62f } },
+        { SectionLayout::WideNarrow, "wide-narrow", "Wide, narrow", { 0.62f, 0.38f } },
+        { SectionLayout::NarrowWide, "narrow-wide", "Narrow, wide", { 0.38f, 0.62f } },
         { SectionLayout::Thirds, "thirds", "Three columns", { 1.0f / 3, 1.0f / 3, 1.0f / 3 } },
     };
     return all;
@@ -317,6 +321,9 @@ static std::string checkValue(const BlockField& field, const std::string& value)
             if (!(words >> tonic >> mode) || !parseKeySignature(tonic, mode, key)) return "'" + value + "' isn't a key: write it like G major, E minor";
             return "";
         }
+        case FieldKind::Song:
+            if (value.find_first_of("/\\") != std::string::npos || value == "." || value == "..") return "'" + value + "' isn't a song's folder name";
+            return "";
         case FieldKind::File: {
             // Only a plain name: a shared lesson must not reach outside its own folder
             if (value.find_first_of("/\\") != std::string::npos || value == "." || value == "..")
@@ -370,6 +377,11 @@ bool parseLessonDoc(const std::string& text, const std::string& path, LessonDoc&
         const BlockInfo& info = blockInfo(block->type);
         for (const BlockField& field : info.fields)
             if (field.required && !draft && blockValues(*block, field.key).empty()) return lineError(std::string("a ") + info.id + " block needs '" + field.key + "'");
+        if (block->type == BlockType::Play && !draft){
+            const bool song = !blockValues(*block, "song").empty(), file = !blockValues(*block, "file").empty();
+            if (song && file) return lineError("a play block plays a song of the game's or a file, not both");
+            if (!song && !file) return lineError("a play block needs a song ('song <its folder>') or a file ('file <name>.chart')");
+        }
         if (block->type == BlockType::Exercise){
             const bool named = !blockValues(*block, "exercise").empty();
             if (named && !block->exerciseLines.empty())
@@ -869,6 +881,32 @@ void setSectionLayout(LessonSection& section, SectionLayout layout){
 }
 
 // --- Lessons in folders --------------------------------------------------------------------------------------------
+
+std::string songBlockChart(const LessonBlock& block, const std::string& lessonFolder, const std::vector<std::string>& songFolders){
+    const std::string song = blockValue(block, "song"), file = blockValue(block, "file");
+    if (!song.empty()){
+        for (const std::string& folder : songFolders){
+            const fs::path chart = fs::path(folder) / song / "song.chart";
+            if (fs::exists(chart)) return chart.string();
+        }
+        return "";
+    }
+    return file.empty() ? "" : (fs::path(lessonFolder) / file).string();
+}
+
+void checkLessonSongs(std::vector<LessonEntry>& lessons, const std::vector<std::string>& songFolders){
+    for (LessonEntry& entry : lessons){
+        if (!entry.error.empty()) continue;
+        for (const BlockPlace& place : lessonBlocks(entry.doc)){
+            const LessonBlock& block = blockAt(entry.doc, place);
+            const std::string song = blockValue(block, "song");
+            if (block.type != BlockType::Play || song.empty() || !songBlockChart(block, entry.folder, songFolders).empty()) continue;
+            entry.error = fs::path(entry.folder).filename().string() + "/" + LESSON_FILE_NAME + ": page " + std::to_string(place.page + 1)
+                        + ": there's no song called " + song;
+            break;
+        }
+    }
+}
 
 std::vector<LessonEntry> scanLessons(const std::string& dir, bool builtIn){
     std::vector<LessonEntry> lessons;

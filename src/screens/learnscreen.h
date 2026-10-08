@@ -4,6 +4,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 class Exercise;
 struct LessonEntry;
@@ -19,6 +20,7 @@ struct LearnSetup {
     Settings settings;            // input device, offsets, note view... as they are when learn mode opens
     InputRole instrument = InputRole::Guitar; // what's played: only its courses and exercises are listed
     bool piano = false;                       //   a piano instead
+    std::vector<std::string> songFolders;     // the game's songs (built in, the player's): lessons play them
 };
 
 void openLearnScreen(const LearnSetup& setup); // scans both exercise folders

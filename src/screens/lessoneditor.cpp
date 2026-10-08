@@ -3,6 +3,7 @@
 #include "core/chart.h"
 #include "core/files.h"
 #include "core/lessondoc.h"
+#include "core/songlibrary.h"
 #include "imgui.h"
 #include "imgui_stdlib.h"
 #include "learn/exercise.h"
@@ -69,6 +70,7 @@ static struct {
     LessonEditorSetup setup;
     std::vector<LessonEntry> lessons;      // the list to pick from
     std::vector<ExerciseEntry> exercises;  // for exercise blocks to name
+    std::vector<SongEntry> songs;          // the game's songs, for song blocks to play
     std::string newLessonName;
     bool focusName = false;                // the keyboard in the new lesson's name field, next frame
     std::string listError;
@@ -109,6 +111,18 @@ static void refreshLists(){
     std::vector<LessonEntry> userLessons = scanLessons(ed.setup.userLessons, false);
     ed.lessons.insert(ed.lessons.end(), userLessons.begin(), userLessons.end());
     checkLessonExercises(ed.lessons, ed.exercises);
+    checkLessonSongs(ed.lessons, ed.setup.songFolders);
+    ed.songs.clear();
+    for (size_t i = 0; i < ed.setup.songFolders.size(); i++){
+        std::vector<SongEntry> found = scanSongs(ed.setup.songFolders[i], i == 0);
+        for (const SongEntry& song : found) if (song.error.empty()) ed.songs.push_back(song);
+    }
+}
+
+// A song of the game's by its folder's name (a song block's), or nullptr
+static const SongEntry* findSong(const std::string& name){
+    for (const SongEntry& song : ed.songs) if (fs::path(song.folder).filename().string() == name) return &song;
+    return nullptr;
 }
 
 static void refreshFolderFiles(){
@@ -142,6 +156,11 @@ static std::string findProblem(){
         for (const BlockField& field : info.fields)
             if (field.required && blockValues(block, field.key).empty())
                 return where + "a " + std::string(info.name) + " block still needs its " + std::string(field.name);
+        if (block.type == BlockType::Play){
+            const std::string song = blockValue(block, "song");
+            if (song.empty() && blockValue(block, "file").empty()) return where + "a song block still needs its song";
+            if (!song.empty() && !findSong(song)) return where + "there's no song called " + song;
+        }
         if (block.type == BlockType::Exercise){
             const std::string name = blockValue(block, "exercise");
             if (name.empty() && block.exerciseLines.empty()) return where + "an exercise block still needs its exercise";
@@ -673,6 +692,7 @@ static void blockField(LessonBlock& block, const BlockField& field){
                     if (ImGui::Selectable(file.c_str(), file == current)){
                         beforeChange();
                         setBlockValue(block, field.key, file);
+                        if (block.type == BlockType::Play) setBlockValue(block, "song", ""); // a file instead of a song
                         releasePageMedia(ed.media);
                         changed();
                     }
@@ -683,6 +703,28 @@ static void blockField(LessonBlock& block, const BlockField& field){
             if (ImGui::Button("Open the lesson's folder")){
                 if (ed.builtIn) ed.status = "Built in: save first, to have your own copy and its folder";
                 else openFolder(ed.folder);
+            }
+            break;
+        }
+        case FieldKind::Song: {
+            // The game's songs, by their titles: one chosen plays instead of a file
+            const std::string current = blockValue(block, field.key);
+            const SongEntry* chosen = current.empty() ? nullptr : findSong(current);
+            ImGui::SetNextItemWidth(-1);
+            if (ImGui::BeginCombo(id.c_str(), chosen ? chosen->title.c_str() : current.empty() ? "Choose a song" : (current + " (not found)").c_str(),
+                                  ImGuiComboFlags_HeightLarge)){
+                for (const SongEntry& song : ed.songs){
+                    const std::string name = fs::path(song.folder).filename().string();
+                    const std::string label = song.title + (song.artist.empty() ? "" : "  ·  " + song.artist) + "##" + song.folder;
+                    if (!ImGui::Selectable(label.c_str(), name == current) || name == current) continue;
+                    beforeChange();
+                    setBlockValue(block, field.key, name);
+                    setBlockValue(block, "file", "");
+                    setBlockValue(block, "part", "");
+                    if (block.name.empty() || (chosen && block.name == chosen->title)) block.name = song.title; // its card says it
+                    changed();
+                }
+                ImGui::EndCombo();
             }
             break;
         }
@@ -718,6 +760,29 @@ static void blockField(LessonBlock& block, const BlockField& field){
             if (current.empty() && !block.exerciseLines.empty()) exerciseForm(block);
             return;
         }
+        case FieldKind::Number:
+            if (block.type == BlockType::Play && field.key == std::string("part")){
+                // A song's parts, by their names
+                if (const SongEntry* song = findSong(blockValue(block, "song")); song && !song->parts.empty()){
+                    const int part = std::clamp(std::atoi(blockValue(block, "part").c_str()), 1, (int)song->parts.size());
+                    auto partName = [&](int n){
+                        const SongPart& each = song->parts[(size_t)n - 1];
+                        return std::to_string(n) + "  " + each.name + (each.type == InstrumentType::Bass ? " (bass)" : each.type == InstrumentType::Keys ? " (keys)" : " (guitar)");
+                    };
+                    ImGui::SetNextItemWidth(-1);
+                    if (ImGui::BeginCombo(id.c_str(), partName(part).c_str())){
+                        for (int n = 1; n <= (int)song->parts.size(); n++){
+                            if (!ImGui::Selectable(partName(n).c_str(), n == part) || n == part) continue;
+                            beforeChange();
+                            setBlockValue(block, field.key, n == 1 ? "" : std::to_string(n));
+                            changed();
+                        }
+                        ImGui::EndCombo();
+                    }
+                    break;
+                }
+            }
+            [[fallthrough]];
         default: { // a line of text, a number, notes, places on the neck...: kept once it reads right
             if (!ed.fields.count(field.key)) ed.fields[field.key] = blockValues(block, field.key).empty() ? "" : blockValue(block, field.key);
             if (undoableInput(id.c_str(), &ed.fields[field.key])){

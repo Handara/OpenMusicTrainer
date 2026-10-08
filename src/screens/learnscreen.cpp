@@ -327,6 +327,7 @@ static void refreshExercises(){
     std::vector<LessonEntry> userLessons = scanLessons(learn.setup.userLessons, false);
     learn.lessons.insert(learn.lessons.end(), userLessons.begin(), userLessons.end());
     checkLessonExercises(learn.lessons, learn.exercises);
+    checkLessonSongs(learn.lessons, learn.setup.songFolders);
     learn.lessonProgressText.clear();
     for (const LessonEntry& entry : learn.lessons){
         LessonProgress progress = loadLessonProgress(progressPath(entry.id));
@@ -377,11 +378,13 @@ static std::map<int, ExerciseEntry> lessonExercises(const LessonEntry& entry){
 }
 
 static std::unique_ptr<Exercise> openLesson(const LessonEntry& entry){
-    return std::make_unique<LessonPlayer>(entry, lessonExercises(entry), createExercise, lessonPlayOptions(), progressPath(entry.id));
+    return std::make_unique<LessonPlayer>(entry, lessonExercises(entry), createExercise, lessonPlayOptions(), learn.setup.songFolders,
+                                          progressPath(entry.id));
 }
 
 std::unique_ptr<Exercise> learnTryLesson(const LessonEntry& entry, int page, const std::string& progressPath){
-    return std::make_unique<LessonPlayer>(entry, lessonExercises(entry), createExercise, lessonPlayOptions(), progressPath, page);
+    return std::make_unique<LessonPlayer>(entry, lessonExercises(entry), createExercise, lessonPlayOptions(), learn.setup.songFolders,
+                                          progressPath, page);
 }
 
 // A course's chapter's drills, each the exercise its step runs (written in place: kept by the course and drill)

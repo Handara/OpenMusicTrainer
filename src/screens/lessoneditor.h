@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 // The lesson maker: pick a lesson (or make a new one), then make it: its pages in an outline at the left with the
 // blocks to add, the page in the middle drawn exactly as the student will see it (a click chooses what's under it),
@@ -13,6 +14,7 @@ struct LessonEditorSetup {
     std::string userLessons;
     std::string builtInExercises; // exercise steps name exercises: the editor lists them to pick from
     std::string userExercises;
+    std::vector<std::string> songFolders; // the game's songs, for song blocks to play
 };
 
 void openLessonEditor(const LessonEditorSetup& setup);
