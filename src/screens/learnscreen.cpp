@@ -178,8 +178,16 @@ static std::unique_ptr<Exercise> createExercise(const ExerciseEntry& entry){
             DrillSetup setup;
             std::string scaleName = scale ? scale->displayName : "";
             if (!scaleName.empty()) scaleName[0] = (char)std::tolower((unsigned char)scaleName[0]); // "G major", as it's said
-            setup.about = TextFormat("Reading in %s %s, frets %d to %d", pitchClassName(config.rootPitchClass),
-                                     scaleName.c_str(), config.lowestFret, config.highestFret);
+            const bool onPiano = isPianoTuning(config.tuning); // (its frets are its notes)
+            setup.about = onPiano ? TextFormat("Reading in %s %s, %s%d to %s%d", pitchClassName(config.rootPitchClass), scaleName.c_str(),
+                                               pitchClassName(config.lowestFret), pitchOctave(config.lowestFret),
+                                               pitchClassName(config.highestFret), pitchOctave(config.highestFret))
+                                  : TextFormat("Reading in %s %s, frets %d to %d", pitchClassName(config.rootPitchClass),
+                                               scaleName.c_str(), config.lowestFret, config.highestFret);
+            if (onPiano){ // the keyboard shown covers every note a pass may have
+                setup.lowPitch = config.pool.empty() ? config.lowestFret : *std::min_element(config.pool.begin(), config.pool.end());
+                setup.highPitch = config.pool.empty() ? config.highestFret : *std::max_element(config.pool.begin(), config.pool.end());
+            }
             if (!config.pool.empty()){ // just some notes: say which
                 std::vector<std::string> names;
                 for (int pitch : config.pool){
@@ -463,21 +471,19 @@ static std::string noteNames(const std::vector<NoteTally>& notes, const char* be
 
 // Today's challenge: a timed reading drill of its own each day, from the notes the player knows on the instrument (two
 // of the weakest among them), at random from the date; passed clean at 100 bpm. Its id carries the date, so it's
-// new (and its first pass worth the most) every day. Guitar and bass: the piano's reading drill is still to come.
+// new (and its first pass worth the most) every day.
 static std::string todayText(){
     int year, month, day;
     dateFromDays(today(), year, month, day);
     return TextFormat("%04d-%02d-%02d", year, month, day);
 }
-static bool dailyPossible(){
-    return !learn.piano;
-}
 static std::vector<int> dailyNotes(){
-    const bool bass = learn.instrument == InputRole::Bass;
-    const int low = bass ? 28 : 40, high = bass ? 60 : 76;
+    const bool bass = !learn.piano && learn.instrument == InputRole::Bass;
+    const int low = learn.piano ? 48 : bass ? 28 : 40, high = learn.piano ? 79 : bass ? 60 : 76;
     std::vector<int> known;
     for (const auto& [pitch, tally] : playerProfile().notes) if (pitch >= low && pitch <= high && tally.right >= 5) known.push_back(pitch);
-    if (known.size() < 3) known = bass ? std::vector<int>{ 28, 29, 31, 33 } : std::vector<int>{ 64, 65, 67, 69 }; // the first notes there are
+    if (known.size() < 3) // the first notes there are
+        known = learn.piano ? std::vector<int>{ 60, 62, 64, 65, 67 } : bass ? std::vector<int>{ 28, 29, 31, 33 } : std::vector<int>{ 64, 65, 67, 69 };
     unsigned seed = 2166136261u;
     for (char c : todayText() + learnInstrumentName()) seed = (seed ^ (unsigned char)c) * 16777619u;
     std::mt19937 random(seed);
@@ -493,7 +499,7 @@ static std::vector<int> dailyNotes(){
     return picked;
 }
 static std::string dailyId(){
-    return "daily-" + todayText() + (learn.instrument == InputRole::Bass ? "-bass" : "");
+    return "daily-" + todayText() + (learn.piano ? "-piano" : learn.instrument == InputRole::Bass ? "-bass" : "");
 }
 static bool dailyDone(){
     for (const Activity& run : recentRuns(dailyId(), 50)) if (run.challenge) return true;
@@ -504,7 +510,8 @@ static void startDaily(){
     std::string names;
     for (int pitch : pitches) names += " " + std::string(pitchClassName(pitch)) + std::to_string(pitchOctave(pitch));
     std::string text = "type reading\nnotes" + names + "\ncells quarter\nbars 10\ntempo 90 120 5\nchallenge 100\npass 87\n";
-    if (learn.instrument == InputRole::Bass) text += "tuning 28 33 38 43\n";
+    if (learn.piano) text += "instrument piano\n";
+    else if (learn.instrument == InputRole::Bass) text += "tuning 28 33 38 43\n";
     ExerciseEntry entry;
     entry.name = "daily";
     entry.id = dailyId();
@@ -1018,7 +1025,7 @@ static void exerciseMenu(){
         list = &learn.sections[section];
         if (section == SectionLessons){
             // First, today's challenge, then the notes to review (when some have been missed often lately)
-            if (dailyPossible()){
+            {
                 MenuRow row;
                 row.label = "Today's challenge";
                 row.detail = dailyDone() ? "passed today" : "a new one every day";

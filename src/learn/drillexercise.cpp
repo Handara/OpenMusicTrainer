@@ -6,6 +6,7 @@
 #include "app/playerprogress.h"
 #include "core/ranking.h"
 #include "input/keynotes.h"
+#include "input/keysinput.h"
 #include "input/menuinput.h"
 #include "input/noteinput.h"
 #include "raylib.h"
@@ -59,7 +60,17 @@ DrillExercise::DrillExercise(const std::string& title, const DrillSetup& setup, 
     std::string sound;
     bandOn = !(chosen >> sound) || sound != "metronome";
     band.setVolume(settings.bandVolume);
-    if (settings.playWithInstrument){
+    piano = isPianoTuning(this->setup.tuning);
+    if (piano){
+        // A MIDI keyboard, else the computer's laid out as a piano from the C at or below the lowest note
+        keysLow = setup.lowPitch, keysHigh = setup.highPitch;
+        if (keysLow < 0 || keysHigh < 0){
+            keysLow = 127, keysHigh = 0;
+            for (const DrillNote& note : drillNotes) keysLow = std::min(keysLow, note.pitch), keysHigh = std::max(keysHigh, note.pitch);
+            if (keysLow > keysHigh) keysLow = 60, keysHigh = 72;
+        }
+        startKeysInput(settings, keysLow);
+    } else if (settings.playWithInstrument){
         float lowest = midiToFrequency((float)*std::min_element(setup.tuning.begin(), setup.tuning.end())) * 0.9f;
         int lowestPitch = *std::min_element(setup.tuning.begin(), setup.tuning.end());
         int channel = channelFor(settings, roleForTuning(lowestPitch)); // the bass's input for a bass drill
@@ -70,8 +81,13 @@ DrillExercise::DrillExercise(const std::string& title, const DrillSetup& setup, 
 
 DrillExercise::~DrillExercise(){
     stopPreviews(); // clicks already handed to the audio engine would otherwise still play after leaving
-    stopNoteInput();
+    if (piano) stopKeysInput();
+    else stopNoteInput();
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+}
+
+bool DrillExercise::computerPiano() const {
+    return piano && !keysInputIsMidi();
 }
 
 double DrillExercise::drillTime() const {
@@ -203,7 +219,14 @@ void DrillExercise::update(){
     if (stage != Stage::Running){
         // Waiting: Space, or Enter (the instrument's choose, through the menus' listening) starts. The end menu
         // handles its own keys as it's drawn.
-        if (ImGui::IsKeyPressed(ImGuiKey_M, false)) toggleBand(); // (not B: on the keyboard, B is a note)
+        // (not B: on the keyboard, B is a note; and Tab when the computer keyboard is a piano, its M a key)
+        if (ImGui::IsKeyPressed(computerPiano() ? ImGuiKey_Tab : ImGuiKey_M, false)) toggleBand();
+        // A piano's keys sound meanwhile: to find the notes before starting
+        if (piano){
+            for (const PlayedNote& played : updateKeysInput()) playKeysNote(midiToFrequency((float)played.pitch));
+            if (clickedKey >= 0) playKeysNote(midiToFrequency((float)clickedKey));
+            clickedKey = -1;
+        }
         // Waiting, the tempo's the player's to choose (the instrument's A and D strings too): from the slowest the
         // drill goes to its goal
         if (stage == Stage::Waiting){
@@ -255,7 +278,7 @@ void DrillExercise::update(){
     };
     // Timing only (rhythm): every key and every note is "the" note, on the one string it's written on
     auto timingString = [&](){ return drillNotes.empty() ? 0 : drillNotes[0].stringIndex; };
-    int lanes = std::min((int)setup.tuning.size(), MAX_KEY_LANES);
+    int lanes = piano ? 0 : std::min((int)setup.tuning.size(), MAX_KEY_LANES); // (a piano's notes are its keys)
     for (int lane = 0; lane < lanes; lane++){
         if (!IsKeyPressed(KEY_ONE + lane)) continue;
         PlayerInput press;
@@ -264,7 +287,7 @@ void DrillExercise::update(){
         judge(press);
     }
     // The keyboard's notes by name (input/keynotes), taken in the octave of the note due nearest now, and heard
-    if (!setup.timingOnly){
+    if (!setup.timingOnly && !computerPiano()){
         const int keyClass = keyboardNoteClass();
         if (keyClass >= 0){
             int expected = -1;
@@ -276,12 +299,27 @@ void DrillExercise::update(){
             }
             const int pitch = nearestPitchOfClass(keyClass, expected >= 0 ? expected : 60);
             const bool bass = *std::min_element(setup.tuning.begin(), setup.tuning.end()) < 36;
-            playStringNote(midiToFrequency((float)pitch), bass, 0.6f, 0.7f);
+            if (piano) playKeysNote(midiToFrequency((float)pitch));
+            else playStringNote(midiToFrequency((float)pitch), bass, 0.6f, 0.7f);
             PlayerInput press;
             press.time = t;
             press.pitch = pitch;
             judge(press);
             lastPlayedPitch = pitch;
+        }
+    }
+    // A piano's keys (and the keys clicked on screen), heard on the game's piano: most keyboards make no sound of their own
+    if (piano){
+        std::vector<PlayedNote> pressed = updateKeysInput();
+        if (clickedKey >= 0) pressed.push_back({ clickedKey, 0.0f, 0.0 });
+        clickedKey = -1;
+        for (const PlayedNote& played : pressed){
+            playKeysNote(midiToFrequency((float)played.pitch));
+            PlayerInput input;
+            input.time = t - played.age;
+            input.pitch = played.pitch;
+            judge(input);
+            lastPlayedPitch = played.pitch;
         }
     }
     if (noteInputActive()){
@@ -317,15 +355,17 @@ void DrillExercise::draw(){
         return;
     }
     // (shown where: the title says what's read, and an input's error takes its line's place, for the neck's room)
-    if (!setup.showWhere) centeredColoredText(setup.about.c_str(), uiColor(UiColor::Dim));
+    const bool board = setup.showWhere || piano; // a neck or a piano's keys, between the text and the notes
+    if (!board) centeredColoredText(setup.about.c_str(), uiColor(UiColor::Dim));
     if (!running){
-        centeredText(menuInputActive() ? "Space or the open G string to start. Up and Down (the A and D strings): the tempo."
+        centeredText(menuInputActive() && !piano ? "Space or the open G string to start. Up and Down (the A and D strings): the tempo."
                                        : "Space to start, one bar counting in. Up and Down: the tempo.");
         const int challenge = drillChallengeTempo(setup.tempo);
         if (shownTempo < challenge)
             centeredColoredText(TextFormat("Practice: a clean pass at %d bpm or faster passes the drill", challenge), uiColor(UiColor::Dim));
-        centeredColoredText(bandOn ? TextFormat("With a %s band, its chords fitting your notes.  M: the metronome alone", bandStyleName(bandStyle))
-                                   : "With the metronome.  M: a band instead", uiColor(UiColor::Accent));
+        const char* bandKey = computerPiano() ? "Tab" : "M";
+        centeredColoredText(bandOn ? TextFormat("With a %s band, its chords fitting your notes.  %s: the metronome alone", bandStyleName(bandStyle), bandKey)
+                                   : TextFormat("With the metronome.  %s: a band instead", bandKey), uiColor(UiColor::Accent));
     } else {
         double t = drillTime();
         // How it's going: hit of the notes so far, out of the pass's
@@ -338,7 +378,11 @@ void DrillExercise::draw(){
     }
     if (!passText.empty()) centeredColoredText(passText.c_str(), uiColor(UiColor::Good));
     if (!inputError.empty()) centeredErrorText(inputError);
-    if (noteInputActive()){
+    if (piano){
+        centeredColoredText(keysInputIsMidi() ? "Play on your MIDI keyboard, or click the keys"
+                                              : "No MIDI keyboard: the computer keyboard is the piano, each key's letter on it. Or click the keys",
+                            uiColor(UiColor::Dim));
+    } else if (noteInputActive()){
         centeredColoredText(lastPlayedPitch >= 0 ? TextFormat("Listening: you played %s%d", pitchClassName(lastPlayedPitch), pitchOctave(lastPlayedPitch))
                                                  : "Listening to your instrument", uiColor(UiColor::Dim));
     } else if (inputError.empty() || !setup.showWhere){
@@ -348,10 +392,11 @@ void DrillExercise::draw(){
     // The notes, in whichever views the settings choose, below the text. Shown where: the neck above them, one panel
     // with the sheet music, over the top of its room (kept for notes far above the staff)
     float width = (float)GetScreenWidth(), height = (float)GetScreenHeight();
-    const float notesTop = setup.showWhere ? height * 0.51f : height * 0.48f;
-    if (setup.showWhere){
+    const float notesTop = board ? height * 0.51f : height * 0.48f;
+    if (board){
         DrawRectangleRec({ 0, height * 0.35f, width, notesTop - height * 0.35f }, themeColor(UiColor::Card));
-        drawWhere(width * 0.07f, width * 0.93f, height * 0.35f, height * 0.57f, menuScale());
+        if (piano) drawKeys(width * 0.07f, width * 0.93f, height * 0.36f, notesTop - height * 0.01f, menuScale());
+        else drawWhere(width * 0.07f, width * 0.93f, height * 0.35f, height * 0.57f, menuScale());
     }
     // Waiting, the pass stands still, shown as a moment before it starts
     TimeAxis axis = { running ? (float)drillTime() : (float)(WAITING_DOWNBEAT - WAITING_SHOWN_S), HIT_LINE_X, settings.noteSpeed };
@@ -394,6 +439,31 @@ void DrillExercise::drawWhere(float left, float right, float top, float bottom, 
         cardOutline(draw, ImVec2(board.fretX(lastHit.fret), board.stringY(lastHit.stringIndex)), halfW, halfH, 3 * s + 14 * s * since / HIT_RING_S,
                     uiColor(UiColor::Good, fade), 2.5f * s);
     }
+}
+
+// A piano's keyboard, where the neck is shown: the keys held down, the one just hit green a moment (sparks), the next
+// to play lit (shown where); on the computer keyboard, each key's letter. A click on a key plays it.
+void DrillExercise::drawKeys(float left, float right, float top, float bottom, float s){
+    keys = pianoBoard(left, top, right - left, bottom - top, keysLow, keysHigh);
+    if (burstDue && lastHit.pitch >= 0 && keys.shows(lastHit.pitch)){
+        const ImVec4 key = keys.keyRect(lastHit.pitch);
+        spawnBurst(ImVec2(key.x + key.z / 2, key.y + key.w * 0.75f), uiColor(UiColor::Good), 14, 260.0f, s);
+        burstDue = false;
+    }
+    const PlayNote* next = nullptr;
+    if (setup.showWhere) for (const PlayNote& note : notes) if (!note.judged){ next = &note; break; }
+    const bool* down = keysInputDown();
+    const float pulse = 0.5f + 0.5f * std::sin((float)GetTime() * 5.0f), since = (float)(GetTime() - hitAt);
+    const int clicked = drawPianoBoard(keys, s, [&](int pitch){
+        PianoKeyStyle look;
+        const ImU32 own = pianoKeyColor(pitch - keys.firstPitch);
+        if (next && next->pitch == pitch) look.fill = mixColor(own, uiColor(UiColor::Accent), 0.55f + 0.45f * pulse);
+        if (down && pitch >= 0 && pitch < 128 && down[pitch]) look.fill = mixColor(own, uiColor(UiColor::Ink), 0.35f);
+        if (lastHit.pitch == pitch && since < HIT_RING_S) look.fill = mixColor(own, uiColor(UiColor::Good), 1.0f - since / HIT_RING_S * 0.6f);
+        look.label = keysInputLabel(pitch);
+        return look;
+    });
+    if (clicked >= 0) clickedKey = clicked;
 }
 
 // How the pass went, big, then what to do: again (at the tempo it earned), the other tempo, the course's next drill,
@@ -464,7 +534,7 @@ void DrillExercise::drawEnd(float s){
     }
     add("Back", Choice::Back, 0, "Esc");
     int picked = menuList(endMenu, rows, { ImVec2(left, height * 0.42f), width * 0.5f, height * 0.45f, s });
-    for (size_t i = 0; i < choices.size(); i++){ // the shortcuts: N the next drill, C the challenge
+    for (size_t i = 0; i < choices.size() && !computerPiano(); i++){ // the shortcuts: N the next drill, C the challenge (not keys)
         if (ImGui::IsKeyPressed(ImGuiKey_N, false) && choices[i].first == Choice::Next) picked = (int)i;
         if (ImGui::IsKeyPressed(ImGuiKey_C, false) && rows[i].key == "C") picked = (int)i;
     }

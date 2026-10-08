@@ -65,6 +65,12 @@ ImVec4 uiColorVec(UiColor role, float alpha){
     return ImVec4(c.r / 255.0f, c.g / 255.0f, c.b / 255.0f, c.a / 255.0f * alpha);
 }
 
+ImU32 mixColor(ImU32 a, ImU32 b, float t){
+    const ImVec4 from = ImGui::ColorConvertU32ToFloat4(a), to = ImGui::ColorConvertU32ToFloat4(b);
+    t = std::clamp(t, 0.0f, 1.0f);
+    return ImGui::ColorConvertFloat4ToU32(ImVec4(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t, from.z + (to.z - from.z) * t, 1.0f));
+}
+
 ImU32 uiColor(UiColor role, float alpha){
     return ImGui::ColorConvertFloat4ToU32(uiColorVec(role, alpha));
 }

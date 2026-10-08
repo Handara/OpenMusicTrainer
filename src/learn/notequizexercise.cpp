@@ -286,13 +286,6 @@ void NoteQuizExercise::drawNeck(float left, float right, float top, float bottom
     }
 }
 
-// The color between two (t 0: the first, 1: the second)
-static ImU32 mixColor(ImU32 a, ImU32 b, float t){
-    const ImVec4 from = ImGui::ColorConvertU32ToFloat4(a), to = ImGui::ColorConvertU32ToFloat4(b);
-    t = std::clamp(t, 0.0f, 1.0f);
-    return ImGui::ColorConvertFloat4ToU32(ImVec4(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t, from.z + (to.z - from.z) * t, 1.0f));
-}
-
 // The keyboard: the key asked lit when it's shown (pulsing), the ones that could be asked tinted (by ear), the keys
 // held down, the one just played right green, a wrong one red for a moment. On the computer keyboard, each key's
 // letter on it.

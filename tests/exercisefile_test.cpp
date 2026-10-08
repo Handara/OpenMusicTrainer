@@ -1,6 +1,7 @@
 #include "doctest/doctest.h"
 
 #include "core/exercisefile.h"
+#include "core/reading.h"
 
 #include <filesystem>
 #include <fstream>
@@ -167,6 +168,42 @@ TEST_CASE("a reading drill from some notes, the neck shown"){
     CHECK_FALSE(file.reading.showWhere); // no neck unless asked
     CHECK_FALSE(loadExerciseFile(writeExercise("where3.exercise", head + "where maybe\n"), file, error));
     CHECK(error.find("where must be yes or no") != std::string::npos);
+}
+
+TEST_CASE("a reading drill on the piano: its keys, a note's fret its pitch"){
+    ExerciseFile file;
+    std::string error;
+    // Some notes, anywhere on the keyboard (a guitar's neck stops at fret 24)
+    REQUIRE_MESSAGE(loadExerciseFile(writeExercise("pianonotes.exercise", "version 1\ntype reading\ntitle C to G\ninstrument piano\nnotes C4 G4 C6\n"),
+                                     file, error), error);
+    CHECK(file.instrument == ExerciseInstrument::Piano);
+    CHECK(file.reading.tuning == std::vector<int>{ 0 });
+    std::mt19937 rng(3);
+    std::vector<DrillNote> notes;
+    REQUIRE(buildReading(file.reading, rng, notes, error));
+    for (const DrillNote& note : notes){
+        CHECK(note.stringIndex == 0);
+        CHECK(note.fret == note.pitch);
+    }
+    // A melody in a key, over a range of notes (default: middle C to the C above)
+    REQUIRE_MESSAGE(loadExerciseFile(writeExercise("pianorange.exercise", "version 1\ntype reading\ntitle G\ninstrument piano\nkey G\nrange D4 D5\n"),
+                                     file, error), error);
+    CHECK(file.reading.lowestFret == 62);
+    CHECK(file.reading.highestFret == 74);
+    REQUIRE(buildReading(file.reading, rng, notes, error));
+    for (const DrillNote& note : notes){
+        CHECK(note.pitch >= 62);
+        CHECK(note.pitch <= 74);
+        CHECK(note.pitch % 12 != 5); // no F natural in G major
+    }
+    REQUIRE(loadExerciseFile(writeExercise("pianodefault.exercise", "version 1\ntype reading\ntitle C\ninstrument piano\n"), file, error));
+    CHECK(file.reading.lowestFret == 60);
+    CHECK(file.reading.highestFret == 72);
+    // No strings on a piano
+    CHECK_FALSE(loadExerciseFile(writeExercise("pianostrings.exercise", "version 1\ntype reading\ntitle C\ninstrument piano\nstrings 1 2\n"), file, error));
+    CHECK(error.find("a piano has no strings") != std::string::npos);
+    CHECK_FALSE(loadExerciseFile(writeExercise("pianorange2.exercise", "version 1\ntype reading\ntitle C\ninstrument piano\nrange G4 C4\n"), file, error));
+    CHECK(error.find("expected: range") != std::string::npos);
 }
 
 TEST_CASE("routine exercise files"){

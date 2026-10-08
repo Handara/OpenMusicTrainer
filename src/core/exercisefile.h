@@ -69,6 +69,8 @@
 //   leap 2                       (the widest move, in notes of the scale: 1 = by step only)
 //   notes E4 F4                  (or just these notes, at random, each where it's lowest on the neck)
 //   where yes                    (the neck shown too, the next note lit on it: default no)
+//   instrument piano             (guitar, bass or piano: a piano's keys shown, no strings or frets)
+//   range C4 G4                  (a piano's: the key's notes from this one to that; default middle C to the C above)
 //   and a rhythm drill's cells, bars, time, tempo, pass and tuning
 //
 // A chord change drill (`type chords`), all optional:

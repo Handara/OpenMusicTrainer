@@ -211,6 +211,7 @@ bool parseExercise(const std::string& source, const std::string& path, int first
     std::vector<int> fretboardStrings; // as written (1 = lowest): checked against the tuning once it's all read
     int fretboardStringsLine = 0;
     std::vector<int> readingStrings;   // the same, for reading drills
+    int readingLow = -1, readingHigh = -1; // a piano's reading drill: the notes from its key's scale (its 'range')
     int readingStringsLine = 0;
     // Play this note: its notes as written, placed once the instrument is known
     std::vector<int> quizPitches, quizStrings;
@@ -486,6 +487,14 @@ bool parseExercise(const std::string& source, const std::string& path, int first
             while (ss >> string) readingStrings.push_back(string);
             if (readingStrings.empty()) return lineError("expected: strings <string numbers, 1 = the lowest>");
             readingStringsLine = lineNumber;
+        } else if (out.type == ExerciseType::Reading && key == "instrument"){
+            std::string word;
+            ss >> word;
+            if (!readInstrument(word, true, said)) return lineError("instrument must be guitar, bass or piano");
+        } else if (out.type == ExerciseType::Reading && key == "range"){
+            std::string low, high;
+            if (!(ss >> low >> high) || !parseNoteName(low, readingLow) || !parseNoteName(high, readingHigh) || readingLow > readingHigh)
+                return lineError("expected: range <lowest note> <highest note>, like range C4 G4");
         } else if (out.type == ExerciseType::Reading && key == "where"){
             std::string word;
             ss >> word;
@@ -506,6 +515,7 @@ bool parseExercise(const std::string& source, const std::string& path, int first
     if (out.title.empty()) return fileError("missing 'title'");
     // What it's played on
     auto byTuning = [](const std::vector<int>& tuning){
+        if (isPianoTuning(tuning)) return ExerciseInstrument::Piano;
         return !tuning.empty() && *std::min_element(tuning.begin(), tuning.end()) < 36 ? ExerciseInstrument::Bass : ExerciseInstrument::Guitar;
     };
     out.neckOnBass = said == ExerciseInstrument::Bass;
@@ -513,7 +523,7 @@ bool parseExercise(const std::string& source, const std::string& path, int first
         case ExerciseType::Notes: case ExerciseType::Neck: case ExerciseType::NeckWalk:
             out.instrument = said == ExerciseInstrument::Any ? ExerciseInstrument::Guitar : said;
             break;
-        case ExerciseType::Reading: out.instrument = byTuning(out.reading.tuning); break;
+        case ExerciseType::Reading: out.instrument = said == ExerciseInstrument::Piano ? said : byTuning(out.reading.tuning); break;
         case ExerciseType::Scale: out.instrument = byTuning(out.drill.tuning); break;
         case ExerciseType::Fretboard: out.instrument = byTuning(out.fretboard.tuning); break;
         case ExerciseType::Chords: out.instrument = ExerciseInstrument::Guitar; break;
@@ -559,6 +569,17 @@ bool parseExercise(const std::string& source, const std::string& path, int first
         if (!quizOctaveSet) quiz.anyOctave = quiz.prompt == NotePrompt::Name;
         quiz.pass = std::min(quiz.pass, quiz.count);
         return true;
+    }
+    if (out.type == ExerciseType::Reading && out.instrument == ExerciseInstrument::Piano){
+        // A piano's keys, each note its own: its one "string" tuned to 0 (core/drill isPianoTuning), so a note's fret is
+        // its pitch, and a range of notes is a range of frets
+        if (!readingStrings.empty()){
+            lineNumber = readingStringsLine;
+            return lineError("a piano has no strings: give the notes (notes C4 D4), or a range (range C4 G4)");
+        }
+        out.reading.tuning = { 0 };
+        out.reading.lowestFret = readingLow >= 0 ? readingLow : 60;   // middle C...
+        out.reading.highestFret = readingHigh >= 0 ? readingHigh : 72; // ...to the C above
     }
     if (out.type == ExerciseType::Reading){
         for (int string : readingStrings){

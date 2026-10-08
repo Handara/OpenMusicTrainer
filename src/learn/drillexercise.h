@@ -8,6 +8,7 @@
 #include "core/settings.h"
 #include "learn/exercise.h"
 #include "ui/menulist.h"
+#include "ui/pianoboard.h"
 
 #include <functional>
 #include <string>
@@ -23,6 +24,7 @@ struct DrillSetup {
     bool timingOnly = false;    // any number key or played note counts: only when it's played is judged (rhythm)
     bool staffOnly = false;     // sheet music only, whatever the settings show (sight reading: no tab to read instead)
     bool showWhere = false;     // a neck too, between the text and the notes, the next note lit on it (a help to read)
+    int lowPitch = -1, highPitch = -1; // the notes a pass may have (-1: the first pass's): a piano's keyboard covers them
     std::function<std::vector<DrillNote>()> nextPass; // the notes of each pass: a scale's are the same every time,
                                                       // a rhythm's new
 };
@@ -32,7 +34,9 @@ struct DrillSetup {
 // notes until Space (or the instrument's choose, its open G string: input/menuinput), and after each pass shows how
 // it went with a menu: again (at the tempo it earned), faster or the same, the course's next drill, back. Waiting and
 // on that menu, the instrument steers as in the menus. It's played with a backing band (audio/band): drums, bass and
-// keys in the drill's own style, chords fitting the notes read; or (B) to the metronome alone.
+// keys in the drill's own style, chords fitting the notes read; or (M) to the metronome alone. On a piano (its tuning
+// core/drill isPianoTuning) it's played on a MIDI keyboard, or the computer keyboard laid out as one, shown under the
+// text with each key's letter (and the next note lit, shown where).
 class DrillExercise : public Exercise {
 public:
     DrillExercise(const std::string& title, const DrillSetup& setup, const std::string& progressPath, const Settings& settings);
@@ -45,7 +49,7 @@ public:
     bool takeFinishedRun(int& percent) override;
     bool scoresRuns() const override { return true; }
     bool goesOn() const override { return true; } // each clean pass, faster
-    bool isMenu() const override { return stage != Stage::Running; }
+    bool isMenu() const override { return !piano && stage != Stage::Running; } // (a piano's keys don't steer the menus)
     bool hasEndMenu() const override { return true; }
     void offerNext(const std::string& label) override { nextLabel = label; }
     bool takeNextChosen() override;
@@ -62,6 +66,8 @@ private:
     void drawHistory(float left, float top, float width, float height, float s); // the last passes' tempos, a line
     void drawCountIn(float s);  // the count-in's beats, big: 4, 3, 2, 1
     void drawCombo(float s);    // the notes in a row, while it's 3 or more
+    void drawKeys(float left, float right, float top, float bottom, float s); // a piano's keyboard, as the neck is shown
+    bool computerPiano() const; // a piano drill played on the computer keyboard: its letters are keys
     void toggleBand();          // the band, or the metronome alone (kept for every drill)
 
     std::string title;
@@ -96,6 +102,11 @@ private:
     PlayNote lastHit{ 0.0f, -1, -1, -1 }; // the last note hit, and when: ringed on the neck a moment
     double hitAt = -100.0;
     bool leave = false;
+    // On a piano: the keys shown, the notes they cover, a key clicked (played next update)
+    bool piano = false;
+    PianoBoard keys;
+    int keysLow = 60, keysHigh = 72;
+    int clickedKey = -1;
     // The end menu: the pass just played, and what's offered after it
     MenuList endMenu;
     int endTempo = 0, endHits = 0, endTotal = 0;

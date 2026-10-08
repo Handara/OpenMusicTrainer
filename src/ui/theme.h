@@ -35,6 +35,7 @@ void setAccessibility(bool colorBlind, bool reduceMotion, float uiScale);
 bool reducedMotion();
 float uiScaleSetting();
 ImU32 uiColor(UiColor role, float alpha = 1.0f);
+ImU32 mixColor(ImU32 a, ImU32 b, float t); // the color between two (t 0: the first, 1: the second), opaque
 ImVec4 uiColorVec(UiColor role, float alpha = 1.0f);
 
 // The fonts, for ImGui::PushFont(font, size); each is null if its file is missing (ImGui's own is used then)

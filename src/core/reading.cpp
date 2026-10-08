@@ -34,7 +34,7 @@ static bool buildPoolReading(const ReadingConfig& config, std::mt19937& rng, std
         DrillNote best{ 0.0, -1, -1, pitch };
         for (int s = 0; s < (int)config.tuning.size(); s++){
             const int fret = pitch - config.tuning[s];
-            if (fret >= 0 && fret <= 24 && (best.stringIndex < 0 || fret < best.fret)) best = { 0.0, s, fret, pitch };
+            if (fret >= 0 && (fret <= 24 || isPianoTuning(config.tuning)) && (best.stringIndex < 0 || fret < best.fret)) best = { 0.0, s, fret, pitch };
         }
         if (best.stringIndex < 0){
             error = "a note of 'notes' isn't on this instrument's neck";
