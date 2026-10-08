@@ -287,6 +287,7 @@ add_executable(lahn
     src/screens/tuner.cpp
     src/screens/tuningscreen.cpp
     src/screens/tonewizard.cpp
+    src/ui/helpoverlay.cpp
     src/ui/rewards.cpp
     src/app/playerprogress.cpp
     src/views/neckview.cpp

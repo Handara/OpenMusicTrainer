@@ -29,6 +29,7 @@
 #include "screens/tuningscreen.h"
 #include "input/menuinput.h"
 #include "screens/tonewizard.h"
+#include "ui/helpoverlay.h"
 #include "ui/menulist.h"
 #include "ui/rewards.h"
 #include "ui/transition.h"
@@ -583,6 +584,10 @@ static bool hasBackButton(Screen screen){
 static void handleBackKey(bool backClicked){
     bool mouseBack = hasBackButton(app.screen) && (IsMouseButtonPressed(MOUSE_BUTTON_SIDE) || IsMouseButtonPressed(MOUSE_BUTTON_BACK));
     if (!IsKeyPressed(KEY_ESCAPE) && !backClicked && !mouseBack && !menuInputBack()) return;
+    if (helpOpen()){ // the controls' card shown: back closes it, and nothing else
+        closeHelp();
+        return;
+    }
     switch (app.screen){
         case Screen::MainMenu: break;
         case Screen::SongSelect: if (!songSelectBack()) app.screen = Screen::MainMenu; break;
@@ -928,8 +933,15 @@ int main(void){
         else drawMenuBackground();
 
         beginUiFrame();
-        runMenus();
-        bool backClicked = app.screen == shown && hasBackButton(shown) && menuBackButton(menuScale());
+        // F1: the controls, over everything (not in the editors: they have their own). While they're shown, the screen
+        // behind waits (a song pauses), so no key meant for the card reaches it
+        if (ImGui::IsKeyPressed(ImGuiKey_F1, false) && app.screen != Screen::Editor && app.screen != Screen::LessonEditor){
+            toggleHelp();
+            if (helpOpen() && app.screen == Screen::Playing) pauseGameplay();
+        }
+        if (helpOpen()) drawHelpOverlay(menuScale());
+        else runMenus();
+        bool backClicked = !helpOpen() && app.screen == shown && hasBackButton(shown) && menuBackButton(menuScale());
         const bool hearingShown = hasBackButton(shown) || (shown == Screen::Playing && gameplayPaused());
         if ((app.screen == shown && hearingShown && hearingButton(menuScale())) || IsKeyPressed(KEY_F2)) toggleHearing();
         if (app.screen == shown && menuScreen) drawMenuInputLegend(menuScale());
