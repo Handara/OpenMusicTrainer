@@ -43,6 +43,9 @@ struct Settings {
     float editorSongVolume = 1.0f;
     bool editorNoteNames = true;       // each note's name in it, under its fret, in the editor
     std::string previewSound = "drop";  // a built-in sound, or a file name in the user's sounds folder
+    float bandVolume = 0.8f;           // the backing band in the timed drills
+    float clickVolume = 0.8f;          // the metronome's clicks: counting in, the metronome itself
+    float rewardVolume = 0.8f;         // the chimes of what's earned (XP, levels, achievements)
     float hitSoundVolume = 0.5f;       // the sound on each note hit with an instrument (0 for none)...
     bool hitSoundIsNote = true;        // ...the note itself on the part's own instrument (lahn's bass or guitar), or a drop
     // Hearing the instrument through lahn wherever the player is (audio.h: setMonitor)

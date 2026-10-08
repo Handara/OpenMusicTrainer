@@ -106,6 +106,7 @@ int audioSampleRate(); // the engine's: what sounds for playSamplesAt are render
 double audioTime();
 // A metronome click at a time on that clock (now, if the time has passed); accent = the first beat of a bar
 void playClickAt(double time, bool accent);
+void setClickVolume(float volume); // 0..1: the clicks from now on
 void stopPreviews();
 // The hit sound, osu!-style: a short drop on each note hit while playing an instrument, brighter for a perfect. Its
 // own volume (0..1, 0 for none), since it plays over the player's own instrument.

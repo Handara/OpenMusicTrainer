@@ -78,6 +78,9 @@ Settings loadSettings(const std::string& path, std::vector<std::string>& warning
         else if (key == "master_volume") number(settings.masterVolume, 0.0f, 1.0f);
         else if (key == "preview_volume") number(settings.previewVolume, 0.0f, 1.0f);
         else if (key == "hit_sound_volume") number(settings.hitSoundVolume, 0.0f, 1.0f);
+        else if (key == "band_volume") number(settings.bandVolume, 0.0f, 1.0f);
+        else if (key == "click_volume") number(settings.clickVolume, 0.0f, 1.0f);
+        else if (key == "reward_volume") number(settings.rewardVolume, 0.0f, 1.0f);
         else if (key == "hit_sound") settings.hitSoundIsNote = value != "drop";
         else if (key == "editor_note_volume") number(settings.editorNoteVolume, 0.0f, 1.0f);
         else if (key == "editor_song_volume") number(settings.editorSongVolume, 0.0f, 1.0f);
@@ -151,6 +154,9 @@ bool saveSettings(const std::string& path, const Settings& settings, std::string
     out << "master_volume " << settings.masterVolume << "\n";
     out << "preview_volume " << settings.previewVolume << "\n";
     out << "hit_sound_volume " << settings.hitSoundVolume << "\n";
+    out << "band_volume " << settings.bandVolume << "\n";
+    out << "click_volume " << settings.clickVolume << "\n";
+    out << "reward_volume " << settings.rewardVolume << "\n";
     out << "hit_sound " << (settings.hitSoundIsNote ? "note" : "drop") << "\n";
     out << "editor_note_volume " << settings.editorNoteVolume << "\n";
     out << "editor_song_volume " << settings.editorSongVolume << "\n";

@@ -1644,13 +1644,19 @@ int audioSampleRate(){
     return audio.engineReady ? (int)ma_engine_get_sample_rate(&audio.engine) : 0;
 }
 
+static float clickVolume = 1.0f;
+
+void setClickVolume(float volume){
+    clickVolume = std::clamp(volume, 0.0f, 1.0f);
+}
+
 void playClickAt(double time, bool accent){
-    if (!audio.engineReady) return;
+    if (!audio.engineReady || clickVolume <= 0.0f) return;
     Voice& voice = takeVoice();
     ma_uint32 sampleRate = ma_engine_get_sample_rate(&audio.engine);
     voice.samples.resize((size_t)(CLICK_LENGTH_S * sampleRate));
     renderClick(voice.samples.data(), (int)voice.samples.size(), (int)sampleRate, accent);
-    startVoice(voice, voice.samples.data(), voice.samples.size(), 1.0f, CLICK_VOLUME, (ma_uint64)std::llround(time * sampleRate));
+    startVoice(voice, voice.samples.data(), voice.samples.size(), 1.0f, CLICK_VOLUME * clickVolume, (ma_uint64)std::llround(time * sampleRate));
 }
 
 double audioTime(){

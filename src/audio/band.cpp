@@ -31,10 +31,11 @@ void BandPlayer::schedule(double until){
         const double at = downbeat + hit.beat * beat;
         if (at >= until) break;
         const float seconds = (float)(hit.length * beat);
+        if (loudness <= 0.0f) continue;
         switch (hit.part){
-            case BandPart::Drums: playSamplesAt(kit[(int)hit.drum], at, DRUMS_VOLUME * hit.velocity); break;
-            case BandPart::Bass: playStringNoteAt(midiToFrequency((float)hit.pitch), true, seconds, at, BASS_VOLUME * hit.velocity); break;
-            case BandPart::Keys: playBuiltInNoteAt("keys", midiToFrequency((float)hit.pitch), at, seconds + 0.15f, KEYS_VOLUME * hit.velocity); break;
+            case BandPart::Drums: playSamplesAt(kit[(int)hit.drum], at, DRUMS_VOLUME * hit.velocity * loudness); break;
+            case BandPart::Bass: playStringNoteAt(midiToFrequency((float)hit.pitch), true, seconds, at, BASS_VOLUME * hit.velocity * loudness); break;
+            case BandPart::Keys: playBuiltInNoteAt("keys", midiToFrequency((float)hit.pitch), at, seconds + 0.15f, KEYS_VOLUME * hit.velocity * loudness); break;
         }
     }
     if (next >= song.hits.size()) playing = false;

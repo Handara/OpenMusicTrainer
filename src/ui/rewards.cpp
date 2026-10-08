@@ -59,10 +59,18 @@ void drawMedal(ImDrawList* draw, ImVec2 c, float radius, Tier tier, bool unlocke
     drawStar(draw, c, radius * 0.5f, unlocked ? IM_COL32(255, 255, 255, (int)(235 * alpha)) : uiColor(UiColor::Background, 0.8f * alpha));
 }
 
+static float rewardVolume = 1.0f;
+
+void setRewardVolume(float volume){
+    rewardVolume = std::clamp(volume, 0.0f, 1.0f);
+}
+
 // Its jingle, on the game's keys
 static void chime(Reward::Kind kind){
     const double at = audioTime() + 0.03;
-    auto note = [&](int pitch, double after, float seconds, float volume){ playBuiltInNoteAt("keys", midiToFrequency((float)pitch), at + after, seconds, volume); };
+    auto note = [&](int pitch, double after, float seconds, float volume){
+        playBuiltInNoteAt("keys", midiToFrequency((float)pitch), at + after, seconds, volume * rewardVolume);
+    };
     switch (kind){
         case Reward::Kind::Level: { // up the major chord, and the octave on top, held
             const int arpeggio[4] = { 0, 4, 7, 12 };

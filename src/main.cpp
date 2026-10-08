@@ -885,6 +885,8 @@ int main(void){
     setMasterVolume(app.settings.masterVolume);
     setExclusiveCapture(app.settings.exclusiveInput);
     setHitSoundVolume(app.settings.hitSoundVolume);
+    setClickVolume(app.settings.clickVolume);
+    setRewardVolume(app.settings.rewardVolume);
     initTones((fs::path(app.userDataDir) / "tones").string());
     initPlayerProgress(app.progressDir, app.settings.dailyGoalMinutes); // the journal: XP, level, streak, achievements
     std::string monitorError;

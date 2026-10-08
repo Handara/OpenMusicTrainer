@@ -7,6 +7,7 @@
 // level's bar filling under it; then, one at a time, a card for the daily goal met (and the streak), a new level,
 // each achievement, sliding in from the top with a chime. Drawn over everything, once a frame.
 void drawRewards(float scale);
+void setRewardVolume(float volume); // 0..1: the chimes
 
 // An achievement's medal: a disc in its tier's metal (bronze, silver, gold), ringed, with a star; dim while locked
 void drawMedal(ImDrawList* draw, ImVec2 center, float radius, Tier tier, bool unlocked, float alpha = 1.0f);

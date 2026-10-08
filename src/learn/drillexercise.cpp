@@ -57,6 +57,7 @@ DrillExercise::DrillExercise(const std::string& title, const DrillSetup& setup, 
     std::ifstream chosen(bandPath);
     std::string sound;
     bandOn = !(chosen >> sound) || sound != "metronome";
+    band.setVolume(settings.bandVolume);
     if (settings.playWithInstrument){
         float lowest = midiToFrequency((float)*std::min_element(setup.tuning.begin(), setup.tuning.end())) * 0.9f;
         int lowestPitch = *std::min_element(setup.tuning.begin(), setup.tuning.end());

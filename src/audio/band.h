@@ -16,6 +16,7 @@ public:
     void schedule(double until); // every hit before `until` (audio time) handed to the engine
     void stop();                 // nothing more handed (what's handed still plays: stopPreviews for that)
     bool active() const { return playing; }
+    void setVolume(float volume){ loudness = volume; } // 0..1, against the band's own mix
     double endTime() const { return downbeat + song.endBeat * beat; }
 
 private:
@@ -23,5 +24,6 @@ private:
     double downbeat = 0.0, beat = 0.5;
     size_t next = 0;
     bool playing = false;
+    float loudness = 1.0f;
     std::vector<float> kit[5];
 };

@@ -13,6 +13,7 @@
 #include "ui/ui.h"
 #include "ui/menulist.h"
 #include "ui/pianoview.h"
+#include "ui/rewards.h"
 #include "ui/settingsui.h"
 #include "ui/theme.h"
 
@@ -240,6 +241,10 @@ static void audioSection(Settings& settings, const std::string& soundsDir, Setti
     settingsGroup("VOLUME");
     if (percentSlider("Everything", nullptr, &settings.masterVolume)) setMasterVolume(settings.masterVolume);
     if (percentSlider("Preview sounds", "Notes you play on the keyboard, drums and ear training (the song editor has its own volumes)", &settings.previewVolume)) setPreviewVolume(settings.previewVolume);
+    percentSlider("Backing band", "The band playing along in the timed drills", &settings.bandVolume);
+    if (percentSlider("Metronome", "The clicks: counting in, and the metronome in drills and practice", &settings.clickVolume)) setClickVolume(settings.clickVolume);
+    if (ImGui::IsItemDeactivatedAfterEdit()) playClickAt(audioTime() + 0.05, true); // heard at the level just set
+    if (percentSlider("Rewards", "The chimes of XP, levels, achievements and goals met", &settings.rewardVolume)) setRewardVolume(settings.rewardVolume);
     if (percentSlider("Hit sound", "On every note you hit with your instrument", &settings.hitSoundVolume)) setHitSoundVolume(settings.hitSoundVolume);
     // Heard at the level just set, the way it's set
     auto hearHitSound = [&]{
