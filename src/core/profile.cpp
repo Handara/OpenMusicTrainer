@@ -65,6 +65,9 @@ const std::vector<Achievement>& achievements(){
         { "challenge-10", "Ten out of ten", "Pass 10 drills", Metric::DrillsPassed, 10, Tier::Silver },
         { "challenge-50", "Unstoppable", "Pass 50 drills", Metric::DrillsPassed, 50, Tier::Gold },
         { "perfect-1", "Flawless", "Every note right in a run", Metric::PerfectRuns, 1, Tier::Silver },
+        { "combo-25", "In the zone", "25 notes in a row, right", Metric::BestCombo, 25, Tier::Bronze },
+        { "combo-100", "Locked in", "100 notes in a row, right", Metric::BestCombo, 100, Tier::Silver },
+        { "combo-500", "Machine", "500 notes in a row, right", Metric::BestCombo, 500, Tier::Gold },
         { "perfect-10", "Perfectionist", "10 flawless runs", Metric::PerfectRuns, 10, Tier::Gold },
         { "chapter-1", "Chapter one", "Pass a course's chapter", Metric::ChaptersPassed, 1, Tier::Bronze },
         { "chapter-20", "Bookworm", "Pass 20 chapters", Metric::ChaptersPassed, 20, Tier::Silver },
@@ -168,6 +171,7 @@ PlayerProfile buildProfile(const std::vector<Activity>& journal, int goalMinutes
             if (a.grade == "S" || a.grade == "SS") m[(int)Metric::SongsS]++;
         }
         if (a.kind == ActivityKind::Game) m[(int)Metric::BestGameRounds] = std::max(m[(int)Metric::BestGameRounds], (long long)a.rounds);
+        m[(int)Metric::BestCombo] = std::max(m[(int)Metric::BestCombo], (long long)a.combo);
         if (a.kind == ActivityKind::Chapter){
             m[(int)Metric::ChaptersPassed]++;
             if (a.unitDone) m[(int)Metric::LevelsDone]++;

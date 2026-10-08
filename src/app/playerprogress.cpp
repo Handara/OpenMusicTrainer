@@ -3,6 +3,7 @@
 #include "core/routine.h"
 #include "raylib.h"
 
+#include <algorithm>
 #include <ctime>
 #include <deque>
 #include <filesystem>
@@ -66,6 +67,14 @@ void recordActivity(Activity activity){
     if (change.goalMet) progress.rewards.push_back({ Reward::Kind::Goal, 0, 0, 0, change.streak });
     if (change.newLevel > 0) progress.rewards.push_back({ Reward::Kind::Level, 0, change.newLevel, 0, 0 });
     for (int achievement : change.achievements) progress.rewards.push_back({ Reward::Kind::Achievement, 0, 0, achievement, 0 });
+}
+
+std::vector<Activity> recentRuns(const std::string& id, int count){
+    std::vector<Activity> runs;
+    for (auto it = progress.journal.rbegin(); it != progress.journal.rend() && (int)runs.size() < count; ++it)
+        if (it->id == id) runs.push_back(*it);
+    std::reverse(runs.begin(), runs.end());
+    return runs;
 }
 
 const PlayerProfile& playerProfile(){

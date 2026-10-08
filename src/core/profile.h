@@ -33,7 +33,7 @@ long long xpToReach(int level); // from nothing; level 1 at 0
 enum class Metric {
     NotesRight, CleanPasses, DrillsPassed, PerfectRuns, ChaptersPassed, LevelsDone, CoursesDone, BestStreak, GoalDays,
     MinutesTotal, BestDayMinutes, BestTempo, BandPasses, SongsPlayed, FullCombos, SongsS, BestGameRounds, NightOwl,
-    EarlyBird, Comebacks, Instruments, PianoRuns, NotesKnown, Count
+    EarlyBird, Comebacks, Instruments, PianoRuns, NotesKnown, BestCombo, Count
 };
 enum class Tier { Bronze, Silver, Gold };
 

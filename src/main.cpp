@@ -329,6 +329,7 @@ static void recordRun(GameResult& result){
     activity.total = result.perfectCount + result.nearCount + result.missCount;
     activity.clean = run.fullCombo();
     activity.grade = gradeName(run.grade());
+    activity.combo = result.maxCombo;
     std::map<int, NoteTally> tallies;
     for (const WrittenNote& note : result.written){
         NoteTally& tally = tallies[note.pitch];

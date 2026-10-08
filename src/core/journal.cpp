@@ -34,6 +34,7 @@ std::string writeActivity(const Activity& a){
     if (a.band) out << " band=1";
     if (!a.grade.empty()) out << " grade=" << token(a.grade);
     if (a.rounds > 0) out << " rounds=" << a.rounds;
+    if (a.combo > 0) out << " combo=" << a.combo;
     if (a.unitDone) out << " unit=1";
     if (a.courseDone) out << " course=1";
     if (!a.notes.empty()){
@@ -77,6 +78,7 @@ bool readActivity(const std::string& line, Activity& out){
         else if (key == "band") a.band = value == "1";
         else if (key == "grade") a.grade = value;
         else if (key == "rounds") a.rounds = std::atoi(value.c_str());
+        else if (key == "combo") a.combo = std::atoi(value.c_str());
         else if (key == "unit") a.unitDone = value == "1";
         else if (key == "course") a.courseDone = value == "1";
         else if (key == "notes"){

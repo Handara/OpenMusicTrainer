@@ -16,6 +16,8 @@ void refreshPlayerProgress(); // worked out again: the day may have changed (the
 // and what it earned queued to be shown
 void recordActivity(Activity activity);
 const PlayerProfile& playerProfile();
+// The latest runs of one drill (or song...), by its id: oldest first, at most `count`
+std::vector<Activity> recentRuns(const std::string& id, int count);
 
 struct Reward {
     enum class Kind { Xp, Goal, Level, Achievement } kind = Kind::Xp;

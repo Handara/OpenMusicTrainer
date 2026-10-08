@@ -4,6 +4,7 @@
 #include "core/music.h"
 #include "imgui.h"
 #include "app/playerprogress.h"
+#include "core/ranking.h"
 #include "input/keynotes.h"
 #include "input/menuinput.h"
 #include "input/noteinput.h"
@@ -16,6 +17,7 @@
 #include "ui/theme.h"
 
 #include <algorithm>
+#include <cfloat>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -91,6 +93,7 @@ void DrillExercise::startPass(bool fresh){
     nextClick = 0;
     totalClicks = countIn + (int)std::ceil(lastBeat) + 1;
     hits = 0;
+    combo = bestCombo = missedSoFar = 0;
     // The band's song for these notes (its count-in the bar before), or the metronome's clicks
     if (bandOn){
         const int bars = std::max(1, (int)std::floor(lastBeat / setup.beatsPerBar) + 1);
@@ -142,6 +145,15 @@ void DrillExercise::finishPass(){
     activity.clean = outcome.clean;
     activity.challenge = outcome.clean && challenge;
     activity.band = bandOn;
+    activity.combo = bestCombo;
+    // Its timing: how early the notes hit came on average (negative: late), and give or take how much
+    std::vector<float> errors;
+    for (const PlayNote& note : notes) if (note.hit) errors.push_back(note.error * 1000.0f);
+    const TimingStats timing = timingStats(errors);
+    endMeanMs = timing.meanMs;
+    endSpreadMs = timing.unstableRate / 10.0f;
+    endTimed = (int)errors.size();
+    endCombo = bestCombo;
     if (!setup.timingOnly){ // a rhythm's notes are all the same: only their timing counts
         std::map<int, NoteTally> tallies;
         for (const PlayNote& note : notes){
@@ -153,6 +165,7 @@ void DrillExercise::finishPass(){
         for (const auto& [pitch, tally] : tallies) activity.notes.push_back(tally);
     }
     recordActivity(activity);
+    history = recentRuns(activity.id, 12);
     std::string error;
     saveDrillProgress(progressPath, progress, error);
     endTempo = tempo;
@@ -232,6 +245,9 @@ void DrillExercise::update(){
         if (result.notesHit > 0 && result.noteIndex >= 0){
             lastHit = notes[result.noteIndex];
             hitAt = GetTime();
+            combo += result.notesHit;
+            bestCombo = std::max(bestCombo, combo);
+            comboAt = GetTime();
         }
     };
     // Timing only (rhythm): every key and every note is "the" note, on the one string it's written on
@@ -276,6 +292,10 @@ void DrillExercise::update(){
         }
     }
     markMisses(notes, t);
+    // A note gone by unplayed breaks the run of notes in a row
+    const int missed = (int)std::count_if(notes.begin(), notes.end(), [](const PlayNote& note){ return note.judged && !note.hit; });
+    if (missed > missedSoFar) combo = 0;
+    missedSoFar = missed;
     if (now > passEndTime) finishPass();
 }
 
@@ -310,7 +330,7 @@ void DrillExercise::draw(){
         // ...and the band's chord now
         const int bar = (int)std::floor((t - firstNoteTime) / (60.0 / tempo) / setup.beatsPerBar);
         const std::string chord = bandOn && bar >= 0 && bar < (int)song.chords.size() ? "    " + song.chords[(size_t)bar] : "";
-        if (t < firstNoteTime) centeredText("Get ready...");
+        if (t < firstNoteTime) centeredText("Get ready");
         else centeredText(TextFormat("%d of %d hit (out of %d)%s    Space to stop", hits, sofar, (int)notes.size(), chord.c_str()));
     }
     if (!passText.empty()) centeredColoredText(passText.c_str(), uiColor(UiColor::Good));
@@ -335,6 +355,10 @@ void DrillExercise::draw(){
     NoteViews views = settings.noteViews;
     if (setup.staffOnly){ views.staff = true; views.neck = false; }
     drawNoteViews({0, notesTop, width, height * 0.99f - notesTop}, views, notes, score, setup.tuning, settings.lowStringOnTop, axis);
+    if (running){
+        drawCountIn(menuScale());
+        drawCombo(menuScale());
+    }
 }
 
 // The neck, as a course's untimed drills have it: the next note to play lit, pulsing; a note just hit, a green ring
@@ -388,6 +412,22 @@ void DrillExercise::drawEnd(float s){
                      : clean ? TextFormat("Now the challenge: clean at %d bpm passes the drill", challenge)
                      : atChallenge ? "A little slower to get it clean, then back up" : "";
     draw->AddText(fonts.bold, 18 * s, ImVec2(left, y), uiColor(UiColor::Accent), line);
+    // The best run of notes in a row, and the timing: early or late on average, and how steady
+    y += 28 * s;
+    std::string detail = TextFormat("Best run: %d in a row", endCombo);
+    if (endTimed >= 4){
+        const int mean = (int)std::lround(std::fabs(endMeanMs)), spread = (int)std::lround(endSpreadMs);
+        detail += mean < 10 ? TextFormat("   ·   Timing: on the beat, give or take %d ms", spread)
+                            : TextFormat("   ·   Timing: %d ms %s on average, give or take %d ms", mean, endMeanMs > 0 ? "early" : "late", spread);
+    }
+    draw->AddText(fonts.text, 16 * s, ImVec2(left, y), uiColor(UiColor::Dim), detail.c_str());
+    if (endTimed >= 8 && std::fabs(endMeanMs) > 35.0f){
+        y += 22 * s;
+        draw->AddText(fonts.text, 15 * s, ImVec2(left, y), uiColor(UiColor::Accent, 0.8f),
+                      endMeanMs < 0 ? "Always this late? Your instrument may need calibrating: Settings, Calibrate"
+                                    : "Always this early? Your instrument may need calibrating: Settings, Calibrate");
+    }
+    drawHistory(width * 0.6f, height * 0.44f, width * 0.33f, height * 0.2f, s);
 
     // The choices
     const int next = drillTempo(setup.tempo, progress); // what the pass earned: 5 faster when clean, else 5 slower
@@ -437,6 +477,73 @@ void DrillExercise::drawEnd(float s){
     }
     menuScreenHint("Enter choose    Esc back", s);
     ImGui::Dummy(ImVec2(1, 1)); // the list moved ImGui's cursor: an item after it
+}
+
+// The drill's last passes as a line: each pass's tempo, its dot lit when it was clean; the one just played ringed
+void DrillExercise::drawHistory(float left, float top, float width, float height, float s){
+    if (history.size() < 2) return;
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    const UiFonts& fonts = uiFonts();
+    draw->AddText(fonts.mono, 12 * s, ImVec2(left, top - 20 * s), uiColor(UiColor::Dim), TextFormat("YOUR LAST %d PASSES", (int)history.size()));
+    draw->AddRectFilled(ImVec2(left, top), ImVec2(left + width, top + height), uiColor(UiColor::Card), 8 * s);
+    int low = 1000, high = 0;
+    for (const Activity& pass : history){
+        low = std::min(low, pass.tempo);
+        high = std::max(high, pass.tempo);
+    }
+    low -= 5;
+    high += 5;
+    const float pad = 16 * s;
+    auto at = [&](size_t i){
+        const float x = left + pad + (width - 2 * pad) * (float)i / (float)(history.size() - 1);
+        const float y = top + height - pad - (height - 2 * pad) * (float)(history[i].tempo - low) / (float)std::max(1, high - low);
+        return ImVec2(x, y);
+    };
+    for (size_t i = 1; i < history.size(); i++) draw->AddLine(at(i - 1), at(i), uiColor(UiColor::Accent, 0.5f), 2 * s);
+    for (size_t i = 0; i < history.size(); i++){
+        const bool clean = history[i].clean;
+        draw->AddCircleFilled(at(i), 4.5f * s, uiColor(clean ? UiColor::Good : UiColor::Dim), 16);
+        if (i + 1 == history.size()) draw->AddCircle(at(i), 8 * s, uiColor(UiColor::Ink), 20, 1.5f * s);
+    }
+    draw->AddText(fonts.mono, 11 * s, ImVec2(left + 6 * s, top + 4 * s), uiColor(UiColor::Dim), TextFormat("%d bpm", high - 5));
+    draw->AddText(fonts.mono, 11 * s, ImVec2(left + 6 * s, top + height - 18 * s), uiColor(UiColor::Dim), TextFormat("%d bpm", low + 5));
+    draw->AddText(fonts.text, 12 * s, ImVec2(left, top + height + 6 * s), uiColor(UiColor::Dim), "Each pass's tempo; green when clean");
+}
+
+// The count-in's beats, big over the notes: 4, 3, 2, 1, each popping in on its beat
+void DrillExercise::drawCountIn(float s){
+    const double beat = 60.0 / tempo, left = firstNoteTime - drillTime();
+    if (left <= 0.0) return;
+    const int number = (int)std::ceil(left / beat - 1e-6);
+    const float within = (float)(1.0 - (left / beat - (number - 1))); // 0 as its beat comes, 1 as the next does
+    const std::string text = std::to_string(number);
+    ImDrawList* draw = ImGui::GetForegroundDrawList();
+    ImFont* font = uiFonts().heavy;
+    const float size = 150 * s * (1.0f + 0.25f * std::max(0.0f, 1.0f - within * 4.0f));
+    const ImVec2 extent = font->CalcTextSizeA(size, FLT_MAX, 0.0f, text.c_str());
+    const ImVec2 display = ImGui::GetIO().DisplaySize;
+    draw->AddText(font, size, ImVec2((display.x - extent.x) / 2, display.y * 0.66f - extent.y / 2), uiColor(UiColor::Accent, 0.85f * (1.0f - within * 0.7f)),
+                  text.c_str());
+}
+
+// The notes in a row, at the right under the scoreboard: from 3, popping as it grows, a ring at every tenth
+void DrillExercise::drawCombo(float s){
+    if (combo < 3) return;
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    const UiFonts& fonts = uiFonts();
+    const float since = (float)(GetTime() - comboAt), right = ImGui::GetWindowWidth() * 0.93f, top = ImGui::GetWindowHeight() * 0.235f;
+    const bool milestone = combo % 10 == 0 && since < 0.6f;
+    const float size = 40 * s * (1.0f + (milestone ? 0.45f : 0.2f) * std::max(0.0f, 1.0f - since / 0.2f));
+    const std::string text = std::to_string(combo);
+    const ImVec2 extent = fonts.heavy->CalcTextSizeA(size, FLT_MAX, 0.0f, text.c_str());
+    const ImVec2 at(right - extent.x, top);
+    draw->AddText(fonts.heavy, size, at, uiColor(milestone ? UiColor::Good : UiColor::Accent), text.c_str());
+    if (milestone){
+        const ImVec2 c(at.x + extent.x / 2, at.y + extent.y / 2);
+        draw->AddCircle(c, extent.y * (0.6f + since * 1.2f), uiColor(UiColor::Good, 1.0f - since / 0.6f), 40, 3 * s);
+    }
+    const ImVec2 label = fonts.mono->CalcTextSizeA(12 * s, FLT_MAX, 0.0f, "IN A ROW");
+    draw->AddText(fonts.mono, 12 * s, ImVec2(right - label.x, top + extent.y + 2 * s), uiColor(UiColor::Dim), "IN A ROW");
 }
 
 bool DrillExercise::takeFinishedRun(int& percent){

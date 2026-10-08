@@ -33,6 +33,7 @@ struct Activity {
     bool band = false;          // played with the backing band
     std::string grade;          // a song's ("S", "A"...)
     int rounds = 0;             // a game's
+    int combo = 0;              // the most notes in a row played right (a drill's pass, a song)
     bool unitDone = false;      // a chapter: its level complete with it
     bool courseDone = false;    //   the whole course
     std::vector<NoteTally> notes;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "audio/band.h"
+#include "core/journal.h"
 #include "core/drill.h"
 #include "core/judge.h"
 #include "core/score.h"
@@ -58,6 +59,9 @@ private:
     double drillTime() const; // the audio clock, minus the output offset: what the notes are timed against
     void drawWhere(float left, float right, float top, float bottom, float s); // the neck, the next note lit
     void drawEnd(float s);      // how the pass went, and the menu after it
+    void drawHistory(float left, float top, float width, float height, float s); // the last passes' tempos, a line
+    void drawCountIn(float s);  // the count-in's beats, big: 4, 3, 2, 1
+    void drawCombo(float s);    // the notes in a row, while it's 3 or more
     void toggleBand();          // the band, or the metronome alone (kept for every drill)
 
     std::string title;
@@ -79,6 +83,9 @@ private:
     Score score;                   // the pass written down, in audio time
 
     int hits = 0;
+    int combo = 0, bestCombo = 0;  // notes in a row played right, this pass (a miss breaks it), and its most
+    double comboAt = -100.0;       //   when it last grew (GetTime): it pops
+    int missedSoFar = 0;           // the notes gone by unplayed: one more breaks the combo
     int cleanPassesNow = 0;        // clean passes since the drill was opened (a lesson's goal counts these)
     int finishedPercent = -1;      // a pass just ended, its share of notes hit: until it's taken
     std::string passText;          // the last pass's result
@@ -92,6 +99,10 @@ private:
     int endTempo = 0, endHits = 0, endTotal = 0;
     DrillPassOutcome endOutcome{ false, 0, false };
     double endedAt = -100.0;
+    int endCombo = 0;              // the pass's best run of notes in a row
+    float endMeanMs = 0.0f, endSpreadMs = 0.0f; // its timing: how early on average (negative: late), give or take
+    int endTimed = 0;              //   of how many notes hit
+    std::vector<Activity> history; // this drill's last passes, the one just played last (app/playerprogress)
     std::string nextLabel;         // the course's next drill, offered there ("" for none)
     bool nextChosen = false;
     // The backing band: its style (the drill's own, from its id), each pass's song
