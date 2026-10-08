@@ -175,6 +175,22 @@ std::string checkBlockValue(const BlockField& field, const std::string& value);
 // An exercise written in a block: its settings, a line each, read as one (false and why when they don't read)
 bool setBlockExercise(LessonBlock& block, const std::string& lines, std::string& error);
 
+// An exercise written in a block, as a form: each kind of exercise, what it's called and its settings (read and
+// checked by the exercise's own reader, core/exercisefile); a starter to begin one from
+struct ExerciseForm {
+    const char* type;        // as its 'type' line says it: "notes"
+    const char* name;        // "Play the notes"
+    const char* description;
+    const char* starter;     // its settings to begin from, a line each (type first)
+    std::vector<BlockField> fields;
+};
+const std::vector<ExerciseForm>& exerciseForms();
+const ExerciseForm* findExerciseForm(const std::string& type);
+// One setting of an exercise written in a block: its value ("" when it isn't there), and changed (an empty value
+// takes it out). False, and why, when the exercise doesn't read with it: the block is left as it was.
+std::string exerciseSetting(const LessonBlock& block, const std::string& key);
+bool setExerciseSetting(LessonBlock& block, const std::string& key, const std::string& value, std::string& error);
+
 // Where a block goes: a page's section's column, before the block at `block` (the column's size: at its end)
 LessonBlock* blockPointer(LessonDoc& doc, const BlockPlace& place); // nullptr for no such block
 bool insertBlock(LessonDoc& doc, const BlockPlace& at, const LessonBlock& block);

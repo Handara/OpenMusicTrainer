@@ -82,7 +82,7 @@ const std::vector<BlockInfo>& blockInfos(){
         } },
         { BlockType::Exercise, "exercise", "Exercise", "A drill, a quiz or a game: one of the game's exercises, or one written here",
           BlockGroup::Play, true, {
-            { "exercise", "Exercise", FieldKind::Exercise, "One of the game's exercises, by its file name; or leave it out and write one here" },
+            { "exercise", "Exercise", FieldKind::Exercise, "One of the game's exercises (named by its file name), or one made here" },
             goalField("Clean passes for a drill, right answers in a row for intervals (left out: the usual)", 999),
             gateField(),
         } },
@@ -694,6 +694,117 @@ bool setBlockExercise(LessonBlock& block, const std::string& lines, std::string&
     block.exerciseLines = kept;
     block.exercise = exercise;
     setBlockValue(block, "exercise", ""); // written here, not named
+    return true;
+}
+
+// The settings each kind of exercise's form shows (the rest stay as written, in its text)
+static BlockField setting(const char* key, const char* name, FieldKind kind, const char* description, const char* standard = "",
+                          std::vector<std::string> choices = {}){
+    return { key, name, kind, description, standard, std::move(choices) };
+}
+
+const std::vector<ExerciseForm>& exerciseForms(){
+    static const BlockField tempo = setting("tempo", "Tempo", FieldKind::Text, "From, to and the step it goes up by, in bpm: 90 120 5");
+    static const BlockField challenge = setting("challenge", "To pass", FieldKind::Text, "A clean pass at this tempo or faster passes it (left out: its first tempo)");
+    static const BlockField pass = setting("pass", "Clean at", FieldKind::Text, "The share of notes right (percent) for a pass to be clean", "90");
+    static const BlockField cells = setting("cells", "Rhythms", FieldKind::Text,
+        "The beats it's made of: quarter, eighths, rest, offbeat, triplets, sixteenths, dotted, gallop, reverse_gallop", "quarter eighths rest");
+    static const BlockField bars = setting("bars", "Bars", FieldKind::Text, "How many bars a pass (1 to 16)", "2");
+    static const BlockField instrument = setting("instrument", "Played on", FieldKind::Choice, "The instrument it's played on", "guitar",
+                                                 { "guitar", "bass", "piano" });
+    static const std::vector<ExerciseForm> forms = {
+        { "notes", "Play the notes", "Notes asked one at a time, no clock: where they are, their names, the staff, or by ear",
+          "type notes\nnotes E4 F4 G4\nshow staff", {
+            setting("notes", "Notes", FieldKind::Text, "The notes asked: E4 F4 G4"),
+            setting("show", "Asked as", FieldKind::Choice, "Where to play it (the neck, or the keys on a piano), its name, written on the staff, or heard",
+                    "neck", { "neck", "keys", "name", "staff", "ear" }),
+            setting("where", "Shown where too", FieldKind::Toggle, "Its place lit as well (for a name, the staff, or by ear)", "no"),
+            setting("count", "Notes a run", FieldKind::Text, "How many are asked in a run", "8"),
+            setting("pass", "To pass a run", FieldKind::Text, "How many right the first time", "7"),
+            setting("order", "Order", FieldKind::Choice, "At random, or as written, going round", "random", { "random", "in_order" }),
+            setting("octave", "Octave", FieldKind::Choice, "The octave written, or any (the name's enough)", "exact", { "exact", "any" }),
+            setting("reference", "Heard first", FieldKind::Text, "By ear: a note played before each, to hear it against (E4)"),
+            setting("key", "Key", FieldKind::Text, "The staff's key signature: C major, G major, E minor"),
+            instrument,
+        } },
+        { "reading", "Read to a beat", "Notes read off the staff and played in time, a new pass each time, faster as it goes",
+          "type reading\nnotes E4 F4 G4\ncells quarter\nbars 10\ntempo 90 120 5\nchallenge 100\npass 87", {
+            setting("notes", "Notes", FieldKind::Text, "Just these notes, at random (E4 F4 G4); or leave it out for melodies in a key"),
+            setting("key", "Key", FieldKind::Text, "Melodies in this key: its note (C, G, F#)", "C"),
+            setting("scale", "Scale", FieldKind::Text, "major, minor, and the others in the game", "major"),
+            setting("frets", "Frets", FieldKind::Text, "Melodies in these frets: 0 3"),
+            setting("range", "Range", FieldKind::Text, "On a piano: melodies from one note to another (C4 G4)"),
+            setting("where", "Shown where", FieldKind::Toggle, "The neck (or keys) shown too, the next note lit", "no"),
+            cells, bars, tempo, challenge, pass, instrument,
+        } },
+        { "scale", "Scale drill", "A scale up and down to a beat, faster each clean pass", "type scale\nkey G\nscale major\noctaves 1", {
+            setting("key", "Key", FieldKind::Text, "Its note: C, G, F#, Bb", "G"),
+            setting("scale", "Scale", FieldKind::Text, "major, minor, and the others in the game", "major"),
+            setting("octaves", "Octaves", FieldKind::Text, "1 to 3", "2"),
+            setting("fingering", "Fingering", FieldKind::Choice, "In one position, or three notes a string", "position", { "position", "3nps" }),
+            setting("direction", "Direction", FieldKind::Choice, "Up, down, or up and back down", "up_down", { "up", "down", "up_down" }),
+            setting("notes_per_beat", "Notes a beat", FieldKind::Text, "1 (quarters) to 4 (sixteenths)", "2"),
+            tempo, challenge, pass,
+        } },
+        { "rhythm", "Rhythm drill", "Rhythms read and played on a beat: only the timing counts", "type rhythm\ncells quarter eighths rest\nbars 2", {
+            cells, bars,
+            setting("time", "Beats a bar", FieldKind::Text, "2 to 7 (x/4)", "4"),
+            tempo, pass,
+        } },
+        { "chords", "Chord changes", "Chords played in turn, to a beat", "type chords\nchords Em C G D", {
+            setting("chords", "Chords", FieldKind::Text, "Their names, in turn: Em C G D"),
+            setting("beats", "Beats each", FieldKind::Text, "1 to 8", "4"),
+            setting("rounds", "Rounds", FieldKind::Text, "Times through them in a pass (1 to 8)", "2"),
+            tempo, pass,
+        } },
+        { "intervals", "Intervals by ear", "Two notes: how far apart?", "type intervals\ndirection up\nintervals 7 4\nstart 2", {
+            setting("direction", "Played", FieldKind::Choice, "One after the other going up, going down, or together", "up", { "up", "down", "together" }),
+            setting("intervals", "Intervals", FieldKind::Text, "In semitones, in the order they come in: 7 4 12"),
+            setting("start", "To begin with", FieldKind::Text, "How many of them at first"),
+        } },
+        { "singing", "Sing it back", "A note played, sung back in tune", "type singing\nrange 48 67", {
+            setting("range", "Range", FieldKind::Text, "The lowest and highest note asked (MIDI numbers: 48 67)", "48 67"),
+            setting("notes", "Notes", FieldKind::Choice, "The white keys only, or every note", "naturals", { "naturals", "all" }),
+            setting("octave", "Octave", FieldKind::Choice, "Any octave counts, or the one played", "any", { "any", "exact" }),
+            setting("tolerance", "In tune within", FieldKind::Text, "Cents off that still count (5 to 50)", "30"),
+        } },
+    };
+    return forms;
+}
+
+const ExerciseForm* findExerciseForm(const std::string& type){
+    for (const ExerciseForm& form : exerciseForms()) if (type == form.type) return &form;
+    return nullptr;
+}
+
+std::string exerciseSetting(const LessonBlock& block, const std::string& key){
+    for (const std::string& line : block.exerciseLines){
+        std::istringstream words(line);
+        std::string first, rest;
+        words >> first;
+        if (first != key) continue;
+        std::getline(words >> std::ws, rest);
+        return rest;
+    }
+    return "";
+}
+
+bool setExerciseSetting(LessonBlock& block, const std::string& key, const std::string& value, std::string& error){
+    std::string lines;
+    bool found = false;
+    for (const std::string& line : block.exerciseLines){
+        std::istringstream words(line);
+        std::string first;
+        words >> first;
+        if (first == key){
+            if (!found && !value.empty()) lines += key + " " + value + "\n"; // in its place
+            found = true;
+        } else lines += line + "\n";
+    }
+    if (!found && !value.empty()) lines += key + " " + value + "\n";
+    LessonBlock changed = block;
+    if (!setBlockExercise(changed, lines, error)) return false;
+    block = changed;
     return true;
 }
 

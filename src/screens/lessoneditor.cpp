@@ -121,6 +121,18 @@ static void refreshFolderFiles(){
 
 // --- Changes ----------------------------------------------------------------------------------------------------------
 
+// A kind of exercise's starter, for this lesson: on a piano, played on the keys
+static std::string exerciseStarter(const ExerciseForm& form){
+    std::string lines = form.starter;
+    const std::string type = form.type;
+    if (ed.doc.instrument == ExerciseInstrument::Piano && (type == "notes" || type == "reading")){
+        lines += "\ninstrument piano";
+        if (type == "notes") lines.replace(lines.find("show staff"), 10, "show keys");
+    }
+    return lines;
+}
+
+
 // What still stops the lesson being played, said for its maker: the first thing found
 static std::string findProblem(){
     for (const BlockPlace& place : lessonBlocks(ed.doc)){
@@ -224,7 +236,7 @@ static void addBlock(BlockType type, BlockPlace at){
     LessonBlock block = makeBlock(type);
     if (type == BlockType::Exercise){ // something to start from: a few notes to play
         std::string error;
-        setBlockExercise(block, "type notes\nnotes E4 F4 G4\nshow staff", error);
+        setBlockExercise(block, exerciseStarter(exerciseForms().front()), error);
     }
     if (ed.doc.pages[(size_t)ed.page].sections.empty()) ed.doc.pages[(size_t)ed.page].sections.push_back(makeSection(SectionLayout::Single));
     if (!insertBlock(ed.doc, at, block)){
@@ -512,6 +524,95 @@ static void outlinePanel(float s){
 
 // --- The inspector: what's chosen, and its settings ------------------------------------------------------------------
 
+// An exercise written in a block, as a form: its kind, then its settings, each read by the exercise's own reader as
+// it's typed (kept once it reads); everything else it says, as text, folded away
+static void exerciseForm(LessonBlock& block){
+    const float s = menuScale();
+    const std::string type = exerciseSetting(block, "type");
+    const ExerciseForm* form = findExerciseForm(type);
+    ImGui::PushFont(uiFonts().bold, 15 * s);
+    ImGui::TextUnformatted("Kind of exercise");
+    ImGui::PopFont();
+    ImGui::SetNextItemWidth(-1);
+    if (ImGui::BeginCombo("##exercisekind", form ? form->name : type.c_str())){
+        for (const ExerciseForm& each : exerciseForms()){
+            if (!ImGui::Selectable(each.name, form == &each) || form == &each) continue;
+            beforeChange();
+            std::string error;
+            if (setBlockExercise(block, exerciseStarter(each), error)){
+                ed.fields.clear();
+                changed();
+            } else ed.undos.pop_back();
+        }
+        ImGui::EndCombo();
+    }
+    if (form) dimText(form->description);
+    for (const BlockField& field : form ? form->fields : std::vector<BlockField>{}){
+        ImGui::Dummy(ImVec2(0, 3 * s));
+        ImGui::PushFont(uiFonts().bold, 15 * s);
+        ImGui::TextUnformatted(field.name);
+        ImGui::PopFont();
+        const std::string id = std::string("##x") + field.key;
+        const std::string current = exerciseSetting(block, field.key);
+        auto apply = [&](const std::string& value){
+            std::string error;
+            if (setExerciseSetting(block, field.key, value, error)){
+                ed.fieldErrors.clear();
+                ed.fields.erase("lines"); // the text below shows the change
+                changed();
+                return true;
+            }
+            ed.fieldErrors = error;
+            return false;
+        };
+        if (field.kind == FieldKind::Toggle){
+            bool on = (current.empty() ? std::string(field.standard) : current) == "yes";
+            if (ImGui::Checkbox((std::string(field.description) + id).c_str(), &on)){
+                beforeChange();
+                if (!apply(on ? "yes" : "no")) ed.undos.pop_back();
+            }
+            continue;
+        }
+        if (field.kind == FieldKind::Choice){
+            const std::string shown = current.empty() ? std::string(field.standard) : current;
+            ImGui::SetNextItemWidth(-1);
+            if (ImGui::BeginCombo(id.c_str(), shown.c_str())){
+                for (const std::string& choice : field.choices){
+                    if (!ImGui::Selectable(choice.c_str(), choice == shown) || choice == shown) continue;
+                    beforeChange();
+                    if (!apply(choice)) ed.undos.pop_back();
+                }
+                ImGui::EndCombo();
+            }
+        } else {
+            const std::string key = std::string("x:") + field.key;
+            if (!ed.fields.count(key)) ed.fields[key] = current;
+            ImGui::SetNextItemWidth(-1);
+            if (ImGui::InputTextWithHint(id.c_str(), field.standard, &ed.fields[key])) apply(ed.fields[key]);
+            if (ImGui::IsItemActivated()) beforeChange();
+        }
+        dimText(field.description);
+    }
+    // Everything it says, as in an .exercise file: for what the form doesn't show
+    ImGui::Dummy(ImVec2(0, 4 * s));
+    if (ImGui::CollapsingHeader("All its settings, as text")){
+        if (!ed.fields.count("lines")){
+            std::string joined;
+            for (const std::string& line : block.exerciseLines) joined += line + "\n";
+            ed.fields["lines"] = joined;
+        }
+        if (undoableInput("##lines", &ed.fields["lines"], true, 130 * s)){
+            std::string error;
+            if (setBlockExercise(block, ed.fields["lines"], error)){
+                ed.fieldErrors.clear();
+                for (auto it = ed.fields.begin(); it != ed.fields.end();) it = it->first.rfind("x:", 0) == 0 ? ed.fields.erase(it) : std::next(it);
+                changed();
+            } else ed.fieldErrors = error;
+        }
+        dimText("As in an .exercise file: a setting a line.");
+    }
+}
+
 // One setting of the chosen block, as its kind wants it
 static void blockField(LessonBlock& block, const BlockField& field){
     const float s = menuScale();
@@ -596,7 +697,7 @@ static void blockField(LessonBlock& block, const BlockField& field){
                 if (ImGui::Selectable("Written here, below", current.empty() && !block.exerciseLines.empty())){
                     beforeChange();
                     std::string error;
-                    if (block.exerciseLines.empty()) setBlockExercise(block, "type notes\nnotes E4 F4 G4\nshow staff", error);
+                    if (block.exerciseLines.empty()) setBlockExercise(block, exerciseStarter(exerciseForms().front()), error);
                     else setBlockValue(block, "exercise", "");
                     ed.fields.erase("lines");
                     changed();
@@ -613,23 +714,9 @@ static void blockField(LessonBlock& block, const BlockField& field){
                 }
                 ImGui::EndCombo();
             }
-            if (current.empty() && !block.exerciseLines.empty()){
-                // Its settings, as in an .exercise file: read as they're typed, kept once they read right
-                if (!ed.fields.count("lines")){
-                    std::string joined;
-                    for (const std::string& line : block.exerciseLines) joined += line + "\n";
-                    ed.fields["lines"] = joined;
-                }
-                if (undoableInput("##lines", &ed.fields["lines"], true, 130 * s)){
-                    std::string error;
-                    if (setBlockExercise(block, ed.fields["lines"], error)){
-                        ed.fieldErrors.clear();
-                        changed();
-                    } else ed.fieldErrors = error;
-                }
-                dimText("As in an .exercise file: type notes, notes E4 F4, show staff, count 8...");
-            }
-            break;
+            dimText(field.description);
+            if (current.empty() && !block.exerciseLines.empty()) exerciseForm(block);
+            return;
         }
         default: { // a line of text, a number, notes, places on the neck...: kept once it reads right
             if (!ed.fields.count(field.key)) ed.fields[field.key] = blockValues(block, field.key).empty() ? "" : blockValue(block, field.key);

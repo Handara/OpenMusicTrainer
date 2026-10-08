@@ -310,6 +310,30 @@ TEST_CASE("making lessons: new blocks show something, exercises written in them 
     CHECK_FALSE(setBlockExercise(exercise, "\n", error));
 }
 
+TEST_CASE("exercises written in blocks, as forms: every kind starts from something that reads, a setting at a time"){
+    for (const ExerciseForm& form : exerciseForms()){
+        LessonBlock block = makeBlock(BlockType::Exercise);
+        std::string error;
+        const bool reads = setBlockExercise(block, form.starter, error);
+        CHECK_MESSAGE(reads, form.type << ": " << error);
+        CHECK(exerciseSetting(block, "type") == form.type);
+        CHECK(findExerciseForm(form.type) == &form);
+        for (const BlockField& field : form.fields) CHECK(std::string(field.description).size() > 0);
+    }
+    LessonBlock block = makeBlock(BlockType::Exercise);
+    std::string error;
+    REQUIRE(setBlockExercise(block, findExerciseForm("notes")->starter, error));
+    REQUIRE(setExerciseSetting(block, "count", "6", error));
+    CHECK(exerciseSetting(block, "count") == "6");
+    CHECK(block.exercise.noteQuiz.count == 6);
+    REQUIRE(setExerciseSetting(block, "notes", "C4 D4", error)); // changed in its place
+    CHECK(block.exerciseLines[1] == "notes C4 D4");
+    CHECK_FALSE(setExerciseSetting(block, "count", "lots", error)); // the exercise's own reader says no
+    CHECK(exerciseSetting(block, "count") == "6");                 // and it's left as it was
+    REQUIRE(setExerciseSetting(block, "count", "", error));         // taken out: its standard again
+    CHECK(exerciseSetting(block, "count").empty());
+}
+
 TEST_CASE("a draft: blocks still missing what they need are kept, and read back"){
     LessonDoc doc;
     doc.title = "Draft";
