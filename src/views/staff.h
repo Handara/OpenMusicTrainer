@@ -24,6 +24,8 @@ float staffBarLineGap(float areaHeight);
 
 // `notes` are the track's notes in the score's order (for pitches and hit colors). Only the axis's song time is used.
 void drawStaff(Rectangle area, const std::vector<PlayNote>& notes, const Score& score, const TimeAxis& axis);
+// Everything drawStaff draws kept inside `clip` (a scrolled page's room), until it's given nullptr
+void setStaffClip(const Rectangle* clip);
 // Where a note is in the staff as it was last drawn (over it), for showing its judgement there. False when the staff
 // isn't being drawn, or the note isn't on the page.
 bool staffNoteAt(int noteIndex, float& x, float& y);

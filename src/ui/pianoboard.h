@@ -17,6 +17,7 @@ struct PianoBoard {
     bool shows(int pitch) const { return pitch >= firstPitch && pitch < firstPitch + keys; }
 };
 
-PianoBoard pianoBoard(float left, float top, float width, float maxHeight, int lowPitch, int highPitch);
+// `exact`: only the octaves the notes need, from the C at or below the lowest to the C at or above the highest
+PianoBoard pianoBoard(float left, float top, float width, float maxHeight, int lowPitch, int highPitch, bool exact = false);
 // Returns the pitch clicked, -1 for none
 int drawPianoBoard(const PianoBoard& board, float scale, const std::function<PianoKeyStyle(int pitch)>& style);

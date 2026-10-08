@@ -12,17 +12,19 @@ ImVec4 PianoBoard::keyRect(int pitch) const {
     return pianoKeyRect(origin, whiteWidth, height, pitch - firstPitch);
 }
 
-PianoBoard pianoBoard(float left, float top, float width, float maxHeight, int lowPitch, int highPitch){
+PianoBoard pianoBoard(float left, float top, float width, float maxHeight, int lowPitch, int highPitch, bool exact){
     PianoBoard board;
     // Three octaves at least, like a small keyboard; notes within two of them with an octave below as well, so they
     // sit towards the middle, where they are on a piano
     board.firstPitch = pianoBaseFor(std::max(0, std::min(lowPitch, highPitch)));
-    int octaves = (std::max(lowPitch, highPitch) - board.firstPitch) / 12 + 1;
-    if (octaves <= 2 && board.firstPitch >= 12){
+    int octaves = (std::max(lowPitch, highPitch) - board.firstPitch + 11) / 12;
+    if (exact) octaves = std::max(1, octaves);
+    else octaves = (std::max(lowPitch, highPitch) - board.firstPitch) / 12 + 1;
+    if (!exact && octaves <= 2 && board.firstPitch >= 12){
         board.firstPitch -= 12;
         octaves++;
     }
-    octaves = std::max(3, octaves);
+    if (!exact) octaves = std::max(3, octaves);
     board.keys = octaves * 12 + 1; // ending on a C
     const int whites = pianoWhiteKeys(board.keys);
     board.whiteWidth = width / whites;

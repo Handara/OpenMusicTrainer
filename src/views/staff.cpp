@@ -462,7 +462,40 @@ static void drawLit(const Staff& staff, const Score& score, size_t current, cons
     smoothRoundedRect({ from, y - thickness / 2, (to - from) * progress, thickness }, thickness / 2, themeColor(UiColor::Accent));
 }
 
+// An outer clip for all of it (setStaffClip): each bar's own clip stays inside it, and it's back on after each
+static bool outerClipped = false;
+static Rectangle outerClip{};
+
+void setStaffClip(const Rectangle* clip){
+    outerClipped = clip != nullptr;
+    if (clip) outerClip = *clip;
+}
+
+static void beginBarClip(float left, float top, float width, float height){
+    if (outerClipped){
+        const float right = std::min(left + width, outerClip.x + outerClip.width), bottom = std::min(top + height, outerClip.y + outerClip.height);
+        left = std::max(left, outerClip.x);
+        top = std::max(top, outerClip.y);
+        width = std::max(0.0f, right - left);
+        height = std::max(0.0f, bottom - top);
+    }
+    BeginScissorMode((int)left, (int)top, (int)width, (int)height);
+}
+
+static void endBarClip(){
+    if (outerClipped) BeginScissorMode((int)outerClip.x, (int)outerClip.y, (int)outerClip.width, (int)outerClip.height);
+    else EndScissorMode();
+}
+
+static void drawStaffIn(Rectangle area, const std::vector<PlayNote>& notes, const Score& score, const TimeAxis& axis);
+
 void drawStaff(Rectangle area, const std::vector<PlayNote>& notes, const Score& score, const TimeAxis& axis){
+    if (outerClipped) BeginScissorMode((int)outerClip.x, (int)outerClip.y, (int)outerClip.width, (int)outerClip.height);
+    drawStaffIn(area, notes, score, axis);
+    if (outerClipped) EndScissorMode();
+}
+
+static void drawStaffIn(Rectangle area, const std::vector<PlayNote>& notes, const Score& score, const TimeAxis& axis){
     Staff staff;
     staff.area = area;
     staff.space = area.height / STAFF_SPACES_TALL;
@@ -527,7 +560,7 @@ void drawStaff(Rectangle area, const std::vector<PlayNote>& notes, const Score& 
         barAxis.hitLineX = x + BAR_PAD * space + (axis.songTime - barStart) * barAxis.noteSpeed; // xAt(barStart) = x + pad
         float clipLeft = std::max(x, pageLeft - 0.2f * space), clipRight = std::min(x + width, pageRight);
         if (clipRight <= clipLeft) continue;
-        BeginScissorMode((int)clipLeft, (int)area.y, (int)(clipRight - clipLeft + 1), (int)area.height);
+        beginBarClip(clipLeft, area.y, clipRight - clipLeft + 1, area.height);
         // The event being played, in the bar being played
         size_t current = score.events.size();
         if (k == barNow && now >= barStart){
@@ -542,7 +575,7 @@ void drawStaff(Rectangle area, const std::vector<PlayNote>& notes, const Score& 
         if (closing) DrawLineEx({lineX - 0.6f * space, staff.yAt(STAFF_TOP_LINE)}, {lineX - 0.6f * space, staff.yAt(0)}, staff.thickness * 1.4f, themeColor(UiColor::Ink));
         // Faded as it waits (or leaves): the paper laid thinly over it
         if (alpha < 1.0f) DrawRectangleRec({x, area.y, width, area.height}, Fade(themeColor(UiColor::Card), 1.0f - alpha));
-        EndScissorMode();
+        endBarClip();
     }
 }
 

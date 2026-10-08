@@ -147,6 +147,44 @@ TEST_CASE("lesson v2: what's wrong is said, with its line"){
     }
 }
 
+TEST_CASE("lesson v2: the neck, keys and staff blocks' settings, checked"){
+    LessonDoc doc;
+    std::string error;
+    const std::string good = HEAD + "page P\n"
+        "block fretboard\nfrets 0 3\ndots 6:0 6:1:F 5:3:2\nlit 6:1\n"
+        "block keyboard\nfrom C4\nto G5\nlit C4 E4 G4\n"
+        "block staff\nnotes E4 F4 G4\nkey G major\n"
+        "block reveal\ntext It's an [F4].\n";
+    REQUIRE_MESSAGE(parseLessonDoc(good, "good", doc, error), error);
+    const LessonBlock& neck = doc.pages[0].sections[0].columns[0][0];
+    const std::vector<NeckPlace> dots = readNeckPlaces(blockValue(neck, "dots"));
+    REQUIRE(dots.size() == 3);
+    CHECK(dots[0].string == 5); // 6 = the highest string of six, counted from 0
+    CHECK(dots[0].fret == 0);
+    CHECK(dots[1].label == "F");
+    CHECK(dots[2].label == "2");
+    CHECK(blockValue(neck, "labels") == "names"); // its standard
+    CHECK(readNotes(blockValue(doc.pages[0].sections[0].columns[0][1], "lit")) == std::vector<int>{ 60, 64, 67 });
+    CHECK(blockValue(doc.pages[0].sections[0].columns[0][3], "label") == "Show the answer");
+
+    struct Case { const char* name; std::string text; const char* expected; };
+    const Case cases[] = {
+        { "a place", HEAD + "page P\nblock fretboard\ndots 6-1\n", "isn't a place" },
+        { "string 0", HEAD + "page P\nblock fretboard\ndots 0:1\n", "isn't a place" },
+        { "frets", HEAD + "page P\nblock fretboard\nfrets 5 2\n", "'frets' is two numbers from 0 to 24" },
+        { "a note", HEAD + "page P\nblock keyboard\nfrom H4\n", "'H4' isn't a note" },
+        { "notes", HEAD + "page P\nblock staff\nnotes E4 X\n", "'X' isn't a note" },
+        { "a key", HEAD + "page P\nblock staff\nnotes E4\nkey G dorian\n", "isn't a key" },
+        { "staff needs notes", HEAD + "page P\nblock staff\nkey G major\n", "needs 'notes'" },
+    };
+    for (const Case& c : cases){
+        SUBCASE(c.name){
+            CHECK_FALSE(parseLessonDoc(c.text, "bad", doc, error));
+            CHECK_MESSAGE(error.find(c.expected) != std::string::npos, error);
+        }
+    }
+}
+
 TEST_CASE("lesson v1: its steps read as pages, a block each"){
     const std::string v1 = "version 1\ntitle First chords\nauthor Someone\n"
                            "step text\ntitle What is a chord?\ntext Three notes or more.\n"

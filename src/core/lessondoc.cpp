@@ -2,9 +2,12 @@
 
 #include "core/chart.h"
 #include "core/files.h"
+#include "core/music.h"
+#include "core/notation.h"
 
 #include <algorithm>
 #include <cctype>
+#include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -39,6 +42,31 @@ const std::vector<BlockInfo>& blockInfos(){
             { "style", "Kind", FieldKind::Choice, "A tip, something to remember, or something to be careful about", "tip",
               { "tip", "remember", "careful" } },
             { "text", "Text", FieldKind::Paragraphs, "A paragraph each", "", {}, 0, 0, true },
+        } },
+        { BlockType::Reveal, "reveal", "Reveal", "Something hidden until it's asked for: an answer, a hint", BlockGroup::Show, false, {
+            { "label", "Button", FieldKind::Text, "What the button says", "Show the answer" },
+            { "text", "Hidden text", FieldKind::Paragraphs, "A paragraph each, shown once the button's pressed", "", {}, 0, 0, true },
+        } },
+        { BlockType::Fretboard, "fretboard", "Neck", "Part of the neck, with notes marked on it (click one to hear it)", BlockGroup::Show, false, {
+            { "frets", "Frets", FieldKind::Span, "The first and last fret shown (0: the open strings too)", "0 5", {}, 0, 24 },
+            { "dots", "Notes", FieldKind::Places, "Notes marked: string:fret, 1 = the lowest string; a label after another colon (6:1:F, 5:3:2)" },
+            { "lit", "Lit notes", FieldKind::Places, "Notes marked in the accent colour, to stand out" },
+            { "labels", "On the notes", FieldKind::Choice, "Each note's name, or nothing but its own label", "names", { "names", "none" } },
+            { "instrument", "Instrument", FieldKind::Choice, "Whose neck: the lesson's instrument, or one of these", "lesson", { "lesson", "guitar", "bass" } },
+            { "caption", "Caption", FieldKind::Text, "Under it" },
+        } },
+        { BlockType::Keyboard, "keyboard", "Keyboard", "Piano keys, some lit (click one to hear it)", BlockGroup::Show, false, {
+            { "from", "From", FieldKind::Note, "The lowest note shown (the keyboard starts at a C)", "C4" },
+            { "to", "To", FieldKind::Note, "The highest note shown", "C5" },
+            { "lit", "Lit keys", FieldKind::Notes, "Keys lit, by their notes: C4 E4 G4" },
+            { "labels", "On the keys", FieldKind::Choice, "The lit keys' names, or nothing", "names", { "names", "none" } },
+            { "caption", "Caption", FieldKind::Text, "Under it" },
+        } },
+        { BlockType::Staff, "staff", "Staff", "Notes written on a staff, to read (and hear)", BlockGroup::Show, false, {
+            { "notes", "Notes", FieldKind::Notes, "The notes, in order, a beat each (up to 8 shown): E4 F4 G4", "", {}, 0, 0, true },
+            { "key", "Key", FieldKind::Key, "Its key signature: C major, G major, E minor...", "C major" },
+            { "listen", "Listen button", FieldKind::Toggle, "A button that plays the notes", "yes" },
+            { "caption", "Caption", FieldKind::Text, "Under it" },
         } },
         { BlockType::Image, "image", "Picture", "A picture from the lesson's folder", BlockGroup::Show, false, {
             { "file", "Picture", FieldKind::File, "A .png or .jpg in the lesson's folder", "", IMAGE_FILES, 0, 0, true },
@@ -120,6 +148,30 @@ bool blockGates(const LessonBlock& block){
 
 int blockGoal(const LessonBlock& block){
     return blockScored(block) ? std::atoi(blockValue(block, "goal").c_str()) : 0;
+}
+
+std::vector<NeckPlace> readNeckPlaces(const std::string& value){
+    std::vector<NeckPlace> places;
+    std::istringstream words(value);
+    std::string word;
+    while (words >> word){
+        NeckPlace place;
+        char label[64] = "";
+        if (std::sscanf(word.c_str(), "%d:%d:%63s", &place.string, &place.fret, label) < 2 || place.string < 1) continue;
+        place.string--;
+        place.label = label;
+        places.push_back(place);
+    }
+    return places;
+}
+
+std::vector<int> readNotes(const std::string& value){
+    std::vector<int> pitches;
+    std::istringstream words(value);
+    std::string word;
+    int pitch;
+    while (words >> word) if (parseNoteName(word, pitch)) pitches.push_back(pitch);
+    return pitches;
 }
 
 // --- Sections -----------------------------------------------------------------------------------------------------
@@ -226,6 +278,44 @@ static std::string checkValue(const BlockField& field, const std::string& value)
             std::string list;
             for (const std::string& choice : field.choices) list += (list.empty() ? "" : ", ") + choice;
             return std::string("'") + field.key + "' is one of: " + list;
+        }
+        case FieldKind::Note: {
+            int pitch;
+            return parseNoteName(value, pitch) ? "" : "'" + value + "' isn't a note: write it like E4, F#3, Bb2";
+        }
+        case FieldKind::Notes: {
+            std::istringstream words(value);
+            std::string word;
+            int pitch;
+            while (words >> word) if (!parseNoteName(word, pitch)) return "'" + word + "' isn't a note: write them like E4, F#3, Bb2";
+            return "";
+        }
+        case FieldKind::Places: {
+            std::istringstream words(value);
+            std::string word;
+            while (words >> word){
+                int string = 0, fret = 0;
+                char rest[64] = "";
+                if (std::sscanf(word.c_str(), "%d:%d%63s", &string, &fret, rest) < 2 || string < 1 || string > 12 || fret < 0 || fret > 24
+                    || (rest[0] && rest[0] != ':'))
+                    return "'" + word + "' isn't a place: string:fret, 1 = the lowest string (6:1), a label after another colon if wanted";
+            }
+            return "";
+        }
+        case FieldKind::Span: {
+            std::istringstream numbers(value);
+            int low = 0, high = 0;
+            if (!(numbers >> low >> high) || !(numbers >> std::ws).eof() || low < field.min || high > field.max || low > high)
+                return std::string("'") + field.key + "' is two numbers from " + std::to_string(field.min) + " to " + std::to_string(field.max)
+                       + ", the lower first";
+            return "";
+        }
+        case FieldKind::Key: {
+            std::istringstream words(value);
+            std::string tonic, mode;
+            KeySignature key;
+            if (!(words >> tonic >> mode) || !parseKeySignature(tonic, mode, key)) return "'" + value + "' isn't a key: write it like G major, E minor";
+            return "";
         }
         case FieldKind::File: {
             // Only a plain name: a shared lesson must not reach outside its own folder

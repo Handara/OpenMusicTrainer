@@ -5,6 +5,7 @@
 #include "raylib.h"
 
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -18,6 +19,7 @@ struct PageMedia {
     std::map<std::string, Texture2D> textures; // by path
     std::string audioPath;
     std::string videoPath;
+    std::set<std::string> revealed; // the reveal blocks opened (by their place on the page)
     std::string error;
 };
 void releasePageMedia(PageMedia& media); // when the page changes, and when leaving

@@ -41,7 +41,7 @@
 
 // --- Blocks -------------------------------------------------------------------------------------------------------
 
-enum class BlockType { Text, Heading, Callout, Image, Audio, Video, Exercise, Play, Count };
+enum class BlockType { Text, Heading, Callout, Reveal, Fretboard, Keyboard, Staff, Image, Audio, Video, Exercise, Play, Count };
 enum class BlockGroup { Show, Play, Hear, Games, Smart }; // where the editor offers it
 
 // A setting a block takes
@@ -53,7 +53,21 @@ enum class FieldKind {
     Toggle,     // yes or no
     Choice,     // one of the choices
     Exercise,   // an exercise by its file name (without .exercise)
+    Note,       // a note by its name: E4, F#3, Bb2
+    Notes,      // notes by their names, apart
+    Places,     // places on the neck, apart: string:fret (1 = the lowest string), and a label if wanted (6:1:F)
+    Span,       // two whole numbers, the lower first, from min to max
+    Key,        // a key: its note and major or minor (G major, E minor)
 };
+
+// A place on the neck, as a Places setting writes it
+struct NeckPlace {
+    int string = 0; // 0 = the lowest
+    int fret = 0;
+    std::string label;
+};
+std::vector<NeckPlace> readNeckPlaces(const std::string& value); // the ones that read right
+std::vector<int> readNotes(const std::string& value);            //   (MIDI)
 
 struct BlockField {
     const char* key;          // in the file: "caption"

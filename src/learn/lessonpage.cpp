@@ -1,13 +1,21 @@
 #include "learn/lessonpage.h"
 
 #include "audio/audio.h"
+#include "core/drill.h"
+#include "core/music.h"
+#include "core/notation.h"
+#include "core/score.h"
+#include "ui/fretboardview.h"
+#include "ui/pianoboard.h"
 #include "ui/theme.h"
 #include "video/video.h"
+#include "views/staff.h"
 
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
 #include <filesystem>
+#include <sstream>
 
 namespace fs = std::filesystem;
 
@@ -36,22 +44,112 @@ struct BlockContext {
     ImDrawList* draw;
     const std::string& folder;
     PageMedia& media;
+    ExerciseInstrument instrument; // the lesson's: whose neck, whose sound
     float s;
 };
 
-float textHeight(ImFont* font, float size, float width, const std::string& text){
-    return font->CalcTextSizeA(size, FLT_MAX, width, text.c_str()).y;
+const std::vector<int> GUITAR_TUNING = { 40, 45, 50, 55, 59, 64 };
+const std::vector<int> BASS_TUNING = { 28, 33, 38, 43 };
+
+// A note heard on the lesson's instrument: now, or at a time on the engine's clock
+void soundNote(ExerciseInstrument instrument, int pitch, double at = -1.0){
+    const float frequency = midiToFrequency((float)pitch);
+    const bool bass = instrument == ExerciseInstrument::Bass;
+    if (instrument == ExerciseInstrument::Piano){
+        if (at < 0.0) playKeysNote(frequency);
+        else playKeysNoteAt(frequency, at);
+    } else if (at < 0.0) playStringNote(frequency, bass, 1.2f, 0.8f);
+    else playStringNoteAt(frequency, bass, 1.0f, at, 0.8f);
 }
 
-// Paragraphs, wrapped to the width, a little apart; returns their height
-float drawParagraphs(ImDrawList* draw, ImFont* font, float size, ImVec2 at, float width, ImU32 color, const std::vector<std::string>& paragraphs, float s){
-    float y = at.y;
+// Text with a little markup: **bold**, and [E4] a note as a chip, heard when it's clicked
+struct TextRun {
+    std::string text;
+    bool bold = false;
+    int pitch = -1;          // a note's chip; -1 for words
+    bool spaceBefore = false;
+};
+
+std::vector<TextRun> textRuns(const std::string& paragraph){
+    std::vector<TextRun> runs;
+    std::string word;
+    bool bold = false, space = false;
+    auto flush = [&](){
+        if (word.empty()) return;
+        runs.push_back({ word, bold, -1, space });
+        space = false;
+        word.clear();
+    };
+    for (size_t i = 0; i < paragraph.size(); i++){
+        const char c = paragraph[i];
+        if (c == ' '){
+            flush();
+            space = true;
+        } else if (paragraph.compare(i, 2, "**") == 0){
+            flush();
+            bold = !bold;
+            i++;
+        } else if (c == '['){
+            const size_t close = paragraph.find(']', i);
+            int pitch;
+            if (close != std::string::npos && parseNoteName(paragraph.substr(i + 1, close - i - 1), pitch)){
+                flush();
+                runs.push_back({ paragraph.substr(i + 1, close - i - 1), bold, pitch, space });
+                space = false;
+                i = close;
+            } else word += c;
+        } else word += c;
+    }
+    flush();
+    return runs;
+}
+
+// A paragraph laid out word by word, wrapped to the width; drawn when `draw` is given (else only measured). Returns
+// its height.
+float richParagraph(ImDrawList* draw, ImVec2 at, float width, float size, ImU32 color, const std::string& paragraph,
+                    ExerciseInstrument instrument, float s){
+    const UiFonts& fonts = uiFonts();
+    const float lineHeight = size * 1.38f, space = fonts.text->CalcTextSizeA(size, FLT_MAX, 0.0f, " ").x, chipPad = 7 * s;
+    float x = 0.0f, y = 0.0f;
+    const std::vector<TextRun> runs = textRuns(paragraph);
+    for (const TextRun& run : runs){
+        ImFont* font = run.pitch >= 0 || run.bold ? fonts.bold : fonts.text;
+        const float w = font->CalcTextSizeA(size, FLT_MAX, 0.0f, run.text.c_str()).x + (run.pitch >= 0 ? 2 * chipPad : 0.0f);
+        float gap = run.spaceBefore ? space : 0.0f;
+        if (x > 0.0f && x + gap + w > width){
+            x = 0.0f;
+            y += lineHeight;
+            gap = 0.0f;
+        }
+        x += gap;
+        if (draw){
+            const ImVec2 a(at.x + x, at.y + y);
+            if (run.pitch >= 0){
+                const ImVec2 b(a.x + w, a.y + lineHeight - 3 * s);
+                const bool hovered = ImGui::IsMouseHoveringRect(a, b);
+                draw->AddRectFilled(ImVec2(a.x, a.y + 1 * s), b, uiColor(UiColor::Accent, hovered ? 0.32f : 0.16f), 6 * s);
+                draw->AddText(font, size, ImVec2(a.x + chipPad, a.y + (lineHeight - size) / 2 - 1 * s), uiColor(UiColor::Accent), run.text.c_str());
+                if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) soundNote(instrument, run.pitch);
+            } else draw->AddText(font, size, ImVec2(a.x, a.y + (lineHeight - size) / 2), color, run.text.c_str());
+        }
+        x += w;
+    }
+    return runs.empty() ? 0.0f : y + lineHeight;
+}
+
+// Paragraphs of it, a little apart
+float richParagraphs(ImDrawList* draw, ImVec2 at, float width, float size, ImU32 color, const std::vector<std::string>& paragraphs,
+                     ExerciseInstrument instrument, float s){
+    float y = 0.0f;
     for (size_t i = 0; i < paragraphs.size(); i++){
         if (i > 0) y += PARAGRAPH_GAP * s;
-        draw->AddText(font, size, ImVec2(at.x, y), color, paragraphs[i].c_str(), nullptr, width);
-        y += textHeight(font, size, width, paragraphs[i]);
+        y += richParagraph(draw, ImVec2(at.x, at.y + y), width, size, color, paragraphs[i], instrument, s);
     }
-    return y - at.y;
+    return y;
+}
+
+float textHeight(ImFont* font, float size, float width, const std::string& text){
+    return font->CalcTextSizeA(size, FLT_MAX, width, text.c_str()).y;
 }
 
 // A pill-shaped button drawn on the page; true when clicked
@@ -100,7 +198,113 @@ float drawCaption(const BlockContext& c, const LessonBlock& block, ImVec2 at, fl
 }
 
 float drawText(const BlockContext& c, const LessonBlock& block, ImVec2 at, float width){
-    return drawParagraphs(c.draw, uiFonts().text, TEXT_SIZE * c.s, at, width, uiColor(UiColor::Ink), blockValues(block, "text"), c.s);
+    return richParagraphs(c.draw, at, width, TEXT_SIZE * c.s, uiColor(UiColor::Ink), blockValues(block, "text"), c.instrument, c.s);
+}
+
+// Its button, until pressed; then what it hid
+float drawReveal(const BlockContext& c, const LessonBlock& block, ImVec2 at, float width, const std::string& key){
+    if (!c.media.revealed.count(key)){
+        if (pageButton(c.draw, at, blockValue(block, "label").c_str(), false, c.s)) c.media.revealed.insert(key);
+        return 32 * c.s;
+    }
+    return richParagraphs(c.draw, at, width, TEXT_SIZE * c.s, uiColor(UiColor::Ink), blockValues(block, "text"), c.instrument, c.s);
+}
+
+// Part of the neck, its notes marked (their names on them, or their own labels; the lit ones in the accent colour).
+// A note clicked is heard.
+float drawNeckBlock(const BlockContext& c, const LessonBlock& block, ImVec2 at, float width){
+    const float s = c.s;
+    const std::string whose = blockValue(block, "instrument");
+    const bool bass = whose == "bass" || (whose == "lesson" && c.instrument == ExerciseInstrument::Bass);
+    const std::vector<int>& tuning = bass ? BASS_TUNING : GUITAR_TUNING;
+    int first = 0, last = 5;
+    std::istringstream(blockValue(block, "frets")) >> first >> last;
+    const float namesRoom = 26 * s; // the strings' names, left of the board
+    const FretboardLayout board = fretboardLayout(at.x + namesRoom, at.y, width - namesRoom, s, (int)tuning.size(), first, std::max(first + 1, last), 26.0f);
+    drawFretboard(board, tuning);
+    const bool names = blockValue(block, "labels") == "names";
+    const ImVec2 mouse = ImGui::GetIO().MousePos;
+    auto mark = [&](const std::vector<NeckPlace>& places, bool lit){
+        for (const NeckPlace& place : places){
+            if (place.string >= (int)tuning.size() || place.fret < first || place.fret > last) continue;
+            const int pitch = tuning[(size_t)place.string] + place.fret;
+            const std::string name = !place.label.empty() ? place.label : names ? pitchClassName(pitch) : "";
+            drawFretDot(board, place.string, place.fret, 11 * s, uiColor(lit ? UiColor::Accent : UiColor::Ink), uiColor(UiColor::Background), name.c_str());
+            const float dx = mouse.x - board.fretX(place.fret), dy = mouse.y - board.stringY(place.string);
+            if (dx * dx + dy * dy < 13 * s * 13 * s && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) soundNote(bass ? ExerciseInstrument::Bass : ExerciseInstrument::Guitar, pitch);
+        }
+    };
+    mark(readNeckPlaces(blockValue(block, "dots")), false);
+    mark(readNeckPlaces(blockValue(block, "lit")), true);
+    const float height = board.height + 24 * s; // the fret numbers under it
+    return height + drawCaption(c, block, ImVec2(at.x, at.y + height), width);
+}
+
+// Piano keys from one note to another (whole octaves from a C), some lit with their names; a key clicked is heard
+float drawKeyboardBlock(const BlockContext& c, const LessonBlock& block, ImVec2 at, float width){
+    int low = 60, high = 72;
+    parseNoteName(blockValue(block, "from"), low);
+    parseNoteName(blockValue(block, "to"), high);
+    const std::vector<int> lit = readNotes(blockValue(block, "lit"));
+    const bool names = blockValue(block, "labels") == "names";
+    const PianoBoard keys = pianoBoard(at.x, at.y, width, std::min(width * 0.3f, 150 * c.s), std::min(low, high), std::max(low, high), true);
+    const int clicked = drawPianoBoard(keys, c.s, [&](int pitch){
+        PianoKeyStyle look;
+        if (std::find(lit.begin(), lit.end(), pitch) != lit.end()){
+            look.fill = mixColor(pianoKeyColor(pitch - keys.firstPitch), uiColor(UiColor::Accent), 0.85f);
+            if (names) look.label = pitchClassName(pitch);
+        }
+        return look;
+    });
+    if (clicked >= 0) soundNote(ExerciseInstrument::Piano, clicked);
+    return keys.height + drawCaption(c, block, ImVec2(at.x, at.y + keys.height), width);
+}
+
+// Notes on a staff, a beat each (two bars of them), in the lesson's instrument's clef; and a button to hear them
+float drawStaffBlock(const BlockContext& c, const LessonBlock& block, ImVec2 at, float width){
+    const float s = c.s, height = 120 * s;
+    const bool piano = c.instrument == ExerciseInstrument::Piano, bass = c.instrument == ExerciseInstrument::Bass;
+    const std::vector<int> tuning = piano ? std::vector<int>{ 0 } : bass ? BASS_TUNING : GUITAR_TUNING;
+    std::vector<int> pitches = readNotes(blockValue(block, "notes"));
+    if (pitches.size() > 8) pitches.resize(8);
+    std::istringstream keyWords(blockValue(block, "key"));
+    std::string tonic, mode;
+    KeySignature key;
+    keyWords >> tonic >> mode;
+    parseKeySignature(tonic, mode, key);
+    std::vector<DrillNote> notes;
+    for (size_t i = 0; i < pitches.size(); i++) notes.push_back({ (double)i, 0, pitches[i] - tuning[0], pitches[i] });
+    Chart chart = drillChart(notes, tuning, key, 4);
+    const Score score = buildScore(chart, chart.frettedTracks[0]);
+    std::vector<PlayNote> shown;
+    for (const DrillNote& note : notes){
+        PlayNote play{ (float)note.beat, note.stringIndex, note.fret, note.pitch };
+        play.beats = 1.0f;
+        shown.push_back(play);
+    }
+    TimeAxis axis;
+    axis.songTime = -0.2f; // before its first note (lit a moment ahead of it): nothing lit
+    axis.hitLineX = at.x;
+    axis.noteSpeed = 100.0f;
+    // Drawn with raylib, under the page's clipping: kept inside it the same way
+    const ImVec2 clipMin = c.draw->GetClipRectMin(), clipMax = c.draw->GetClipRectMax();
+    const Rectangle clip{ clipMin.x, clipMin.y, clipMax.x - clipMin.x, clipMax.y - clipMin.y };
+    BeginScissorMode((int)clip.x, (int)clip.y, (int)clip.width, (int)clip.height);
+    DrawRectangleRounded({ at.x, at.y, width, height }, 0.08f, 8, themeColor(UiColor::Card));
+    EndScissorMode();
+    setStaffClip(&clip);
+    drawStaff({ at.x, at.y, width, height }, shown, score, axis);
+    setStaffClip(nullptr);
+    float y = height;
+    if (blockValue(block, "listen") == "yes"){
+        y += 8 * s;
+        if (pageButton(c.draw, ImVec2(at.x, at.y + y), "Listen", false, s)){
+            const double start = audioTime() + 0.1;
+            for (size_t i = 0; i < pitches.size(); i++) soundNote(c.instrument, pitches[i], start + i * 0.5);
+        }
+        y += 32 * s;
+    }
+    return y + drawCaption(c, block, ImVec2(at.x, at.y + y), width);
 }
 
 float drawHeading(const BlockContext& c, const LessonBlock& block, ImVec2 at, float width){
@@ -117,14 +321,13 @@ float drawCallout(const BlockContext& c, const LessonBlock& block, ImVec2 at, fl
     const char* label = style == "careful" ? "CAREFUL" : style == "remember" ? "REMEMBER" : "TIP";
     const float inner = width - 2 * pad - bar;
     // Measured first: the box goes under the text
-    float textTall = 0.0f;
     const std::vector<std::string> paragraphs = blockValues(block, "text");
-    for (size_t i = 0; i < paragraphs.size(); i++) textTall += (i ? PARAGRAPH_GAP * s : 0.0f) + textHeight(uiFonts().text, 17 * s, inner, paragraphs[i]);
+    const float textTall = richParagraphs(nullptr, ImVec2(0, 0), inner, 17 * s, 0, paragraphs, c.instrument, s);
     const float height = pad + 20 * s + textTall + pad;
     c.draw->AddRectFilled(at, ImVec2(at.x + width, at.y + height), uiColor(color, 0.08f), 8 * s);
     c.draw->AddRectFilled(at, ImVec2(at.x + bar, at.y + height), uiColor(color), 8 * s, ImDrawFlags_RoundCornersLeft);
     c.draw->AddText(uiFonts().mono, 13 * s, ImVec2(at.x + bar + pad, at.y + pad), uiColor(color), label);
-    drawParagraphs(c.draw, uiFonts().text, 17 * s, ImVec2(at.x + bar + pad, at.y + pad + 20 * s), inner, uiColor(UiColor::Ink), paragraphs, s);
+    richParagraphs(c.draw, ImVec2(at.x + bar + pad, at.y + pad + 20 * s), inner, 17 * s, uiColor(UiColor::Ink), paragraphs, c.instrument, s);
     return height;
 }
 
@@ -246,7 +449,7 @@ float drawLessonPage(const LessonDoc& doc, int pageNumber, const std::string& fo
     if (pageNumber < 0 || pageNumber >= (int)doc.pages.size()) return 0.0f;
     const LessonPage& page = doc.pages[(size_t)pageNumber];
     ImDrawList* draw = ImGui::GetWindowDrawList();
-    const BlockContext context{ draw, folder, media, s };
+    const BlockContext context{ draw, folder, media, doc.instrument, s };
     float y = at.y;
     if (!page.title.empty()){
         draw->AddText(uiFonts().heavy, PAGE_TITLE_SIZE * s, ImVec2(at.x, y), uiColor(UiColor::Ink), page.title.c_str(), nullptr, width);
@@ -270,6 +473,12 @@ float drawLessonPage(const LessonDoc& doc, int pageNumber, const std::string& fo
                     case BlockType::Text: columnY += drawText(context, block, blockAt, columnWidth); break;
                     case BlockType::Heading: columnY += drawHeading(context, block, blockAt, columnWidth); break;
                     case BlockType::Callout: columnY += drawCallout(context, block, blockAt, columnWidth); break;
+                    case BlockType::Reveal:
+                        columnY += drawReveal(context, block, blockAt, columnWidth, TextFormat("%d.%d.%d", (int)sectionIndex, (int)c, (int)b));
+                        break;
+                    case BlockType::Fretboard: columnY += drawNeckBlock(context, block, blockAt, columnWidth); break;
+                    case BlockType::Keyboard: columnY += drawKeyboardBlock(context, block, blockAt, columnWidth); break;
+                    case BlockType::Staff: columnY += drawStaffBlock(context, block, blockAt, columnWidth); break;
                     case BlockType::Image: columnY += drawImageBlock(context, block, blockAt, columnWidth); break;
                     case BlockType::Audio: columnY += drawAudioBlock(context, block, blockAt, columnWidth); break;
                     case BlockType::Video: columnY += drawVideoBlock(context, block, blockAt, columnWidth); break;
