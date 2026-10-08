@@ -13,6 +13,7 @@
 #include "views/noteviews.h"
 #include "ui/menulist.h"
 #include "ui/neckcards.h"
+#include "ui/particles.h"
 #include "ui/scoreboard.h"
 #include "ui/theme.h"
 
@@ -249,6 +250,7 @@ void DrillExercise::update(){
             combo += result.notesHit;
             bestCombo = std::max(bestCombo, combo);
             comboAt = GetTime();
+            burstDue = true;
         }
     };
     // Timing only (rhythm): every key and every note is "the" note, on the one string it's written on
@@ -360,6 +362,7 @@ void DrillExercise::draw(){
         drawCountIn(menuScale());
         drawCombo(menuScale());
     }
+    burstDue = false; // no neck to burst from: the hit's sparks pass
 }
 
 // The neck, as a course's untimed drills have it: the next note to play lit, pulsing; a note just hit, a green ring
@@ -382,6 +385,10 @@ void DrillExercise::drawWhere(float left, float right, float top, float bottom, 
                     uiColor(UiColor::Accent, 0.6f), 2 * s);
     }
     const float since = (float)(GetTime() - hitAt);
+    if (burstDue && lastHit.stringIndex >= 0){ // sparks from the note just hit
+        spawnBurst(ImVec2(board.fretX(lastHit.fret), board.stringY(lastHit.stringIndex)), uiColor(UiColor::Good), 14, 260.0f, s);
+        burstDue = false;
+    }
     if (lastHit.stringIndex >= 0 && since < HIT_RING_S){
         const float fade = 1.0f - since / HIT_RING_S;
         cardOutline(draw, ImVec2(board.fretX(lastHit.fret), board.stringY(lastHit.stringIndex)), halfW, halfH, 3 * s + 14 * s * since / HIT_RING_S,
@@ -539,6 +546,10 @@ void DrillExercise::drawCombo(float s){
     const ImVec2 extent = fonts.heavy->CalcTextSizeA(size, FLT_MAX, 0.0f, text.c_str());
     const ImVec2 at(right - extent.x, top);
     draw->AddText(fonts.heavy, size, at, uiColor(milestone ? UiColor::Good : UiColor::Accent), text.c_str());
+    if (milestone && burstCombo != combo){ // once a milestone
+        spawnBurst(ImVec2(at.x + extent.x / 2, at.y + extent.y / 2), uiColor(UiColor::Good), 24, 320.0f, s);
+        burstCombo = combo;
+    }
     if (milestone){
         const ImVec2 c(at.x + extent.x / 2, at.y + extent.y / 2);
         draw->AddCircle(c, extent.y * (0.6f + since * 1.2f), uiColor(UiColor::Good, 1.0f - since / 0.6f), 40, 3 * s);

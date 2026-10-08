@@ -13,6 +13,7 @@
 #include "raylib.h"
 #include "ui/menulist.h"
 #include "ui/neckcards.h"
+#include "ui/particles.h"
 #include "ui/scoreboard.h"
 #include "ui/theme.h"
 #include "ui/ui.h"
@@ -73,6 +74,7 @@ NoteQuizExercise::~NoteQuizExercise(){
 void NoteQuizExercise::startRun(){
     startNoteQuiz(run, noteQuizPrompts(config, random));
     runStartedAt = GetTime();
+    burstDue = false;
     finished = passed = false;
     rightAt = wrongAt = -100.0;
     lastRight = { -1, -1, -1 };
@@ -116,6 +118,7 @@ void NoteQuizExercise::played(int pitch, bool heard){
     if (playNoteQuiz(run, config, pitch)){
         rightAt = GetTime();
         lastRight = run.prompts[asked];
+        burstDue = true;
         if (asked < staffNotes.size()){
             staffNotes[asked].judged = true;
             staffNotes[asked].hit = run.firstTime.back();
@@ -266,6 +269,10 @@ void NoteQuizExercise::drawNeck(float left, float right, float top, float bottom
         }
     }
     const float since = (float)(GetTime() - rightAt);
+    if (burstDue && lastRight.string >= 0){
+        spawnBurst(ImVec2(board.fretX(lastRight.fret), board.stringY(lastRight.string)), uiColor(UiColor::Good), 16, 280.0f, s);
+        burstDue = false;
+    }
     if (lastRight.string >= 0 && since < RIGHT_FLASH_S){
         const float fade = 1.0f - since / RIGHT_FLASH_S;
         drawNoteCard(draw, board, lastRight.string, lastRight.fret, lastRight.pitch, 0.0f, fade, false, s);
@@ -295,6 +302,11 @@ int NoteQuizExercise::drawKeys(float left, float right, float top, float bottom,
         high = std::max(high, config.reference);
     }
     keys = pianoBoard(left, top, right - left, bottom - top, low, high);
+    if (burstDue && keys.shows(lastRight.pitch)){ // sparks from the key just played right
+        const ImVec4 key = keys.keyRect(lastRight.pitch);
+        spawnBurst(ImVec2(key.x + key.z / 2, key.y + key.w * 0.75f), uiColor(UiColor::Good), 16, 280.0f, s);
+        burstDue = false;
+    }
     const bool* down = keysInputDown();
     const bool asking = !finished && run.next < run.prompts.size();
     const bool shown = asking && (config.prompt == NotePrompt::Neck || config.showWhere || run.slipped);

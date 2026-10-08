@@ -289,6 +289,7 @@ add_executable(lahn
     src/screens/tonewizard.cpp
     src/screens/welcomescreen.cpp
     src/ui/helpoverlay.cpp
+    src/ui/particles.cpp
     src/ui/rewards.cpp
     src/app/playerprogress.cpp
     src/views/neckview.cpp

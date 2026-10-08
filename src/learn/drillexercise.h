@@ -85,6 +85,8 @@ private:
     int hits = 0;
     int combo = 0, bestCombo = 0;  // notes in a row played right, this pass (a miss breaks it), and its most
     double comboAt = -100.0;       //   when it last grew (GetTime): it pops
+    bool burstDue = false;         // a note just hit: sparks from where it's shown (the neck), drawn next
+    int burstCombo = 0;            // the run of notes the last milestone's sparks were for
     int missedSoFar = 0;           // the notes gone by unplayed: one more breaks the combo
     int cleanPassesNow = 0;        // clean passes since the drill was opened (a lesson's goal counts these)
     int finishedPercent = -1;      // a pass just ended, its share of notes hit: until it's taken

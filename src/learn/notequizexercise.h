@@ -70,6 +70,7 @@ private:
     double soundingUntil = -1.0; //   while it sounds, what's heard is lahn's own (a microphone hears the speakers)
     double heardAt = -100.0;     //   when the note asked started sounding: a ring pulses with it
     NeckStep lastRight{ -1, -1, -1 }; // the note just played right: its ring
+    bool burstDue = false;            //   and its sparks, from where it's shown, drawn next
     // The prompts written down, for the staff: a bar of four at a time, the one now lit
     Chart chart;
     Score score;

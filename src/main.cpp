@@ -32,6 +32,7 @@
 #include "screens/tonewizard.h"
 #include "ui/helpoverlay.h"
 #include "ui/menulist.h"
+#include "ui/particles.h"
 #include "ui/rewards.h"
 #include "ui/transition.h"
 #include "ui/ui.h"
@@ -965,6 +966,7 @@ int main(void){
         const bool hearingShown = hasBackButton(shown) || (shown == Screen::Playing && gameplayPaused());
         if ((app.screen == shown && hearingShown && hearingButton(menuScale())) || IsKeyPressed(KEY_F2)) toggleHearing();
         if (app.screen == shown && menuScreen) drawMenuInputLegend(menuScale());
+        drawParticles(menuScale()); // sparks: notes hit, milestones
         drawRewards(menuScale()); // what was just earned, over everything
         endUiFrame();
 
