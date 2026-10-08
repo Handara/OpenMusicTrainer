@@ -249,3 +249,12 @@ TEST_CASE("every block's settings are described, for the editor"){
         CHECK(sectionColumns((SectionLayout)layout) == (int)sectionShares((SectionLayout)layout).size());
     }
 }
+
+TEST_CASE("the built-in lessons load"){
+    const std::vector<LessonEntry> lessons = scanLessons(std::string(LAHN_RESOURCES_DIR) + "lessons", true);
+    CHECK_FALSE(lessons.empty());
+    for (const LessonEntry& entry : lessons){
+        CHECK_MESSAGE(entry.error.empty(), entry.error);
+        CHECK(entry.version == LESSON_DOC_VERSION);
+    }
+}

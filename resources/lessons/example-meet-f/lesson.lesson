@@ -1,0 +1,68 @@
+# lahn lesson: an example of what a lesson can hold (pages, sections in columns, blocks)
+version 2
+title Meet the note F
+category Examples
+author lahn
+description An example lesson: text with notes to click, a tip, the neck and the keys side by side, a staff to read and hear, a hidden answer, and two drills.
+instrument guitar
+
+page F, on the top line
+  section wide-narrow
+    block text
+      text Music is written on five lines, the staff. The higher a note sits, the higher it sounds.
+      text **F** sits on the top line. On the guitar it's the 1st fret of the high E string: [F4].
+    block callout
+      style tip
+      text Press just behind the fret, not on it: the note rings clearer.
+  column
+    block fretboard
+      frets 0 3
+      dots 6:0 6:3
+      lit 6:1
+      caption F, lit: the high E string's 1st fret
+  section
+    block heading
+      text Now play it
+    block exercise F alone
+      type notes
+      notes F4
+      show staff
+      count 4
+      pass 3
+    block exercise E and F
+      type notes
+      notes E4 F4
+      show staff
+      gate no
+
+page Where F lives
+  section halves
+    block heading
+      text On the neck
+    block fretboard
+      frets 0 5
+      dots 6:0 6:3:G 5:1:C
+      lit 6:1
+      caption Its neighbours: E open, G at the 3rd fret
+  column
+    block heading
+      text On the keys
+    block keyboard
+      from C4
+      to B4
+      lit F4
+      caption On a piano: left of the three black keys
+  section
+    block text
+      text Read these, then listen: [E4] [F4] [G4]. Each note you click plays.
+    block staff
+      notes E4 F4 G4 F4 E4 F4 G4 G4
+      key C major
+    block reveal
+      label Which note is on the top line?
+      text It's [F4]: the top line of the treble staff.
+
+page Well done
+    block callout
+      style remember
+      text E in the top space, F on the top line, G just above the staff.
