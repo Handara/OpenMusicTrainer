@@ -120,6 +120,7 @@ struct CourseDrill {
     std::string id;          // "<chapter id>-<step from 1>": its score and its own progress are kept by it
     std::string name;        // for the list: its own, or the chapter's with its number
     int passPercent = 100;   // the score a run needs
+    bool optional = false;   // a challenge ('gate no'): its stars count, but the chapter's passed without it
 };
 std::vector<CourseDrill> courseDrills(const Course& course, int lesson);
 // What a run of an exercise must score to pass it (percent): its own rule (so many right of so many, a pass's share)
@@ -136,8 +137,8 @@ bool recordCourseScore(CourseScores& scores, const std::string& drill, int perce
 
 struct ChapterState {
     int percent = 0;     // its drills' best scores, on average
-    bool passed = false; // every drill passed (or, without drills, read)
-    bool perfect = false;// every drill at 100%
+    bool passed = false; // every drill passed, its challenges aside (or, without drills, read)
+    bool perfect = false;// every drill at 100%, its challenges aside
     int stars = 0, starsPossible = 0; // its drills' stars (drillStars), of three each
 };
 // A drill's stars by its best: one passed, two at 95% or more, three every note right; none not passed yet

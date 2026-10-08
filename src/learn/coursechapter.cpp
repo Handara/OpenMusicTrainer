@@ -54,6 +54,7 @@ CourseChapter::~CourseChapter(){
 
 int CourseChapter::firstNotPassed() const {
     for (int i = 0; i < (int)drills.size(); i++){
+        if (drills[i].optional) continue; // a challenge: there to take, not to go through
         auto found = scores.best.find(drills[i].id);
         if (found == scores.best.end() || found->second < drills[i].passPercent) return i;
     }
@@ -254,7 +255,7 @@ void CourseChapter::draw(){
         draw->AddRectFilled(a, b, isChosen ? uiColor(UiColor::Accent, 0.12f) : uiColor(UiColor::Card), 10 * s);
         draw->AddRect(a, b, uiColor(isChosen ? UiColor::Accent : UiColor::StaffLine), 10 * s, 0, (isChosen ? 2.0f : 1.0f) * s);
         draw->AddText(fonts.mono, 12 * s, ImVec2(a.x + 16 * s, a.y + 10 * s), uiColor(isNext ? UiColor::Accent : UiColor::Dim),
-                      isNext ? TextFormat("DRILL %d  ·  NEXT", i + 1) : TextFormat("DRILL %d", i + 1));
+                      drill.optional ? "CHALLENGE  ·  OPTIONAL" : isNext ? TextFormat("DRILL %d  ·  NEXT", i + 1) : TextFormat("DRILL %d", i + 1));
         draw->AddText(fonts.bold, 19 * s, ImVec2(a.x + 16 * s, a.y + 26 * s), uiColor(UiColor::Ink), drill.name.c_str());
         // Its bar, its best, and a badge
         const float barX = right - 200 * s, barWidth = 110 * s, barY = a.y + 42 * s;

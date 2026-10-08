@@ -223,6 +223,29 @@ TEST_CASE("courses made in the maker: chapters put in a level and taken out, lev
     CHECK(again.units[1].lessonCount == 2);
 }
 
+TEST_CASE("courses: a challenge (an optional drill) earns its stars, but a chapter passes without it"){
+    Course course;
+    std::string error;
+    REQUIRE_MESSAGE(parseCourse("version 2\ntitle T\nlevel L\nchapter C\npage\nblock exercise Main\nid 1\ntype notes\nnotes E4\ncount 4\npass 4\n"
+                                "block exercise Challenge\nid 2\ngate no\ntype notes\nnotes E4\ncount 4\npass 4\n"
+                                "chapter D\npage\nblock text\ntext Next.\n", "c", course, error), error);
+    const std::vector<CourseDrill> drills = courseDrills(course, 0);
+    REQUIRE(drills.size() == 2);
+    CHECK_FALSE(drills[0].optional);
+    CHECK(drills[1].optional);
+    CourseScores scores;
+    recordCourseScore(scores, drills[0].id, 100);
+    ChapterState state = chapterState(course, 0, scores);
+    CHECK(state.passed);       // the challenge not played: passed all the same
+    CHECK(state.perfect);
+    CHECK(state.percent == 100);
+    CHECK(state.stars == 3);
+    CHECK(state.starsPossible == 6); // its stars there to earn
+    CHECK(chapterOpen(course, 1, scores));
+    recordCourseScore(scores, drills[1].id, 100);
+    CHECK(chapterState(course, 0, scores).stars == 6);
+}
+
 TEST_CASE("courses: drills scored by their best run; a chapter passed with all of them, then the next opens"){
     Course course;
     std::string error;

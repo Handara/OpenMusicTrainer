@@ -450,6 +450,7 @@ std::vector<CourseDrill> courseDrills(const Course& course, int lesson){
         const std::string named = blockValue(block, "exercise");
         drill.name = !block.name.empty() ? block.name : named;
         drill.passPercent = named.empty() ? exercisePassPercent(block.exercise) : 100;
+        drill.optional = !blockGates(block);
         drills.push_back(drill);
     }
     for (size_t i = 0; i < drills.size(); i++)
@@ -500,17 +501,21 @@ ChapterState chapterState(const Course& course, int lesson, const CourseScores& 
         state.passed = state.perfect = read;
         return state;
     }
-    int sum = 0;
+    int sum = 0, counted = 0;
     state.passed = state.perfect = true;
     for (const CourseDrill& drill : drills){
         const int best = bestOf(scores, drill.id);
-        sum += best;
+        if (!drill.optional){
+            sum += best;
+            counted++;
+        }
         state.stars += drillStars(best, drill.passPercent);
         state.starsPossible += 3;
+        if (drill.optional) continue; // a challenge: its stars, but nothing holds on it
         if (best < drill.passPercent) state.passed = false;
         if (best < 100) state.perfect = false;
     }
-    state.percent = sum / (int)drills.size();
+    state.percent = counted > 0 ? sum / counted : 100;
     return state;
 }
 
