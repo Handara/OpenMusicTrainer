@@ -106,6 +106,77 @@ BASS = Instrument("bass", [28, 33, 38, 43], ["E", "A", "D", "G"], "G2",
                   "Music is written on five lines, the staff. The higher a note sits, the higher it sounds. Bass music is written in the bass clef, the curl with two dots, and sounds an octave lower than written.")
 
 
+# Rhythm, learned alongside the notes: a rung each note chapter (its words, and an example on the chapter's own note,
+# N), each bringing in a rhythm cell (core/rhythm) that the chapter's challenges read from then on
+RHYTHM_LADDER = [
+    ("the beat", "quarter",
+     "A filled note with a stem is a **quarter note**: it lasts one beat. Tap your foot evenly and count 1 2 3 4, a note on each count.",
+     "N N N N"),
+    ("half notes", "half",
+     "A hollow note with a stem is a **half note**: two beats. Play it on 1, and let it ring through 2.",
+     "N/2 N/2 N N N/2"),
+    ("whole notes", "whole",
+     "A hollow note with no stem is a **whole note**: the whole bar, all four beats.",
+     "N/1 N/2 N/2"),
+    ("quarter rests", "rest",
+     "A **rest** is a silence you count. This squiggle is a quarter rest: one beat. Stop the string, and keep counting.",
+     "N r N r N N/2 r"),
+    ("eighth notes", "eighths",
+     "Two **eighth notes** fit in one beat: count 1 and 2 and. Side by side they're joined by a beam; alone, an eighth has a flag.",
+     "N/8 N/8 N/8 N/8 N N N/8 N/8 N/2 N"),
+    ("dotted half notes", "dotted_half",
+     "A **dot** after a note adds half its length again: a dotted half lasts three beats.",
+     "N/2. N N/2. N"),
+    ("half and whole rests", None,
+     "A **half rest** sits on the middle line like a hat: two beats. A **whole rest** hangs under the fourth line: a whole bar.",
+     "N N r/2 r/1"),
+    ("eighth rests", "offbeat",
+     "An **eighth rest** is half a beat of silence. After one, the note comes on the and: count 1 and, play on the and.",
+     "N r/8 N/8 N r/8 N/8"),
+    ("dotted quarter notes", "dotted_quarter",
+     "A **dotted quarter** lasts a beat and a half: count 1 2 and. The eighth after it finishes beat 2.",
+     "N/4. N/8 N/4. N/8 N/2 N/2"),
+    ("sixteenth notes", "sixteenths",
+     "Four **sixteenths** fit in a beat, joined by two beams: count 1 e and a.",
+     "N/16 N/16 N/16 N/16 N/8 N/8 N/2"),
+    ("triplets", "triplets",
+     "Three notes in the time of two: a **triplet**, marked with a 3. Count 1 and a, 2 and a.",
+     "N/8t N/8t N/8t N N/8t N/8t N/8t N"),
+    ("dotted eighths", "dotted",
+     "A **dotted eighth** and a **sixteenth** share a beat, long then short: a skip.",
+     "N/8. N/16 N/8. N/16 N/2"),
+]
+
+
+class RhythmLadder:
+    """Where a course is on the rhythm ladder: the rungs climbed, the cells learned"""
+
+    def __init__(self):
+        self.step = 0
+        self.cells = []
+
+    def rung(self, note):
+        """The next rung's lines for a chapter's words (nothing once they're all climbed), on its note"""
+        if self.step >= len(RHYTHM_LADDER):
+            return []
+        title, cell, text, music = RHYTHM_LADDER[self.step]
+        self.step += 1
+        if cell and cell not in self.cells:
+            self.cells.append(cell)
+        return [f"@heading Rhythm: {title}", f"text {text}", "@music " + music.replace("N", note)]
+
+    def challenge(self, notes, extra, key=None):
+        """A chapter's challenge, once there's more than one rhythm to read: its notes in every rhythm learned so far,
+        to a beat, a little slower (optional: its stars count, the chapter's passed without it)"""
+        if len(self.cells) < 2:
+            return []
+        return (["drill Challenge: in rhythm", "@optional", "type reading", "notes " + " ".join(notes), "cells " + " ".join(self.cells),
+                 "bars 8", "tempo 60 90 5", "challenge 70", f"pass {BEAT_PASS}", "goal 1"] + key_lines(key) + extra)
+
+
+RHYTHM = RhythmLadder()
+
+
 def note_chapter(instrument, title, new, string_notes, known, key=None, intro=None):
     """A chapter bringing in `new`, with the other notes of its string and what's known so far"""
     lines = [f"lesson {title}"]
@@ -116,6 +187,7 @@ def note_chapter(instrument, title, new, string_notes, known, key=None, intro=No
     # Seen as well as said: written on the staff, and lit where it's played
     lines.append("@staff " + " ".join(new))
     lines.append("@neck " + " ".join(f"{instrument.place(note)[0] + 1}:{instrument.place(note)[1]}" for note in new))
+    lines += RHYTHM.rung(new[0])
     group = list(dict.fromkeys(string_notes + new))
     mixed = list(dict.fromkeys(known + new))
     if len(new) == 1:
@@ -126,7 +198,18 @@ def note_chapter(instrument, title, new, string_notes, known, key=None, intro=No
     if len(mixed) > len(group):
         recent = mixed[-9:]  # the last notes learned: enough to mix, not so many it's a lottery
         lines += beat_drill(instrument, "Mixed with what you know", recent, False, key)
+    # Last (so the drills before keep their numbers): the challenge, its notes in the rhythms learned so far
+    extra = ["tuning " + " ".join(str(p) for p in BASS.tuning)] if instrument is BASS else []
+    lines += RHYTHM.challenge(group, extra, key)
     return lines
+
+
+def key_lines(key):
+    """A drill's key signature lines, for a key like 'G major' (none for no key)"""
+    if not key:
+        return []
+    tonic, mode = key.split()[:2]
+    return [f"key {tonic}", f"scale {'major' if mode == 'major' else 'minor'}"]
 
 
 def beat_drill(instrument, name, notes, where, key=None):
@@ -345,6 +428,7 @@ def piano_note_chapter(clef, title, new, around, known, intro=None):
         lines.append(f"text {spoken(note)} sits {clef.staff_text(note)}. On the piano it's {key_text(note)}.")
     lines.append("@staff " + " ".join(new))
     lines.append("@keys " + " ".join(new))
+    lines += RHYTHM.rung(new[0])
     group = list(dict.fromkeys(around + new))
     mixed = list(dict.fromkeys(known + new))
     if len(new) == 1:
@@ -354,6 +438,7 @@ def piano_note_chapter(clef, title, new, around, known, intro=None):
     lines += piano_drill(f"{listing(group)}, on your own", group, False)
     if len(mixed) > len(group):
         lines += piano_drill("Mixed with what you know", mixed[-9:], False)
+    lines += RHYTHM.challenge(group, ["instrument piano"])
     return lines
 
 
@@ -375,6 +460,8 @@ def piano_timed(title, text, low, high, cells, key="C major", leap=2):
 
 
 def build_piano():
+    global RHYTHM
+    RHYTHM = RhythmLadder()  # each course climbs it from the start
     out = ["# lahn course: written by tools/courses/make_reading_course.py (change it there, and run it again)",
            "version 1",
            "title Reading music",
@@ -459,6 +546,8 @@ def build_piano():
 
 
 def build(instrument):
+    global RHYTHM
+    RHYTHM = RhythmLadder()  # each course climbs it from the start
     plan = PLANS[instrument.name]
     out = ["# lahn course: written by tools/courses/make_reading_course.py (change it there, and run it again)",
            "version 1",

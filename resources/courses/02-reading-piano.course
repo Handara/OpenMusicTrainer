@@ -13,11 +13,17 @@ page
     text Music is written on five lines, the staff. The higher a note sits, the higher it sounds. The curl at the start is the treble clef, for your right hand. Piano music is written just where it sounds.
     text C sits on the 1st ledger line below the staff. On the piano it's the white key just left of a group of two black keys: middle C.
   block staff
-    notes C4
+    notes C4/1
   block keyboard
     from C4
     to B4
     lit C4
+  block heading
+    text Rhythm: the beat
+  block text
+    text A filled note with a stem is a **quarter note**: it lasts one beat. Tap your foot evenly and count 1 2 3 4, a note on each count.
+  block staff
+    notes C4 C4 C4 C4
   block exercise C alone
     id 2
     goal 1
@@ -47,11 +53,17 @@ page
   block text
     text D sits just below the staff. On the piano it's the white key between the two black keys: the D above middle C.
   block staff
-    notes D4
+    notes D4/1
   block keyboard
     from C4
     to B4
     lit D4
+  block heading
+    text Rhythm: half notes
+  block text
+    text A hollow note with a stem is a **half note**: two beats. Play it on 1, and let it ring through 2.
+  block staff
+    notes D4/2 D4/2 D4 D4 D4/2
   block exercise D alone
     id 2
     goal 1
@@ -87,17 +99,35 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 5
+    gate no
+    goal 1
+    type reading
+    notes C4 D4
+    cells quarter half
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
+    instrument piano
 
 chapter E above middle C
 page
   block text
     text E sits on the bottom line. On the piano it's the white key just right of the two black keys: the E above middle C.
   block staff
-    notes E4
+    notes E4/1
   block keyboard
     from C4
     to B4
     lit E4
+  block heading
+    text Rhythm: whole notes
+  block text
+    text A hollow note with no stem is a **whole note**: the whole bar, all four beats.
+  block staff
+    notes E4/1 E4/2 E4/2
   block exercise E alone
     id 2
     goal 1
@@ -133,17 +163,35 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 5
+    gate no
+    goal 1
+    type reading
+    notes C4 D4 E4
+    cells quarter half whole
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
+    instrument piano
 
 chapter F above middle C
 page
   block text
     text F sits in the bottom space. On the piano it's the white key just left of a group of three black keys: the F above middle C.
   block staff
-    notes F4
+    notes F4/1
   block keyboard
     from C4
     to B4
     lit F4
+  block heading
+    text Rhythm: quarter rests
+  block text
+    text A **rest** is a silence you count. This squiggle is a quarter rest: one beat. Stop the string, and keep counting.
+  block staff
+    notes F4 r F4 r F4 F4/2 r
   block exercise F alone
     id 2
     goal 1
@@ -179,17 +227,35 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 5
+    gate no
+    goal 1
+    type reading
+    notes C4 D4 E4 F4
+    cells quarter half whole rest
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
+    instrument piano
 
 chapter G above middle C
 page
   block text
     text G sits on the second line. On the piano it's the white key between the first two of the three black keys: the G above middle C.
   block staff
-    notes G4
+    notes G4/1
   block keyboard
     from C4
     to B4
     lit G4
+  block heading
+    text Rhythm: eighth notes
+  block text
+    text Two **eighth notes** fit in one beat: count 1 and 2 and. Side by side they're joined by a beam; alone, an eighth has a flag.
+  block staff
+    notes G4/8 G4/8 G4/8 G4/8 G4 G4 G4/8 G4/8 G4/2 G4
   block exercise G alone
     id 2
     goal 1
@@ -236,6 +302,18 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes D4 E4 F4 G4
+    cells quarter half whole rest eighths
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
+    instrument piano
 
 chapter Five fingers
 page
@@ -273,11 +351,17 @@ page
   block text
     text A sits in the second space. On the piano it's the white key between the last two of the three black keys: the A above middle C.
   block staff
-    notes A4
+    notes A4/1
   block keyboard
     from C4
     to B4
     lit A4
+  block heading
+    text Rhythm: dotted half notes
+  block text
+    text A **dot** after a note adds half its length again: a dotted half lasts three beats.
+  block staff
+    notes A4/2. A4 A4/2. A4
   block exercise A alone
     id 2
     goal 1
@@ -324,17 +408,35 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes E4 F4 G4 A4
+    cells quarter half whole rest eighths dotted_half
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
+    instrument piano
 
 chapter B above middle C
 page
   block text
     text B sits on the middle line. On the piano it's the white key just right of the three black keys: the B above middle C.
   block staff
-    notes B4
+    notes B4/1
   block keyboard
     from C4
     to B4
     lit B4
+  block heading
+    text Rhythm: half and whole rests
+  block text
+    text A **half rest** sits on the middle line like a hat: two beats. A **whole rest** hangs under the fourth line: a whole bar.
+  block staff
+    notes B4 B4 r/2 r/1
   block exercise B alone
     id 2
     goal 1
@@ -381,17 +483,35 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes F4 G4 A4 B4
+    cells quarter half whole rest eighths dotted_half
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
+    instrument piano
 
 chapter C above middle C
 page
   block text
     text C sits in the third space. On the piano it's the white key just left of a group of two black keys: the C above middle C.
   block staff
-    notes C5
+    notes C5/1
   block keyboard
     from C5
     to B5
     lit C5
+  block heading
+    text Rhythm: eighth rests
+  block text
+    text An **eighth rest** is half a beat of silence. After one, the note comes on the and: count 1 and, play on the and.
+  block staff
+    notes C5 r/8 C5/8 C5 r/8 C5/8
   block exercise C alone
     id 2
     goal 1
@@ -438,17 +558,35 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes G4 A4 B4 C5
+    cells quarter half whole rest eighths dotted_half offbeat
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
+    instrument piano
 
 chapter D above the C above middle C
 page
   block text
     text D sits on the fourth line. On the piano it's the white key between the two black keys: the D above the C above middle C.
   block staff
-    notes D5
+    notes D5/1
   block keyboard
     from C5
     to B5
     lit D5
+  block heading
+    text Rhythm: dotted quarter notes
+  block text
+    text A **dotted quarter** lasts a beat and a half: count 1 2 and. The eighth after it finishes beat 2.
+  block staff
+    notes D5/4. D5/8 D5/4. D5/8 D5/2 D5/2
   block exercise D alone
     id 2
     goal 1
@@ -495,17 +633,35 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes A4 B4 C5 D5
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
+    instrument piano
 
 chapter E above the C above middle C
 page
   block text
     text E sits in the top space. On the piano it's the white key just right of the two black keys: the E above the C above middle C.
   block staff
-    notes E5
+    notes E5/1
   block keyboard
     from C5
     to B5
     lit E5
+  block heading
+    text Rhythm: sixteenth notes
+  block text
+    text Four **sixteenths** fit in a beat, joined by two beams: count 1 e and a.
+  block staff
+    notes E5/16 E5/16 E5/16 E5/16 E5/8 E5/8 E5/2
   block exercise E alone
     id 2
     goal 1
@@ -552,17 +708,35 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes B4 C5 D5 E5
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
+    instrument piano
 
 chapter F above the C above middle C
 page
   block text
     text F sits on the top line. On the piano it's the white key just left of a group of three black keys: the F above the C above middle C.
   block staff
-    notes F5
+    notes F5/1
   block keyboard
     from C5
     to B5
     lit F5
+  block heading
+    text Rhythm: triplets
+  block text
+    text Three notes in the time of two: a **triplet**, marked with a 3. Count 1 and a, 2 and a.
+  block staff
+    notes F5/8t F5/8t F5/8t F5 F5/8t F5/8t F5/8t F5
   block exercise F alone
     id 2
     goal 1
@@ -609,17 +783,35 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes C5 D5 E5 F5
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
+    instrument piano
 
 chapter G above the C above middle C
 page
   block text
     text G sits just above the staff. On the piano it's the white key between the first two of the three black keys: the G above the C above middle C.
   block staff
-    notes G5
+    notes G5/1
   block keyboard
     from C5
     to B5
     lit G5
+  block heading
+    text Rhythm: dotted eighths
+  block text
+    text A **dotted eighth** and a **sixteenth** share a beat, long then short: a skip.
+  block staff
+    notes G5/8. G5/16 G5/8. G5/16 G5/2
   block exercise G alone
     id 2
     goal 1
@@ -666,6 +858,18 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes D5 E5 F5 G5
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
+    instrument piano
 
 chapter The whole treble staff
 page
@@ -704,7 +908,7 @@ page
     text The bass clef, the curl with two dots, is for the lower notes, your left hand's. The same five lines, other names: middle C is just above it, on its own short line.
     text B sits just above the staff. On the piano it's the white key just right of the three black keys: the B below middle C.
   block staff
-    notes B3
+    notes B3/1
   block keyboard
     from C3
     to B3
@@ -744,13 +948,25 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 5
+    gate no
+    goal 1
+    type reading
+    notes C4 B3
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
+    instrument piano
 
 chapter A below middle C
 page
   block text
     text A sits on the top line. On the piano it's the white key between the last two of the three black keys: the A below middle C.
   block staff
-    notes A3
+    notes A3/1
   block keyboard
     from C3
     to B3
@@ -790,13 +1006,25 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 5
+    gate no
+    goal 1
+    type reading
+    notes C4 B3 A3
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
+    instrument piano
 
 chapter G below middle C
 page
   block text
     text G sits in the top space. On the piano it's the white key between the first two of the three black keys: the G below middle C.
   block staff
-    notes G3
+    notes G3/1
   block keyboard
     from C3
     to B3
@@ -836,13 +1064,25 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 5
+    gate no
+    goal 1
+    type reading
+    notes C4 B3 A3 G3
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
+    instrument piano
 
 chapter F below middle C
 page
   block text
     text F sits on the fourth line. On the piano it's the white key just left of a group of three black keys: the F below middle C.
   block staff
-    notes F3
+    notes F3/1
   block keyboard
     from C3
     to B3
@@ -893,13 +1133,25 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes B3 A3 G3 F3
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
+    instrument piano
 
 chapter E below middle C
 page
   block text
     text E sits in the third space. On the piano it's the white key just right of the two black keys: the E below middle C.
   block staff
-    notes E3
+    notes E3/1
   block keyboard
     from C3
     to B3
@@ -950,13 +1202,25 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes A3 G3 F3 E3
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
+    instrument piano
 
 chapter D below middle C
 page
   block text
     text D sits on the middle line. On the piano it's the white key between the two black keys: the D below middle C.
   block staff
-    notes D3
+    notes D3/1
   block keyboard
     from C3
     to B3
@@ -1007,13 +1271,25 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes G3 F3 E3 D3
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
+    instrument piano
 
 chapter C below middle C
 page
   block text
     text C sits in the second space. On the piano it's the white key just left of a group of two black keys: the C below middle C.
   block staff
-    notes C3
+    notes C3/1
   block keyboard
     from C3
     to B3
@@ -1064,6 +1340,18 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes F3 E3 D3 C3
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
+    instrument piano
 
 chapter Five fingers, left hand
 page
@@ -1101,7 +1389,7 @@ page
   block text
     text B sits on the second line. On the piano it's the white key just right of the three black keys: the low B, below the C below middle C.
   block staff
-    notes B2
+    notes B2/1
   block keyboard
     from C2
     to B2
@@ -1152,13 +1440,25 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes E3 D3 C3 B2
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
+    instrument piano
 
 chapter Low A, below the C below middle C
 page
   block text
     text A sits in the bottom space. On the piano it's the white key between the last two of the three black keys: the low A, below the C below middle C.
   block staff
-    notes A2
+    notes A2/1
   block keyboard
     from C2
     to B2
@@ -1209,13 +1509,25 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes D3 C3 B2 A2
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
+    instrument piano
 
 chapter Low G, below the C below middle C
 page
   block text
     text G sits on the bottom line. On the piano it's the white key between the first two of the three black keys: the low G, below the C below middle C.
   block staff
-    notes G2
+    notes G2/1
   block keyboard
     from C2
     to B2
@@ -1266,13 +1578,25 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes C3 B2 A2 G2
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
+    instrument piano
 
 chapter Low F, below the C below middle C
 page
   block text
     text F sits just below the staff. On the piano it's the white key just left of a group of three black keys: the low F, below the C below middle C.
   block staff
-    notes F2
+    notes F2/1
   block keyboard
     from C2
     to B2
@@ -1323,13 +1647,25 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes B2 A2 G2 F2
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
+    instrument piano
 
 chapter Low E, below the C below middle C
 page
   block text
     text E sits on the 1st ledger line below the staff. On the piano it's the white key just right of the two black keys: the low E, below the C below middle C.
   block staff
-    notes E2
+    notes E2/1
   block keyboard
     from C2
     to B2
@@ -1380,6 +1716,18 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes A2 G2 F2 E2
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
+    instrument piano
 
 chapter The whole bass staff
 page
@@ -1418,7 +1766,7 @@ page
     text A sharp sign raises a note to the very next key up, mostly a black one; a flat lowers it to the next key down.
     text F sharp sits in the bottom space. On the piano it's the black key just right of F: the F sharp above middle C.
   block staff
-    notes F#4
+    notes F#4/1
   block keyboard
     from C4
     to B4
@@ -1458,13 +1806,25 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 5
+    gate no
+    goal 1
+    type reading
+    notes E4 F4 G4 F#4
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
+    instrument piano
 
 chapter C sharp above middle C
 page
   block text
     text C sharp sits on the 1st ledger line below the staff. On the piano it's the black key just right of C: the C sharp above middle C.
   block staff
-    notes C#4
+    notes C#4/1
   block keyboard
     from C4
     to B4
@@ -1504,6 +1864,18 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 5
+    gate no
+    goal 1
+    type reading
+    notes C4 D4 C#4
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
+    instrument piano
 
 chapter B flat above middle C
 page
@@ -1511,7 +1883,7 @@ page
     text Bb is B flat: the black key just left of B.
     text B flat sits on the middle line. On the piano it's the black key just left of B: the B flat above middle C.
   block staff
-    notes Bb4
+    notes Bb4/1
   block keyboard
     from C4
     to B4
@@ -1551,13 +1923,25 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 5
+    gate no
+    goal 1
+    type reading
+    notes A4 B4 C5 Bb4
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
+    instrument piano
 
 chapter E flat above middle C
 page
   block text
     text E flat sits on the bottom line. On the piano it's the black key just left of E: the E flat above middle C.
   block staff
-    notes Eb4
+    notes Eb4/1
   block keyboard
     from C4
     to B4
@@ -1597,13 +1981,25 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 5
+    gate no
+    goal 1
+    type reading
+    notes D4 E4 Eb4
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
+    instrument piano
 
 chapter G sharp above middle C
 page
   block text
     text G sharp sits on the second line. On the piano it's the black key just right of G: the G sharp above middle C.
   block staff
-    notes G#4
+    notes G#4/1
   block keyboard
     from C4
     to B4
@@ -1643,13 +2039,25 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 5
+    gate no
+    goal 1
+    type reading
+    notes G4 A4 G#4
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
+    instrument piano
 
 chapter F sharp below middle C
 page
   block text
     text F sharp sits on the fourth line. On the piano it's the black key just right of F: the F sharp below middle C.
   block staff
-    notes F#3
+    notes F#3/1
   block keyboard
     from C3
     to B3
@@ -1689,13 +2097,25 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 5
+    gate no
+    goal 1
+    type reading
+    notes E3 F3 G3 F#3
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
+    instrument piano
 
 chapter Low B flat, below the C below middle C
 page
   block text
     text B flat sits on the second line. On the piano it's the black key just left of B: the low B flat, below the C below middle C.
   block staff
-    notes Bb2
+    notes Bb2/1
   block keyboard
     from C2
     to B2
@@ -1735,6 +2155,18 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 5
+    gate no
+    goal 1
+    type reading
+    notes A2 B2 C3 Bb2
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
+    instrument piano
 
 
 level Key signatures

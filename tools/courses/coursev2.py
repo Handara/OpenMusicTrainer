@@ -6,6 +6,10 @@ A tool may put pictures in a chapter's words with lines of its own, after the te
   @staff E4 F4        a staff with these notes
   @neck 6:1 6:3       part of the neck with these places lit (string:fret, 1 = the lowest string)
   @keys D4            piano keys (that note's octave) with it lit
+  @heading Rhythm     a heading among the words
+  @music E4/2 E4 E4   a staff of this music, as staff blocks write it (each note its length: core/lessondoc.h)
+And in a drill's settings:
+  @optional           a challenge: its stars count, but the chapter's passed without it
 """
 
 STRUCTURAL = {"unit", "lesson", "title", "text", "exercise", "drill", "goal"}
@@ -18,19 +22,22 @@ def _steps(lines):
     last_was_text = False
     for line in lines:
         key, _, rest = line.partition(" ")
+        if key == "@optional":  # (the drill's own)
+            steps[-1]["optional"] = True
+            continue
         if key.startswith("@"):  # a picture: with the text before it
             if not steps or steps[-1]["kind"] != "text":
-                steps.append({"kind": "text", "title": "", "paragraphs": [], "pictures": []})
-            steps[-1]["pictures"].append((key[1:], rest))
+                steps.append({"kind": "text", "title": "", "items": []})
+            steps[-1]["items"].append((key[1:], rest))
             last_was_text = True
             continue
         if key in ("title", "text"):
             if key == "title" or not last_was_text:
-                steps.append({"kind": "text", "title": "", "paragraphs": [], "pictures": []})
+                steps.append({"kind": "text", "title": "", "items": []})
             if key == "title":
                 steps[-1]["title"] = rest
             else:
-                steps[-1]["paragraphs"].append(rest)
+                steps[-1]["items"].append(("text", rest))
             last_was_text = True
             continue
         last_was_text = False
@@ -48,10 +55,17 @@ def _steps(lines):
 def _picture(kind, rest):
     """A picture's block lines"""
     if kind == "staff":
-        return ["  block staff", f"    notes {rest}"]
+        # Lasting the bar between them, as a picture of notes is drawn (one a whole note, two halves), not quarters and rests
+        notes = rest.split()
+        length = {1: "/1", 2: "/2"}.get(len(notes), "")
+        return ["  block staff", "    notes " + " ".join(note + length for note in notes)]
     if kind == "neck":
         frets = max([int(place.split(":")[1]) for place in rest.split()] + [3])
         return ["  block fretboard", f"    frets 0 {max(4, frets + 1)}", f"    lit {rest}"]
+    if kind == "heading":
+        return ["  block heading", f"    text {rest}"]
+    if kind == "music":
+        return ["  block staff", f"    notes {rest}"]
     if kind == "keys":
         octave = rest.split()[0][-1]
         return ["  block keyboard", f"    from C{octave}", f"    to B{octave}", f"    lit {rest}"]
@@ -65,13 +79,19 @@ def _chapter(steps, instrument):
         if step["kind"] == "text":
             if step["title"]:
                 out += ["  block heading", f"    text {step['title']}"]
-            if step["paragraphs"]:
-                out += ["  block text"] + [f"    text {p}" for p in step["paragraphs"]]
-            for kind, rest in step["pictures"]:
-                out += _picture(kind, rest)
+            # In the order written: paragraphs side by side are one text block
+            for i, (kind, rest) in enumerate(step["items"]):
+                if kind != "text":
+                    out += _picture(kind, rest)
+                    continue
+                if i == 0 or step["items"][i - 1][0] != "text":
+                    out.append("  block text")
+                out.append(f"    text {rest}")
             continue
         out.append("  block exercise" + (f" {step['name']}" if step["name"] else ""))
         out.append(f"    id {number}")
+        if step.get("optional"):
+            out.append("    gate no")
         if step["goal"]:
             out.append(f"    goal {step['goal']}")
         if step["named"]:

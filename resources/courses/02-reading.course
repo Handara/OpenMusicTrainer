@@ -13,10 +13,16 @@ page
     text Music is written on five lines, the staff. The higher a note sits, the higher it sounds. The little 8 under the clef says guitar sounds an octave lower than written.
     text E sits in the top space. On the guitar it's the open high E string.
   block staff
-    notes E4
+    notes E4/1
   block fretboard
     frets 0 4
     lit 6:0
+  block heading
+    text Rhythm: the beat
+  block text
+    text A filled note with a stem is a **quarter note**: it lasts one beat. Tap your foot evenly and count 1 2 3 4, a note on each count.
+  block staff
+    notes E4 E4 E4 E4
   block exercise E alone
     id 2
     goal 1
@@ -44,10 +50,16 @@ page
   block text
     text F sits on the top line. On the guitar it's the 1st fret of the high E string.
   block staff
-    notes F4
+    notes F4/1
   block fretboard
     frets 0 4
     lit 6:1
+  block heading
+    text Rhythm: half notes
+  block text
+    text A hollow note with a stem is a **half note**: two beats. Play it on 1, and let it ring through 2.
+  block staff
+    notes F4/2 F4/2 F4 F4 F4/2
   block exercise F alone
     id 2
     goal 1
@@ -80,16 +92,33 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 5
+    gate no
+    goal 1
+    type reading
+    notes E4 F4
+    cells quarter half
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
 
 chapter The high E string: G
 page
   block text
     text G sits just above the staff. On the guitar it's the 3rd fret of the high E string.
   block staff
-    notes G4
+    notes G4/1
   block fretboard
     frets 0 4
     lit 6:3
+  block heading
+    text Rhythm: whole notes
+  block text
+    text A hollow note with no stem is a **whole note**: the whole bar, all four beats.
+  block staff
+    notes G4/1 G4/2 G4/2
   block exercise G alone
     id 2
     goal 1
@@ -121,6 +150,17 @@ page
     bars 10
     tempo 90 120 5
     challenge 100
+    pass 87
+  block exercise Challenge: in rhythm
+    id 5
+    gate no
+    goal 1
+    type reading
+    notes E4 F4 G4
+    cells quarter half whole
+    bars 8
+    tempo 60 90 5
+    challenge 70
     pass 87
 
 chapter The high E string: all of it
@@ -157,10 +197,16 @@ page
   block text
     text B sits on the middle line. On the guitar it's the open B string.
   block staff
-    notes B3
+    notes B3/1
   block fretboard
     frets 0 4
     lit 5:0
+  block heading
+    text Rhythm: quarter rests
+  block text
+    text A **rest** is a silence you count. This squiggle is a quarter rest: one beat. Stop the string, and keep counting.
+  block staff
+    notes B3 r B3 r B3 B3/2 r
   block exercise B alone
     id 2
     goal 1
@@ -192,16 +238,33 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 5
+    gate no
+    goal 1
+    type reading
+    notes B3
+    cells quarter half whole rest
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
 
 chapter The B string: C
 page
   block text
     text C sits in the third space. On the guitar it's the 1st fret of the B string.
   block staff
-    notes C4
+    notes C4/1
   block fretboard
     frets 0 4
     lit 5:1
+  block heading
+    text Rhythm: eighth notes
+  block text
+    text Two **eighth notes** fit in one beat: count 1 and 2 and. Side by side they're joined by a beam; alone, an eighth has a flag.
+  block staff
+    notes C4/8 C4/8 C4/8 C4/8 C4 C4 C4/8 C4/8 C4/2 C4
   block exercise C alone
     id 2
     goal 1
@@ -244,16 +307,33 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes B3 C4
+    cells quarter half whole rest eighths
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
 
 chapter The B string: D
 page
   block text
     text D sits on the fourth line. On the guitar it's the 3rd fret of the B string.
   block staff
-    notes D4
+    notes D4/1
   block fretboard
     frets 0 4
     lit 5:3
+  block heading
+    text Rhythm: dotted half notes
+  block text
+    text A **dot** after a note adds half its length again: a dotted half lasts three beats.
+  block staff
+    notes D4/2. D4 D4/2. D4
   block exercise D alone
     id 2
     goal 1
@@ -296,6 +376,17 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes B3 C4 D4
+    cells quarter half whole rest eighths dotted_half
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
 
 chapter The B string: all of it
 page
@@ -331,10 +422,16 @@ page
   block text
     text G sits on the second line. On the guitar it's the open G string.
   block staff
-    notes G3
+    notes G3/1
   block fretboard
     frets 0 4
     lit 4:0
+  block heading
+    text Rhythm: half and whole rests
+  block text
+    text A **half rest** sits on the middle line like a hat: two beats. A **whole rest** hangs under the fourth line: a whole bar.
+  block staff
+    notes G3 G3 r/2 r/1
   block exercise G alone
     id 2
     goal 1
@@ -366,16 +463,33 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 5
+    gate no
+    goal 1
+    type reading
+    notes G3
+    cells quarter half whole rest eighths dotted_half
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
 
 chapter The G string: A
 page
   block text
     text A sits in the second space. On the guitar it's the 2nd fret of the G string.
   block staff
-    notes A3
+    notes A3/1
   block fretboard
     frets 0 4
     lit 4:2
+  block heading
+    text Rhythm: eighth rests
+  block text
+    text An **eighth rest** is half a beat of silence. After one, the note comes on the and: count 1 and, play on the and.
+  block staff
+    notes A3 r/8 A3/8 A3 r/8 A3/8
   block exercise A alone
     id 2
     goal 1
@@ -418,6 +532,17 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes G3 A3
+    cells quarter half whole rest eighths dotted_half offbeat
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
 
 chapter The G string: all of it
 page
@@ -454,10 +579,16 @@ page
     text Down into the ledger lines: the short lines under the staff, each one more step down.
     text D sits just below the staff. On the guitar it's the open D string.
   block staff
-    notes D3
+    notes D3/1
   block fretboard
     frets 0 4
     lit 3:0
+  block heading
+    text Rhythm: dotted quarter notes
+  block text
+    text A **dotted quarter** lasts a beat and a half: count 1 2 and. The eighth after it finishes beat 2.
+  block staff
+    notes D3/4. D3/8 D3/4. D3/8 D3/2 D3/2
   block exercise D alone
     id 2
     goal 1
@@ -489,16 +620,33 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 5
+    gate no
+    goal 1
+    type reading
+    notes D3
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
 
 chapter The D string: E
 page
   block text
     text E sits on the bottom line. On the guitar it's the 2nd fret of the D string.
   block staff
-    notes E3
+    notes E3/1
   block fretboard
     frets 0 4
     lit 3:2
+  block heading
+    text Rhythm: sixteenth notes
+  block text
+    text Four **sixteenths** fit in a beat, joined by two beams: count 1 e and a.
+  block staff
+    notes E3/16 E3/16 E3/16 E3/16 E3/8 E3/8 E3/2
   block exercise E alone
     id 2
     goal 1
@@ -541,16 +689,33 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes D3 E3
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
 
 chapter The D string: F
 page
   block text
     text F sits in the bottom space. On the guitar it's the 3rd fret of the D string.
   block staff
-    notes F3
+    notes F3/1
   block fretboard
     frets 0 4
     lit 3:3
+  block heading
+    text Rhythm: triplets
+  block text
+    text Three notes in the time of two: a **triplet**, marked with a 3. Count 1 and a, 2 and a.
+  block staff
+    notes F3/8t F3/8t F3/8t F3 F3/8t F3/8t F3/8t F3
   block exercise F alone
     id 2
     goal 1
@@ -593,6 +758,17 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes D3 E3 F3
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
 
 chapter The D string: all of it
 page
@@ -628,10 +804,16 @@ page
   block text
     text A sits on the 2nd ledger line below the staff. On the guitar it's the open A string.
   block staff
-    notes A2
+    notes A2/1
   block fretboard
     frets 0 4
     lit 2:0
+  block heading
+    text Rhythm: dotted eighths
+  block text
+    text A **dotted eighth** and a **sixteenth** share a beat, long then short: a skip.
+  block staff
+    notes A2/8. A2/16 A2/8. A2/16 A2/2
   block exercise A alone
     id 2
     goal 1
@@ -663,13 +845,24 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 5
+    gate no
+    goal 1
+    type reading
+    notes A2
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
 
 chapter The A string: B
 page
   block text
     text B sits below the 1st ledger line under the staff. On the guitar it's the 2nd fret of the A string.
   block staff
-    notes B2
+    notes B2/1
   block fretboard
     frets 0 4
     lit 2:2
@@ -715,13 +908,24 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes A2 B2
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
 
 chapter The A string: C
 page
   block text
     text C sits on the 1st ledger line below the staff. On the guitar it's the 3rd fret of the A string.
   block staff
-    notes C3
+    notes C3/1
   block fretboard
     frets 0 4
     lit 2:3
@@ -767,6 +971,17 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes A2 B2 C3
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
 
 chapter The A string: all of it
 page
@@ -802,7 +1017,7 @@ page
   block text
     text E sits below the 3rd ledger line under the staff. On the guitar it's the open low E string.
   block staff
-    notes E2
+    notes E2/1
   block fretboard
     frets 0 4
     lit 1:0
@@ -837,13 +1052,24 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 5
+    gate no
+    goal 1
+    type reading
+    notes E2
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
 
 chapter The low E string: F
 page
   block text
     text F sits on the 3rd ledger line below the staff. On the guitar it's the 1st fret of the low E string.
   block staff
-    notes F2
+    notes F2/1
   block fretboard
     frets 0 4
     lit 1:1
@@ -889,13 +1115,24 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes E2 F2
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
 
 chapter The low E string: G
 page
   block text
     text G sits below the 2nd ledger line under the staff. On the guitar it's the 3rd fret of the low E string.
   block staff
-    notes G2
+    notes G2/1
   block fretboard
     frets 0 4
     lit 1:3
@@ -940,6 +1177,17 @@ page
     bars 10
     tempo 90 120 5
     challenge 100
+    pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes E2 F2 G2
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
     pass 87
 
 chapter The low E string: all of it
@@ -1109,7 +1357,7 @@ page
   block text
     text A sits on the 1st ledger line above the staff. On the guitar it's the 5th fret of the high E string.
   block staff
-    notes A4
+    notes A4/1
   block fretboard
     frets 0 6
     lit 6:5
@@ -1155,13 +1403,24 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes E4 F4 G4 A4
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
 
 chapter Above the staff: B
 page
   block text
     text B sits above the 1st ledger line over the staff. On the guitar it's the 7th fret of the high E string.
   block staff
-    notes B4
+    notes B4/1
   block fretboard
     frets 0 8
     lit 6:7
@@ -1207,13 +1466,24 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes F4 G4 A4 B4
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
 
 chapter Above the staff: C
 page
   block text
     text C sits on the 2nd ledger line above the staff. On the guitar it's the 8th fret of the high E string.
   block staff
-    notes C5
+    notes C5/1
   block fretboard
     frets 0 9
     lit 6:8
@@ -1259,6 +1529,17 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes G4 A4 B4 C5
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
 
 
 level Sharps and flats
@@ -1269,7 +1550,7 @@ page
     text A sharp sign raises a note a fret, a flat lowers it a fret. F sharp is one fret above F.
     text F sharp sits on the top line. On the guitar it's the 2nd fret of the high E string.
   block staff
-    notes F#4
+    notes F#4/1
   block fretboard
     frets 0 4
     lit 6:2
@@ -1315,13 +1596,24 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes E4 F4 G4 F#4
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
 
 chapter C sharp on the B string
 page
   block text
     text C sharp sits in the third space. On the guitar it's the 2nd fret of the B string.
   block staff
-    notes C#4
+    notes C#4/1
   block fretboard
     frets 0 4
     lit 5:2
@@ -1367,13 +1659,24 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes B3 C4 D4 C#4
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
 
 chapter G sharp on the G string
 page
   block text
     text G sharp sits on the second line. On the guitar it's the 1st fret of the G string.
   block staff
-    notes G#3
+    notes G#3/1
   block fretboard
     frets 0 4
     lit 4:1
@@ -1419,6 +1722,17 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes G3 A3 G#3
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
 
 chapter B flat on the G string
 page
@@ -1426,7 +1740,7 @@ page
     text Bb is B flat: a fret below B.
     text B flat sits on the middle line. On the guitar it's the 3rd fret of the G string.
   block staff
-    notes Bb3
+    notes Bb3/1
   block fretboard
     frets 0 4
     lit 4:3
@@ -1472,13 +1786,24 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes A3 B3 Bb3
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
 
 chapter E flat on the B string
 page
   block text
     text E flat sits in the top space. On the guitar it's the 4th fret of the B string.
   block staff
-    notes Eb4
+    notes Eb4/1
   block fretboard
     frets 0 5
     lit 5:4
@@ -1524,13 +1849,24 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes D4 E4 Eb4
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
 
 chapter F sharp on the D string
 page
   block text
     text F sharp sits in the bottom space. On the guitar it's the 4th fret of the D string.
   block staff
-    notes F#3
+    notes F#3/1
   block fretboard
     frets 0 5
     lit 3:4
@@ -1576,13 +1912,24 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes E3 F3 G3 F#3
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
 
 chapter C sharp on the A string
 page
   block text
     text C sharp sits on the 1st ledger line below the staff. On the guitar it's the 4th fret of the A string.
   block staff
-    notes C#3
+    notes C#3/1
   block fretboard
     frets 0 5
     lit 2:4
@@ -1628,13 +1975,24 @@ page
     tempo 90 120 5
     challenge 100
     pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes B2 C3 D3 C#3
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
+    pass 87
 
 chapter F sharp on the low E string
 page
   block text
     text F sharp sits on the 3rd ledger line below the staff. On the guitar it's the 2nd fret of the low E string.
   block staff
-    notes F#2
+    notes F#2/1
   block fretboard
     frets 0 4
     lit 1:2
@@ -1679,6 +2037,17 @@ page
     bars 10
     tempo 90 120 5
     challenge 100
+    pass 87
+  block exercise Challenge: in rhythm
+    id 6
+    gate no
+    goal 1
+    type reading
+    notes E2 F2 G2 F#2
+    cells quarter half whole rest eighths dotted_half offbeat dotted_quarter sixteenths triplets dotted
+    bars 8
+    tempo 60 90 5
+    challenge 70
     pass 87
 
 
