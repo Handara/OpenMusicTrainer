@@ -810,7 +810,7 @@ static void runMenus(){
             if (learnWantsEditor()){
                 closeLearnScreen();
                 openLessonEditor({app.resourcesDir + "lessons", app.userLessonsDir, app.resourcesDir + "exercises", app.userExercisesDir,
-                                  { app.resourcesDir + "songs", app.userSongsDir }});
+                                  { app.resourcesDir + "songs", app.userSongsDir }, app.settings});
                 app.screen = Screen::LessonEditor;
             }
             break;

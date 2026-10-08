@@ -3,9 +3,13 @@
 #include "core/chart.h"
 #include "core/files.h"
 #include "core/lessondoc.h"
+#include "core/music.h"
 #include "core/songlibrary.h"
 #include "imgui.h"
 #include "imgui_stdlib.h"
+#include "input/keynotes.h"
+#include "input/keysinput.h"
+#include "input/noteinput.h"
 #include "learn/exercise.h"
 #include "learn/lessonpage.h"
 #include "raylib.h"
@@ -100,6 +104,14 @@ static struct {
     Drag drag;
 
     std::unique_ptr<Exercise> tryout;      // the lesson played from a page, while it's tried out
+    // Notes being recorded from the instrument into a block's setting (a staff's notes, an exercise's): where, and
+    // what's heard
+    bool recording = false;
+    BlockPlace recordPlace;
+    std::string recordKey;                 // "notes": the staff's own; "x:notes": its exercise's
+    bool recordPiano = false;              // from the keys (MIDI or the computer keyboard), else the input
+    int lastHeard = -1;
+    std::string recordError;
     bool active = false;
 } ed;
 
@@ -196,7 +208,15 @@ static void keepChoiceInside(){
     }
 }
 
+static void stopRecording(){
+    if (!ed.recording) return;
+    if (ed.recordPiano) stopKeysInput();
+    else stopNoteInput();
+    ed.recording = false;
+}
+
 static void choose(Picked picked, int section = 0, BlockPlace block = {}){
+    stopRecording(); // (into what was chosen)
     ed.picked = picked;
     ed.section = section;
     ed.block = block;
@@ -499,6 +519,80 @@ static bool undoableInput(const char* id, std::string* value, bool multiline = f
     return edited;
 }
 
+// --- Recording notes ---------------------------------------------------------------------------------------------------
+
+// Notes played on the lesson's instrument written into the chosen block's setting as they're heard: `key` "notes" (a
+// staff's) or "x:notes" (its exercise's). On a piano, from the keys (MIDI, or the computer keyboard laid out as one);
+// else from the player's input. All of it one change to undo.
+static void startRecording(const std::string& key){
+    stopRecording();
+    ed.recordPiano = ed.doc.instrument == ExerciseInstrument::Piano;
+    ed.recordError.clear();
+    if (ed.recordPiano) startKeysInput(ed.setup.settings, 48);
+    else {
+        const InputRole role = ed.doc.instrument == ExerciseInstrument::Bass ? InputRole::Bass : InputRole::Guitar;
+        const float lowest = midiToFrequency(role == InputRole::Bass ? 28.0f : 40.0f) * 0.9f;
+        std::string error;
+        if (!startNoteInput(ed.setup.settings.inputDevice, lowest, error, channelFor(ed.setup.settings, role))){
+            ed.recordError = "Can't listen to the instrument: " + error;
+            return;
+        }
+    }
+    beforeChange();
+    ed.recording = true;
+    ed.recordPlace = ed.block;
+    ed.recordKey = key;
+    ed.lastHeard = -1;
+}
+
+static void recordNotes(){
+    if (!ed.recording) return;
+    LessonBlock* block = blockPointer(ed.doc, ed.recordPlace);
+    if (!block){
+        stopRecording();
+        return;
+    }
+    std::vector<int> heard;
+    if (ed.recordPiano) for (const PlayedNote& note : updateKeysInput()) heard.push_back(note.pitch);
+    else for (const PlayedNote& note : updateNoteInput()) heard.push_back(note.pitch);
+    // The computer keyboard's note names too (A to G), in the octave of the last note heard; not while typing, nor
+    // when the computer keyboard is the piano (its letters are keys)
+    if (!ImGui::GetIO().WantTextInput && !ImGui::GetIO().KeyCtrl && !(ed.recordPiano && !keysInputIsMidi())){
+        const int named = keyboardNoteClass();
+        if (named >= 0) heard.push_back(nearestPitchOfClass(named, ed.lastHeard >= 0 ? ed.lastHeard : ed.recordPiano ? 60 : 64));
+    }
+    for (int pitch : heard){
+        const std::string name = std::string(pitchClassName(pitch)) + std::to_string(pitchOctave(pitch));
+        if (ed.recordKey == "notes") setBlockValue(*block, "notes", blockValue(*block, "notes").empty() ? name : blockValue(*block, "notes") + " " + name);
+        else {
+            const std::string notes = exerciseSetting(*block, "notes");
+            std::string error;
+            setExerciseSetting(*block, "notes", notes.empty() ? name : notes + " " + name, error);
+        }
+        ed.lastHeard = pitch;
+        ed.fields.erase(ed.recordKey);
+        ed.fields.erase("lines");
+        changed();
+    }
+}
+
+// The button that starts and stops it, and what's been heard
+static void recordButton(const std::string& key){
+    const bool here = ed.recording && ed.recordKey == key;
+    const char* whose = ed.doc.instrument == ExerciseInstrument::Piano ? "the keys" : ed.doc.instrument == ExerciseInstrument::Bass ? "your bass" : "your guitar";
+    if (ImGui::Button(here ? "Stop recording" : TextFormat("Record from %s", whose))){
+        if (here) stopRecording();
+        else startRecording(key);
+    }
+    if (here) dimText(ed.lastHeard >= 0 ? TextFormat("Listening: %s%d, and on. (Note names on the keyboard work too.)", pitchClassName(ed.lastHeard), pitchOctave(ed.lastHeard))
+                                       : "Listening: play the notes, one at a time (or type their names, A to G).");
+    if (!ed.recordError.empty()){
+        ImGui::PushStyleColor(ImGuiCol_Text, uiColorVec(UiColor::Bad));
+        ImGui::TextWrapped("%s", ed.recordError.c_str());
+        ImGui::PopStyleColor();
+    }
+}
+
 // --- The outline: pages, and what to add --------------------------------------------------------------------------------
 
 static void outlinePanel(float s){
@@ -617,6 +711,7 @@ static void exerciseForm(LessonBlock& block){
             ImGui::SetNextItemWidth(-1);
             if (ImGui::InputTextWithHint(id.c_str(), field.standard, &ed.fields[key])) apply(ed.fields[key]);
             if (ImGui::IsItemActivated()) beforeChange();
+            if (field.key == std::string("notes") && (type == "notes" || type == "reading")) recordButton("x:notes");
         }
         dimText(field.description);
     }
@@ -828,6 +923,7 @@ static void blockField(LessonBlock& block, const BlockField& field){
                     changed();
                 } else ed.fieldErrors = problem;
             }
+            if (block.type == BlockType::Staff && field.key == std::string("notes")) recordButton("notes");
             break;
         }
     }
@@ -1264,6 +1360,7 @@ static LessonEditorChoice lessonList(){
 }
 
 static void leaveLesson(){
+    stopRecording();
     releasePageMedia(ed.media);
     ed.editing = false;
     refreshLists(); // a new copy, a new title or a fixed problem shows in the list
@@ -1272,6 +1369,7 @@ static void leaveLesson(){
 // The lesson played from the page shown, as a student would (its progress apart): Esc comes back to making it
 static void startTryout(){
     if (ed.doc.pages.empty()) return;
+    stopRecording();
     releasePageMedia(ed.media);
     LessonEntry entry;
     entry.folder = ed.folder;
@@ -1332,6 +1430,8 @@ static void lessonEditing(){
     if (barButton("Redo", false, !ed.redos.empty())) redo();
     if (barButton("Undo", false, !ed.undos.empty())) undo();
 
+    recordNotes();
+
     // The three panels: the outline, the page, the inspector
     const float top = TOP_BAR * s, bottom = height - PANEL_GAP * s;
     const float outlineRight = left + OUTLINE_WIDTH * s, inspectorLeft = width - left - INSPECTOR_WIDTH * s;
@@ -1369,7 +1469,7 @@ static void lessonEditing(){
         if (io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_DownArrow)) moveChosen(1);
         if (ImGui::IsKeyPressed(ImGuiKey_PageUp)) showPage(ed.page - 1);
         if (ImGui::IsKeyPressed(ImGuiKey_PageDown)) showPage(ed.page + 1);
-        if (!io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_T, false)) startTryout();
+        if (!io.KeyCtrl && !ed.recording && ImGui::IsKeyPressed(ImGuiKey_T, false)) startTryout();
         if (ImGui::IsKeyPressed(ImGuiKey_Escape)) requestBack = true;
     }
     if (requestBack){
@@ -1422,6 +1522,7 @@ LessonEditorChoice lessonEditorScreen(){
 
 void closeLessonEditor(){
     if (!ed.active) return;
+    stopRecording();
     ed.tryout.reset();
     releasePageMedia(ed.media);
     ed.active = false;

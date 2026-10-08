@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/settings.h"
+
 #include <string>
 #include <vector>
 
@@ -15,6 +17,7 @@ struct LessonEditorSetup {
     std::string builtInExercises; // exercise steps name exercises: the editor lists them to pick from
     std::string userExercises;
     std::vector<std::string> songFolders; // the game's songs, for song blocks to play
+    Settings settings;                    // the player's input: notes are recorded from it
 };
 
 void openLessonEditor(const LessonEditorSetup& setup);
