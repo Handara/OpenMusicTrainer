@@ -211,6 +211,20 @@ void toggleLitKey(LessonBlock& block, int pitch);
 // A new layout: blocks of columns it no longer has go to the end of its last
 void setSectionLayout(LessonSection& section, SectionLayout layout);
 
+// --- Templates: something to start from -------------------------------------------------------------------------
+
+struct LessonTemplate {
+    const char* id;          // "new-note"
+    const char* name;        // "A new note"
+    const char* description;
+};
+// Pages to add: blank, explain, a drill, a song, a question, help (set aside)
+const std::vector<LessonTemplate>& pageTemplates();
+LessonPage makePage(const std::string& templateId, ExerciseInstrument instrument);
+// Whole lessons: blank, a new note, a riff, ear training
+const std::vector<LessonTemplate>& lessonTemplates();
+LessonDoc makeLesson(const std::string& templateId, const std::string& title, ExerciseInstrument instrument);
+
 // --- Lessons in folders --------------------------------------------------------------------------------------------
 
 struct LessonEntry {

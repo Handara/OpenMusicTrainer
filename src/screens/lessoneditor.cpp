@@ -73,6 +73,8 @@ static struct {
     std::vector<ExerciseEntry> exercises;  // for exercise blocks to name
     std::vector<SongEntry> songs;          // the game's songs, for song blocks to play
     std::string newLessonName;
+    int newTemplate = 0;                   // the new lesson's template (lessonTemplates), and its instrument
+    int newInstrument = 1;                 //   (as ExerciseInstrument: guitar)
     bool focusName = false;                // the keyboard in the new lesson's name field, next frame
     std::string listError;
 
@@ -282,13 +284,14 @@ static void addSection(SectionLayout layout){
     changed();
 }
 
-static void addPage(){
+// A page from a template (core/lessondoc pageTemplates), after the one shown
+static void addPage(const std::string& templateId){
     beforeChange();
     const int at = ed.doc.pages.empty() ? 0 : ed.page + 1;
-    LessonPage page;
-    page.title = "A new page";
-    page.sections.push_back(makeSection(SectionLayout::Single));
-    page.sections[0].columns[0].push_back(makeBlock(BlockType::Text));
+    LessonPage page = makePage(templateId, ed.doc.instrument);
+    // Its title its own (a page a block sends the student to is found by it)
+    const std::string title = page.title;
+    for (int n = 2; findPage(ed.doc, page.title) >= 0; n++) page.title = title + " " + std::to_string(n);
     ed.doc.pages.insert(ed.doc.pages.begin() + at, page);
     releasePageMedia(ed.media);
     ed.page = at;
@@ -413,16 +416,8 @@ static void createLesson(){
         ed.listError = "There's already a lesson folder called '" + folderName + "'";
         return;
     }
-    // Something to start from: a page with a heading and a few words
-    LessonDoc doc;
-    doc.title = ed.newLessonName;
-    LessonPage page;
-    page.title = "Welcome";
-    page.sections.push_back(makeSection(SectionLayout::Single));
-    LessonBlock text = makeBlock(BlockType::Text);
-    setBlockValues(text, "text", { "What this lesson is about, in a few words." });
-    page.sections[0].columns[0].push_back(text);
-    doc.pages.push_back(page);
+    // Something to start from: the template chosen, for the instrument chosen
+    const LessonDoc doc = makeLesson(lessonTemplates()[(size_t)ed.newTemplate].id, ed.newLessonName, (ExerciseInstrument)ed.newInstrument);
     std::string error;
     if (!saveLessonDoc(folder.string(), doc, error)){
         ed.listError = error;
@@ -517,7 +512,14 @@ static void outlinePanel(float s){
             choose(Picked::Page);
         }
     }
-    if (ImGui::Button("+ Page", ImVec2(-1, 0))) addPage();
+    if (ImGui::Button("+ Page", ImVec2(-1, 0))) ImGui::OpenPopup("page templates");
+    if (ImGui::BeginPopup("page templates")){
+        for (const LessonTemplate& kind : pageTemplates()){
+            if (ImGui::Selectable(kind.name)) addPage(kind.id);
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", kind.description);
+        }
+        ImGui::EndPopup();
+    }
 
     panelHeading("ADD A BLOCK");
     dimText("Added after the block chosen. Or drag it onto the page.");
@@ -1166,12 +1168,12 @@ static void lessonCard(bool naming, const LessonEntry* entry, float s){
     const float cardWidth = width * 0.35f, pad = 26 * s, inner = cardWidth - 2 * pad;
     const std::string title = naming ? "New lesson" : entry->lesson.title;
     const std::string detail = naming ? "" : TextFormat("%d %s", (int)entry->doc.pages.size(), entry->doc.pages.size() == 1 ? "page" : "pages");
-    const std::string hint = naming ? "A page to start from; add blocks and pages as you go" : (entry->builtIn ? "Built in: saving makes your own copy" : "Yours");
+    const std::string hint = naming ? lessonTemplates()[(size_t)ed.newTemplate].description : (entry->builtIn ? "Built in: saving makes your own copy" : "Yours");
     const std::string& error = naming ? ed.listError : entry->error;
     const float titleHeight = fonts.bold->CalcTextSizeA(24 * s, FLT_MAX, inner, title.c_str()).y;
     const float errorHeight = error.empty() ? 0.0f : fonts.text->CalcTextSizeA(15 * s, FLT_MAX, inner, error.c_str()).y + 12 * s;
-    const float fieldHeight = naming ? ImGui::GetFrameHeight() + 14 * s : 0.0f;
-    const float cardHeight = pad * 2 + titleHeight + 12 * s + fieldHeight + (detail.empty() ? 0 : 18 * s) + 10 * s + 16 * s + errorHeight;
+    const float fieldHeight = naming ? 3 * (ImGui::GetFrameHeight() + 10 * s) + 4 * s : 0.0f;
+    const float cardHeight = pad * 2 + titleHeight + 12 * s + fieldHeight + (naming ? ImGui::GetFrameHeight() + 10 * s : 0.0f) + (detail.empty() ? 0 : 18 * s) + 10 * s + 16 * s + errorHeight;
     draw->AddRectFilled(ImVec2(card.x, card.y + 3 * s), ImVec2(card.x + cardWidth, card.y + cardHeight + 3 * s), uiColor(UiColor::Ink, 0.04f), 10 * s);
     draw->AddRectFilled(card, ImVec2(card.x + cardWidth, card.y + cardHeight), uiColor(UiColor::Card), 10 * s);
     float x = card.x + pad, y = card.y + pad;
@@ -1185,7 +1187,24 @@ static void lessonCard(bool naming, const LessonEntry* entry, float s){
         ed.focusName = false;
         if (ImGui::InputTextWithHint("##name", "Its name", &ed.newLessonName, ImGuiInputTextFlags_EnterReturnsTrue)) createLesson();
         if (ImGui::IsItemEdited()) ed.listError.clear(); // the complaint was about the old name
+        // What it starts from, and what it's played on
+        ImGui::SetCursorScreenPos(ImVec2(x, y + ImGui::GetFrameHeight() + 10 * s));
+        ImGui::SetNextItemWidth(inner);
+        if (ImGui::BeginCombo("##template", lessonTemplates()[(size_t)ed.newTemplate].name)){
+            for (int i = 0; i < (int)lessonTemplates().size(); i++){
+                if (ImGui::Selectable(lessonTemplates()[(size_t)i].name, i == ed.newTemplate)) ed.newTemplate = i;
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", lessonTemplates()[(size_t)i].description);
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::SetCursorScreenPos(ImVec2(x, y + 2 * (ImGui::GetFrameHeight() + 10 * s)));
+        ImGui::SetNextItemWidth(inner);
+        const char* instruments[] = { "Any instrument", "Guitar", "Bass", "Piano" };
+        ImGui::Combo("##instrument", &ed.newInstrument, instruments, 4);
         y += fieldHeight;
+        ImGui::SetCursorScreenPos(ImVec2(x, y));
+        if (ImGui::Button("Create", ImVec2(inner, 0))) createLesson();
+        y += ImGui::GetFrameHeight() + 10 * s;
     }
     if (!detail.empty()){
         draw->AddText(fonts.bold, 18 * s, ImVec2(x, y), uiColor(UiColor::Accent), detail.c_str());

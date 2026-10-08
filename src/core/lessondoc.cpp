@@ -955,6 +955,192 @@ void setSectionLayout(LessonSection& section, SectionLayout layout){
     section.layout = layout;
 }
 
+// --- Templates -----------------------------------------------------------------------------------------------------
+
+namespace {
+
+// A note to start from on each instrument (a lesson's maker changes it): where it is, and its name
+struct SampleNote {
+    std::string name;    // "F4"
+    std::string place;   // on the neck, "6:1"; a piano's: none
+    std::string around;  // its neighbours, for the drills that mix: "E4 F4 G4"
+};
+SampleNote sampleNote(ExerciseInstrument instrument){
+    switch (instrument){
+        case ExerciseInstrument::Bass: return { "C3", "4:5", "A2 B2 C3" };
+        case ExerciseInstrument::Piano: return { "D4", "", "C4 D4 E4" };
+        default: return { "F4", "6:1", "E4 F4 G4" };
+    }
+}
+
+LessonBlock textBlock(const std::vector<std::string>& paragraphs){
+    LessonBlock block = makeBlock(BlockType::Text);
+    setBlockValues(block, "text", paragraphs);
+    return block;
+}
+
+LessonBlock calloutBlock(const char* style, const std::string& words){
+    LessonBlock block = makeBlock(BlockType::Callout);
+    setBlockValue(block, "style", style);
+    setBlockValues(block, "text", { words });
+    return block;
+}
+
+// Where the note is: on the neck, or on the keys
+LessonBlock whereBlock(ExerciseInstrument instrument, const SampleNote& note){
+    if (instrument == ExerciseInstrument::Piano){
+        LessonBlock keys = makeBlock(BlockType::Keyboard);
+        setBlockValue(keys, "from", "C4");
+        setBlockValue(keys, "to", "B4");
+        setBlockValue(keys, "lit", note.name);
+        return keys;
+    }
+    LessonBlock neck = makeBlock(BlockType::Fretboard);
+    setBlockValue(neck, "frets", "0 5");
+    setBlockValue(neck, "lit", note.place);
+    return neck;
+}
+
+// A drill made in the lesson, of a kind, with these notes (on the lesson's instrument)
+LessonBlock drillBlock(const std::string& name, const char* type, const std::string& notes, ExerciseInstrument instrument, const char* extra = ""){
+    LessonBlock block = makeBlock(BlockType::Exercise);
+    block.name = name;
+    std::string lines = std::string("type ") + type + "\nnotes " + notes + "\n" + extra;
+    if (instrument == ExerciseInstrument::Piano) lines += "instrument piano\n";
+    else if (instrument == ExerciseInstrument::Bass) lines += std::string(type) == "reading" ? "tuning 28 33 38 43\n" : "instrument bass\n";
+    std::string error;
+    setBlockExercise(block, lines, error);
+    return block;
+}
+
+LessonPage pageOf(const std::string& title, std::vector<LessonSection> sections){
+    LessonPage page;
+    page.title = title;
+    page.sections = std::move(sections);
+    return page;
+}
+
+LessonSection single(std::vector<LessonBlock> blocks){
+    LessonSection section = makeSection(SectionLayout::Single);
+    section.columns[0] = std::move(blocks);
+    return section;
+}
+
+LessonSection wideNarrow(std::vector<LessonBlock> wide, std::vector<LessonBlock> narrow){
+    LessonSection section = makeSection(SectionLayout::WideNarrow);
+    section.columns[0] = std::move(wide);
+    section.columns[1] = std::move(narrow);
+    return section;
+}
+
+} // namespace
+
+const std::vector<LessonTemplate>& pageTemplates(){
+    static const std::vector<LessonTemplate> templates = {
+        { "blank", "Blank", "A title and a few words" },
+        { "explain", "Explain", "Words beside the neck (or the keys), a tip under them" },
+        { "drill", "A drill", "A few words, then a drill to pass" },
+        { "song", "A song", "A few bars of one of the game's songs, slowly" },
+        { "question", "A question", "A question, its answer hidden behind a button" },
+        { "help", "Help", "Set aside: shown when a drill's missed twice, then back" },
+    };
+    return templates;
+}
+
+LessonPage makePage(const std::string& id, ExerciseInstrument instrument){
+    const SampleNote note = sampleNote(instrument);
+    if (id == "explain")
+        return pageOf("A new page", { wideNarrow({ textBlock({ "What it is, in a few words. Notes can be clicked to hear them: [" + note.name + "]." }),
+                                                   calloutBlock("tip", "Something that makes it easier.") },
+                                                 { whereBlock(instrument, note) }) });
+    if (id == "drill")
+        return pageOf("Play it", { single({ textBlock({ "What to do, in a line." }), drillBlock("Play it", "notes", note.around, instrument, "show staff\n") }) });
+    if (id == "song"){
+        LessonBlock song = makeBlock(BlockType::Play);
+        setBlockValue(song, "song", "first-light");
+        setBlockValue(song, "bars", "1 4");
+        setBlockValue(song, "tempo", "70");
+        song.name = "The first four bars, slowly";
+        return pageOf("Play along", { single({ textBlock({ "Which bars, and what to listen for." }), song }) });
+    }
+    if (id == "question"){
+        LessonBlock reveal = makeBlock(BlockType::Reveal);
+        setBlockValue(reveal, "label", "Show the answer");
+        setBlockValues(reveal, "text", { "The answer: [" + note.name + "]." });
+        return pageOf("A question", { single({ textBlock({ "Which note is this?" }), reveal }) });
+    }
+    if (id == "help"){
+        LessonPage page = pageOf("Some help", { wideNarrow({ textBlock({ "The same thing again, slower, another way." }) },
+                                                         { whereBlock(instrument, note) }) });
+        page.aside = true;
+        return page;
+    }
+    return pageOf("A new page", { single({ textBlock({ "Write here." }) }) });
+}
+
+const std::vector<LessonTemplate>& lessonTemplates(){
+    static const std::vector<LessonTemplate> templates = {
+        { "blank", "Blank", "One page to start from" },
+        { "new-note", "A new note", "Meet it, play it, mix it with its neighbours; help when it's missed; practice to end" },
+        { "riff", "Learn a riff", "A few bars of a song: listen, play them slowly, then at full speed" },
+        { "ear", "Ear training", "Notes heard and played back, then intervals by name" },
+    };
+    return templates;
+}
+
+LessonDoc makeLesson(const std::string& id, const std::string& title, ExerciseInstrument instrument){
+    LessonDoc doc;
+    doc.title = title;
+    doc.instrument = instrument;
+    const SampleNote note = sampleNote(instrument);
+    if (id == "new-note"){
+        doc.description = "A new note: where it is, how it's written, and playing it.";
+        LessonPage meet = makePage("explain", instrument);
+        meet.title = "Meet " + note.name.substr(0, note.name.size() - 1);
+        LessonBlock first = drillBlock("Play it", "notes", note.name, instrument, "show staff\ncount 4\npass 3\n");
+        setBlockValue(first, "help", "Finding it");
+        LessonPage play = pageOf("Play it", { single({ textBlock({ "It lights on the staff: play it." }), first }) });
+        LessonPage mix = pageOf("With its neighbours", { single({ textBlock({ "Now among the notes around it, read to a beat." }),
+                                                                  drillBlock("Read them to a beat", "reading", note.around, instrument,
+                                                                             "cells quarter\nbars 8\ntempo 80 110 5\nchallenge 90\npass 87\n") }) });
+        LessonPage help = makePage("help", instrument);
+        help.title = "Finding it";
+        LessonBlock practice = makeBlock(BlockType::Practice);
+        setBlockValue(practice, "from", "lesson");
+        practice.name = "Once more";
+        LessonPage done = pageOf("Well done", { single({ calloutBlock("remember", "The one thing to remember about it."), practice }) });
+        doc.pages = { meet, play, mix, help, done };
+    } else if (id == "riff"){
+        doc.description = "A riff from one of the game's songs, a little at a time.";
+        LessonBlock slowly = makeBlock(BlockType::Play), full = makeBlock(BlockType::Play);
+        for (LessonBlock* song : { &slowly, &full }){
+            setBlockValue(*song, "song", "first-light");
+            setBlockValue(*song, "bars", "1 4");
+        }
+        setBlockValue(slowly, "tempo", "70");
+        slowly.name = "Slowly";
+        full.name = "At full speed";
+        doc.pages = {
+            pageOf("Listen", { single({ textBlock({ "What the riff is, and what to listen for in it." }),
+                                        calloutBlock("tip", "Choose the song and its bars in the song blocks on the next pages.") }) }),
+            pageOf("Slowly", { single({ textBlock({ "Its first bars, at 70%." }), slowly }) }),
+            pageOf("At full speed", { single({ textBlock({ "The same bars, as the song has them." }), full }) }),
+        };
+    } else if (id == "ear"){
+        doc.description = "Notes heard, played back; then how far apart two notes are.";
+        LessonBlock intervals = makeBlock(BlockType::Exercise);
+        intervals.name = "Fifth or third?";
+        std::string error;
+        setBlockExercise(intervals, "type intervals\ndirection up\nintervals 7 4\nstart 2", error);
+        doc.pages = {
+            pageOf("Hear it, play it", { single({ textBlock({ "lahn plays a note: find it and play it back." }),
+                                                  drillBlock("By ear", "notes", note.around, instrument, "show ear\nwhere yes\n") }) }),
+            pageOf("How far apart?", { single({ textBlock({ "Two notes: a fifth, or a third?" }), intervals }) }),
+        };
+    } else doc.pages = { makePage("blank", instrument) };
+    return doc;
+}
+
 // --- Lessons in folders --------------------------------------------------------------------------------------------
 
 std::string practiceExercise(const LessonBlock& block, const std::vector<int>& pitches, ExerciseInstrument instrument){

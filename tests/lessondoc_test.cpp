@@ -424,6 +424,29 @@ TEST_CASE("marking by clicking: a neck's place cycles a note, lit, nothing; a ke
     CHECK(blockValue(keys, "lit") == "C4 D4 G4"); // in order
 }
 
+TEST_CASE("templates: every page and lesson, on every instrument, is one that plays"){
+    for (ExerciseInstrument instrument : { ExerciseInstrument::Guitar, ExerciseInstrument::Bass, ExerciseInstrument::Piano }){
+        for (const LessonTemplate& kind : pageTemplates()){
+            LessonDoc doc;
+            doc.title = "T";
+            doc.pages = { makePage(kind.id, instrument) };
+            LessonDoc read;
+            std::string error;
+            CHECK_MESSAGE(parseLessonDoc(writeLessonDoc(doc), kind.id, read, error), kind.id << ": " << error);
+        }
+        for (const LessonTemplate& kind : lessonTemplates()){
+            const LessonDoc doc = makeLesson(kind.id, "A lesson", instrument);
+            CHECK(doc.title == "A lesson");
+            CHECK(doc.instrument == instrument);
+            LessonDoc read;
+            std::string error;
+            CHECK_MESSAGE(parseLessonDoc(writeLessonDoc(doc), kind.id, read, error), kind.id << ": " << error);
+        }
+    }
+    CHECK(makePage("help", ExerciseInstrument::Guitar).aside);
+    CHECK(makeLesson("new-note", "N", ExerciseInstrument::Piano).pages[0].sections[0].columns[1][0].type == BlockType::Keyboard);
+}
+
 TEST_CASE("a draft: blocks still missing what they need are kept, and read back"){
     LessonDoc doc;
     doc.title = "Draft";
