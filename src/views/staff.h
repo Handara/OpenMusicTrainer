@@ -29,6 +29,8 @@ void setStaffClip(const Rectangle* clip);
 // Every bar side by side, the same width each, none faded or turned to (an example on a page, not music playing);
 // until it's set back
 void setStaffAllBars(bool all);
+// The staff position (0 the bottom line, 1 the space above...) at a height in a staff drawn in `area`
+int staffPositionAt(Rectangle area, float y);
 // Where a note is in the staff as it was last drawn (over it), for showing its judgement there. False when the staff
 // isn't being drawn, or the note isn't on the page.
 bool staffNoteAt(int noteIndex, float& x, float& y);

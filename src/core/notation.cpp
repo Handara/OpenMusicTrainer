@@ -98,3 +98,11 @@ std::string keySignatureName(const KeySignature& key){
     if (tonic < 0) name += 'b';
     return name + (key.minor ? " minor" : " major");
 }
+
+int writtenPitchAt(int position, const KeySignature& key, Clef clef){
+    for (int pitch = 0; pitch < 128; pitch++){
+        const StaffNote note = staffNote(pitch, key, clef);
+        if (note.position == position && note.alteration == keyAlteration(key, note.letter)) return pitch;
+    }
+    return -1;
+}

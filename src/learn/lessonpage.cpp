@@ -344,6 +344,15 @@ float drawStaffBlock(const BlockContext& c, const LessonBlock& block, ImVec2 at,
     drawStaff({ at.x, at.y, width, height }, notes, score, axis);
     setStaffAllBars(false);
     setStaffClip(nullptr);
+    // In the maker, a click on the staff: the note at that line or space (the key's), for the maker to write
+    const ImVec2 mouse = ImGui::GetIO().MousePos;
+    if (c.editing && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && mouse.x >= at.x && mouse.x <= at.x + width && mouse.y >= at.y && mouse.y <= at.y + height){
+        const int written = writtenPitchAt(staffPositionAt({ at.x, at.y, width, height }, mouse.y), key, score.clef);
+        if (written >= 0){
+            c.events.mark = { c.section, c.column, c.block, -1, -1, written - score.writtenShift };
+            soundNote(c.instrument, written - score.writtenShift);
+        }
+    }
     float y = height;
     if (blockValue(block, "listen") == "yes"){
         y += 8 * s;

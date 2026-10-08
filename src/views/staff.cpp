@@ -487,6 +487,11 @@ static void endBarClip(){
     else EndScissorMode();
 }
 
+int staffPositionAt(Rectangle area, float y){
+    const float space = area.height / STAFF_SPACES_TALL, bottomLineY = area.y + area.height - 5.0f * space;
+    return (int)std::lround((bottomLineY - y) / (space / 2));
+}
+
 static bool allBars = false;
 void setStaffAllBars(bool all){ allBars = all; }
 

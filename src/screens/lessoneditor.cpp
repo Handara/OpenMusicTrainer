@@ -109,6 +109,10 @@ static struct {
     std::unique_ptr<Exercise> tryout;      // the lesson played from a page, while it's tried out
     // Notes being recorded from the instrument into a block's setting (a staff's notes, an exercise's): where, and
     // what's heard
+    // Writing a staff's music: the length a note written next gets (1 a whole... 16 a sixteenth), dotted, a triplet's
+    int writeValue = 4;
+    bool writeDot = false, writeTriplet = false;
+    int lastWritten = -1;                  // the last note written: a name typed is taken in its octave
     bool recording = false;
     BlockPlace recordPlace;
     std::string recordKey;                 // "notes": the staff's own; "x:notes": its exercise's
@@ -709,6 +713,94 @@ static bool undoableInput(const char* id, std::string* value, bool multiline = f
     return edited;
 }
 
+// --- Writing a staff's music ---------------------------------------------------------------------------------------------
+
+// The length chosen, in ticks (core/lessondoc StaffEvent)
+static int writeTicks(){
+    const int base = STAFF_TICKS_A_BEAT * 4 / ed.writeValue;
+    return base * (ed.writeDot ? 3 : 2) / 2 * (ed.writeTriplet ? 2 : 3) / 3;
+}
+
+// One more note (or a rest: no pitches) at the end of a staff block's music, at the length chosen
+static void writeStaffEventAt(LessonBlock& block, std::vector<int> pitches){
+    std::vector<StaffEvent> events;
+    std::string error;
+    if (!blockValue(block, "notes").empty()) readStaffMusic(blockValue(block, "notes"), events, error);
+    StaffEvent event;
+    event.pitches = std::move(pitches);
+    event.ticks = writeTicks();
+    events.push_back(event);
+    setBlockValue(block, "notes", writeStaffMusic(events));
+    if (!event.pitches.empty()) ed.lastWritten = event.pitches.back();
+    ed.fields.erase("notes");
+}
+
+// How full the bar being written is: "Bar 2: 3 of 4 beats" ("Bar 3: full" once it is)
+static std::string barCount(const LessonBlock& block){
+    std::vector<StaffEvent> events;
+    std::string error;
+    readStaffMusic(blockValue(block, "notes"), events, error);
+    int ticks = 0;
+    for (const StaffEvent& event : events) ticks += event.ticks;
+    const int beats = std::clamp(std::atoi(blockValue(block, "time").c_str()), 2, 7), barTicks = beats * STAFF_TICKS_A_BEAT;
+    const int bar = ticks / barTicks + 1, into = ticks % barTicks;
+    if (into == 0 && ticks > 0) return TextFormat("Bar %d full: the next note starts bar %d", bar - 1, bar);
+    // Beats with their fractions: 2, 2½, 2¼, 2¾, a third...
+    const int whole = into / STAFF_TICKS_A_BEAT, part = into % STAFF_TICKS_A_BEAT;
+    const char* fraction = part == 0 ? "" : part == 240 ? " and a half" : part == 120 ? " and a quarter" : part == 360 ? " and three quarters"
+                         : part == 160 ? " and a third" : part == 320 ? " and two thirds" : " and a bit";
+    return TextFormat("Bar %d: %d%s of %d beats", bar, whole, fraction, beats);
+}
+
+// The staff's writing tools, under its music: the length a note gets, a rest, back one, clear; and how full the bar is
+static void staffWriter(LessonBlock& block){
+    const float s = menuScale();
+    ImGui::PushFont(uiFonts().bold, 15 * s);
+    ImGui::TextUnformatted("Write it");
+    ImGui::PopFont();
+    const std::pair<int, const char*> values[] = { { 1, "Whole" }, { 2, "Half" }, { 4, "Quarter" }, { 8, "Eighth" }, { 16, "16th" } };
+    for (size_t i = 0; i < 5; i++){
+        if (i > 0) ImGui::SameLine(0, 4 * s);
+        const bool chosen = ed.writeValue == values[i].first;
+        if (chosen) ImGui::PushStyleColor(ImGuiCol_Button, uiColorVec(UiColor::Accent));
+        if (chosen) ImGui::PushStyleColor(ImGuiCol_Text, uiColorVec(UiColor::Background));
+        if (ImGui::Button(values[i].second)) ed.writeValue = values[i].first;
+        if (chosen) ImGui::PopStyleColor(2);
+    }
+    ImGui::Checkbox("Dotted", &ed.writeDot);
+    ImGui::SameLine();
+    ImGui::Checkbox("Triplet", &ed.writeTriplet);
+    if (ImGui::Button("Rest")){
+        beforeChange();
+        writeStaffEventAt(block, {});
+        changed();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Back one")){
+        std::vector<StaffEvent> events;
+        std::string error;
+        if (readStaffMusic(blockValue(block, "notes"), events, error) && events.size() > 1){
+            beforeChange();
+            events.pop_back();
+            setBlockValue(block, "notes", writeStaffMusic(events));
+            ed.fields.erase("notes");
+            changed();
+        }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Clear")){
+        beforeChange();
+        setBlockValue(block, "notes", "r");
+        ed.fields.erase("notes");
+        changed();
+    }
+    ImGui::PushStyleColor(ImGuiCol_Text, uiColorVec(UiColor::Accent));
+    ImGui::TextUnformatted(barCount(block).c_str());
+    ImGui::PopStyleColor();
+    dimText("Notes go on at the length chosen: click on the staff where one goes (once it's chosen), type its name (A to G, "
+            "in the octave of the last), or play it (Record). Beams, rests and ties are written for you.");
+}
+
 // --- Recording notes ---------------------------------------------------------------------------------------------------
 
 // Notes played on the lesson's instrument written into the chosen block's setting as they're heard: `key` "notes" (a
@@ -753,7 +845,7 @@ static void recordNotes(){
     }
     for (int pitch : heard){
         const std::string name = std::string(pitchClassName(pitch)) + std::to_string(pitchOctave(pitch));
-        if (ed.recordKey == "notes") setBlockValue(*block, "notes", blockValue(*block, "notes").empty() ? name : blockValue(*block, "notes") + " " + name);
+        if (ed.recordKey == "notes") writeStaffEventAt(*block, { pitch }); // at the length chosen
         else {
             const std::string notes = exerciseSetting(*block, "notes");
             std::string error;
@@ -1137,7 +1229,10 @@ static void blockField(LessonBlock& block, const BlockField& field){
                     changed();
                 } else ed.fieldErrors = problem;
             }
-            if (block.type == BlockType::Staff && field.key == std::string("notes")) recordButton("notes");
+            if (block.type == BlockType::Staff && field.key == std::string("notes")){
+                recordButton("notes");
+                staffWriter(block);
+            }
             break;
         }
     }
@@ -1358,7 +1453,15 @@ static void canvas(ImVec2 min, ImVec2 max, float s){
     // A click on a neck or the keys marks it there: a note, lit, or nothing again
     if (events.mark.block >= 0 && hovering){
         const BlockPlace place{ ed.page, events.mark.section, events.mark.column, events.mark.block };
-        if (LessonBlock* block = blockPointer(ed.doc, place)){
+        const bool chosen = ed.picked == Picked::Block && ed.block.section == place.section && ed.block.column == place.column && ed.block.block == place.block;
+        LessonBlock* block = blockPointer(ed.doc, place);
+        if (block && block->type == BlockType::Staff){ // a staff written on once it's chosen (the first click chooses it)
+            if (chosen){
+                beforeChange();
+                writeStaffEventAt(*block, { events.mark.pitch });
+                changed();
+            }
+        } else if (block){
             beforeChange();
             if (events.mark.pitch >= 0) toggleLitKey(*block, events.mark.pitch);
             else cycleNeckPlace(*block, events.mark.string, events.mark.fret);
@@ -1785,6 +1888,16 @@ static void lessonEditing(){
         if (ImGui::IsKeyPressed(ImGuiKey_PageUp)) showPage(ed.page - 1);
         if (ImGui::IsKeyPressed(ImGuiKey_PageDown)) showPage(ed.page + 1);
         if (!io.KeyCtrl && !ed.recording && ImGui::IsKeyPressed(ImGuiKey_T, false)) startTryout();
+        // A staff chosen: a note's name typed writes it, at the length chosen (in the octave of the last one written)
+        if (ed.picked == Picked::Block && !ed.recording && !io.KeyCtrl && !io.KeyAlt)
+            if (LessonBlock* block = blockPointer(ed.doc, ed.block); block && block->type == BlockType::Staff){
+                const int named = keyboardNoteClass();
+                if (named >= 0){
+                    beforeChange();
+                    writeStaffEventAt(*block, { nearestPitchOfClass(named, ed.lastWritten >= 0 ? ed.lastWritten : ed.doc.instrument == ExerciseInstrument::Bass ? 43 : 60) });
+                    changed();
+                }
+            }
         if (ImGui::IsKeyPressed(ImGuiKey_Escape)) requestBack = true;
     }
     if (requestBack){

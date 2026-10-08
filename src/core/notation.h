@@ -38,6 +38,8 @@ struct KeySignature {
 // flat in flat keys.
 StaffNote staffNote(int writtenPitch, const KeySignature& key = {}, Clef clef = Clef::Treble);
 
+// The written pitch a staff position stands for, as the key spells it (the top line in G major: F#); -1 for none
+int writtenPitchAt(int position, const KeySignature& key = {}, Clef clef = Clef::Treble);
 // The key's alteration of a letter (0 = C ... 6 = B): +1 for F in G major, -1 for B in F major, else 0
 int keyAlteration(const KeySignature& key, int letter);
 // Where the key signature's sharps or flats sit on the staff, in the order they're written (index 0 first)
